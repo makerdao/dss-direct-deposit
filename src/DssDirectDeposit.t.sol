@@ -98,25 +98,39 @@ contract DssDirectDepositTest is DSTest {
     }
 
     function calculateLiquidityRequiredForTargetInterestRate(uint256 interestRate) public returns (uint256) {
+        require(interestRate <= interestStrategy.variableRateSlope2(), "above-max-interest");
+
         // Do inverse calc
         uint256 supplyAmount = adai.totalSupply();
         uint256 borrowAmount = supplyAmount - dai.balanceOf(address(adai));
         log_named_decimal_uint("supplyAmount", supplyAmount, 18);
         log_named_decimal_uint("borrowAmount", borrowAmount, 18);
-        uint256 targetUtil = (interestRate - interestStrategy.baseVariableBorrowRate()) * RAY / interestStrategy.variableRateSlope1();
+        uint256 targetUtil;
+        if (interestRate > interestStrategy.variableRateSlope1()) {
+            // Excess interest rate
+            targetUtil = (interestRate - interestStrategy.baseVariableBorrowRate() - interestStrategy.variableRateSlope1()) * interestStrategy.OPTIMAL_UTILIZATION_RATE() * interestStrategy.EXCESS_UTILIZATION_RATE() / interestStrategy.variableRateSlope2() / RAY + interestStrategy.OPTIMAL_UTILIZATION_RATE();
+        } else {
+            // Optimal interst rate
+            targetUtil = (interestRate - interestStrategy.baseVariableBorrowRate()) * interestStrategy.OPTIMAL_UTILIZATION_RATE() / interestStrategy.variableRateSlope1();
+        }
         log_named_decimal_uint("targetUtil", targetUtil, 27);
         uint256 targetSupply = borrowAmount * RAY / targetUtil;
         log_named_decimal_uint("targetSupply", targetSupply, 18);
-        return targetSupply - supplyAmount;
+        return targetSupply;
     }
 
     function test_set_aave_interest_rate() public {
         (,,,, uint256 borrowRate,,,,,,,) = pool.getReserveData(address(dai));
         log_named_decimal_uint("origBorrowRate", borrowRate, 27);
 
-        uint256 deltaSupply = calculateLiquidityRequiredForTargetInterestRate(3 * RAY / 100);
+        uint256 supplyAmount = adai.totalSupply();
+        uint256 targetSupply = calculateLiquidityRequiredForTargetInterestRate(1 * RAY / 100);
 
-        pool.deposit(address(dai), deltaSupply, address(this), 0);
+        if (targetSupply > supplyAmount) {
+            pool.deposit(address(dai), targetSupply - supplyAmount, address(this), 0);
+        } else if (targetSupply < supplyAmount) {
+            // Withdraw
+        }
 
         (,,,, borrowRate,,,,,,,) = pool.getReserveData(address(dai));
         log_named_decimal_uint("newBorrowRate", borrowRate, 27);
