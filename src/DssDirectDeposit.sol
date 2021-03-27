@@ -30,6 +30,19 @@ interface InterestRateStrategyLike {
     function variableRateSlope1() external view returns (uint256);
     function variableRateSlope2() external view returns (uint256);
     function baseVariableBorrowRate() external view returns (uint256);
+    function getMaxVariableBorrowRate() external view returns (uint256);
+    function calculateInterestRates(
+        address reserve,
+        uint256 availableLiquidity,
+        uint256 totalStableDebt,
+        uint256 totalVariableDebt,
+        uint256 averageStableBorrowRate,
+        uint256 reserveFactor
+    ) external returns (
+        uint256,
+        uint256,
+        uint256
+    );
 }
 
 interface ATokenLike is GemAbstract {
@@ -75,10 +88,11 @@ contract DssDirectDeposit {
     event Reap();
     event Cage();
 
-    constructor(address vat_, bytes32 ilk_, address pool_, address adai_, address daiJoin_) public {
+    constructor(address vat_, bytes32 ilk_, address pool_, address interestStrategy_, address adai_, address daiJoin_) public {
         // Sanity checks
         (,,,,,,,,,, address strategy,) = LendingPoolLike(pool_).getReserveData(ATokenLike(adai_).UNDERLYING_ASSET_ADDRESS());
         require(strategy != address(0), "DssDirectDeposit/invalid-atoken");
+        require(interestStrategy_ == strategy, "DssDirectDeposit/interest-strategy-doesnt-match");
         require(ATokenLike(adai_).UNDERLYING_ASSET_ADDRESS() == DaiJoinAbstract(daiJoin_).dai(), "DssDirectDeposit/must-be-dai");
 
         vat = VatAbstract(vat_);
@@ -86,7 +100,7 @@ contract DssDirectDeposit {
         pool = LendingPoolLike(pool_);
         adai = ATokenLike(adai_);
         daiJoin = DaiJoinAbstract(daiJoin_);
-        interestStrategy = InterestRateStrategyLike(strategy);
+        interestStrategy = InterestRateStrategyLike(interestStrategy_);
         dai = DaiAbstract(DaiJoinAbstract(daiJoin_).dai());
 
         wards[msg.sender] = 1;
@@ -120,8 +134,8 @@ contract DssDirectDeposit {
         require(live, "DssDirectDeposit/not-live");
 
         if (what == "bar") {
-            require(data > 0, "DssDirectDeposit/target-interest-non-zero");
-            require(data < interestStrategy.variableRateSlope2(), "DssDirectDeposit/above-max-interest");
+            require(data > 0, "DssDirectDeposit/target-interest-zero");
+            require(data <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDeposit/above-max-interest");
 
             bar = data;
         } else revert("DssDirectDeposit/file-unrecognized-param");
@@ -163,20 +177,21 @@ contract DssDirectDeposit {
     }
 
     // --- Automated Rate Targetting ---
-    function calculateTargetSupply() public returns (uint256) {
+    function calculateTargetSupply(uint256 targetInterestRate) public returns (uint256) {
+        require(targetInterestRate > 0, "DssDirectDeposit/target-interest-zero");
+        require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDeposit/above-max-interest");
+
         // Do inverse calculation of interestStrategy
         uint256 supplyAmount = adai.totalSupply();
-        uint256 borrowAmount = supplyAmount - dai.balanceOf(address(adai));
+        uint256 borrowAmount = sub(supplyAmount, dai.balanceOf(address(adai)));
         uint256 targetUtil;
-        if (bar > interestStrategy.variableRateSlope1()) {
+        if (targetInterestRate > interestStrategy.variableRateSlope1()) {
             // Excess interest rate
-            targetUtil = 
-                (bar - interestStrategy.baseVariableBorrowRate() -
-                interestStrategy.variableRateSlope1()) * interestStrategy.OPTIMAL_UTILIZATION_RATE() * interestStrategy.EXCESS_UTILIZATION_RATE() / interestStrategy.variableRateSlope2() / RAY +
-                interestStrategy.OPTIMAL_UTILIZATION_RATE();
+            uint256 r = targetInterestRate - interestStrategy.baseVariableBorrowRate() - interestStrategy.variableRateSlope1();
+            targetUtil = add(rdiv(rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r), interestStrategy.variableRateSlope2()), interestStrategy.OPTIMAL_UTILIZATION_RATE());
         } else {
             // Optimal interst rate
-            targetUtil = sub(bar, interestStrategy.baseVariableBorrowRate()) * interestStrategy.OPTIMAL_UTILIZATION_RATE() / interestStrategy.variableRateSlope1();
+            targetUtil = rdiv(rmul(sub(targetInterestRate, interestStrategy.baseVariableBorrowRate()), interestStrategy.OPTIMAL_UTILIZATION_RATE()), interestStrategy.variableRateSlope1());
         }
         return borrowAmount * RAY / targetUtil;
     }
@@ -185,7 +200,7 @@ contract DssDirectDeposit {
         require(bar > 0, "DssDirectDeposit/bar-not-set");
 
         uint256 supplyAmount = adai.totalSupply();
-        uint256 targetSupply = calculateTargetSupply();
+        uint256 targetSupply = calculateTargetSupply(bar);
 
         if (targetSupply > supplyAmount) {
             uint256 windTargetAmount = targetSupply - supplyAmount;
