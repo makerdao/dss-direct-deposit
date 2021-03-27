@@ -11,33 +11,6 @@ interface Hevm {
     function load(address,bytes32) external view returns (bytes32);
 }
 
-interface LendingPoolLike {
-    function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
-    function withdraw(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
-    function getReserveData(address asset) external view returns (
-        uint256,    // Configuration
-        uint128,    //the liquidity index. Expressed in ray
-        uint128,    //variable borrow index. Expressed in ray
-        uint128,    //the current supply rate. Expressed in ray
-        uint128,    //the current variable borrow rate. Expressed in ray
-        uint128,    //the current stable borrow rate. Expressed in ray
-        uint40,
-        address,
-        address,
-        address,
-        address,    //address of the interest rate strategy
-        uint8
-    );
-}
-
-interface InterestRateStrategyLike {
-    function OPTIMAL_UTILIZATION_RATE() external view returns (uint256);
-    function EXCESS_UTILIZATION_RATE() external view returns (uint256);
-    function variableRateSlope1() external view returns (uint256);
-    function variableRateSlope2() external view returns (uint256);
-    function baseVariableBorrowRate() external view returns (uint256);
-}
-
 contract DssDirectDepositTest is DSTest {
 
     uint256 constant RAY = 10 ** 27;
