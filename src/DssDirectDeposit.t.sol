@@ -31,6 +31,7 @@ contract DssDirectDepositTest is DSTest {
     DaiJoinAbstract daiJoin;
     DSTokenAbstract adai;
     SpotAbstract spot;
+    DSTokenAbstract weth;
 
     bytes32 constant ilk = "DD-DAI-A";
     DssDirectDeposit deposit;
@@ -49,6 +50,7 @@ contract DssDirectDepositTest is DSTest {
         daiJoin = DaiJoinAbstract(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
         interestStrategy = InterestRateStrategyLike(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
         spot = SpotAbstract(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
+        weth = DSTokenAbstract(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
         // Force give admin access to this contract via hevm magic
         giveAuthAccess(address(vat), address(this));
@@ -66,6 +68,13 @@ contract DssDirectDepositTest is DSTest {
         vat.rely(address(deposit));
         vat.init(ilk);
         vat.file(ilk, "line", 500_000_000 * RAD);
+
+        // Give us a bunch of WETH and deposit into Aave
+        uint256 amt = 1_000_000 * WAD;
+        giveTokens(weth, amt);
+        weth.approve(address(pool), uint256(-1));
+        dai.approve(address(pool), uint256(-1));
+        pool.deposit(address(weth), amt, address(this), 0);
     }
 
     // --- Math ---
@@ -110,6 +119,38 @@ contract DssDirectDepositTest is DSTest {
                 hevm.store(
                     address(base),
                     keccak256(abi.encode(target, uint256(i))),
+                    prevValue
+                );
+            }
+        }
+
+        // We have failed if we reach here
+        assertTrue(false);
+    }
+
+    function giveTokens(DSTokenAbstract token, uint256 amount) internal {
+        // Edge case - balance is already set for some reason
+        if (token.balanceOf(address(this)) == amount) return;
+
+        for (int i = 0; i < 100; i++) {
+            // Scan the storage for the balance storage slot
+            bytes32 prevValue = hevm.load(
+                address(token),
+                keccak256(abi.encode(address(this), uint256(i)))
+            );
+            hevm.store(
+                address(token),
+                keccak256(abi.encode(address(this), uint256(i))),
+                bytes32(amount)
+            );
+            if (token.balanceOf(address(this)) == amount) {
+                // Found it
+                return;
+            } else {
+                // Keep going after restoring the original value
+                hevm.store(
+                    address(token),
+                    keccak256(abi.encode(address(this), uint256(i))),
                     prevValue
                 );
             }
@@ -196,7 +237,7 @@ contract DssDirectDepositTest is DSTest {
         assertEq(vat.dai(address(deposit)), 0);
     }
 
-    function test_target_failed_increase() public {
+    function test_target_increase_insufficient_liquidity() public {
         uint256 currBorrowRate = getBorrowRate();
 
         // Attempt to increase by 25% (you can't)
@@ -212,6 +253,42 @@ contract DssDirectDepositTest is DSTest {
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(deposit)), 0);
         assertEq(vat.dai(address(deposit)), 0);
+    }
+
+    function test_insufficient_liquidity() public {
+        uint256 currentLiquidity = dai.balanceOf(address(adai));
+        uint256 startingBorrowRate = getBorrowRate();
+
+        // Lower by 50%
+        uint256 targetBorrowRate = getBorrowRate() * 50 / 100;
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+        
+        // Someone else borrows
+        uint256 amountSupplied = adai.balanceOf(address(deposit));
+        uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
+        pool.borrow(address(dai), amountToBorrow, 0, 0, address(this));
+
+        // Attempt to return back to the starting borrow rate
+        currentLiquidity = dai.balanceOf(address(adai));
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
+        deposit.file("bar", startingBorrowRate);
+        deposit.exec();
+
+        // Should be no dai liquidity remaining as we attempt to fully unwind
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
+        assertEq(pink - ink, currentLiquidity);
+        assertEq(part - art, currentLiquidity);
+        assertEq(dai.balanceOf(address(adai)), 0);
+        assertEq(getBorrowRate(), interestStrategy.getMaxVariableBorrowRate());
+
+        // Someone else repays some Dai so we can unwind the rest
+        pool.repay(address(dai), amountToBorrow, 0, address(this));
+
+        deposit.exec();
+        assertEq(adai.balanceOf(address(deposit)), 0);
+        assertTrue(dai.balanceOf(address(adai)) > 0);
     }
     
 }
