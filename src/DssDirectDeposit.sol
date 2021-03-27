@@ -66,6 +66,15 @@ contract DssDirectDeposit {
     uint256 public bar;         // Target Interest Rate [ray]
     bool public live = true;
 
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
+    event File(bytes32 indexed what, uint256 data);
+    event Wind(uint256 amount);
+    event Unwind(uint256 amount);
+    event Reap();
+    event Cage();
+
     constructor(address vat_, bytes32 ilk_, address pool_, address adai_, address daiJoin_) public {
         // Sanity checks
         (,,,,,,,,,, address strategy,) = LendingPoolLike(pool_).getReserveData(ATokenLike(adai_).UNDERLYING_ASSET_ADDRESS());
@@ -84,7 +93,7 @@ contract DssDirectDeposit {
         emit Rely(msg.sender);
 
         // Auths
-        vat.hope(daiJoin_);
+        VatAbstract(vat_).hope(daiJoin_);
         DaiAbstract(DaiJoinAbstract(daiJoin_).dai()).approve(pool_, uint256(-1));
     }
 
@@ -116,6 +125,8 @@ contract DssDirectDeposit {
 
             bar = data;
         } else revert("DssDirectDeposit/file-unrecognized-param");
+
+        emit File(what, data);
     }
 
     // --- Deposit controls ---
@@ -131,6 +142,8 @@ contract DssDirectDeposit {
         vat.frob(ilk, address(this), address(this), address(this), int256(amount), int256(amount));
         daiJoin.exit(address(this), amount);
         pool.deposit(address(dai), amount, address(this), 0);
+
+        emit Wind(amount);
     }
 
     function unwind(uint256 amount) external {
@@ -145,25 +158,25 @@ contract DssDirectDeposit {
         daiJoin.join(address(this), amount);
         vat.frob(ilk, address(this), address(this), address(this), -int256(amount), -int256(amount));
         vat.slip(ilk, address(this), -int256(amount));
+
+        emit Unwind(amount);
     }
 
     // --- Automated Rate Targetting ---
-    function calculateLiquidityRequiredForTargetInterestRate(uint256 targetInterestRate) public returns (uint256) {
-        require(interestRate <= interestStrategy.variableRateSlope2(), "DssDirectDeposit/above-max-interest");
-
-        // Do inverse calc
+    function calculateTargetSupply() public returns (uint256) {
+        // Do inverse calculation of interestStrategy
         uint256 supplyAmount = adai.totalSupply();
         uint256 borrowAmount = supplyAmount - dai.balanceOf(address(adai));
         uint256 targetUtil;
-        if (interestRate > interestStrategy.variableRateSlope1()) {
+        if (bar > interestStrategy.variableRateSlope1()) {
             // Excess interest rate
             targetUtil = 
-                (interestRate - interestStrategy.baseVariableBorrowRate() -
+                (bar - interestStrategy.baseVariableBorrowRate() -
                 interestStrategy.variableRateSlope1()) * interestStrategy.OPTIMAL_UTILIZATION_RATE() * interestStrategy.EXCESS_UTILIZATION_RATE() / interestStrategy.variableRateSlope2() / RAY +
                 interestStrategy.OPTIMAL_UTILIZATION_RATE();
         } else {
             // Optimal interst rate
-            targetUtil = sub(interestRate, interestStrategy.baseVariableBorrowRate()) * interestStrategy.OPTIMAL_UTILIZATION_RATE() / interestStrategy.variableRateSlope1();
+            targetUtil = sub(bar, interestStrategy.baseVariableBorrowRate()) * interestStrategy.OPTIMAL_UTILIZATION_RATE() / interestStrategy.variableRateSlope1();
         }
         return borrowAmount * RAY / targetUtil;
     }
@@ -172,7 +185,7 @@ contract DssDirectDeposit {
         require(bar > 0, "DssDirectDeposit/bar-not-set");
 
         uint256 supplyAmount = adai.totalSupply();
-        uint256 targetSupply = calculateLiquidityRequiredForTargetInterestRate(bar);
+        uint256 targetSupply = calculateTargetSupply();
 
         if (targetSupply > supplyAmount) {
             uint256 windTargetAmount = targetSupply - supplyAmount;
@@ -186,7 +199,11 @@ contract DssDirectDeposit {
         } else if (targetSupply < supplyAmount) {
             uint256 unwindTargetAmount = supplyAmount - targetSupply;
 
-            // Unwind amount is limited by available liquidity
+            // Unwind amount is limited by how much we have
+            uint256 adaiBalance = adai.balanceOf(address(this));
+            if (adaiBalance < unwindTargetAmount) unwindTargetAmount = adaiBalance;
+
+            // Unwind amount is limited by available liquidity in the pool
             uint256 availableLiquidity = dai.balanceOf(address(adai));
             if (availableLiquidity < unwindTargetAmount) unwindTargetAmount = availableLiquidity;
 
@@ -197,13 +214,14 @@ contract DssDirectDeposit {
     // --- Collect Interest ---
     function reap() external {
 
+        emit Reap();
     }
 
     // --- Shutdown ---
     function cage() external {
         // Can shut this down if we are authed, if the vat was caged
         // or if the interest rate strategy changes
-        (,,,,,,,,,, address strategy,) = pool.getReserveData(address(token));
+        (,,,,,,,,,, address strategy,) = pool.getReserveData(address(dai));
         require(
             wards[msg.sender] == 1 ||
             vat.live() == 0 ||
@@ -211,6 +229,7 @@ contract DssDirectDeposit {
         , "DssDirectDeposit/not-authorized");
 
         live = false;
+        emit Cage();
     }
 
 }
