@@ -199,27 +199,32 @@ contract DssDirectDeposit {
         return borrowAmount * RAY / targetUtil;
     }
     function exec() external {
-        require(live, "DssDirectDeposit/not-live");
         require(bar > 0, "DssDirectDeposit/bar-not-set");
 
         uint256 supplyAmount = adai.totalSupply();
         uint256 targetSupply = calculateTargetSupply(bar);
+        if (!live) targetSupply = 0;    // Unwind only when caged
 
         if (targetSupply > supplyAmount) {
             uint256 windTargetAmount = targetSupply - supplyAmount;
 
             // Wind amount is limited by the debt ceiling
             (uint256 Art,,, uint256 line,) = vat.ilks(ilk);
+            uint256 lineWad = line / RAY;      // Round down to always be under the actual limit
             uint256 newDebt = add(Art, windTargetAmount);
-            if (newDebt > line) windTargetAmount = sub(line, Art);
+            if (newDebt > lineWad) windTargetAmount = sub(lineWad, Art);
 
             if (windTargetAmount > 0) _wind(windTargetAmount);
         } else if (targetSupply < supplyAmount) {
             uint256 unwindTargetAmount = supplyAmount - targetSupply;
 
-            // Unwind amount is limited by how much we have
+            // Unwind amount is limited by how much adai we have
             uint256 adaiBalance = adai.balanceOf(address(this));
             if (adaiBalance < unwindTargetAmount) unwindTargetAmount = adaiBalance;
+
+            // Unwind amount is limited by how much debt there is
+            (uint256 ink,) = vat.urns(ilk, address(this));
+            if (ink < unwindTargetAmount) unwindTargetAmount = ink;
 
             // Unwind amount is limited by available liquidity in the pool
             uint256 availableLiquidity = dai.balanceOf(address(adai));

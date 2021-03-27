@@ -39,6 +39,7 @@ contract DssDirectDepositTest is DSTest {
 
     // Allow for a 1 BPS margin of error on interest rates
     uint256 constant INTEREST_RATE_TOLERANCE = RAY / 10000;
+    uint256 constant EPSILON_TOLERANCE = 4;
 
     function setUp() public {
         hevm = Hevm(address(bytes20(uint160(uint256(keccak256('hevm cheat code'))))));
@@ -176,6 +177,22 @@ contract DssDirectDepositTest is DSTest {
         }
     }
 
+    function assertEqApprox(uint256 _a, uint256 _b) internal {
+        uint256 a = _a;
+        uint256 b = _b;
+        if (a < b) {
+            uint256 tmp = a;
+            a = b;
+            b = tmp;
+        }
+        if (a - b > EPSILON_TOLERANCE) {
+            emit log_bytes32("Error: Wrong `uint' value");
+            emit log_named_decimal_uint("  Expected", _b, 27);
+            emit log_named_decimal_uint("    Actual", _a, 27);
+            fail();
+        }
+    }
+
     function getBorrowRate() public returns (uint256 borrowRate) {
         (,,,, borrowRate,,,,,,,) = pool.getReserveData(address(dai));
     }
@@ -231,8 +248,8 @@ contract DssDirectDepositTest is DSTest {
         uint256 amountMinted = adai.balanceOf(address(deposit));
         assertTrue(amountMinted > 0);
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
-        assertEq(ink, amountMinted);
-        assertEq(art, amountMinted);
+        assertEqApprox(ink, amountMinted);
+        assertEqApprox(art, amountMinted);
         assertEq(vat.gem(ilk, address(deposit)), 0);
         assertEq(vat.dai(address(deposit)), 0);
     }
@@ -255,7 +272,7 @@ contract DssDirectDepositTest is DSTest {
         assertEq(vat.dai(address(deposit)), 0);
     }
 
-    function test_insufficient_liquidity() public {
+    function test_cage_insufficient_liquidity() public {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
         uint256 startingBorrowRate = getBorrowRate();
 
@@ -268,12 +285,12 @@ contract DssDirectDepositTest is DSTest {
         // Someone else borrows
         uint256 amountSupplied = adai.balanceOf(address(deposit));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
-        pool.borrow(address(dai), amountToBorrow, 0, 0, address(this));
+        pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
-        // Attempt to return back to the starting borrow rate
+        // Cage the system and start unwinding
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
-        deposit.file("bar", startingBorrowRate);
+        deposit.cage();
         deposit.exec();
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
@@ -284,11 +301,43 @@ contract DssDirectDepositTest is DSTest {
         assertEq(getBorrowRate(), interestStrategy.getMaxVariableBorrowRate());
 
         // Someone else repays some Dai so we can unwind the rest
-        pool.repay(address(dai), amountToBorrow, 0, address(this));
+        pool.repay(address(dai), amountToBorrow, 2, address(this));
 
         deposit.exec();
         assertEq(adai.balanceOf(address(deposit)), 0);
         assertTrue(dai.balanceOf(address(adai)) > 0);
+    }
+
+    function test_hit_debt_ceiling() public {
+        // Lower the debt ceiling to 100k
+        uint256 debtCeiling = 100_000 * WAD;
+        vat.file(ilk, "line", debtCeiling * RAY);
+
+        uint256 currBorrowRate = getBorrowRate();
+
+        // Set a super low target interest rate
+        uint256 targetBorrowRate = currBorrowRate * 1 / 100;
+
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, debtCeiling);
+        assertEq(art, debtCeiling);
+        assertTrue(getBorrowRate() > targetBorrowRate && getBorrowRate() < currBorrowRate);
+        assertEq(adai.balanceOf(address(deposit)), debtCeiling);
+
+        // Should be a no-op
+        deposit.exec();
+
+        // Raise it by a bit
+        debtCeiling = 125_000 * WAD;
+        vat.file(ilk, "line", debtCeiling * RAY);
+        deposit.exec();
+        (ink, art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, debtCeiling);
+        assertEq(art, debtCeiling);
+        assertTrue(getBorrowRate() > targetBorrowRate && getBorrowRate() < currBorrowRate);
+        assertEq(adai.balanceOf(address(deposit)), debtCeiling);
     }
     
 }
