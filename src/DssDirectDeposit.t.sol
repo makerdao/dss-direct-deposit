@@ -32,6 +32,7 @@ contract DssDirectDepositTest is DSTest {
     DSTokenAbstract adai;
     SpotAbstract spot;
     DSTokenAbstract weth;
+    address vow;
 
     bytes32 constant ilk = "DD-DAI-A";
     DssDirectDeposit deposit;
@@ -52,12 +53,13 @@ contract DssDirectDepositTest is DSTest {
         interestStrategy = InterestRateStrategyLike(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
         spot = SpotAbstract(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
         weth = DSTokenAbstract(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+        vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
 
         // Force give admin access to this contract via hevm magic
         giveAuthAccess(address(vat), address(this));
         giveAuthAccess(address(spot), address(this));
         
-        deposit = new DssDirectDeposit(address(vat), ilk, address(pool), address(interestStrategy), address(adai), address(daiJoin));
+        deposit = new DssDirectDeposit(address(vat), ilk, address(pool), address(interestStrategy), address(adai), address(daiJoin), vow);
 
         // Init new collateral
         pip = new DSValue();
@@ -177,22 +179,6 @@ contract DssDirectDepositTest is DSTest {
         }
     }
 
-    function assertEqApprox(uint256 _a, uint256 _b) internal {
-        uint256 a = _a;
-        uint256 b = _b;
-        if (a < b) {
-            uint256 tmp = a;
-            a = b;
-            b = tmp;
-        }
-        if (a - b > EPSILON_TOLERANCE) {
-            emit log_bytes32("Error: Wrong `uint' value");
-            emit log_named_decimal_uint("  Expected", _b, 27);
-            emit log_named_decimal_uint("    Actual", _a, 27);
-            fail();
-        }
-    }
-
     function getBorrowRate() public returns (uint256 borrowRate) {
         (,,,, borrowRate,,,,,,,) = pool.getReserveData(address(dai));
     }
@@ -221,6 +207,7 @@ contract DssDirectDepositTest is DSTest {
 
         deposit.file("bar", targetBorrowRate);
         deposit.exec();
+        deposit.reap();     // Clear out interest to get rid of rounding errors
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         uint256 amountMinted = adai.balanceOf(address(deposit));
@@ -243,13 +230,14 @@ contract DssDirectDepositTest is DSTest {
         targetBorrowRate = getBorrowRate() * 125 / 100;
         deposit.file("bar", targetBorrowRate);
         deposit.exec();
+        deposit.reap();
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         uint256 amountMinted = adai.balanceOf(address(deposit));
         assertTrue(amountMinted > 0);
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
-        assertEqApprox(ink, amountMinted);
-        assertEqApprox(art, amountMinted);
+        assertEq(ink, amountMinted);
+        assertEq(art, amountMinted);
         assertEq(vat.gem(ilk, address(deposit)), 0);
         assertEq(vat.dai(address(deposit)), 0);
     }
@@ -274,7 +262,6 @@ contract DssDirectDepositTest is DSTest {
 
     function test_cage_insufficient_liquidity() public {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
-        uint256 startingBorrowRate = getBorrowRate();
 
         // Lower by 50%
         uint256 targetBorrowRate = getBorrowRate() * 50 / 100;
@@ -301,9 +288,11 @@ contract DssDirectDepositTest is DSTest {
         assertEq(getBorrowRate(), interestStrategy.getMaxVariableBorrowRate());
 
         // Someone else repays some Dai so we can unwind the rest
+        hevm.warp(block.timestamp + 1 days);
         pool.repay(address(dai), amountToBorrow, 2, address(this));
 
         deposit.exec();
+        deposit.reap();
         assertEq(adai.balanceOf(address(deposit)), 0);
         assertTrue(dai.balanceOf(address(adai)) > 0);
     }
@@ -320,6 +309,7 @@ contract DssDirectDepositTest is DSTest {
 
         deposit.file("bar", targetBorrowRate);
         deposit.exec();
+        deposit.reap();
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
         assertEq(ink, debtCeiling);
         assertEq(art, debtCeiling);
@@ -333,11 +323,27 @@ contract DssDirectDepositTest is DSTest {
         debtCeiling = 125_000 * WAD;
         vat.file(ilk, "line", debtCeiling * RAY);
         deposit.exec();
+        deposit.reap();
         (ink, art) = vat.urns(ilk, address(deposit));
         assertEq(ink, debtCeiling);
         assertEq(art, debtCeiling);
         assertTrue(getBorrowRate() > targetBorrowRate && getBorrowRate() < currBorrowRate);
         assertEq(adai.balanceOf(address(deposit)), debtCeiling);
+    }
+
+    function test_collect_interest() public {
+        uint256 targetBorrowRate = getBorrowRate() * 75 / 100;
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+
+        hevm.warp(block.timestamp + 1 days);     // Collect one day of interest
+
+        uint256 vowDai = vat.dai(vow);
+        deposit.reap();
+
+        log_named_decimal_uint("dai", vat.dai(vow) - vowDai, 18);
+
+        assertTrue(vat.dai(vow) - vowDai > 0);
     }
     
 }

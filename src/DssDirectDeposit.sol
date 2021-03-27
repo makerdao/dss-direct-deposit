@@ -77,6 +77,7 @@ contract DssDirectDeposit {
     ATokenLike public immutable adai;
     DaiAbstract public immutable dai;
     DaiJoinAbstract public immutable daiJoin;
+    address public immutable vow;
 
     uint256 public bar;         // Target Interest Rate [ray]
     bool public live = true;
@@ -90,7 +91,7 @@ contract DssDirectDeposit {
     event Reap();
     event Cage();
 
-    constructor(address vat_, bytes32 ilk_, address pool_, address interestStrategy_, address adai_, address daiJoin_) public {
+    constructor(address vat_, bytes32 ilk_, address pool_, address interestStrategy_, address adai_, address daiJoin_, address vow_) public {
         // Sanity checks
         (,,,,,,,,,, address strategy,) = LendingPoolLike(pool_).getReserveData(ATokenLike(adai_).UNDERLYING_ASSET_ADDRESS());
         require(strategy != address(0), "DssDirectDeposit/invalid-atoken");
@@ -104,6 +105,7 @@ contract DssDirectDeposit {
         daiJoin = DaiJoinAbstract(daiJoin_);
         interestStrategy = InterestRateStrategyLike(interestStrategy_);
         dai = DaiAbstract(DaiJoinAbstract(daiJoin_).dai());
+        vow = vow_;
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -236,8 +238,14 @@ contract DssDirectDeposit {
 
     // --- Collect Interest ---
     function reap() external {
-
-        emit Reap();
+        uint256 adaiBalance = adai.balanceOf(address(this));
+        (, uint256 daiDebt) = vat.urns(ilk, address(this));
+        if (adaiBalance > daiDebt) {
+            uint256 fees = adaiBalance - daiDebt;
+            pool.withdraw(address(dai), fees, address(this));
+            daiJoin.join(address(this), fees);
+            vat.move(address(this), vow, fees * RAY);
+        }
     }
 
     // --- Shutdown ---
