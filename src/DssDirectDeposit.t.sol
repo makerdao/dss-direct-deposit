@@ -155,7 +155,7 @@ contract DssDirectDepositTest is DSTest {
         }
     }
 
-    function test_target() public {
+    function test_target_decrease() public {
         uint256 currBorrowRate = getBorrowRate();
 
         // Reduce borrow rate by 25%
@@ -163,8 +163,55 @@ contract DssDirectDepositTest is DSTest {
 
         deposit.file("bar", targetBorrowRate);
         deposit.exec();
-
         assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        uint256 amountMinted = adai.balanceOf(address(deposit));
+        assertTrue(amountMinted > 0);
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, amountMinted);
+        assertEq(art, amountMinted);
+        assertEq(vat.gem(ilk, address(deposit)), 0);
+        assertEq(vat.dai(address(deposit)), 0);
+    }
+
+    function test_target_increase() public {
+        // Lower by 50%
+        uint256 targetBorrowRate = getBorrowRate() * 50 / 100;
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        // Raise by 25%
+        targetBorrowRate = getBorrowRate() * 125 / 100;
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        uint256 amountMinted = adai.balanceOf(address(deposit));
+        assertTrue(amountMinted > 0);
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, amountMinted);
+        assertEq(art, amountMinted);
+        assertEq(vat.gem(ilk, address(deposit)), 0);
+        assertEq(vat.dai(address(deposit)), 0);
+    }
+
+    function test_target_failed_increase() public {
+        uint256 currBorrowRate = getBorrowRate();
+
+        // Attempt to increase by 25% (you can't)
+        uint256 targetBorrowRate = currBorrowRate * 125 / 100;
+
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+        assertEqInterest(getBorrowRate(), currBorrowRate);  // Unchanged
+
+        assertEq(adai.balanceOf(address(deposit)), 0);
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(deposit)), 0);
+        assertEq(vat.dai(address(deposit)), 0);
     }
     
 }

@@ -109,6 +109,7 @@ contract DssDirectDeposit {
         // Auths
         VatAbstract(vat_).hope(daiJoin_);
         DaiAbstract(DaiJoinAbstract(daiJoin_).dai()).approve(pool_, uint256(-1));
+        DaiAbstract(DaiJoinAbstract(daiJoin_).dai()).approve(daiJoin_, uint256(-1));
     }
 
     // --- Math ---
@@ -210,7 +211,7 @@ contract DssDirectDeposit {
             uint256 newDebt = add(Art, windTargetAmount);
             if (newDebt > line) windTargetAmount = sub(line, Art);
 
-            _wind(windTargetAmount);
+            if (windTargetAmount > 0) _wind(windTargetAmount);
         } else if (targetSupply < supplyAmount) {
             uint256 unwindTargetAmount = supplyAmount - targetSupply;
 
@@ -222,7 +223,7 @@ contract DssDirectDeposit {
             uint256 availableLiquidity = dai.balanceOf(address(adai));
             if (availableLiquidity < unwindTargetAmount) unwindTargetAmount = availableLiquidity;
 
-            _unwind(unwindTargetAmount);
+            if (unwindTargetAmount > 0) _unwind(unwindTargetAmount);
         }
     }
 
