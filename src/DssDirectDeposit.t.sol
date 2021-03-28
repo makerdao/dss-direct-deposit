@@ -213,8 +213,8 @@ contract DssDirectDepositTest is DSTest {
         uint256 amountMinted = adai.balanceOf(address(deposit));
         assertTrue(amountMinted > 0);
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
-        assertEq(ink, amountMinted);
-        assertEq(art, amountMinted);
+        assertTrue(ink <= amountMinted);
+        assertTrue(art <= amountMinted);
         assertEq(vat.gem(ilk, address(deposit)), 0);
         assertEq(vat.dai(address(deposit)), 0);
     }
@@ -230,14 +230,13 @@ contract DssDirectDepositTest is DSTest {
         targetBorrowRate = getBorrowRate() * 125 / 100;
         deposit.file("bar", targetBorrowRate);
         deposit.exec();
-        deposit.reap();
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         uint256 amountMinted = adai.balanceOf(address(deposit));
         assertTrue(amountMinted > 0);
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
-        assertEq(ink, amountMinted);
-        assertEq(art, amountMinted);
+        assertTrue(ink <= amountMinted);
+        assertTrue(art <= amountMinted);
         assertEq(vat.gem(ilk, address(deposit)), 0);
         assertEq(vat.dai(address(deposit)), 0);
     }
@@ -292,7 +291,6 @@ contract DssDirectDepositTest is DSTest {
         pool.repay(address(dai), amountToBorrow, 2, address(this));
 
         deposit.exec();
-        deposit.reap();
         assertEq(adai.balanceOf(address(deposit)), 0);
         assertTrue(dai.balanceOf(address(adai)) > 0);
     }

@@ -173,10 +173,19 @@ contract DssDirectDeposit {
     function _unwind(uint256 amount) internal {
         require(amount <= 2 ** 255, "DssDirectDeposit/overflow");
         
-        pool.withdraw(address(dai), amount, address(this));
-        daiJoin.join(address(this), amount);
+        // To save gas bring the fees back with the unwind amount
+        uint256 adaiBalance = adai.balanceOf(address(this));
+        (, uint256 daiDebt) = vat.urns(ilk, address(this));
+        uint256 fees = 0;
+        if (adaiBalance > daiDebt) {
+            fees = adaiBalance - daiDebt;
+        }
+        uint256 total = add(amount, fees);
+        pool.withdraw(address(dai), total, address(this));
+        daiJoin.join(address(this), total);
         vat.frob(ilk, address(this), address(this), address(this), -int256(amount), -int256(amount));
         vat.slip(ilk, address(this), -int256(amount));
+        vat.move(address(this), vow, mul(fees, RAY));
 
         emit Unwind(amount);
     }
@@ -198,7 +207,7 @@ contract DssDirectDeposit {
             // Optimal interst rate
             targetUtil = rdiv(rmul(sub(targetInterestRate, interestStrategy.baseVariableBorrowRate()), interestStrategy.OPTIMAL_UTILIZATION_RATE()), interestStrategy.variableRateSlope1());
         }
-        return borrowAmount * RAY / targetUtil;
+        return rdiv(borrowAmount, targetUtil);
     }
     function exec() external {
         require(bar > 0, "DssDirectDeposit/bar-not-set");
@@ -244,7 +253,7 @@ contract DssDirectDeposit {
             uint256 fees = adaiBalance - daiDebt;
             pool.withdraw(address(dai), fees, address(this));
             daiJoin.join(address(this), fees);
-            vat.move(address(this), vow, fees * RAY);
+            vat.move(address(this), vow, mul(fees, RAY));
         }
     }
 
