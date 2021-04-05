@@ -51,7 +51,7 @@ interface ATokenLike is GemAbstract {
     function UNDERLYING_ASSET_ADDRESS() external view returns (address);
 }
 
-contract DssDirectDeposit {
+contract DssDirectDepositAaveDai {
 
     // --- Auth ---
     mapping (address => uint) public wards;
@@ -66,7 +66,7 @@ contract DssDirectDeposit {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "DssDirectDeposit/not-authorized");
+        require(wards[msg.sender] == 1, "DssDirectDepositAaveDai/not-authorized");
         _;
     }
 
@@ -94,9 +94,9 @@ contract DssDirectDeposit {
     constructor(address vat_, bytes32 ilk_, address pool_, address interestStrategy_, address adai_, address daiJoin_, address vow_) public {
         // Sanity checks
         (,,,,,,,,,, address strategy,) = LendingPoolLike(pool_).getReserveData(ATokenLike(adai_).UNDERLYING_ASSET_ADDRESS());
-        require(strategy != address(0), "DssDirectDeposit/invalid-atoken");
-        require(interestStrategy_ == strategy, "DssDirectDeposit/interest-strategy-doesnt-match");
-        require(ATokenLike(adai_).UNDERLYING_ASSET_ADDRESS() == DaiJoinAbstract(daiJoin_).dai(), "DssDirectDeposit/must-be-dai");
+        require(strategy != address(0), "DssDirectDepositAaveDai/invalid-atoken");
+        require(interestStrategy_ == strategy, "DssDirectDepositAaveDai/interest-strategy-doesnt-match");
+        require(ATokenLike(adai_).UNDERLYING_ASSET_ADDRESS() == DaiJoinAbstract(daiJoin_).dai(), "DssDirectDepositAaveDai/must-be-dai");
 
         vat = VatAbstract(vat_);
         ilk = ilk_;
@@ -118,13 +118,13 @@ contract DssDirectDeposit {
 
     // --- Math ---
     function add(uint256 x, uint256 y) public pure returns (uint256 z) {
-        require((z = x + y) >= x, "DssDirectDeposit/overflow");
+        require((z = x + y) >= x, "DssDirectDepositAaveDai/overflow");
     }
     function sub(uint256 x, uint256 y) public pure returns (uint256 z) {
-        require((z = x - y) <= x, "DssDirectDeposit/underflow");
+        require((z = x - y) <= x, "DssDirectDepositAaveDai/underflow");
     }
     function mul(uint256 x, uint256 y) public pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "DssDirectDeposit/overflow");
+        require(y == 0 || (z = x * y) / y == x, "DssDirectDepositAaveDai/overflow");
     }
     uint256 constant RAY  = 10 ** 27;
     function rmul(uint256 x, uint256 y) public pure returns (uint256 z) {
@@ -136,26 +136,26 @@ contract DssDirectDeposit {
 
     // --- Administration ---
     function file(bytes32 what, uint256 data) external auth {
-        require(live, "DssDirectDeposit/not-live");
+        require(live, "DssDirectDepositAaveDai/not-live");
 
         if (what == "bar") {
-            require(data > 0, "DssDirectDeposit/target-interest-zero");
-            require(data <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDeposit/above-max-interest");
+            require(data > 0, "DssDirectDepositAaveDai/target-interest-zero");
+            require(data <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
 
             bar = data;
-        } else revert("DssDirectDeposit/file-unrecognized-param");
+        } else revert("DssDirectDepositAaveDai/file-unrecognized-param");
 
         emit File(what, data);
     }
 
     // --- Deposit controls ---
     function wind(uint256 amount) external auth {
-        require(live, "DssDirectDeposit/not-live");
+        require(live, "DssDirectDepositAaveDai/not-live");
 
         _wind(amount);
     }
     function _wind(uint256 amount) internal {
-        require(int256(amount) >= 0, "DssDirectDeposit/overflow");
+        require(int256(amount) >= 0, "DssDirectDepositAaveDai/overflow");
 
         vat.slip(ilk, address(this), int256(amount));
         vat.frob(ilk, address(this), address(this), address(this), int256(amount), int256(amount));
@@ -166,12 +166,12 @@ contract DssDirectDeposit {
     }
 
     function unwind(uint256 amount) external {
-        require(wards[msg.sender] == 1 || !live, "DssDirectDeposit/not-authorized");
+        require(wards[msg.sender] == 1 || !live, "DssDirectDepositAaveDai/not-authorized");
 
         _unwind(amount);
     }
     function _unwind(uint256 amount) internal {
-        require(amount <= 2 ** 255, "DssDirectDeposit/overflow");
+        require(amount <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
         
         // To save gas bring the fees back with the unwind amount
         uint256 adaiBalance = adai.balanceOf(address(this));
@@ -192,8 +192,8 @@ contract DssDirectDeposit {
 
     // --- Automated Rate Targetting ---
     function calculateTargetSupply(uint256 targetInterestRate) public returns (uint256) {
-        require(targetInterestRate > 0, "DssDirectDeposit/target-interest-zero");
-        require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDeposit/above-max-interest");
+        require(targetInterestRate > 0, "DssDirectDepositAaveDai/target-interest-zero");
+        require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
 
         // Do inverse calculation of interestStrategy
         uint256 supplyAmount = adai.totalSupply();
@@ -210,7 +210,7 @@ contract DssDirectDeposit {
         return rdiv(borrowAmount, targetUtil);
     }
     function exec() external {
-        require(bar > 0, "DssDirectDeposit/bar-not-set");
+        require(bar > 0, "DssDirectDepositAaveDai/bar-not-set");
 
         uint256 supplyAmount = adai.totalSupply();
         uint256 targetSupply = calculateTargetSupply(bar);
@@ -266,7 +266,7 @@ contract DssDirectDeposit {
             wards[msg.sender] == 1 ||
             vat.live() == 0 ||
             strategy != address(interestStrategy)
-        , "DssDirectDeposit/not-authorized");
+        , "DssDirectDepositAaveDai/not-authorized");
 
         live = false;
         emit Cage();

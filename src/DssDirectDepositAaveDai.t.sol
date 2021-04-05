@@ -4,7 +4,7 @@ import "ds-test/test.sol";
 import "dss-interfaces/Interfaces.sol";
 import "ds-value/value.sol";
 
-import "./DssDirectDeposit.sol";
+import "./DssDirectDepositAaveDai.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -16,7 +16,7 @@ interface AuthLike {
     function wards(address) external returns (uint256);
 }
 
-contract DssDirectDepositTest is DSTest {
+contract DssDirectDepositAaveDaiTest is DSTest {
 
     uint256 constant WAD = 10 ** 18;
     uint256 constant RAY = 10 ** 27;
@@ -35,7 +35,7 @@ contract DssDirectDepositTest is DSTest {
     address vow;
 
     bytes32 constant ilk = "DD-DAI-A";
-    DssDirectDeposit deposit;
+    DssDirectDepositAaveDai deposit;
     DSValue pip;
 
     // Allow for a 1 BPS margin of error on interest rates
@@ -59,7 +59,7 @@ contract DssDirectDepositTest is DSTest {
         giveAuthAccess(address(vat), address(this));
         giveAuthAccess(address(spot), address(this));
         
-        deposit = new DssDirectDeposit(address(vat), ilk, address(pool), address(interestStrategy), address(adai), address(daiJoin), vow);
+        deposit = new DssDirectDepositAaveDai(address(vat), ilk, address(pool), address(interestStrategy), address(adai), address(daiJoin), vow);
 
         // Init new collateral
         pip = new DSValue();
@@ -82,13 +82,13 @@ contract DssDirectDepositTest is DSTest {
 
     // --- Math ---
     function add(uint256 x, uint256 y) public pure returns (uint256 z) {
-        require((z = x + y) >= x, "DssDirectDeposit/overflow");
+        require((z = x + y) >= x, "DssDirectDepositAaveDai/overflow");
     }
     function sub(uint256 x, uint256 y) public pure returns (uint256 z) {
-        require((z = x - y) <= x, "DssDirectDeposit/underflow");
+        require((z = x - y) <= x, "DssDirectDepositAaveDai/underflow");
     }
     function mul(uint256 x, uint256 y) public pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "DssDirectDeposit/overflow");
+        require(y == 0 || (z = x * y) / y == x, "DssDirectDepositAaveDai/overflow");
     }
     function rmul(uint256 x, uint256 y) public pure returns (uint256 z) {
         z = mul(x, y) / RAY;
