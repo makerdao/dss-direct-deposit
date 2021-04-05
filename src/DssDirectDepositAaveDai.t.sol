@@ -59,7 +59,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         giveAuthAccess(address(vat), address(this));
         giveAuthAccess(address(spot), address(this));
         
-        deposit = new DssDirectDepositAaveDai(address(vat), ilk, address(pool), address(interestStrategy), address(adai), address(daiJoin), vow);
+        deposit = new DssDirectDepositAaveDai(address(vat), ilk, address(pool), address(interestStrategy), address(adai), address(daiJoin), vow, 7 days);
 
         // Init new collateral
         pip = new DSValue();
@@ -259,7 +259,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(vat.dai(address(deposit)), 0);
     }
 
-    function test_cage_insufficient_liquidity() public {
+    function test_cage_temp_insufficient_liquidity() public {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
 
         // Lower by 50%
@@ -277,6 +277,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
         deposit.cage();
+        assertTrue(!deposit.live());
         deposit.exec();
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
@@ -293,6 +294,65 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         deposit.exec();
         assertEq(adai.balanceOf(address(deposit)), 0);
         assertTrue(dai.balanceOf(address(adai)) > 0);
+    }
+
+    function test_cage_perm_insufficient_liquidity() public {
+        uint256 currentLiquidity = dai.balanceOf(address(adai));
+
+        // Lower by 50%
+        uint256 targetBorrowRate = getBorrowRate() * 50 / 100;
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+        
+        // Someone else borrows
+        uint256 amountSupplied = adai.balanceOf(address(deposit));
+        uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
+        pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+
+        // Cage the system and start unwinding
+        currentLiquidity = dai.balanceOf(address(adai));
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
+        deposit.cage();
+        assertTrue(!deposit.live());
+        deposit.exec();
+
+        // Should be no dai liquidity remaining as we attempt to fully unwind
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
+        assertTrue(ink > 0);
+        assertTrue(art > 0);
+        assertEq(pink - ink, currentLiquidity);
+        assertEq(part - art, currentLiquidity);
+        assertEq(dai.balanceOf(address(adai)), 0);
+        assertEq(getBorrowRate(), interestStrategy.getMaxVariableBorrowRate());
+
+        // In this case nobody deposits more DAI so we have to write off the bad debt
+        hevm.warp(block.timestamp + 7 days);
+
+        uint256 sin = vat.sin(vow);
+        uint256 vowDai = vat.dai(vow);
+        deposit.cull();
+        (uint256 ink2, uint256 art2) = vat.urns(ilk, address(deposit));
+        assertTrue(deposit.culled());
+        assertEq(ink2, 0);
+        assertEq(art2, 0);
+        assertEq(vat.gem(ilk, address(deposit)), ink);
+        assertEq(vat.sin(vow), sin + art * RAY);
+        assertEq(vat.dai(vow), vowDai);
+
+        // Some time later the pool gets some liquidity
+        hevm.warp(block.timestamp + 180 days);
+        pool.repay(address(dai), amountToBorrow, 2, address(this));
+
+        // Close out the remainder of the position
+        uint256 adaiBalance = adai.balanceOf(address(deposit));
+        assertTrue(adaiBalance >= art);
+        deposit.exec();
+        assertEq(adai.balanceOf(address(deposit)), 0);
+        assertTrue(dai.balanceOf(address(adai)) > 0);
+        assertEq(vat.sin(vow), sin + art * RAY);
+        assertEq(vat.dai(vow), vowDai + adaiBalance * RAY);
+        assertEq(vat.gem(ilk, address(deposit)), 0);
     }
 
     function test_hit_debt_ceiling() public {

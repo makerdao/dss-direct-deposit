@@ -78,9 +78,12 @@ contract DssDirectDepositAaveDai {
     DaiAbstract public immutable dai;
     DaiJoinAbstract public immutable daiJoin;
     address public immutable vow;
+    uint256 public immutable tau;
 
     uint256 public bar;         // Target Interest Rate [ray]
     bool public live = true;
+    bool public culled;
+    uint256 public tic;         // Time until you can write off the debt [sec]
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -90,8 +93,9 @@ contract DssDirectDepositAaveDai {
     event Unwind(uint256 amount);
     event Reap();
     event Cage();
+    event Cull();
 
-    constructor(address vat_, bytes32 ilk_, address pool_, address interestStrategy_, address adai_, address daiJoin_, address vow_) public {
+    constructor(address vat_, bytes32 ilk_, address pool_, address interestStrategy_, address adai_, address daiJoin_, address vow_, uint256 tau_) public {
         // Sanity checks
         (,,,,,,,,,, address strategy,) = LendingPoolLike(pool_).getReserveData(ATokenLike(adai_).UNDERLYING_ASSET_ADDRESS());
         require(strategy != address(0), "DssDirectDepositAaveDai/invalid-atoken");
@@ -106,6 +110,7 @@ contract DssDirectDepositAaveDai {
         interestStrategy = InterestRateStrategyLike(interestStrategy_);
         dai = DaiAbstract(DaiJoinAbstract(daiJoin_).dai());
         vow = vow_;
+        tau = tau_;
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -176,6 +181,7 @@ contract DssDirectDepositAaveDai {
         // To save gas bring the fees back with the unwind amount
         uint256 adaiBalance = adai.balanceOf(address(this));
         (, uint256 daiDebt) = vat.urns(ilk, address(this));
+        if (culled) daiDebt = vat.gem(ilk, address(this));
         uint256 fees = 0;
         if (adaiBalance > daiDebt) {
             fees = adaiBalance - daiDebt;
@@ -183,9 +189,11 @@ contract DssDirectDepositAaveDai {
         uint256 total = add(amount, fees);
         pool.withdraw(address(dai), total, address(this));
         daiJoin.join(address(this), total);
-        vat.frob(ilk, address(this), address(this), address(this), -int256(amount), -int256(amount));
+        if (!culled) {
+            vat.frob(ilk, address(this), address(this), address(this), -int256(amount), -int256(amount));
+        }
         vat.slip(ilk, address(this), -int256(amount));
-        vat.move(address(this), vow, mul(fees, RAY));
+        vat.move(address(this), vow, mul(culled ? total : fees, RAY));
 
         emit Unwind(amount);
     }
@@ -235,6 +243,7 @@ contract DssDirectDepositAaveDai {
 
             // Unwind amount is limited by how much debt there is
             (uint256 ink,) = vat.urns(ilk, address(this));
+            if (culled) ink = vat.gem(ilk, address(this));
             if (ink < unwindTargetAmount) unwindTargetAmount = ink;
 
             // Unwind amount is limited by available liquidity in the pool
@@ -269,7 +278,22 @@ contract DssDirectDepositAaveDai {
         , "DssDirectDepositAaveDai/not-authorized");
 
         live = false;
+        tic = block.timestamp;
         emit Cage();
+    }
+
+    // --- Write-off ---
+    function cull() external {
+        require(!live, "DssDirectDepositAaveDai/live");
+        require(add(tic, tau) <= block.timestamp, "DssDirectDepositAaveDai/early-cull");
+        require(!culled, "DssDirectDepositAaveDai/already-culled");
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(this));
+        require(ink <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
+        require(art <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
+        vat.grab(ilk, address(this), address(this), address(vow), -int256(ink), -int256(art));
+        culled = true;
+        emit Cull();
     }
 
 }
