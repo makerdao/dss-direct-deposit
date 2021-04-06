@@ -177,6 +177,8 @@ contract DssDirectDepositAaveDai {
     }
     function _unwind(uint256 amount) internal {
         require(amount <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
+        uint256 availableLiquidity = dai.balanceOf(address(adai));
+        require(amount <= availableLiquidity, "DssDirectDepositAaveDai/insufficient-liquidity");
         
         // To save gas bring the fees back with the unwind amount
         uint256 adaiBalance = adai.balanceOf(address(this));
@@ -185,6 +187,10 @@ contract DssDirectDepositAaveDai {
         uint256 fees = 0;
         if (adaiBalance > daiDebt) {
             fees = adaiBalance - daiDebt;
+
+            if (add(amount, fees) > availableLiquidity) {
+                fees = availableLiquidity - amount;
+            }
         }
         uint256 total = add(amount, fees);
         pool.withdraw(address(dai), total, address(this));
@@ -236,10 +242,7 @@ contract DssDirectDepositAaveDai {
             if (windTargetAmount > 0) _wind(windTargetAmount);
         } else if (targetSupply < supplyAmount) {
             uint256 unwindTargetAmount = supplyAmount - targetSupply;
-
-            // Unwind amount is limited by how much adai we have
             uint256 adaiBalance = adai.balanceOf(address(this));
-            if (adaiBalance < unwindTargetAmount) unwindTargetAmount = adaiBalance;
 
             // Unwind amount is limited by how much debt there is
             (uint256 ink,) = vat.urns(ilk, address(this));
@@ -250,7 +253,7 @@ contract DssDirectDepositAaveDai {
             uint256 availableLiquidity = dai.balanceOf(address(adai));
             if (availableLiquidity < unwindTargetAmount) unwindTargetAmount = availableLiquidity;
 
-            if (unwindTargetAmount > 0) _unwind(unwindTargetAmount);
+            if (unwindTargetAmount > 0 || adaiBalance > 0) _unwind(unwindTargetAmount);
         }
     }
 
@@ -260,6 +263,10 @@ contract DssDirectDepositAaveDai {
         (, uint256 daiDebt) = vat.urns(ilk, address(this));
         if (adaiBalance > daiDebt) {
             uint256 fees = adaiBalance - daiDebt;
+            uint256 availableLiquidity = dai.balanceOf(address(adai));
+            if (fees > availableLiquidity) {
+                fees = availableLiquidity;
+            }
             pool.withdraw(address(dai), fees, address(this));
             daiJoin.join(address(this), fees);
             vat.move(address(this), vow, mul(fees, RAY));

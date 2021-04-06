@@ -403,5 +403,68 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         assertTrue(vat.dai(vow) - vowDai > 0);
     }
+
+    function test_insufficient_liquidity_for_unwind_fees() public {
+        uint256 currentLiquidity = dai.balanceOf(address(adai));
+
+        // Lower by 50%
+        uint256 targetBorrowRate = getBorrowRate() * 50 / 100;
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+        
+        // Someone else borrows the exact amount previously available
+        (uint256 amountSupplied,) = vat.urns(ilk, address(deposit));
+        uint256 amountToBorrow = currentLiquidity;
+        pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+
+        // Accumulate a bunch of interest
+        hevm.warp(block.timestamp + 180 days);
+        uint256 feesAccrued = adai.balanceOf(address(deposit));
+        currentLiquidity = dai.balanceOf(address(adai));
+        assertTrue(feesAccrued > 0);
+        assertEq(amountSupplied, currentLiquidity);
+        assertTrue(amountSupplied + feesAccrued > currentLiquidity);
+
+        // Set the interest rate to the maximum amount to trigger only unwinds
+        deposit.file("bar", 79 * RAY / 100);
+        deposit.exec();
+
+        // The full debt should be paid off, but we are still owed fees
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertTrue(adai.balanceOf(address(deposit)) > 0);
+
+        // Someone repays
+        pool.repay(address(dai), amountToBorrow, 2, address(this));
+        deposit.exec();
+
+        (ink, art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(adai.balanceOf(address(deposit)), 0);
+    }
+
+    function test_insufficient_liquidity_for_reap_fees() public {
+        uint256 currentLiquidity = dai.balanceOf(address(adai));
+
+        // Lower by 50%
+        uint256 targetBorrowRate = getBorrowRate() * 50 / 100;
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        // Accumulate a bunch of interest
+        hevm.warp(block.timestamp + 180 days);
+
+        // Someone else borrows almost all the liquidity
+        pool.borrow(address(dai), dai.balanceOf(address(adai)) - 100 * WAD, 2, 0, address(this));
+
+        // Reap the partial fees
+        uint256 vowDai = vat.dai(vow);
+        deposit.reap();
+        assertEq(vat.dai(vow) - vowDai, 100 * RAD);
+    }
     
 }
