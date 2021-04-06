@@ -170,28 +170,15 @@ contract DssDirectDepositAaveDai {
         emit Wind(amount);
     }
 
-    function unwind(uint256 amount) external {
+    function unwind(uint256 amount, uint256 fees) external {
         require(wards[msg.sender] == 1 || !live, "DssDirectDepositAaveDai/not-authorized");
 
-        _unwind(amount);
+        _unwind(amount, fees);
     }
-    function _unwind(uint256 amount) internal {
+    function _unwind(uint256 amount, uint256 fees) internal {
         require(amount <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
-        uint256 availableLiquidity = dai.balanceOf(address(adai));
-        require(amount <= availableLiquidity, "DssDirectDepositAaveDai/insufficient-liquidity");
-        
-        // To save gas bring the fees back with the unwind amount
-        uint256 adaiBalance = adai.balanceOf(address(this));
-        (, uint256 daiDebt) = vat.urns(ilk, address(this));
-        if (culled) daiDebt = vat.gem(ilk, address(this));
-        uint256 fees = 0;
-        if (adaiBalance > daiDebt) {
-            fees = adaiBalance - daiDebt;
 
-            if (add(amount, fees) > availableLiquidity) {
-                fees = availableLiquidity - amount;
-            }
-        }
+        // To save gas you can bring the fees back with the unwind
         uint256 total = add(amount, fees);
         pool.withdraw(address(dai), total, address(this));
         daiJoin.join(address(this), total);
@@ -242,18 +229,29 @@ contract DssDirectDepositAaveDai {
             if (windTargetAmount > 0) _wind(windTargetAmount);
         } else if (targetSupply < supplyAmount) {
             uint256 unwindTargetAmount = supplyAmount - targetSupply;
-            uint256 adaiBalance = adai.balanceOf(address(this));
 
             // Unwind amount is limited by how much debt there is
-            (uint256 ink,) = vat.urns(ilk, address(this));
-            if (culled) ink = vat.gem(ilk, address(this));
-            if (ink < unwindTargetAmount) unwindTargetAmount = ink;
+            (uint256 daiDebt,) = vat.urns(ilk, address(this));
+            if (culled) daiDebt = vat.gem(ilk, address(this));
+            if (daiDebt < unwindTargetAmount) unwindTargetAmount = daiDebt;
 
             // Unwind amount is limited by available liquidity in the pool
             uint256 availableLiquidity = dai.balanceOf(address(adai));
             if (availableLiquidity < unwindTargetAmount) unwindTargetAmount = availableLiquidity;
+            
+            // Determine the amount of fees to bring back
+            uint256 adaiBalance = adai.balanceOf(address(this));
+            uint256 fees = 0;
+            if (adaiBalance > daiDebt) {
+                fees = adaiBalance - daiDebt;
 
-            if (unwindTargetAmount > 0 || adaiBalance > 0) _unwind(unwindTargetAmount);
+                if (add(unwindTargetAmount, fees) > availableLiquidity) {
+                    // Don't need safe-math because this is constrained above
+                    fees = availableLiquidity - unwindTargetAmount;
+                }
+            }
+
+            if (unwindTargetAmount > 0 || fees > 0) _unwind(unwindTargetAmount, fees);
         }
     }
 
