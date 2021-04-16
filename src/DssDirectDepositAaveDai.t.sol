@@ -179,6 +179,23 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         }
     }
 
+    // aTOKENs round against the depositor - we allow a rounding error of 1
+    function assertEqRoundingAgainst(uint256 _a, uint256 _b) internal {
+        uint256 a = _a;
+        uint256 b = _b;
+        if (a < b) {
+            uint256 tmp = a;
+            a = b;
+            b = tmp;
+        }
+        if (a - b > 1) {
+            emit log_bytes32("Error: Wrong `uint' value");
+            emit log_named_decimal_uint("  Expected", _b, 27);
+            emit log_named_decimal_uint("    Actual", _a, 27);
+            fail();
+        }
+    }
+
     function getBorrowRate() public returns (uint256 borrowRate) {
         (,,,, borrowRate,,,,,,,) = pool.getReserveData(address(dai));
     }
@@ -213,8 +230,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 amountMinted = adai.balanceOf(address(deposit));
         assertTrue(amountMinted > 0);
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
-        assertTrue(ink <= amountMinted);
-        assertTrue(art <= amountMinted);
+        assertTrue(ink <= amountMinted + 1);    // We allow a rounding error of 1 because aTOKENs round against the user
+        assertTrue(art <= amountMinted + 1);
         assertEq(vat.gem(ilk, address(deposit)), 0);
         assertEq(vat.dai(address(deposit)), 0);
     }
@@ -235,8 +252,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 amountMinted = adai.balanceOf(address(deposit));
         assertTrue(amountMinted > 0);
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
-        assertTrue(ink <= amountMinted);
-        assertTrue(art <= amountMinted);
+        assertTrue(ink <= amountMinted + 1);    // We allow a rounding error of 1 because aTOKENs round against the user
+        assertTrue(art <= amountMinted + 1);
         assertEq(vat.gem(ilk, address(deposit)), 0);
         assertEq(vat.dai(address(deposit)), 0);
     }
@@ -372,7 +389,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(ink, debtCeiling);
         assertEq(art, debtCeiling);
         assertTrue(getBorrowRate() > targetBorrowRate && getBorrowRate() < currBorrowRate);
-        assertEq(adai.balanceOf(address(deposit)), debtCeiling);
+        assertEqRoundingAgainst(adai.balanceOf(address(deposit)), debtCeiling);    // We allow a rounding error of 1 because aTOKENs round against the user
 
         // Should be a no-op
         deposit.exec();
@@ -386,7 +403,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(ink, debtCeiling);
         assertEq(art, debtCeiling);
         assertTrue(getBorrowRate() > targetBorrowRate && getBorrowRate() < currBorrowRate);
-        assertEq(adai.balanceOf(address(deposit)), debtCeiling);
+        assertEqRoundingAgainst(adai.balanceOf(address(deposit)), debtCeiling);    // We allow a rounding error of 1 because aTOKENs round against the user
     }
 
     function test_collect_interest() public {
