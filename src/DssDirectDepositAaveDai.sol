@@ -77,9 +77,9 @@ contract DssDirectDepositAaveDai {
     ATokenLike public immutable adai;
     DaiAbstract public immutable dai;
     DaiJoinAbstract public immutable daiJoin;
-    address public immutable vow;
     uint256 public immutable tau;
 
+    address public vow;
     uint256 public bar;         // Target Interest Rate [ray]
     bool public live = true;
     bool public culled;
@@ -88,6 +88,7 @@ contract DssDirectDepositAaveDai {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
+    event File(bytes32 indexed what, address data);
     event File(bytes32 indexed what, uint256 data);
     event Wind(uint256 amount);
     event Unwind(uint256 amount);
@@ -140,6 +141,14 @@ contract DssDirectDepositAaveDai {
     }
 
     // --- Administration ---
+    function file(bytes32 what, address data) external auth {
+        require(live, "DssDirectDepositAaveDai/not-live");
+
+        if (what == "vow") vow = data;
+        else revert("DssDirectDepositAaveDai/file-unrecognized-param");
+
+        emit File(what, data);
+    }
     function file(bytes32 what, uint256 data) external auth {
         require(live, "DssDirectDepositAaveDai/not-live");
 
