@@ -239,6 +239,10 @@ contract DssDirectDepositAaveDai {
         } else if (targetSupply < supplyAmount) {
             uint256 unwindTargetAmount = supplyAmount - targetSupply;
 
+            // Unwind amount is limited by how much adai we have to withdraw
+            uint256 adaiBalance = adai.balanceOf(address(this));
+            if (adaiBalance < unwindTargetAmount) unwindTargetAmount = adaiBalance;
+
             // Unwind amount is limited by how much debt there is
             (uint256 daiDebt,) = vat.urns(ilk, address(this));
             if (culled) daiDebt = vat.gem(ilk, address(this));
@@ -249,7 +253,6 @@ contract DssDirectDepositAaveDai {
             if (availableLiquidity < unwindTargetAmount) unwindTargetAmount = availableLiquidity;
             
             // Determine the amount of fees to bring back
-            uint256 adaiBalance = adai.balanceOf(address(this));
             uint256 fees = 0;
             if (adaiBalance > daiDebt) {
                 fees = adaiBalance - daiDebt;
