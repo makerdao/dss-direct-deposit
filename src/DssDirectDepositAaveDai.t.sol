@@ -501,7 +501,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         deposit.file("bar", targetBorrowRate);
         deposit.exec();
         
-        hevm.warp(block.timestamp + 180 days);
+        hevm.warp(block.timestamp + 1 days);
 
         // Collect some stake rewards into the pause proxy
         address[] memory tokens = new address[](1);
@@ -511,6 +511,16 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 amountClaimed = deposit.collect(tokens, uint256(-1));
         assertEq(amountClaimed, amountToClaim);
         assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed);
+        assertEq(rewardsClaimer.getRewardsBalance(tokens, address(deposit)), 0);
+        
+        hevm.warp(block.timestamp + 1 days);
+
+        // Collect some more rewards
+        uint256 amountToClaim2 = rewardsClaimer.getRewardsBalance(tokens, address(deposit));
+        assertTrue(amountToClaim2 > 0);
+        uint256 amountClaimed2 = deposit.collect(tokens, uint256(-1));
+        assertEq(amountClaimed2, amountToClaim2);
+        assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed + amountClaimed2);
         assertEq(rewardsClaimer.getRewardsBalance(tokens, address(deposit)), 0);
     }
     
