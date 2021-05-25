@@ -1,3 +1,19 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2021 Dai Foundation
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 pragma solidity 0.6.12;
 
 import "ds-test/test.sol";
@@ -24,15 +40,19 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
     Hevm hevm;
 
+    ChainlogAbstract chainlog;
     VatAbstract vat;
     LendingPoolLike pool;
     InterestRateStrategyLike interestStrategy;
+    RewardsClaimerLike rewardsClaimer;
     DaiAbstract dai;
     DaiJoinAbstract daiJoin;
     DSTokenAbstract adai;
+    DSTokenAbstract stkAave;
     SpotAbstract spot;
     DSTokenAbstract weth;
     address vow;
+    address pauseProxy;
 
     bytes32 constant ilk = "DD-DAI-A";
     DssDirectDepositAaveDai deposit;
@@ -45,21 +65,25 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     function setUp() public {
         hevm = Hevm(address(bytes20(uint160(uint256(keccak256('hevm cheat code'))))));
 
+        chainlog = ChainlogAbstract(0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F);
         vat = VatAbstract(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         pool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
         adai = DSTokenAbstract(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
+        stkAave = DSTokenAbstract(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
         dai = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         daiJoin = DaiJoinAbstract(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
         interestStrategy = InterestRateStrategyLike(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
+        rewardsClaimer = RewardsClaimerLike(0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5);
         spot = SpotAbstract(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
         weth = DSTokenAbstract(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
+        pauseProxy = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
 
         // Force give admin access to this contract via hevm magic
         giveAuthAccess(address(vat), address(this));
         giveAuthAccess(address(spot), address(this));
         
-        deposit = new DssDirectDepositAaveDai(address(vat), ilk, address(pool), address(interestStrategy), address(adai), address(daiJoin), vow, 7 days);
+        deposit = new DssDirectDepositAaveDai(address(chainlog), ilk, address(pool), address(interestStrategy), address(adai), address(rewardsClaimer), 7 days);
 
         // Init new collateral
         pip = new DSValue();
@@ -482,6 +506,38 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 vowDai = vat.dai(vow);
         deposit.reap();
         assertEq(vat.dai(vow) - vowDai, 100 * RAD);
+    }
+
+    function test_collect_stkaave() public {
+        uint256 currBorrowRate = getBorrowRate();
+
+        // Reduce borrow rate by 25%
+        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
+
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+        
+        hevm.warp(block.timestamp + 1 days);
+
+        // Collect some stake rewards into the pause proxy
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(adai);
+        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(deposit));
+        assertTrue(amountToClaim > 0);
+        uint256 amountClaimed = deposit.collect(tokens, uint256(-1));
+        assertEq(amountClaimed, amountToClaim);
+        assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed);
+        assertEq(rewardsClaimer.getRewardsBalance(tokens, address(deposit)), 0);
+        
+        hevm.warp(block.timestamp + 1 days);
+
+        // Collect some more rewards
+        uint256 amountToClaim2 = rewardsClaimer.getRewardsBalance(tokens, address(deposit));
+        assertTrue(amountToClaim2 > 0);
+        uint256 amountClaimed2 = deposit.collect(tokens, uint256(-1));
+        assertEq(amountClaimed2, amountToClaim2);
+        assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed + amountClaimed2);
+        assertEq(rewardsClaimer.getRewardsBalance(tokens, address(deposit)), 0);
     }
     
 }
