@@ -122,7 +122,6 @@ contract DssDirectDepositAaveDai {
     constructor(address chainlog_, bytes32 ilk_, address pool_, address interestStrategy_, address adai_, address _rewardsClaimer, uint256 tau_) public {
         address vat_ = ChainlogAbstract(chainlog_).getAddress("MCD_VAT");
         address daiJoin_ = ChainlogAbstract(chainlog_).getAddress("MCD_JOIN_DAI");
-        address pauseProxy_ = ChainlogAbstract(chainlog_).getAddress("MCD_PAUSE_PROXY");
 
         // Sanity checks
         (,,,,,,,,,, address strategy,) = LendingPoolLike(pool_).getReserveData(ATokenLike(adai_).UNDERLYING_ASSET_ADDRESS());
@@ -221,7 +220,7 @@ contract DssDirectDepositAaveDai {
     }
 
     // --- Automated Rate Targetting ---
-    function calculateTargetSupply(uint256 targetInterestRate) public returns (uint256) {
+    function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
         require(targetInterestRate > 0, "DssDirectDepositAaveDai/target-interest-zero");
         require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
 

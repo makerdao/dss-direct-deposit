@@ -94,7 +94,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         vat.rely(address(deposit));
         vat.init(ilk);
-        vat.file(ilk, "line", 500_000_000 * RAD);
+        vat.file(ilk, "line", 5_000_000_000 * RAD);
+        vat.file("Line", vat.Line() + 5_000_000_000 * RAD);
 
         // Give us a bunch of WETH and deposit into Aave
         uint256 amt = 1_000_000 * WAD;
@@ -220,7 +221,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         }
     }
 
-    function getBorrowRate() public returns (uint256 borrowRate) {
+    function getBorrowRate() public view returns (uint256 borrowRate) {
         (,,,, borrowRate,,,,,,,) = pool.getReserveData(address(dai));
     }
 
@@ -488,8 +489,6 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
 
     function test_insufficient_liquidity_for_reap_fees() public {
-        uint256 currentLiquidity = dai.balanceOf(address(adai));
-
         // Lower by 50%
         uint256 targetBorrowRate = getBorrowRate() * 50 / 100;
         deposit.file("bar", targetBorrowRate);
