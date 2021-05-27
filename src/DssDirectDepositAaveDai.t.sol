@@ -319,7 +319,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
         deposit.cage();
-        assertTrue(!deposit.live());
+        assertEq(deposit.live(), 0);
         deposit.exec();
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
@@ -356,7 +356,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
         deposit.cage();
-        assertTrue(!deposit.live());
+        assertEq(deposit.live(), 0);
         deposit.exec();
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
@@ -375,7 +375,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 vowDai = vat.dai(vow);
         deposit.cull();
         (uint256 ink2, uint256 art2) = vat.urns(ilk, address(deposit));
-        assertTrue(deposit.culled());
+        assertEq(deposit.culled(), 1);
         assertEq(ink2, 0);
         assertEq(art2, 0);
         assertEq(vat.gem(ilk, address(deposit)), ink);
