@@ -138,6 +138,7 @@ contract DssDirectDepositAaveDai {
     uint256 public live = 1;
     uint256 public culled;
     uint256 public tic;         // Time until you can write off the debt [sec]
+    address public king;        // Who gets the rewards
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -209,6 +210,11 @@ contract DssDirectDepositAaveDai {
             bar = data;
         } else revert("DssDirectDepositAaveDai/file-unrecognized-param");
 
+        emit File(what, data);
+    }
+    function file(bytes32 what, address data) external auth {
+        if (what == "king") king = data;
+        else revert("DssDirectDepositAaveDai/file-unrecognized-param");
         emit File(what, data);
     }
 
@@ -335,7 +341,9 @@ contract DssDirectDepositAaveDai {
 
     // --- Collect any rewards ---
     function collect(address[] memory assets, uint256 amount) external returns (uint256) {
-        return rewardsClaimer.claimRewards(assets, amount, chainlog.getAddress("MCD_PAUSE_PROXY"));
+        require(king != address(0), "DssDirectDepositAaveDai/king-not-set");
+
+        return rewardsClaimer.claimRewards(assets, amount, king);
     }
 
     // --- Shutdown ---
