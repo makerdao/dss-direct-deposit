@@ -334,8 +334,7 @@ contract DssDirectDepositAaveDai {
                 fees = availableLiquidity;
             }
             pool.withdraw(address(dai), fees, address(this));
-            daiJoin.join(address(this), fees);
-            vat.move(address(this), chainlog.getAddress("MCD_VOW"), mul(fees, RAY));
+            daiJoin.join(address(chainlog.getAddress("MCD_VOW")), fees);
         }
     }
 
