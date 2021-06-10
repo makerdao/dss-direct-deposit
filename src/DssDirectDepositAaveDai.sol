@@ -177,8 +177,8 @@ contract DssDirectDepositAaveDai {
 
         // Auths
         VatLike(vat_).hope(daiJoin_);
-        dai_.approve(pool_, uint256(-1));
-        dai_.approve(daiJoin_, uint256(-1));
+        dai_.approve(pool_, type(uint256).max);
+        dai_.approve(daiJoin_, type(uint256).max);
     }
 
     // --- Math ---
