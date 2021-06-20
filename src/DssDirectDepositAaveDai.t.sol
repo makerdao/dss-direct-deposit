@@ -561,4 +561,43 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         deposit.collect(tokens, uint256(-1));
     }
     
+    function test_cage_exit() public {
+        uint256 currBorrowRate = getBorrowRate();
+
+        // Reduce borrow rate by 25%
+        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
+
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+
+        // Vat is caged for global settlement
+        vat.cage();
+        deposit.cage();
+
+        // Simulate DAI holder gets some gems from GS
+        vat.grab(ilk, address(deposit), address(this), address(this), -int256(100 ether), -int256(0));
+
+        // User can exit and get the aDAI
+        deposit.exit(address(this), 100 ether);
+        assertEq(adai.balanceOf(address(this)), 100 ether);
+    }
+    
+    function testFail_shutdown_cant_cull() public {
+        uint256 currBorrowRate = getBorrowRate();
+
+        // Reduce borrow rate by 25%
+        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
+
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+
+        // Vat is caged for global settlement
+        vat.cage();
+        deposit.cage();
+
+        hevm.warp(block.timestamp + deposit.tau());
+
+        deposit.cull();
+    }
+    
 }

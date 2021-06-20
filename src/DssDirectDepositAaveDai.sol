@@ -345,6 +345,13 @@ contract DssDirectDepositAaveDai {
         return rewardsClaimer.claimRewards(assets, amount, king);
     }
 
+    // --- Allow DAI holders to exit during global settlement ---
+    function exit(address usr, uint256 wad) external {
+        require(wad <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
+        vat.slip(ilk, msg.sender, -int256(wad));
+        require(adai.transfer(usr, wad), "DssDirectDepositAaveDai/failed-transfer");
+    }
+
     // --- Shutdown ---
     function cage() external {
         // Can shut this down if we are authed, if the vat was caged
@@ -363,6 +370,7 @@ contract DssDirectDepositAaveDai {
 
     // --- Write-off ---
     function cull() external {
+        require(vat.live() == 1, "DssDirectDepositAaveDai/no-cull-during-shutdown");
         require(live == 0, "DssDirectDepositAaveDai/live");
         require(add(tic, tau) <= block.timestamp, "DssDirectDepositAaveDai/early-cull");
         require(culled == 0, "DssDirectDepositAaveDai/already-culled");
