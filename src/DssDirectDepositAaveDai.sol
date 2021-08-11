@@ -16,11 +16,42 @@
 
 pragma solidity 0.6.12;
 
-import "dss-interfaces/ERC/GemAbstract.sol";
-import "dss-interfaces/dss/ChainlogAbstract.sol";
-import "dss-interfaces/dss/DaiAbstract.sol";
-import "dss-interfaces/dss/DaiJoinAbstract.sol";
-import "dss-interfaces/dss/VatAbstract.sol";
+interface TokenLike {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address) external view returns (uint256);
+    function allowance(address, address) external view returns (uint256);
+    function approve(address, uint256) external returns (bool);
+    function transfer(address, uint256) external returns (bool);
+    function transferFrom(address, address, uint256) external returns (bool);
+}
+
+interface ChainlogLike {
+    function getAddress(bytes32) external view returns (address);
+}
+
+interface DaiJoinLike {
+    function wards(address) external view returns (uint256);
+    function rely(address usr) external;
+    function deny(address usr) external;
+    function vat() external view returns (address);
+    function dai() external view returns (address);
+    function live() external view returns (uint256);
+    function cage() external;
+    function join(address, uint256) external;
+    function exit(address, uint256) external;
+}
+
+interface VatLike {
+    function hope(address) external;
+    function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
+    function urns(bytes32, address) external view returns (uint256, uint256);
+    function gem(bytes32, address) external view returns (uint256);
+    function live() external view returns (uint256);
+    function slip(bytes32, address, int256) external;
+    function move(address, address, uint256) external;
+    function frob(bytes32, address, address, address, int256, int256) external;
+    function grab(bytes32, address, address, address, int256, int256) external;
+}
 
 interface LendingPoolLike {
     function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
@@ -64,7 +95,7 @@ interface InterestRateStrategyLike {
     );
 }
 
-interface ATokenLike is GemAbstract {
+interface ATokenLike is TokenLike {
     function UNDERLYING_ASSET_ADDRESS() external view returns (address);
 }
 
@@ -92,21 +123,22 @@ contract DssDirectDepositAaveDai {
         _;
     }
 
-    ChainlogAbstract public immutable chainlog;
-    VatAbstract public immutable vat;
+    ChainlogLike public immutable chainlog;
+    VatLike public immutable vat;
     bytes32 public immutable ilk;
     LendingPoolLike public immutable pool;
     InterestRateStrategyLike public immutable interestStrategy;
     RewardsClaimerLike public immutable rewardsClaimer;
     ATokenLike public immutable adai;
-    DaiAbstract public immutable dai;
-    DaiJoinAbstract public immutable daiJoin;
+    TokenLike public immutable dai;
+    DaiJoinLike public immutable daiJoin;
     uint256 public immutable tau;
 
     uint256 public bar;         // Target Interest Rate [ray]
-    bool public live = true;
-    bool public culled;
+    uint256 public live = 1;
+    uint256 public culled;
     uint256 public tic;         // Time until you can write off the debt [sec]
+    address public king;        // Who gets the rewards
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -120,34 +152,33 @@ contract DssDirectDepositAaveDai {
     event Cull();
 
     constructor(address chainlog_, bytes32 ilk_, address pool_, address interestStrategy_, address adai_, address _rewardsClaimer, uint256 tau_) public {
-        address vat_ = ChainlogAbstract(chainlog_).getAddress("MCD_VAT");
-        address daiJoin_ = ChainlogAbstract(chainlog_).getAddress("MCD_JOIN_DAI");
-        address pauseProxy_ = ChainlogAbstract(chainlog_).getAddress("MCD_PAUSE_PROXY");
+        address vat_ = ChainlogLike(chainlog_).getAddress("MCD_VAT");
+        address daiJoin_ = ChainlogLike(chainlog_).getAddress("MCD_JOIN_DAI");
 
         // Sanity checks
         (,,,,,,,,,, address strategy,) = LendingPoolLike(pool_).getReserveData(ATokenLike(adai_).UNDERLYING_ASSET_ADDRESS());
         require(strategy != address(0), "DssDirectDepositAaveDai/invalid-atoken");
         require(interestStrategy_ == strategy, "DssDirectDepositAaveDai/interest-strategy-doesnt-match");
-        require(ATokenLike(adai_).UNDERLYING_ASSET_ADDRESS() == DaiJoinAbstract(daiJoin_).dai(), "DssDirectDepositAaveDai/must-be-dai");
+        require(ATokenLike(adai_).UNDERLYING_ASSET_ADDRESS() == DaiJoinLike(daiJoin_).dai(), "DssDirectDepositAaveDai/must-be-dai");
 
-        chainlog = ChainlogAbstract(chainlog_);
-        vat = VatAbstract(vat_);
+        chainlog = ChainlogLike(chainlog_);
+        vat = VatLike(vat_);
         ilk = ilk_;
         pool = LendingPoolLike(pool_);
         adai = ATokenLike(adai_);
-        daiJoin = DaiJoinAbstract(daiJoin_);
+        daiJoin = DaiJoinLike(daiJoin_);
         interestStrategy = InterestRateStrategyLike(interestStrategy_);
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
-        dai = DaiAbstract(DaiJoinAbstract(daiJoin_).dai());
+        TokenLike dai_ = dai = TokenLike(DaiJoinLike(daiJoin_).dai());
         tau = tau_;
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
         // Auths
-        VatAbstract(vat_).hope(daiJoin_);
-        DaiAbstract(DaiJoinAbstract(daiJoin_).dai()).approve(pool_, uint256(-1));
-        DaiAbstract(DaiJoinAbstract(daiJoin_).dai()).approve(daiJoin_, uint256(-1));
+        VatLike(vat_).hope(daiJoin_);
+        dai_.approve(pool_, type(uint256).max);
+        dai_.approve(daiJoin_, type(uint256).max);
     }
 
     // --- Math ---
@@ -170,7 +201,7 @@ contract DssDirectDepositAaveDai {
 
     // --- Administration ---
     function file(bytes32 what, uint256 data) external auth {
-        require(live, "DssDirectDepositAaveDai/not-live");
+        require(live == 1, "DssDirectDepositAaveDai/not-live");
 
         if (what == "bar") {
             require(data > 0, "DssDirectDepositAaveDai/target-interest-zero");
@@ -181,10 +212,15 @@ contract DssDirectDepositAaveDai {
 
         emit File(what, data);
     }
+    function file(bytes32 what, address data) external auth {
+        if (what == "king") king = data;
+        else revert("DssDirectDepositAaveDai/file-unrecognized-param");
+        emit File(what, data);
+    }
 
     // --- Deposit controls ---
     function wind(uint256 amount) external auth {
-        require(live, "DssDirectDepositAaveDai/not-live");
+        require(live == 1, "DssDirectDepositAaveDai/not-live");
 
         _wind(amount);
     }
@@ -200,7 +236,7 @@ contract DssDirectDepositAaveDai {
     }
 
     function unwind(uint256 amount, uint256 fees) external {
-        require(wards[msg.sender] == 1 || !live, "DssDirectDepositAaveDai/not-authorized");
+        require(wards[msg.sender] == 1 || live == 0, "DssDirectDepositAaveDai/not-authorized");
 
         _unwind(amount, fees);
     }
@@ -211,17 +247,17 @@ contract DssDirectDepositAaveDai {
         uint256 total = add(amount, fees);
         pool.withdraw(address(dai), total, address(this));
         daiJoin.join(address(this), total);
-        if (!culled) {
+        if (culled == 0) {
             vat.frob(ilk, address(this), address(this), address(this), -int256(amount), -int256(amount));
         }
         vat.slip(ilk, address(this), -int256(amount));
-        vat.move(address(this), chainlog.getAddress("MCD_VOW"), mul(culled ? total : fees, RAY));
+        vat.move(address(this), chainlog.getAddress("MCD_VOW"), mul(culled == 1 ? total : fees, RAY));
 
         emit Unwind(amount);
     }
 
     // --- Automated Rate Targetting ---
-    function calculateTargetSupply(uint256 targetInterestRate) public returns (uint256) {
+    function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
         require(targetInterestRate > 0, "DssDirectDepositAaveDai/target-interest-zero");
         require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
 
@@ -244,7 +280,7 @@ contract DssDirectDepositAaveDai {
 
         uint256 supplyAmount = adai.totalSupply();
         uint256 targetSupply = calculateTargetSupply(bar);
-        if (!live) targetSupply = 0;    // Unwind only when caged
+        if (live == 0) targetSupply = 0;    // Unwind only when caged
 
         if (targetSupply > supplyAmount) {
             uint256 windTargetAmount = targetSupply - supplyAmount;
@@ -265,7 +301,7 @@ contract DssDirectDepositAaveDai {
 
             // Unwind amount is limited by how much debt there is
             (uint256 daiDebt,) = vat.urns(ilk, address(this));
-            if (culled) daiDebt = vat.gem(ilk, address(this));
+            if (culled == 1) daiDebt = vat.gem(ilk, address(this));
             if (daiDebt < unwindTargetAmount) unwindTargetAmount = daiDebt;
 
             // Unwind amount is limited by available liquidity in the pool
@@ -298,14 +334,22 @@ contract DssDirectDepositAaveDai {
                 fees = availableLiquidity;
             }
             pool.withdraw(address(dai), fees, address(this));
-            daiJoin.join(address(this), fees);
-            vat.move(address(this), chainlog.getAddress("MCD_VOW"), mul(fees, RAY));
+            daiJoin.join(address(chainlog.getAddress("MCD_VOW")), fees);
         }
     }
 
     // --- Collect any rewards ---
     function collect(address[] memory assets, uint256 amount) external returns (uint256) {
-        return rewardsClaimer.claimRewards(assets, amount, chainlog.getAddress("MCD_PAUSE_PROXY"));
+        require(king != address(0), "DssDirectDepositAaveDai/king-not-set");
+
+        return rewardsClaimer.claimRewards(assets, amount, king);
+    }
+
+    // --- Allow DAI holders to exit during global settlement ---
+    function exit(address usr, uint256 wad) external {
+        require(wad <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
+        vat.slip(ilk, msg.sender, -int256(wad));
+        require(adai.transfer(usr, wad), "DssDirectDepositAaveDai/failed-transfer");
     }
 
     // --- Shutdown ---
@@ -319,22 +363,23 @@ contract DssDirectDepositAaveDai {
             strategy != address(interestStrategy)
         , "DssDirectDepositAaveDai/not-authorized");
 
-        live = false;
+        live = 0;
         tic = block.timestamp;
         emit Cage();
     }
 
     // --- Write-off ---
     function cull() external {
-        require(!live, "DssDirectDepositAaveDai/live");
+        require(vat.live() == 1, "DssDirectDepositAaveDai/no-cull-during-shutdown");
+        require(live == 0, "DssDirectDepositAaveDai/live");
         require(add(tic, tau) <= block.timestamp, "DssDirectDepositAaveDai/early-cull");
-        require(!culled, "DssDirectDepositAaveDai/already-culled");
+        require(culled == 0, "DssDirectDepositAaveDai/already-culled");
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(this));
         require(ink <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
         require(art <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
         vat.grab(ilk, address(this), address(this), address(chainlog.getAddress("MCD_VOW")), -int256(ink), -int256(art));
-        culled = true;
+        culled = 1;
         emit Cull();
     }
 

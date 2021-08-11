@@ -94,7 +94,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         vat.rely(address(deposit));
         vat.init(ilk);
-        vat.file(ilk, "line", 500_000_000 * RAD);
+        vat.file(ilk, "line", 5_000_000_000 * RAD);
+        vat.file("Line", vat.Line() + 5_000_000_000 * RAD);
 
         // Give us a bunch of WETH and deposit into Aave
         uint256 amt = 1_000_000 * WAD;
@@ -220,7 +221,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         }
     }
 
-    function getBorrowRate() public returns (uint256 borrowRate) {
+    function getBorrowRate() public view returns (uint256 borrowRate) {
         (,,,, borrowRate,,,,,,,) = pool.getReserveData(address(dai));
     }
 
@@ -318,7 +319,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
         deposit.cage();
-        assertTrue(!deposit.live());
+        assertEq(deposit.live(), 0);
         deposit.exec();
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
@@ -355,7 +356,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
         deposit.cage();
-        assertTrue(!deposit.live());
+        assertEq(deposit.live(), 0);
         deposit.exec();
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
@@ -374,7 +375,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 vowDai = vat.dai(vow);
         deposit.cull();
         (uint256 ink2, uint256 art2) = vat.urns(ilk, address(deposit));
-        assertTrue(deposit.culled());
+        assertEq(deposit.culled(), 1);
         assertEq(ink2, 0);
         assertEq(art2, 0);
         assertEq(vat.gem(ilk, address(deposit)), ink);
@@ -488,8 +489,6 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
 
     function test_insufficient_liquidity_for_reap_fees() public {
-        uint256 currentLiquidity = dai.balanceOf(address(adai));
-
         // Lower by 50%
         uint256 targetBorrowRate = getBorrowRate() * 50 / 100;
         deposit.file("bar", targetBorrowRate);
@@ -519,6 +518,9 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         
         hevm.warp(block.timestamp + 1 days);
 
+        // Set the king
+        deposit.file("king", address(pauseProxy));
+
         // Collect some stake rewards into the pause proxy
         address[] memory tokens = new address[](1);
         tokens[0] = address(adai);
@@ -538,6 +540,64 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(amountClaimed2, amountToClaim2);
         assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed + amountClaimed2);
         assertEq(rewardsClaimer.getRewardsBalance(tokens, address(deposit)), 0);
+    }
+
+    function testFail_collect_stkaave_king_not_set() public {
+        uint256 currBorrowRate = getBorrowRate();
+
+        // Reduce borrow rate by 25%
+        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
+
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+        
+        hevm.warp(block.timestamp + 1 days);
+
+        // Collect some stake rewards into the pause proxy
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(adai);
+        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(deposit));
+        assertTrue(amountToClaim > 0);
+        deposit.collect(tokens, uint256(-1));
+    }
+    
+    function test_cage_exit() public {
+        uint256 currBorrowRate = getBorrowRate();
+
+        // Reduce borrow rate by 25%
+        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
+
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+
+        // Vat is caged for global settlement
+        vat.cage();
+        deposit.cage();
+
+        // Simulate DAI holder gets some gems from GS
+        vat.grab(ilk, address(deposit), address(this), address(this), -int256(100 ether), -int256(0));
+
+        // User can exit and get the aDAI
+        deposit.exit(address(this), 100 ether);
+        assertEq(adai.balanceOf(address(this)), 100 ether);
+    }
+    
+    function testFail_shutdown_cant_cull() public {
+        uint256 currBorrowRate = getBorrowRate();
+
+        // Reduce borrow rate by 25%
+        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
+
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+
+        // Vat is caged for global settlement
+        vat.cage();
+        deposit.cage();
+
+        hevm.warp(block.timestamp + deposit.tau());
+
+        deposit.cull();
     }
     
 }
