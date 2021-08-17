@@ -265,7 +265,7 @@ contract DssDirectDepositAaveDai {
         uint256 supplyAmount = adai.totalSupply();
         uint256 borrowAmount = sub(supplyAmount, dai.balanceOf(address(adai)));
         uint256 targetUtil;
-        if (targetInterestRate > interestStrategy.variableRateSlope1()) {
+        if (targetInterestRate > add(interestStrategy.baseVariableBorrowRate(), interestStrategy.variableRateSlope1())) {
             // Excess interest rate
             uint256 r = targetInterestRate - interestStrategy.baseVariableBorrowRate() - interestStrategy.variableRateSlope1();
             targetUtil = add(rdiv(rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r), interestStrategy.variableRateSlope2()), interestStrategy.OPTIMAL_UTILIZATION_RATE());
