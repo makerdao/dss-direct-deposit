@@ -83,7 +83,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         giveAuthAccess(address(vat), address(this));
         giveAuthAccess(address(spot), address(this));
         
-        deposit = new DssDirectDepositAaveDai(address(chainlog), ilk, address(pool), address(interestStrategy), address(adai), address(rewardsClaimer), 7 days);
+        deposit = new DssDirectDepositAaveDai(address(chainlog), ilk, address(pool), address(rewardsClaimer), 7 days);
 
         // Init new collateral
         pip = new DSValue();
@@ -462,14 +462,14 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Accumulate a bunch of interest
         hevm.warp(block.timestamp + 180 days);
-        uint256 feesAccrued = adai.balanceOf(address(deposit));
+        uint256 feesAccrued = adai.balanceOf(address(deposit)) - amountSupplied;
         currentLiquidity = dai.balanceOf(address(adai));
         assertTrue(feesAccrued > 0);
         assertEq(amountSupplied, currentLiquidity);
         assertTrue(amountSupplied + feesAccrued > currentLiquidity);
 
-        // Set the interest rate to the maximum amount to trigger only unwinds
-        deposit.file("bar", 79 * RAY / 100);
+        // Cage the system to trigger only unwinds
+        deposit.cage();
         deposit.exec();
 
         // The full debt should be paid off, but we are still owed fees
