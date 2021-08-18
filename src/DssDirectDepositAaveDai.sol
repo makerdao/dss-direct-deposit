@@ -66,9 +66,9 @@ interface LendingPoolLike {
         uint128,    // the current variable borrow rate. Expressed in ray
         uint128,    // the current stable borrow rate. Expressed in ray
         uint40,
-        address,
-        address,
-        address,
+        address,    // address of the adai interest bearing token
+        address,    // address of the stable debt token
+        address,    // address of the variable debt token
         address,    // address of the interest rate strategy
         uint8
     );
@@ -274,7 +274,8 @@ contract DssDirectDepositAaveDai {
     function exec() external {
         require(bar > 0, "DssDirectDepositAaveDai/bar-not-set");
 
-        uint256 supplyAmount = adai.totalSupply();
+        uint256 availableLiquidity = dai.balanceOf(address(adai));
+        uint256 supplyAmount = add(availableLiquidity, add(stableDebt.totalSupply(), variableDebt.totalSupply()));
         uint256 targetSupply = calculateTargetSupply(bar);
         if (live == 0) targetSupply = 0;    // Unwind only when caged
 
@@ -301,7 +302,6 @@ contract DssDirectDepositAaveDai {
             if (daiDebt < unwindTargetAmount) unwindTargetAmount = daiDebt;
 
             // Unwind amount is limited by available liquidity in the pool
-            uint256 availableLiquidity = dai.balanceOf(address(adai));
             if (availableLiquidity < unwindTargetAmount) unwindTargetAmount = availableLiquidity;
             
             // Determine the amount of fees to bring back
