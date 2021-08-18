@@ -95,10 +95,6 @@ interface InterestRateStrategyLike {
     );
 }
 
-interface ATokenLike is TokenLike {
-    function UNDERLYING_ASSET_ADDRESS() external view returns (address);
-}
-
 interface RewardsClaimerLike {
     function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
@@ -129,7 +125,7 @@ contract DssDirectDepositAaveDai {
     LendingPoolLike public immutable pool;
     InterestRateStrategyLike public immutable interestStrategy;
     RewardsClaimerLike public immutable rewardsClaimer;
-    ATokenLike public immutable adai;
+    TokenLike public immutable adai;
     TokenLike public immutable stableDebt;
     TokenLike public immutable variableDebt;
     TokenLike public immutable dai;
@@ -166,7 +162,7 @@ contract DssDirectDepositAaveDai {
         vat = VatLike(vat_);
         ilk = ilk_;
         pool = LendingPoolLike(pool_);
-        adai = ATokenLike(adai_);
+        adai = TokenLike(adai_);
         stableDebt = TokenLike(stableDebt_);
         variableDebt = TokenLike(variableDebt_);
         daiJoin = DaiJoinLike(daiJoin_);
@@ -264,8 +260,6 @@ contract DssDirectDepositAaveDai {
         require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
 
         // Do inverse calculation of interestStrategy
-        uint256 supplyAmount = adai.totalSupply();
-        uint256 borrowAmount = add(stableDebt.totalSupply(), variableDebt.totalSupply());
         uint256 targetUtil;
         if (targetInterestRate > add(interestStrategy.baseVariableBorrowRate(), interestStrategy.variableRateSlope1())) {
             // Excess interest rate
@@ -275,7 +269,7 @@ contract DssDirectDepositAaveDai {
             // Optimal interst rate
             targetUtil = rdiv(rmul(sub(targetInterestRate, interestStrategy.baseVariableBorrowRate()), interestStrategy.OPTIMAL_UTILIZATION_RATE()), interestStrategy.variableRateSlope1());
         }
-        return rdiv(borrowAmount, targetUtil);
+        return rdiv(add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
     }
     function exec() external {
         require(bar > 0, "DssDirectDepositAaveDai/bar-not-set");
