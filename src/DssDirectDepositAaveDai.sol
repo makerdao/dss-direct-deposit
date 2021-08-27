@@ -66,9 +66,9 @@ interface LendingPoolLike {
         uint128,    // the current variable borrow rate. Expressed in ray
         uint128,    // the current stable borrow rate. Expressed in ray
         uint40,
-        address,
-        address,
-        address,
+        address,    // address of the adai interest bearing token
+        address,    // address of the stable debt token
+        address,    // address of the variable debt token
         address,    // address of the interest rate strategy
         uint8
     );
@@ -93,10 +93,6 @@ interface InterestRateStrategyLike {
         uint256,
         uint256
     );
-}
-
-interface ATokenLike is TokenLike {
-    function UNDERLYING_ASSET_ADDRESS() external view returns (address);
 }
 
 interface RewardsClaimerLike {
@@ -129,7 +125,9 @@ contract DssDirectDepositAaveDai {
     LendingPoolLike public immutable pool;
     InterestRateStrategyLike public immutable interestStrategy;
     RewardsClaimerLike public immutable rewardsClaimer;
-    ATokenLike public immutable adai;
+    TokenLike public immutable adai;
+    TokenLike public immutable stableDebt;
+    TokenLike public immutable variableDebt;
     TokenLike public immutable dai;
     DaiJoinLike public immutable daiJoin;
     uint256 public immutable tau;
@@ -151,25 +149,25 @@ contract DssDirectDepositAaveDai {
     event Cage();
     event Cull();
 
-    constructor(address chainlog_, bytes32 ilk_, address pool_, address interestStrategy_, address adai_, address _rewardsClaimer, uint256 tau_) public {
+    constructor(address chainlog_, bytes32 ilk_, address pool_, address _rewardsClaimer, uint256 tau_) public {
         address vat_ = ChainlogLike(chainlog_).getAddress("MCD_VAT");
         address daiJoin_ = ChainlogLike(chainlog_).getAddress("MCD_JOIN_DAI");
+        TokenLike dai_ = dai = TokenLike(DaiJoinLike(daiJoin_).dai());
 
-        // Sanity checks
-        (,,,,,,,,,, address strategy,) = LendingPoolLike(pool_).getReserveData(ATokenLike(adai_).UNDERLYING_ASSET_ADDRESS());
-        require(strategy != address(0), "DssDirectDepositAaveDai/invalid-atoken");
-        require(interestStrategy_ == strategy, "DssDirectDepositAaveDai/interest-strategy-doesnt-match");
-        require(ATokenLike(adai_).UNDERLYING_ASSET_ADDRESS() == DaiJoinLike(daiJoin_).dai(), "DssDirectDepositAaveDai/must-be-dai");
+        // Fetch the reserve data from Aave
+        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(address(dai_));
+        require(adai_ != address(0), "DssDirectDepositAaveDai/invalid-asset");
 
         chainlog = ChainlogLike(chainlog_);
         vat = VatLike(vat_);
         ilk = ilk_;
         pool = LendingPoolLike(pool_);
-        adai = ATokenLike(adai_);
+        adai = TokenLike(adai_);
+        stableDebt = TokenLike(stableDebt_);
+        variableDebt = TokenLike(variableDebt_);
         daiJoin = DaiJoinLike(daiJoin_);
         interestStrategy = InterestRateStrategyLike(interestStrategy_);
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
-        TokenLike dai_ = dai = TokenLike(DaiJoinLike(daiJoin_).dai());
         tau = tau_;
 
         wards[msg.sender] = 1;
@@ -262,10 +260,8 @@ contract DssDirectDepositAaveDai {
         require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
 
         // Do inverse calculation of interestStrategy
-        uint256 supplyAmount = adai.totalSupply();
-        uint256 borrowAmount = sub(supplyAmount, dai.balanceOf(address(adai)));
         uint256 targetUtil;
-        if (targetInterestRate > interestStrategy.variableRateSlope1()) {
+        if (targetInterestRate > add(interestStrategy.baseVariableBorrowRate(), interestStrategy.variableRateSlope1())) {
             // Excess interest rate
             uint256 r = targetInterestRate - interestStrategy.baseVariableBorrowRate() - interestStrategy.variableRateSlope1();
             targetUtil = add(rdiv(rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r), interestStrategy.variableRateSlope2()), interestStrategy.OPTIMAL_UTILIZATION_RATE());
@@ -273,12 +269,13 @@ contract DssDirectDepositAaveDai {
             // Optimal interst rate
             targetUtil = rdiv(rmul(sub(targetInterestRate, interestStrategy.baseVariableBorrowRate()), interestStrategy.OPTIMAL_UTILIZATION_RATE()), interestStrategy.variableRateSlope1());
         }
-        return rdiv(borrowAmount, targetUtil);
+        return rdiv(add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
     }
     function exec() external {
         require(bar > 0, "DssDirectDepositAaveDai/bar-not-set");
 
-        uint256 supplyAmount = adai.totalSupply();
+        uint256 availableLiquidity = dai.balanceOf(address(adai));
+        uint256 supplyAmount = add(availableLiquidity, add(stableDebt.totalSupply(), variableDebt.totalSupply()));
         uint256 targetSupply = calculateTargetSupply(bar);
         if (live == 0) targetSupply = 0;    // Unwind only when caged
 
@@ -305,7 +302,6 @@ contract DssDirectDepositAaveDai {
             if (daiDebt < unwindTargetAmount) unwindTargetAmount = daiDebt;
 
             // Unwind amount is limited by available liquidity in the pool
-            uint256 availableLiquidity = dai.balanceOf(address(adai));
             if (availableLiquidity < unwindTargetAmount) unwindTargetAmount = availableLiquidity;
             
             // Determine the amount of fees to bring back
