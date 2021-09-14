@@ -225,10 +225,15 @@ contract DssDirectDepositAaveDai {
     function _wind(uint256 amount) internal {
         require(int256(amount) >= 0, "DssDirectDepositAaveDai/overflow");
 
+        uint256 prev = adai.balanceOf(address(this));
+
         vat.slip(ilk, address(this), int256(amount));
         vat.frob(ilk, address(this), address(this), address(this), int256(amount), int256(amount));
         daiJoin.exit(address(this), amount);
         pool.deposit(address(dai), amount, address(this), 0);
+
+        // We accept being off by 1 here due to rounding error
+        require(add(adai.balanceOf(address(this)), 1) >= add(prev, amount), "DssDirectDepositAaveDai/no-receive-adai");
 
         emit Wind(amount);
     }
