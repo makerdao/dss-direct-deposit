@@ -383,5 +383,11 @@ contract DssDirectDepositAaveDai {
         culled = 1;
         emit Cull();
     }
+    // In the case we are culled and no liquidity remains in Aave, we can manually pull out the adai
+    function emergencyExit(address usr, uint256 wad) external auth {
+        require(wad <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
+        vat.slip(ilk, address(this), -int256(wad));
+        require(adai.transfer(usr, wad), "DssDirectDepositAaveDai/failed-transfer");
+    }
 
 }

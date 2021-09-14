@@ -616,4 +616,40 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         deposit.cull();
     }
     
+    function test_emergencyExit() public {
+        uint256 currBorrowRate = getBorrowRate();
+
+        // Reduce borrow rate by 25%
+        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
+
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+
+        deposit.cage();
+
+        hevm.warp(block.timestamp + deposit.tau());
+
+        deposit.cull();
+
+        // Test that we can extract the adai in emergency situations
+        uint256 gems = vat.gem(ilk, address(deposit));
+        assertGt(gems, 0);
+        deposit.emergencyExit(address(this), gems);
+        assertEqApprox(adai.balanceOf(address(this)), gems, 1);     // Slight rounding error may occur
+    }
+    
+    function testFail_emergencyExit_no_cull() public {
+        uint256 currBorrowRate = getBorrowRate();
+
+        // Reduce borrow rate by 25%
+        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
+
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+
+        uint256 gems = vat.gem(ilk, address(deposit));
+        assertEq(gems, 0);
+        deposit.emergencyExit(address(this), 1);    // Can't extract adai during normal operation (can still be done via PauseProxy grab)
+    }
+    
 }
