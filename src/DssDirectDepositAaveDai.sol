@@ -23,6 +23,7 @@ interface TokenLike {
     function approve(address, uint256) external returns (bool);
     function transfer(address, uint256) external returns (bool);
     function transferFrom(address, address, uint256) external returns (bool);
+    function scaledBalanceOf(address) external view returns (uint256);
 }
 
 interface ChainlogLike {
@@ -59,6 +60,7 @@ interface LendingPoolLike {
     function withdraw(address asset, uint256 amount, address to) external;
     function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external;
     function repay(address asset, uint256 amount, uint256 rateMode, address onBehalfOf) external;
+    function getReserveNormalizedIncome(address asset) external view returns (uint256);
     function getReserveData(address asset) external view returns (
         uint256,    // Configuration
         uint128,    // the liquidity index. Expressed in ray
@@ -226,15 +228,17 @@ contract DssDirectDepositAaveDai {
     function _wind(uint256 amount) internal {
         require(int256(amount) >= 0, "DssDirectDepositAaveDai/overflow");
 
-        uint256 prev = adai.balanceOf(address(this));
+        uint256 scaledPrev = adai.scaledBalanceOf(address(this));
 
         vat.slip(ilk, address(this), int256(amount));
         vat.frob(ilk, address(this), address(this), address(this), int256(amount), int256(amount));
         daiJoin.exit(address(this), amount);
         pool.deposit(address(dai), amount, address(this), 0);
 
-        // We accept being off by 1 here due to rounding error
-        require(add(adai.balanceOf(address(this)), 1) >= add(prev, amount), "DssDirectDepositAaveDai/no-receive-adai");
+        // Verify the correct amount of adai shows up
+        uint256 interestIndex = pool.getReserveNormalizedIncome(address(dai));
+        uint256 scaledAmount = rdiv(amount, interestIndex);
+        require(adai.scaledBalanceOf(address(this)) >= add(scaledPrev, scaledAmount), "DssDirectDepositAaveDai/no-receive-adai");
 
         emit Wind(amount);
     }
