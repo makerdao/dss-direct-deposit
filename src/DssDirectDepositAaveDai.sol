@@ -51,6 +51,7 @@ interface VatLike {
     function move(address, address, uint256) external;
     function frob(bytes32, address, address, address, int256, int256) external;
     function grab(bytes32, address, address, address, int256, int256) external;
+    function fork(bytes32, address, address, int256, int256) external;
 }
 
 interface LendingPoolLike {
@@ -388,6 +389,27 @@ contract DssDirectDepositAaveDai {
         require(wad <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
         vat.slip(ilk, address(this), -int256(wad));
         require(adai.transfer(usr, wad), "DssDirectDepositAaveDai/failed-transfer");
+    }
+
+    // --- Emergency Quit Everything ---
+    function quit(address who) external auth {
+        require(live == 0, "DssDirectDepositAaveDai/live");
+
+        // Send all adai in the contract to who
+        require(adai.transfer(who, adai.balanceOf(address(this))), "DssDirectDepositAaveDai/failed-transfer");
+
+        if (culled == 1) {
+            // Culled - just zero out the gems
+            uint256 wad = vat.gem(ilk, address(this));
+            require(wad <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
+            vat.slip(ilk, address(this), -int256(wad));
+        } else {
+            // Regular operation - transfer the debt position (requires who to accept the transfer)
+            (uint256 ink, uint256 art) = vat.urns(ilk, address(this));
+            require(ink < 2 ** 255, "DssDirectDepositAaveDai/overflow");
+            require(art < 2 ** 255, "DssDirectDepositAaveDai/overflow");
+            vat.fork(ilk, address(this), who, int256(ink), int256(art));
+        }
     }
 
 }

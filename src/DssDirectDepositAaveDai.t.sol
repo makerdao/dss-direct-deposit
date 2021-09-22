@@ -652,4 +652,86 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         deposit.emergencyExit(address(this), 1);    // Can't extract adai during normal operation (can still be done via PauseProxy grab)
     }
     
+    function test_quit_no_cull() public {
+        uint256 currBorrowRate = getBorrowRate();
+
+        // Reduce borrow rate by 25%
+        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
+
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+
+        deposit.cage();
+
+        // Test that we can extract the whole position in emergency situations
+        // aDAI should be sitting in the deposit contract, urn should be owned by deposit contract
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
+        uint256 pbal = adai.balanceOf(address(deposit));
+        assertGt(pink, 0);
+        assertGt(part, 0);
+        assertGt(pbal, 0);
+
+        vat.hope(address(deposit));     // Need to approve urn transfer
+        deposit.quit(address(this));
+
+        (uint256 nink, uint256 nart) = vat.urns(ilk, address(deposit));
+        uint256 nbal = adai.balanceOf(address(deposit));
+        assertEq(nink, 0);
+        assertEq(nart, 0);
+        assertEq(nbal, 0);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(this));
+        uint256 bal = adai.balanceOf(address(this));
+        assertEq(ink, pink);
+        assertEq(art, part);
+        assertEq(bal, pbal);
+    }
+    
+    function test_quit_cull() public {
+        uint256 currBorrowRate = getBorrowRate();
+
+        // Reduce borrow rate by 25%
+        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
+
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+
+        deposit.cage();
+
+        hevm.warp(block.timestamp + deposit.tau());
+
+        deposit.cull();
+
+        // Test that we can extract the adai in emergency situations
+        // aDAI should be sitting in the deposit contract, gems should be owned by deposit contract
+        uint256 pgem = vat.gem(ilk, address(deposit));
+        uint256 pbal = adai.balanceOf(address(deposit));
+        assertGt(pgem, 0);
+        assertGt(pbal, 0);
+
+        deposit.quit(address(this));
+
+        uint256 ngem = vat.gem(ilk, address(deposit));
+        uint256 nbal = adai.balanceOf(address(deposit));
+        assertEq(ngem, 0);
+        assertEq(nbal, 0);
+
+        uint256 gem = vat.gem(ilk, address(this));
+        uint256 bal = adai.balanceOf(address(this));
+        assertEq(gem, 0);
+        assertEq(bal, pbal);
+    }
+    
+    function testFail_quit_no_cage() public {
+        uint256 currBorrowRate = getBorrowRate();
+
+        // Reduce borrow rate by 25%
+        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
+
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+        
+        deposit.quit(address(this));
+    }
+    
 }
