@@ -133,13 +133,13 @@ contract DssDirectDepositAaveDai {
     TokenLike public immutable variableDebt;
     TokenLike public immutable dai;
     DaiJoinLike public immutable daiJoin;
-    uint256 public immutable tau;
 
-    uint256 public bar;         // Target Interest Rate [ray]
+    uint256 public immutable tau;   // Time until you can write off the debt [sec]
+    uint256 public bar;             // Target Interest Rate [ray]
     uint256 public live = 1;
     uint256 public culled;
-    uint256 public tic;         // Time until you can write off the debt [sec]
-    address public king;        // Who gets the rewards
+    uint256 public tic;             // Timestamp when the system is caged
+    address public king;            // Who gets the rewards
 
     // --- Events ---
     event Rely(address indexed usr);
