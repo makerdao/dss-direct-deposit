@@ -159,7 +159,10 @@ contract DssDirectDepositAaveDai {
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(address(dai_));
-        require(adai_ != address(0), "DssDirectDepositAaveDai/invalid-asset");
+        require(adai_ != address(0), "DssDirectDepositAaveDai/invalid-adai");
+        require(stableDebt_ != address(0), "DssDirectDepositAaveDai/invalid-stableDebt");
+        require(variableDebt_ != address(0), "DssDirectDepositAaveDai/invalid-variableDebt");
+        require(interestStrategy_ != address(0), "DssDirectDepositAaveDai/invalid-interestStrategy");
 
         chainlog = ChainlogLike(chainlog_);
         vat = VatLike(vat_);
