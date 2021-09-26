@@ -450,6 +450,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
     function test_insufficient_liquidity_for_unwind_fees() public {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
+        uint256 vowDai = vat.dai(vow);
 
         // Lower by 50%
         uint256 targetBorrowRate = set_rel_borrow_target(5000);
@@ -464,9 +465,9 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         hevm.warp(block.timestamp + 180 days);
         uint256 feesAccrued = adai.balanceOf(address(deposit)) - amountSupplied;
         currentLiquidity = dai.balanceOf(address(adai));
-        assertTrue(feesAccrued > 0);
+        assertGt(feesAccrued, 0);
         assertEq(amountSupplied, currentLiquidity);
-        assertTrue(amountSupplied + feesAccrued > currentLiquidity);
+        assertGt(amountSupplied + feesAccrued, currentLiquidity);
 
         // Cage the system to trigger only unwinds
         deposit.cage();
@@ -476,7 +477,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
         assertEq(ink, 0);
         assertEq(art, 0);
-        assertTrue(adai.balanceOf(address(deposit)) > 0);
+        assertGt(adai.balanceOf(address(deposit)), 0);
+        assertEq(vat.dai(vow), vowDai);
 
         // Someone repays
         pool.repay(address(dai), amountToBorrow, 2, address(this));
@@ -486,6 +488,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(ink, 0);
         assertEq(art, 0);
         assertEq(adai.balanceOf(address(deposit)), 0);
+        assertEqApprox(vat.dai(vow), vowDai + feesAccrued * RAY, RAY);
     }
 
     function test_insufficient_liquidity_for_reap_fees() public {
