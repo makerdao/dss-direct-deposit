@@ -241,6 +241,13 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         (,,,, borrowRate,,,,,,,) = pool.getReserveData(address(dai));
     }
 
+    // Set the borrow rate to a relative percent to what it currently is
+    function set_rel_borrow_target(uint256 deltaBPS) internal returns (uint256 targetBorrowRate) {
+        targetBorrowRate = getBorrowRate() * deltaBPS / 10000;
+        deposit.file("bar", targetBorrowRate);
+        deposit.exec();
+    }
+
     function test_interest_rate_calc() public {
         // Confirm that the inverse function is correct by comparing all percentages
         for (uint256 i = 1; i <= 100 * interestStrategy.getMaxVariableBorrowRate() / RAY; i++) {
@@ -258,13 +265,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
 
     function test_target_decrease() public {
-        uint256 currBorrowRate = getBorrowRate();
-
-        // Reduce borrow rate by 25%
-        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
-
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        uint256 targetBorrowRate = set_rel_borrow_target(7500);
         deposit.reap();     // Clear out interest to get rid of rounding errors
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
@@ -279,15 +280,11 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
     function test_target_increase() public {
         // Lower by 50%
-        uint256 targetBorrowRate = getBorrowRate() * 50 / 100;
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        uint256 targetBorrowRate = set_rel_borrow_target(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         // Raise by 25%
-        targetBorrowRate = getBorrowRate() * 125 / 100;
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        targetBorrowRate = set_rel_borrow_target(12500);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         uint256 amountMinted = adai.balanceOf(address(deposit));
@@ -303,10 +300,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 currBorrowRate = getBorrowRate();
 
         // Attempt to increase by 25% (you can't)
-        uint256 targetBorrowRate = currBorrowRate * 125 / 100;
-
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        set_rel_borrow_target(12500);
         assertEqInterest(getBorrowRate(), currBorrowRate);  // Unchanged
 
         assertEq(adai.balanceOf(address(deposit)), 0);
@@ -321,9 +315,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
 
         // Lower by 50%
-        uint256 targetBorrowRate = getBorrowRate() * 50 / 100;
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        uint256 targetBorrowRate = set_rel_borrow_target(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
         
         // Someone else borrows
@@ -358,9 +350,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
 
         // Lower by 50%
-        uint256 targetBorrowRate = getBorrowRate() * 50 / 100;
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        uint256 targetBorrowRate = set_rel_borrow_target(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
         
         // Someone else borrows
@@ -421,10 +411,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 currBorrowRate = getBorrowRate();
 
         // Set a super low target interest rate
-        uint256 targetBorrowRate = currBorrowRate * 1 / 100;
-
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        uint256 targetBorrowRate = set_rel_borrow_target(5000);
         deposit.reap();
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
         assertEq(ink, debtCeiling);
@@ -448,9 +435,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
 
     function test_collect_interest() public {
-        uint256 targetBorrowRate = getBorrowRate() * 75 / 100;
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        set_rel_borrow_target(7500);
 
         hevm.warp(block.timestamp + 1 days);     // Collect one day of interest
 
@@ -466,9 +451,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
 
         // Lower by 50%
-        uint256 targetBorrowRate = getBorrowRate() * 50 / 100;
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        uint256 targetBorrowRate = set_rel_borrow_target(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
         
         // Someone else borrows the exact amount previously available
@@ -506,9 +489,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
     function test_insufficient_liquidity_for_reap_fees() public {
         // Lower by 50%
-        uint256 targetBorrowRate = getBorrowRate() * 50 / 100;
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        uint256 targetBorrowRate = set_rel_borrow_target(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         // Accumulate a bunch of interest
@@ -524,13 +505,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
 
     function test_collect_stkaave() public {
-        uint256 currBorrowRate = getBorrowRate();
-
-        // Reduce borrow rate by 25%
-        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
-
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        set_rel_borrow_target(7500);
         
         hevm.warp(block.timestamp + 1 days);
 
@@ -559,13 +534,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
 
     function testFail_collect_stkaave_king_not_set() public {
-        uint256 currBorrowRate = getBorrowRate();
-
-        // Reduce borrow rate by 25%
-        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
-
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        set_rel_borrow_target(7500);
         
         hevm.warp(block.timestamp + 1 days);
 
@@ -578,13 +547,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
     
     function test_cage_exit() public {
-        uint256 currBorrowRate = getBorrowRate();
-
-        // Reduce borrow rate by 25%
-        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
-
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        set_rel_borrow_target(7500);
 
         // Vat is caged for global settlement
         vat.cage();
@@ -599,13 +562,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
     
     function testFail_shutdown_cant_cull() public {
-        uint256 currBorrowRate = getBorrowRate();
-
-        // Reduce borrow rate by 25%
-        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
-
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        set_rel_borrow_target(7500);
 
         // Vat is caged for global settlement
         vat.cage();
@@ -617,13 +574,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
     
     function test_emergencyExit() public {
-        uint256 currBorrowRate = getBorrowRate();
-
-        // Reduce borrow rate by 25%
-        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
-
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        set_rel_borrow_target(7500);
 
         deposit.cage();
 
@@ -639,13 +590,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
     
     function testFail_emergencyExit_no_cull() public {
-        uint256 currBorrowRate = getBorrowRate();
-
-        // Reduce borrow rate by 25%
-        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
-
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        set_rel_borrow_target(7500);
 
         uint256 gems = vat.gem(ilk, address(deposit));
         assertEq(gems, 0);
@@ -653,13 +598,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
     
     function test_quit_no_cull() public {
-        uint256 currBorrowRate = getBorrowRate();
-
-        // Reduce borrow rate by 25%
-        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
-
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        set_rel_borrow_target(7500);
 
         deposit.cage();
 
@@ -688,13 +627,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
     
     function test_quit_cull() public {
-        uint256 currBorrowRate = getBorrowRate();
-
-        // Reduce borrow rate by 25%
-        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
-
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        set_rel_borrow_target(7500);
 
         deposit.cage();
 
@@ -723,13 +656,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
     
     function testFail_quit_no_cage() public {
-        uint256 currBorrowRate = getBorrowRate();
-
-        // Reduce borrow rate by 25%
-        uint256 targetBorrowRate = currBorrowRate * 75 / 100;
-
-        deposit.file("bar", targetBorrowRate);
-        deposit.exec();
+        set_rel_borrow_target(7500);
         
         deposit.quit(address(this));
     }
