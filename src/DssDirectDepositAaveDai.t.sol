@@ -411,7 +411,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 currBorrowRate = getBorrowRate();
 
         // Set a super low target interest rate
-        uint256 targetBorrowRate = set_rel_borrow_target(5000);
+        uint256 targetBorrowRate = set_rel_borrow_target(1);
         deposit.reap();
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
         assertEq(ink, debtCeiling);
@@ -423,6 +423,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         deposit.exec();
 
         // Raise it by a bit
+        currBorrowRate = getBorrowRate();
         debtCeiling = 125_000 * WAD;
         vat.file(ilk, "line", debtCeiling * RAY);
         deposit.exec();
