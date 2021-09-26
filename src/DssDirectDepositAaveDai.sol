@@ -186,21 +186,21 @@ contract DssDirectDepositAaveDai {
     }
 
     // --- Math ---
-    function add(uint256 x, uint256 y) public pure returns (uint256 z) {
+    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x, "DssDirectDepositAaveDai/overflow");
     }
-    function sub(uint256 x, uint256 y) public pure returns (uint256 z) {
+    function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x, "DssDirectDepositAaveDai/underflow");
     }
-    function mul(uint256 x, uint256 y) public pure returns (uint256 z) {
+    function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "DssDirectDepositAaveDai/overflow");
     }
     uint256 constant RAY  = 10 ** 27;
-    function rmul(uint256 x, uint256 y) public pure returns (uint256 z) {
-        z = mul(x, y) / RAY;
+    function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = _mul(x, y) / RAY;
     }
-    function rdiv(uint256 x, uint256 y) public pure returns (uint256 z) {
-        z = mul(x, RAY) / y;
+    function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = _mul(x, RAY) / y;
     }
 
     // --- Administration ---
@@ -240,8 +240,8 @@ contract DssDirectDepositAaveDai {
 
         // Verify the correct amount of adai shows up
         uint256 interestIndex = pool.getReserveNormalizedIncome(address(dai));
-        uint256 scaledAmount = rdiv(amount, interestIndex);
-        require(adai.scaledBalanceOf(address(this)) >= add(scaledPrev, scaledAmount), "DssDirectDepositAaveDai/no-receive-adai");
+        uint256 scaledAmount = _rdiv(amount, interestIndex);
+        require(adai.scaledBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount), "DssDirectDepositAaveDai/no-receive-adai");
 
         emit Wind(amount);
     }
@@ -255,14 +255,14 @@ contract DssDirectDepositAaveDai {
         require(amount <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
 
         // To save gas you can bring the fees back with the unwind
-        uint256 total = add(amount, fees);
+        uint256 total = _add(amount, fees);
         pool.withdraw(address(dai), total, address(this));
         daiJoin.join(address(this), total);
         if (culled == 0) {
             vat.frob(ilk, address(this), address(this), address(this), -int256(amount), -int256(amount));
         }
         vat.slip(ilk, address(this), -int256(amount));
-        vat.move(address(this), chainlog.getAddress("MCD_VOW"), mul(culled == 1 ? total : fees, RAY));
+        vat.move(address(this), chainlog.getAddress("MCD_VOW"), _mul(culled == 1 ? total : fees, RAY));
 
         emit Unwind(amount);
     }
@@ -274,21 +274,21 @@ contract DssDirectDepositAaveDai {
 
         // Do inverse calculation of interestStrategy
         uint256 targetUtil;
-        if (targetInterestRate > add(interestStrategy.baseVariableBorrowRate(), interestStrategy.variableRateSlope1())) {
+        if (targetInterestRate > _add(interestStrategy.baseVariableBorrowRate(), interestStrategy.variableRateSlope1())) {
             // Excess interest rate
             uint256 r = targetInterestRate - interestStrategy.baseVariableBorrowRate() - interestStrategy.variableRateSlope1();
-            targetUtil = add(rdiv(rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r), interestStrategy.variableRateSlope2()), interestStrategy.OPTIMAL_UTILIZATION_RATE());
+            targetUtil = _add(_rdiv(_rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r), interestStrategy.variableRateSlope2()), interestStrategy.OPTIMAL_UTILIZATION_RATE());
         } else {
             // Optimal interst rate
-            targetUtil = rdiv(rmul(sub(targetInterestRate, interestStrategy.baseVariableBorrowRate()), interestStrategy.OPTIMAL_UTILIZATION_RATE()), interestStrategy.variableRateSlope1());
+            targetUtil = _rdiv(_rmul(_sub(targetInterestRate, interestStrategy.baseVariableBorrowRate()), interestStrategy.OPTIMAL_UTILIZATION_RATE()), interestStrategy.variableRateSlope1());
         }
-        return rdiv(add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
+        return _rdiv(_add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
     }
     function exec() external {
         require(bar > 0, "DssDirectDepositAaveDai/bar-not-set");
 
         uint256 availableLiquidity = dai.balanceOf(address(adai));
-        uint256 supplyAmount = add(availableLiquidity, add(stableDebt.totalSupply(), variableDebt.totalSupply()));
+        uint256 supplyAmount = _add(availableLiquidity, _add(stableDebt.totalSupply(), variableDebt.totalSupply()));
         uint256 targetSupply = calculateTargetSupply(bar);
         if (live == 0) targetSupply = 0;    // Unwind only when caged
 
@@ -298,8 +298,8 @@ contract DssDirectDepositAaveDai {
             // Wind amount is limited by the debt ceiling
             (uint256 Art,,, uint256 line,) = vat.ilks(ilk);
             uint256 lineWad = line / RAY;      // Round down to always be under the actual limit
-            uint256 newDebt = add(Art, windTargetAmount);
-            if (newDebt > lineWad) windTargetAmount = sub(lineWad, Art);
+            uint256 newDebt = _add(Art, windTargetAmount);
+            if (newDebt > lineWad) windTargetAmount = _sub(lineWad, Art);
 
             if (windTargetAmount > 0) _wind(windTargetAmount);
         } else if (targetSupply < supplyAmount) {
@@ -322,7 +322,7 @@ contract DssDirectDepositAaveDai {
             if (adaiBalance > daiDebt) {
                 fees = adaiBalance - daiDebt;
 
-                if (add(unwindTargetAmount, fees) > availableLiquidity) {
+                if (_add(unwindTargetAmount, fees) > availableLiquidity) {
                     // Don't need safe-math because this is constrained above
                     fees = availableLiquidity - unwindTargetAmount;
                 }
@@ -381,7 +381,7 @@ contract DssDirectDepositAaveDai {
     function cull() external {
         require(vat.live() == 1, "DssDirectDepositAaveDai/no-cull-during-shutdown");
         require(live == 0, "DssDirectDepositAaveDai/live");
-        require(add(tic, tau) <= block.timestamp, "DssDirectDepositAaveDai/early-cull");
+        require(_add(tic, tau) <= block.timestamp, "DssDirectDepositAaveDai/early-cull");
         require(culled == 0, "DssDirectDepositAaveDai/already-culled");
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(this));
