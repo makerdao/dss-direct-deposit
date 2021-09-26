@@ -541,7 +541,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         address[] memory tokens = new address[](1);
         tokens[0] = address(adai);
         uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(deposit));
-        assertTrue(amountToClaim > 0);
+        if (amountToClaim == 0) return;     // Rewards are turned off - this is still an acceptable state
         uint256 amountClaimed = deposit.collect(tokens, uint256(-1));
         assertEq(amountClaimed, amountToClaim);
         assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed);
@@ -551,7 +551,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Collect some more rewards
         uint256 amountToClaim2 = rewardsClaimer.getRewardsBalance(tokens, address(deposit));
-        assertTrue(amountToClaim2 > 0);
+        assertGt(amountToClaim2, 0);
         uint256 amountClaimed2 = deposit.collect(tokens, uint256(-1));
         assertEq(amountClaimed2, amountToClaim2);
         assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed + amountClaimed2);
