@@ -103,6 +103,11 @@ interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 }
 
+interface EndLike {
+    function debt() external view returns (uint256);
+    function skim(bytes32, address) external;
+}
+
 contract DssDirectDepositAaveDai {
 
     // --- Auth ---
@@ -202,10 +207,13 @@ contract DssDirectDepositAaveDai {
     function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, RAY) / y;
     }
+    function min(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = x <= y ? x : y;
+    }
 
     // --- Administration ---
     function file(bytes32 what, uint256 data) external auth {
-        require(live == 1, "DssDirectDepositAaveDai/not-live");
+        require(vat.live() == 1, "DssDirectDepositAaveDai/no-file-during-shutdown");
 
         if (what == "bar") {
             require(data > 0, "DssDirectDepositAaveDai/target-interest-zero");
@@ -216,55 +224,13 @@ contract DssDirectDepositAaveDai {
 
         emit File(what, data);
     }
+
     function file(bytes32 what, address data) external auth {
+        require(vat.live() == 1, "DssDirectDepositAaveDai/no-file-during-shutdown");
+
         if (what == "king") king = data;
         else revert("DssDirectDepositAaveDai/file-unrecognized-param");
         emit File(what, data);
-    }
-
-    // --- Deposit controls ---
-    function wind(uint256 amount) external auth {
-        require(live == 1, "DssDirectDepositAaveDai/not-live");
-
-        _wind(amount);
-    }
-    function _wind(uint256 amount) internal {
-        require(int256(amount) >= 0, "DssDirectDepositAaveDai/overflow");
-
-        uint256 scaledPrev = adai.scaledBalanceOf(address(this));
-
-        vat.slip(ilk, address(this), int256(amount));
-        vat.frob(ilk, address(this), address(this), address(this), int256(amount), int256(amount));
-        daiJoin.exit(address(this), amount);
-        pool.deposit(address(dai), amount, address(this), 0);
-
-        // Verify the correct amount of adai shows up
-        uint256 interestIndex = pool.getReserveNormalizedIncome(address(dai));
-        uint256 scaledAmount = _rdiv(amount, interestIndex);
-        require(adai.scaledBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount), "DssDirectDepositAaveDai/no-receive-adai");
-
-        emit Wind(amount);
-    }
-
-    function unwind(uint256 amount, uint256 fees) external {
-        require(wards[msg.sender] == 1 || live == 0, "DssDirectDepositAaveDai/not-authorized");
-
-        _unwind(amount, fees);
-    }
-    function _unwind(uint256 amount, uint256 fees) internal {
-        require(amount <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
-
-        // To save gas you can bring the fees back with the unwind
-        uint256 total = _add(amount, fees);
-        pool.withdraw(address(dai), total, address(this));
-        daiJoin.join(address(this), total);
-        if (culled == 0) {
-            vat.frob(ilk, address(this), address(this), address(this), -int256(amount), -int256(amount));
-        }
-        vat.slip(ilk, address(this), -int256(amount));
-        vat.move(address(this), chainlog.getAddress("MCD_VOW"), _mul(culled == 1 ? total : fees, RAY));
-
-        emit Unwind(amount);
     }
 
     // --- Automated Rate Targetting ---
@@ -284,56 +250,176 @@ contract DssDirectDepositAaveDai {
         }
         return _rdiv(_add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
     }
-    function exec() external {
-        require(bar > 0, "DssDirectDepositAaveDai/bar-not-set");
 
-        uint256 availableLiquidity = dai.balanceOf(address(adai));
-        uint256 supplyAmount = _add(availableLiquidity, _add(stableDebt.totalSupply(), variableDebt.totalSupply()));
-        uint256 targetSupply = calculateTargetSupply(bar);
-        if (live == 0) targetSupply = 0;    // Unwind only when caged
+    // --- Deposit controls ---
+    function _wind(uint256 amount) internal {
+        if (amount == 0) {
+            return;
+        }
 
-        if (targetSupply > supplyAmount) {
-            uint256 windTargetAmount = targetSupply - supplyAmount;
+        bytes32 ilk_ = ilk;
 
-            // Wind amount is limited by the debt ceiling
-            (uint256 Art,,, uint256 line,) = vat.ilks(ilk);
-            uint256 lineWad = line / RAY;      // Round down to always be under the actual limit
-            uint256 newDebt = _add(Art, windTargetAmount);
-            if (newDebt > lineWad) windTargetAmount = _sub(lineWad, Art);
+        // Wind amount is limited by the debt ceiling
+        (uint256 Art,,, uint256 line,) = vat.ilks(ilk_);
+        uint256 lineWad = line / RAY; // Round down to always be under the actual limit
+        uint256 newDebt = _add(Art, amount);
+        if (newDebt > lineWad) amount = _sub(lineWad, Art);
 
-            if (windTargetAmount > 0) _wind(windTargetAmount);
-        } else if (targetSupply < supplyAmount) {
-            uint256 unwindTargetAmount = supplyAmount - targetSupply;
+        require(int256(amount) >= 0, "DssDirectDepositAaveDai/overflow");
 
-            // Unwind amount is limited by how much adai we have to withdraw
-            uint256 adaiBalance = adai.balanceOf(address(this));
-            if (adaiBalance < unwindTargetAmount) unwindTargetAmount = adaiBalance;
+        uint256 scaledPrev = adai.scaledBalanceOf(address(this));
 
-            // Unwind amount is limited by how much debt there is
-            (uint256 daiDebt,) = vat.urns(ilk, address(this));
-            if (culled == 1) daiDebt = vat.gem(ilk, address(this));
-            if (daiDebt < unwindTargetAmount) unwindTargetAmount = daiDebt;
+        vat.slip(ilk_, address(this), int256(amount));
+        vat.frob(ilk_, address(this), address(this), address(this), int256(amount), int256(amount));
+        daiJoin.exit(address(this), amount);
+        pool.deposit(address(dai), amount, address(this), 0);
 
-            // Unwind amount is limited by available liquidity in the pool
-            if (availableLiquidity < unwindTargetAmount) unwindTargetAmount = availableLiquidity;
-            
-            // Determine the amount of fees to bring back
-            uint256 fees = 0;
-            if (adaiBalance > daiDebt) {
-                fees = adaiBalance - daiDebt;
+        // Verify the correct amount of adai shows up
+        uint256 interestIndex = pool.getReserveNormalizedIncome(address(dai));
+        uint256 scaledAmount = _rdiv(amount, interestIndex);
+        require(adai.scaledBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount), "DssDirectDepositAaveDai/no-receive-adai");
 
-                if (_add(unwindTargetAmount, fees) > availableLiquidity) {
-                    // Don't need safe-math because this is constrained above
-                    fees = availableLiquidity - unwindTargetAmount;
-                }
+        emit Wind(amount);
+    }
+
+    function _unwind(uint256 supplyReduction, uint256 availableLiquidity, uint256 mode) internal {
+        bytes32 ilk_ = ilk;
+        address vow = chainlog.getAddress("MCD_VOW");
+        address end;
+        uint256 adaiBalance = adai.balanceOf(address(this));
+
+        uint256 daiDebt;
+        if (mode == 1) {
+            // Normal mode or module just caged (no culled)
+            // debt is obtained from CDP ink (or art which is the same)
+            (daiDebt,) = vat.urns(ilk_, address(this));
+        } else if (mode == 2) {
+            // Module shutdown and culled
+            // debt is obtained from free collateral owned by this contract
+            daiDebt = vat.gem(ilk_, address(this));
+        } else if (mode == 3) {
+            // MCD caged
+            // debt is obtained from free collateral owned by the End module
+            end = chainlog.getAddress("MCD_END");
+            EndLike(end).skim(ilk_, address(this));
+            daiDebt = vat.gem(ilk_, address(end));
+        } else if (mode == 4) {
+            // MCD caged but previously module was caged and culled
+            // debt is obtained from free collateral owned by the End module after some processing
+            daiDebt = vat.gem(ilk_, address(this));
+            end = chainlog.getAddress("MCD_END");
+            if (daiDebt > 0) {
+                require(daiDebt < 2 ** 255, "DssDirectDepositAaveDai/overflow");
+                vat.grab(ilk_, address(this), address(this), vow, int256(daiDebt), int256(daiDebt));
+                EndLike(end).skim(ilk_, address(this));
+            } else {
+                daiDebt = vat.gem(ilk_, address(end));
             }
+        }
 
-            if (unwindTargetAmount > 0 || fees > 0) _unwind(unwindTargetAmount, fees);
+        // Unwind amount is limited by how much:
+        // - max reduction desired
+        // - liquidity available
+        // - adai we have to withdraw
+        // - dai debt tracked in vat (CDP or free)
+        uint256 amount = min(
+                                min(
+                                    min(
+                                        supplyReduction,
+                                        availableLiquidity
+                                    ),
+                                    adaiBalance
+                                ),
+                                daiDebt
+                            );
+
+        // Determine the amount of fees to bring back
+        uint256 fees = 0;
+        if (adaiBalance > daiDebt) {
+            fees = adaiBalance - daiDebt;
+
+            if (_add(amount, fees) > availableLiquidity) {
+                // Don't need safe-math because this is constrained above
+                fees = availableLiquidity - amount;
+            }
+        }
+
+        if (amount == 0 && fees == 0) {
+            return;
+        }
+
+        require(amount <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
+
+        // To save gas you can bring the fees back with the unwind
+        uint256 total = _add(amount, fees);
+        pool.withdraw(address(dai), total, address(this));
+        daiJoin.join(address(this), total);
+
+        if (mode == 1) {
+            vat.frob(ilk_, address(this), address(this), address(this), -int256(amount), -int256(amount));
+            vat.slip(ilk_, address(this), -int256(amount));
+            vat.move(address(this), vow, _mul(fees, RAY));
+        } else if (mode == 2) {
+            vat.slip(ilk_, address(this), -int256(amount));
+            vat.move(address(this), vow, _mul(total, RAY));
+        } else if (mode == 3 || mode == 4) {
+            vat.slip(ilk_, end, -int256(amount));
+            vat.move(address(this), vow, _mul(total, RAY));
+        }
+
+        emit Unwind(amount);
+    }
+
+    function exec() external {
+        uint256 availableLiquidity = dai.balanceOf(address(adai));
+
+        if (vat.live() == 0) {
+            // MCD caged
+            require(EndLike(chainlog.getAddress("MCD_END")).debt() == 0, "DssDirectDepositAaveDai/end-debt-already-set");
+            _unwind(
+                type(uint256).max,
+                availableLiquidity,
+                culled == 1
+                ? /*Mode: */ 4
+                : /*Mode: */ 3
+            );
+        } else if (live == 0) {
+            // This module caged
+            _unwind(
+                type(uint256).max,
+                availableLiquidity,
+                culled == 1
+                ? /*Mode: */ 2
+                : /*Mode: */ 1
+            );
+        } else {
+            // Normal path
+            require(bar > 0, "DssDirectDepositAaveDai/bar-not-set");
+
+            uint256 supplyAmount = _add(
+                                    availableLiquidity,
+                                    _add(
+                                        stableDebt.totalSupply(),
+                                        variableDebt.totalSupply()
+                                    )
+                                );
+            uint256 targetSupply = calculateTargetSupply(bar);
+
+            if (targetSupply > supplyAmount) {
+                _wind(targetSupply - supplyAmount);
+            } else if (targetSupply < supplyAmount) {
+                _unwind(
+                    supplyAmount - targetSupply,
+                    availableLiquidity,
+                    /*Mode: */ 1
+                );
+            }
         }
     }
 
     // --- Collect Interest ---
     function reap() external {
+        require(vat.live() == 1, "DssDirectDepositAaveDai/no-reap-during-shutdown");
         uint256 adaiBalance = adai.balanceOf(address(this));
         (, uint256 daiDebt) = vat.urns(ilk, address(this));
         if (adaiBalance > daiDebt) {
@@ -363,12 +449,12 @@ contract DssDirectDepositAaveDai {
 
     // --- Shutdown ---
     function cage() external {
-        // Can shut this down if we are authed, if the vat was caged
+        require(vat.live() == 1, "DssDirectDepositAaveDai/no-cage-during-shutdown");
+        // Can shut this down if we are authed
         // or if the interest rate strategy changes
         (,,,,,,,,,, address strategy,) = pool.getReserveData(address(dai));
         require(
             wards[msg.sender] == 1 ||
-            vat.live() == 0 ||
             strategy != address(interestStrategy)
         , "DssDirectDepositAaveDai/not-authorized");
 
@@ -381,20 +467,21 @@ contract DssDirectDepositAaveDai {
     function cull() external {
         require(vat.live() == 1, "DssDirectDepositAaveDai/no-cull-during-shutdown");
         require(live == 0, "DssDirectDepositAaveDai/live");
-        require(_add(tic, tau) <= block.timestamp, "DssDirectDepositAaveDai/early-cull");
+        require(_add(tic, tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositAaveDai/early-cull");
         require(culled == 0, "DssDirectDepositAaveDai/already-culled");
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(this));
         require(ink <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
         require(art <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
-        vat.grab(ilk, address(this), address(this), address(chainlog.getAddress("MCD_VOW")), -int256(ink), -int256(art));
+        vat.grab(ilk, address(this), address(this), chainlog.getAddress("MCD_VOW"), -int256(ink), -int256(art));
+
         culled = 1;
         emit Cull();
     }
 
     // --- Emergency Quit Everything ---
     function quit(address who) external auth {
-        require(live == 0, "DssDirectDepositAaveDai/live");
+        require(vat.live() == 1, "DssDirectDepositAaveDai/no-quit-during-shutdown");
 
         // Send all adai in the contract to who
         require(adai.transfer(who, adai.balanceOf(address(this))), "DssDirectDepositAaveDai/failed-transfer");
@@ -412,5 +499,4 @@ contract DssDirectDepositAaveDai {
             vat.fork(ilk, address(this), who, int256(ink), int256(art));
         }
     }
-
 }
