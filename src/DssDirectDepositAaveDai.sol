@@ -253,10 +253,6 @@ contract DssDirectDepositAaveDai {
 
     // --- Deposit controls ---
     function _wind(uint256 amount) internal {
-        if (amount == 0) {
-            return;
-        }
-
         bytes32 ilk_ = ilk;
 
         // Wind amount is limited by the debt ceiling
@@ -264,6 +260,10 @@ contract DssDirectDepositAaveDai {
         uint256 lineWad = line / RAY; // Round down to always be under the actual limit
         uint256 newDebt = _add(Art, amount);
         if (newDebt > lineWad) amount = _sub(lineWad, Art);
+
+        if (amount == 0) {
+            return;
+        }
 
         require(int256(amount) >= 0, "DssDirectDepositAaveDai/overflow");
 
