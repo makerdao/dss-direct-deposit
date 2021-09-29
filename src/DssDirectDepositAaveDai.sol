@@ -233,7 +233,7 @@ contract DssDirectDepositAaveDai {
         emit File(what, data);
     }
 
-    // --- Automated Rate Targetting ---
+    // --- Automated Rate targeting ---
     function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
         require(targetInterestRate > 0, "DssDirectDepositAaveDai/target-interest-zero");
         require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
@@ -245,7 +245,7 @@ contract DssDirectDepositAaveDai {
             uint256 r = targetInterestRate - interestStrategy.baseVariableBorrowRate() - interestStrategy.variableRateSlope1();
             targetUtil = _add(_rdiv(_rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r), interestStrategy.variableRateSlope2()), interestStrategy.OPTIMAL_UTILIZATION_RATE());
         } else {
-            // Optimal interst rate
+            // Optimal interest rate
             targetUtil = _rdiv(_rmul(_sub(targetInterestRate, interestStrategy.baseVariableBorrowRate()), interestStrategy.OPTIMAL_UTILIZATION_RATE()), interestStrategy.variableRateSlope1());
         }
         return _rdiv(_add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
@@ -467,7 +467,7 @@ contract DssDirectDepositAaveDai {
     function cull() external {
         require(vat.live() == 1, "DssDirectDepositAaveDai/no-cull-during-shutdown");
         require(live == 0, "DssDirectDepositAaveDai/live");
-        require(_add(tic, tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositAaveDai/early-cull");
+        require(_add(tic, tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositAaveDai/unauthorized-cull");
         require(culled == 0, "DssDirectDepositAaveDai/already-culled");
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(this));
