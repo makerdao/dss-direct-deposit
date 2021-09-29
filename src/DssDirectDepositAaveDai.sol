@@ -146,6 +146,8 @@ contract DssDirectDepositAaveDai {
     uint256 public tic;             // Timestamp when the system is caged
     address public king;            // Who gets the rewards
 
+    enum Mode{ NORMAL, MODULE_CULLED, MCD_CAGED, MCD_CAGED_MODULE_CULLED }
+
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
@@ -282,22 +284,21 @@ contract DssDirectDepositAaveDai {
         emit Wind(amount);
     }
 
-    function _unwind(uint256 supplyReduction, uint256 availableLiquidity, uint256 mode) internal {
+    function _unwind(uint256 supplyReduction, uint256 availableLiquidity, Mode mode) internal {
         bytes32 ilk_ = ilk;
         address vow = chainlog.getAddress("MCD_VOW");
         address end;
         uint256 adaiBalance = adai.balanceOf(address(this));
-
         uint256 daiDebt;
-        if (mode == 1) {
+        if (mode == Mode.NORMAL) {
             // Normal mode or module just caged (no culled)
             // debt is obtained from CDP ink (or art which is the same)
             (daiDebt,) = vat.urns(ilk_, address(this));
-        } else if (mode == 2) {
+        } else if (mode == Mode.MODULE_CULLED) {
             // Module shutdown and culled
             // debt is obtained from free collateral owned by this contract
             daiDebt = vat.gem(ilk_, address(this));
-        } else if (mode == 3) {
+        } else if (mode == Mode.MCD_CAGED) {
             // MCD caged
             // debt is obtained from free collateral owned by the End module
             end = chainlog.getAddress("MCD_END");
@@ -355,11 +356,11 @@ contract DssDirectDepositAaveDai {
         pool.withdraw(address(dai), total, address(this));
         daiJoin.join(address(this), total);
 
-        if (mode == 1) {
+        if (mode == Mode.NORMAL) {
             vat.frob(ilk_, address(this), address(this), address(this), -int256(amount), -int256(amount));
             vat.slip(ilk_, address(this), -int256(amount));
             vat.move(address(this), vow, _mul(fees, RAY));
-        } else if (mode == 2) {
+        } else if (mode == Mode.MODULE_CULLED) {
             vat.slip(ilk_, address(this), -int256(amount));
             vat.move(address(this), vow, _mul(total, RAY));
         } else {
@@ -380,8 +381,8 @@ contract DssDirectDepositAaveDai {
                 type(uint256).max,
                 availableLiquidity,
                 culled == 1
-                ? /*Mode: */ 4
-                : /*Mode: */ 3
+                ? Mode.MCD_CAGED_MODULE_CULLED
+                : Mode.MCD_CAGED
             );
         } else if (live == 0) {
             // This module caged
@@ -389,8 +390,8 @@ contract DssDirectDepositAaveDai {
                 type(uint256).max,
                 availableLiquidity,
                 culled == 1
-                ? /*Mode: */ 2
-                : /*Mode: */ 1
+                ? Mode.MODULE_CULLED
+                : Mode.NORMAL
             );
         } else {
             // Normal path
@@ -411,7 +412,7 @@ contract DssDirectDepositAaveDai {
                 _unwind(
                     supplyAmount - targetSupply,
                     availableLiquidity,
-                    /*Mode: */ 1
+                    Mode.NORMAL
                 );
             }
         }
