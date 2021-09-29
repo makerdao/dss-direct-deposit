@@ -303,7 +303,7 @@ contract DssDirectDepositAaveDai {
             end = chainlog.getAddress("MCD_END");
             EndLike(end).skim(ilk_, address(this));
             daiDebt = vat.gem(ilk_, address(end));
-        } else if (mode == 4) {
+        } else {
             // MCD caged but previously module was caged and culled
             // debt is obtained from free collateral owned by the End module after some processing
             daiDebt = vat.gem(ilk_, address(this));
@@ -362,7 +362,7 @@ contract DssDirectDepositAaveDai {
         } else if (mode == 2) {
             vat.slip(ilk_, address(this), -int256(amount));
             vat.move(address(this), vow, _mul(total, RAY));
-        } else if (mode == 3 || mode == 4) {
+        } else {
             vat.slip(ilk_, end, -int256(amount));
             vat.move(address(this), vow, _mul(total, RAY));
         }
