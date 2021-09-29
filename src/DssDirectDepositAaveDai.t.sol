@@ -555,7 +555,6 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Vat is caged for global settlement
         vat.cage();
-        deposit.cage();
 
         // Simulate DAI holder gets some gems from GS
         vat.grab(ilk, address(deposit), address(this), address(this), -int256(100 ether), -int256(0));
