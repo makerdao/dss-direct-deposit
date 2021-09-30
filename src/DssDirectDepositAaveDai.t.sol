@@ -272,8 +272,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 amountMinted = adai.balanceOf(address(deposit));
         assertTrue(amountMinted > 0);
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
-        assertTrue(ink <= amountMinted + 1);    // We allow a rounding error of 1 because aTOKENs round against the user
-        assertTrue(art <= amountMinted + 1);
+        assertEqRoundingAgainst(ink, amountMinted);    // We allow a rounding error of 1 because aTOKENs round against the user
+        assertEqRoundingAgainst(art, amountMinted);
         assertEq(vat.gem(ilk, address(deposit)), 0);
         assertEq(vat.dai(address(deposit)), 0);
     }
@@ -290,8 +290,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 amountMinted = adai.balanceOf(address(deposit));
         assertTrue(amountMinted > 0);
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
-        assertTrue(ink <= amountMinted + 1);    // We allow a rounding error of 1 because aTOKENs round against the user
-        assertTrue(art <= amountMinted + 1);
+        assertEqRoundingAgainst(ink, amountMinted);    // We allow a rounding error of 1 because aTOKENs round against the user
+        assertEqRoundingAgainst(art, amountMinted);
         assertEq(vat.gem(ilk, address(deposit)), 0);
         assertEq(vat.dai(address(deposit)), 0);
     }
@@ -332,6 +332,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
+        assertTrue(ink > 0);
+        assertTrue(art > 0);
         assertEq(pink - ink, currentLiquidity);
         assertEq(part - art, currentLiquidity);
         assertEq(dai.balanceOf(address(adai)), 0);
@@ -344,6 +346,9 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         deposit.exec();
         assertEq(adai.balanceOf(address(deposit)), 0);
         assertTrue(dai.balanceOf(address(adai)) > 0);
+        (ink, art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, 0);
+        assertEq(art, 0);
     }
 
     function test_cage_perm_insufficient_liquidity() public {
@@ -421,6 +426,10 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Should be a no-op
         deposit.exec();
+        (ink, art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, debtCeiling);
+        assertEq(art, debtCeiling);
+        assertEqRoundingAgainst(adai.balanceOf(address(deposit)), debtCeiling);
 
         // Raise it by a bit
         currBorrowRate = getBorrowRate();
@@ -505,7 +514,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         // Reap the partial fees
         uint256 vowDai = vat.dai(vow);
         deposit.reap();
-        assertEq(vat.dai(vow) - vowDai, 100 * RAD);
+        assertEq(vat.dai(vow), vowDai + 100 * RAD);
     }
 
     function test_collect_stkaave() public {
@@ -564,12 +573,21 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEqApprox(adai.balanceOf(address(this)), 100 ether, 1);     // Slight rounding error may occur
     }
     
-    function testFail_shutdown_cant_cull() public {
+    function testFail_shutdown_cant_cage() public {
         set_rel_borrow_target(7500);
 
         // Vat is caged for global settlement
         vat.cage();
         deposit.cage();
+    }
+
+    function testFail_shutdown_cant_cull() public {
+        set_rel_borrow_target(7500);
+
+        deposit.cage();
+
+        // Vat is caged for global settlement
+        vat.cage();
 
         hevm.warp(block.timestamp + deposit.tau());
 
@@ -634,9 +652,11 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(bal, pbal);
     }
     
-    function testFail_quit_no_cage() public {
+    function testFail_quit_mcd_caged() public {
         set_rel_borrow_target(7500);
-        
+
+        vat.cage();
+
         deposit.quit(address(this));
     }
     
