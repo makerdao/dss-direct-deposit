@@ -215,8 +215,6 @@ contract DssDirectDepositAaveDai {
 
     // --- Administration ---
     function file(bytes32 what, uint256 data) external auth {
-        require(vat.live() == 1, "DssDirectDepositAaveDai/no-file-during-shutdown");
-
         if (what == "bar") {
             require(data > 0, "DssDirectDepositAaveDai/target-interest-zero");
             require(data <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
