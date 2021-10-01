@@ -42,6 +42,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
     ChainlogAbstract chainlog;
     VatAbstract vat;
+    EndAbstract end;
     LendingPoolLike pool;
     InterestRateStrategyLike interestStrategy;
     RewardsClaimerLike rewardsClaimer;
@@ -67,6 +68,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         chainlog = ChainlogAbstract(0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F);
         vat = VatAbstract(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
+        end = EndAbstract(0xBB856d1742fD182a90239D7AE85706C2FE4e5922);
         pool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
         adai = DSTokenAbstract(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
         stkAave = DSTokenAbstract(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
@@ -79,8 +81,9 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
         pauseProxy = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
 
-        // Force give admin access to this contract via hevm magic
+        // Force give admin access to these contracts via hevm magic
         giveAuthAccess(address(vat), address(this));
+        giveAuthAccess(address(end), address(this));
         giveAuthAccess(address(spot), address(this));
         
         deposit = new DssDirectDepositAaveDai(address(chainlog), ilk, address(pool), address(rewardsClaimer), 7 days);
@@ -120,6 +123,9 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
     function rdiv(uint256 x, uint256 y) public pure returns (uint256 z) {
         z = mul(x, RAY) / y;
+    }
+    function min(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = x <= y ? x : y;
     }
 
     function giveAuthAccess (address _base, address target) internal {
@@ -464,7 +470,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         // Lower by 50%
         uint256 targetBorrowRate = set_rel_borrow_target(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
-        
+
         // Someone else borrows the exact amount previously available
         (uint256 amountSupplied,) = vat.urns(ilk, address(deposit));
         uint256 amountToBorrow = currentLiquidity;
@@ -515,6 +521,163 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 vowDai = vat.dai(vow);
         deposit.reap();
         assertEq(vat.dai(vow), vowDai + 100 * RAD);
+    }
+
+    function test_unwind_mcd_caged_not_skimmed() public {
+        uint256 currentLiquidity = dai.balanceOf(address(adai));
+
+        // Lower by 50%
+        uint256 targetBorrowRate = set_rel_borrow_target(5000);
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
+        assertGt(pink, 0);
+        assertGt(part, 0);
+
+        // Someone else borrows
+        uint256 amountSupplied = adai.balanceOf(address(deposit));
+        uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
+        pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+
+        // MCD shutdowns
+        end.cage();
+        end.cage(ilk);
+
+        // CDP still has the position built
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
+        assertGt(ink, 0);
+        assertGt(art, 0);
+        assertEq(vat.gem(ilk, address(end)), 0);
+
+        // We try to unwind what is possible
+        deposit.exec();
+
+        // Part can't be done yet
+        (ink, art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(end)), amountSupplied / 2); // Automatically skimmed when unwinding
+
+        // Some time later the pool gets some liquidity
+        hevm.warp(block.timestamp + 180 days);
+        pool.repay(address(dai), amountToBorrow, 2, address(this));
+
+        // Rest of the liquidity can be withdrawn
+        deposit.exec();
+        assertEq(vat.gem(ilk, address(end)), 0);
+    }
+
+    function test_unwind_mcd_caged_skimmed() public {
+        uint256 currentLiquidity = dai.balanceOf(address(adai));
+
+        // Lower by 50%
+        uint256 targetBorrowRate = set_rel_borrow_target(5000);
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
+        assertGt(pink, 0);
+        assertGt(part, 0);
+
+        // Someone else borrows
+        uint256 amountSupplied = adai.balanceOf(address(deposit));
+        uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
+        pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+
+        // MCD shutdowns
+        end.cage();
+        end.cage(ilk);
+
+        // CDP still has the position built
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
+        assertGt(ink, 0);
+        assertGt(art, 0);
+        assertEq(vat.gem(ilk, address(end)), 0);
+
+        // Position is taken by the End module
+        end.skim(ilk, address(deposit));
+        (ink, art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(end)), pink);
+
+        // We try to unwind what is possible
+        deposit.exec();
+
+        // Part can't be done yet
+        assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
+
+        // Some time later the pool gets some liquidity
+        hevm.warp(block.timestamp + 180 days);
+        pool.repay(address(dai), amountToBorrow, 2, address(this));
+
+        // Rest of the liquidity can be withdrawn
+        deposit.exec();
+        assertEq(vat.gem(ilk, address(end)), 0);
+    }
+
+    function test_unwind_culled_then_mcd_caged() public {
+        uint256 currentLiquidity = dai.balanceOf(address(adai));
+
+        // Lower by 50%
+        uint256 targetBorrowRate = set_rel_borrow_target(5000);
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
+        assertGt(pink, 0);
+        assertGt(part, 0);
+
+        // Someone else borrows
+        uint256 amountSupplied = adai.balanceOf(address(deposit));
+        uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
+        pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+
+        deposit.cage();
+
+        hevm.warp(block.timestamp + deposit.tau());
+
+        deposit.cull();
+
+        // CDP grabbed and ink moved as free collateral to the deposit contract
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(deposit)), pink);
+
+        // MCD shutdowns
+        end.cage();
+        end.cage(ilk);
+
+        // If skim is called, nothing happens
+        end.skim(ilk, address(deposit));
+        (ink, art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(deposit)), pink);
+        assertEq(vat.gem(ilk, address(end)), 0);
+        assertGe(adai.balanceOf(address(deposit)), pink);
+
+        uint256 vowSin = vat.sin(vow);
+
+        // We try to unwind what is possible
+        deposit.exec();
+        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
+
+        // Part can't be done yet
+        assertEq(vat.gem(ilk, address(deposit)), 0);
+        assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
+        assertGt(adai.balanceOf(address(deposit)), amountSupplied / 2);
+        assertEq(vat.sin(vow), vowSin - (amountSupplied / 2) * RAY);
+
+        // Some time later the pool gets some liquidity
+        hevm.warp(block.timestamp + 180 days);
+        pool.repay(address(dai), amountToBorrow, 2, address(this));
+
+        // Rest of the liquidity can be withdrawn
+        deposit.exec();
+        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
+        assertEq(vat.gem(ilk, address(end)), 0);
+        assertEq(adai.balanceOf(address(deposit)), 0);
+        assertEq(vat.sin(vow), 0);
     }
 
     function test_collect_stkaave() public {
@@ -659,5 +822,4 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         deposit.quit(address(this));
     }
-    
 }

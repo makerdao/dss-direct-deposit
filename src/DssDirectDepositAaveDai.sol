@@ -53,6 +53,7 @@ interface VatLike {
     function frob(bytes32, address, address, address, int256, int256) external;
     function grab(bytes32, address, address, address, int256, int256) external;
     function fork(bytes32, address, address, int256, int256) external;
+    function suck(address, address, uint256) external;
 }
 
 interface LendingPoolLike {
@@ -309,6 +310,7 @@ contract DssDirectDepositAaveDai {
             end = chainlog.getAddress("MCD_END");
             if (daiDebt > 0) {
                 require(daiDebt < 2 ** 255, "DssDirectDepositAaveDai/overflow");
+                vat.suck(vow, vow, _mul(daiDebt, RAY)); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
                 vat.grab(ilk_, address(this), address(this), vow, int256(daiDebt), int256(daiDebt));
                 EndLike(end).skim(ilk_, address(this));
             } else {
