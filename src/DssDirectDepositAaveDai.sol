@@ -237,6 +237,10 @@ contract DssDirectDepositAaveDai {
 
     // --- Deposit controls ---
     function _wind(uint256 amount) internal {
+        // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
+        // That's why this module converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
+        // This module will have an unintended behaviour if rate is changed to some other value.
+
         bytes32 ilk_ = ilk;
 
         // Wind amount is limited by the debt ceiling
@@ -255,6 +259,7 @@ contract DssDirectDepositAaveDai {
 
         vat.slip(ilk_, address(this), int256(amount));
         vat.frob(ilk_, address(this), address(this), address(this), int256(amount), int256(amount));
+        // normalized debt == erc20 DAI to join (Vat rate for this ilk fixed to 1 RAY)
         daiJoin.exit(address(this), amount);
         pool.deposit(address(dai), amount, address(this), 0);
 
@@ -267,6 +272,10 @@ contract DssDirectDepositAaveDai {
     }
 
     function _unwind(uint256 supplyReduction, uint256 availableLiquidity, Mode mode) internal {
+        // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
+        // That's why it converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
+        // This module will have an unintended behaviour if rate is changed to some other value.
+
         bytes32 ilk_ = ilk;
         address vow = chainlog.getAddress("MCD_VOW");
         address end;
@@ -339,6 +348,8 @@ contract DssDirectDepositAaveDai {
         pool.withdraw(address(dai), total, address(this));
         daiJoin.join(address(this), total);
 
+        // normalized debt == erc20 DAI to join (Vat rate for this ilk fixed to 1 RAY)
+
         if (mode == Mode.NORMAL) {
             vat.frob(ilk_, address(this), address(this), address(this), -int256(amount), -int256(amount));
             vat.slip(ilk_, address(this), -int256(amount));
@@ -347,6 +358,9 @@ contract DssDirectDepositAaveDai {
             vat.slip(ilk_, address(this), -int256(amount));
             vat.move(address(this), vow, _mul(total, RAY));
         } else {
+            // This can be done with the assumption that the price of 1 aDai equals 1 DAI.
+            // That way we know that the prev End.skim call kept its gap[ilk] emptied as the CDP was always collateralized.
+            // Otherwise we couldn't just simply take away the collateral from the End module as the next line will be doing.
             vat.slip(ilk_, end, -int256(amount));
             vat.move(address(this), vow, _mul(total, RAY));
         }
