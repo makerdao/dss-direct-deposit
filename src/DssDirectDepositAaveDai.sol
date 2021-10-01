@@ -19,10 +19,8 @@ pragma solidity 0.6.12;
 interface TokenLike {
     function totalSupply() external view returns (uint256);
     function balanceOf(address) external view returns (uint256);
-    function allowance(address, address) external view returns (uint256);
     function approve(address, uint256) external returns (bool);
     function transfer(address, uint256) external returns (bool);
-    function transferFrom(address, address, uint256) external returns (bool);
     function scaledBalanceOf(address) external view returns (uint256);
 }
 
@@ -59,8 +57,6 @@ interface VatLike {
 interface LendingPoolLike {
     function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
     function withdraw(address asset, uint256 amount, address to) external;
-    function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external;
-    function repay(address asset, uint256 amount, uint256 rateMode, address onBehalfOf) external;
     function getReserveNormalizedIncome(address asset) external view returns (uint256);
     function getReserveData(address asset) external view returns (
         uint256,    // Configuration
@@ -85,23 +81,10 @@ interface InterestRateStrategyLike {
     function variableRateSlope2() external view returns (uint256);
     function baseVariableBorrowRate() external view returns (uint256);
     function getMaxVariableBorrowRate() external view returns (uint256);
-    function calculateInterestRates(
-        address reserve,
-        uint256 availableLiquidity,
-        uint256 totalStableDebt,
-        uint256 totalVariableDebt,
-        uint256 averageStableBorrowRate,
-        uint256 reserveFactor
-    ) external returns (
-        uint256,
-        uint256,
-        uint256
-    );
 }
 
 interface RewardsClaimerLike {
     function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
-    function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 }
 
 interface EndLike {

@@ -20,7 +20,7 @@ import "ds-test/test.sol";
 import "dss-interfaces/Interfaces.sol";
 import "ds-value/value.sol";
 
-import "./DssDirectDepositAaveDai.sol";
+import {DssDirectDepositAaveDai} from "./DssDirectDepositAaveDai.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -30,6 +30,47 @@ interface Hevm {
 
 interface AuthLike {
     function wards(address) external returns (uint256);
+}
+
+interface LendingPoolLike {
+    function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
+    function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external;
+    function repay(address asset, uint256 amount, uint256 rateMode, address onBehalfOf) external;
+    function getReserveNormalizedIncome(address asset) external view returns (uint256);
+    function getReserveData(address asset) external view returns (
+        uint256,    // Configuration
+        uint128,    // the liquidity index. Expressed in ray
+        uint128,    // variable borrow index. Expressed in ray
+        uint128,    // the current supply rate. Expressed in ray
+        uint128,    // the current variable borrow rate. Expressed in ray
+        uint128,    // the current stable borrow rate. Expressed in ray
+        uint40,
+        address,    // address of the adai interest bearing token
+        address,    // address of the stable debt token
+        address,    // address of the variable debt token
+        address,    // address of the interest rate strategy
+        uint8
+    );
+}
+
+interface InterestRateStrategyLike {
+    function getMaxVariableBorrowRate() external view returns (uint256);
+    function calculateInterestRates(
+        address reserve,
+        uint256 availableLiquidity,
+        uint256 totalStableDebt,
+        uint256 totalVariableDebt,
+        uint256 averageStableBorrowRate,
+        uint256 reserveFactor
+    ) external returns (
+        uint256,
+        uint256,
+        uint256
+    );
+}
+
+interface RewardsClaimerLike {
+    function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 }
 
 contract DssDirectDepositAaveDaiTest is DSTest {
