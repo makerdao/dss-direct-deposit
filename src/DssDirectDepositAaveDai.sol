@@ -246,8 +246,9 @@ contract DssDirectDepositAaveDai {
         // Wind amount is limited by the debt ceiling
         (uint256 Art,,, uint256 line,) = vat.ilks(ilk_);
         uint256 lineWad = line / RAY; // Round down to always be under the actual limit
-        uint256 newDebt = _add(Art, amount);
-        if (newDebt > lineWad) amount = _sub(lineWad, Art);
+        if (_add(Art, amount) > lineWad) {
+            amount = _sub(lineWad, Art);
+        }
 
         if (amount == 0) {
             return;
