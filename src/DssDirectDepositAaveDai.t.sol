@@ -676,19 +676,43 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         hevm.warp(block.timestamp + deposit.tau());
 
+        uint256 daiEarned = adai.balanceOf(address(deposit)) - pink;
+
+        VowAbstract(vow).heal(
+            min(
+                vat.sin(vow) - VowAbstract(vow).Sin() - VowAbstract(vow).Ash(),
+                vat.dai(vow)
+            )
+        );
+        uint256 originalSin = vat.sin(vow);
+        uint256 originalDai = vat.dai(vow);
+        // If the whole Sin queue would be cleant by someone,
+        // originalSin should be 0 as there is more profit than debt registered
+        assertGt(originalDai, originalSin);
+        assertGt(originalSin, 0);
+
         deposit.cull();
+
+        // After cull, the debt of the position is converted to bad debt
+        assertEq(vat.sin(vow), originalSin + part * RAY);
 
         // CDP grabbed and ink moved as free collateral to the deposit contract
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
         assertEq(ink, 0);
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(deposit)), pink);
+        assertGe(adai.balanceOf(address(deposit)), pink);
 
         // MCD shutdowns
         end.cage();
         end.cage(ilk);
 
-        // If skim is called, nothing happens
+        assertEq(vat.sin(vow), originalSin + part * RAY - originalDai);
+
+        // If skim is called without a prev exec, nothing happens
+        // because the deposit contract was previously culled
+        // meaning that the position had dissapeared and
+        // everything was taken as bad debt
         end.skim(ilk, address(deposit));
         (ink, art) = vat.urns(ilk, address(deposit));
         assertEq(ink, 0);
@@ -697,20 +721,19 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(vat.gem(ilk, address(end)), 0);
         assertGe(adai.balanceOf(address(deposit)), pink);
 
-        uint256 vowSin = vat.sin(vow);
-
         // We try to unwind what is possible
         deposit.exec();
         VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
 
-        // Part can't be done yet
+        // A part can't be unwind yet
         assertEq(vat.gem(ilk, address(deposit)), 0);
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
         assertGt(adai.balanceOf(address(deposit)), amountSupplied / 2);
-        assertEq(vat.sin(vow), vowSin - (amountSupplied / 2) * RAY);
+        // So the position is restablished and just a part paid out
+        assertLe(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY);
+        assertGe(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2 + 1) * RAY);
 
-        // Some time later the pool gets some liquidity
-        hevm.warp(block.timestamp + 180 days);
+        // Then pool gets some liquidity
         pool.repay(address(dai), amountToBorrow, 2, address(this));
 
         // Rest of the liquidity can be withdrawn
@@ -719,6 +742,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(adai.balanceOf(address(deposit)), 0);
         assertEq(vat.sin(vow), 0);
+        assertGe(vat.dai(vow), originalDai - originalSin + daiEarned * RAY);
+        assertLe(vat.dai(vow), originalDai - originalSin + (daiEarned + 1) * RAY);
     }
 
     function test_collect_stkaave() public {
