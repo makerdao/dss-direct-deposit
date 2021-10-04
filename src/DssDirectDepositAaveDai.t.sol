@@ -709,27 +709,37 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         assertEq(vat.sin(vow), originalSin + part * RAY - originalDai);
 
-        // If skim is called without a prev exec, nothing happens
-        // because the deposit contract was previously culled
-        // meaning that the position had dissapeared and
-        // everything was taken as bad debt
+        deposit.uncull();
+        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
+
+        // So the position is restablished
+        (ink, art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, pink);
+        assertEq(art, part);
+        assertEq(vat.gem(ilk, address(deposit)), 0);
+        assertGe(adai.balanceOf(address(deposit)), pink);
+        assertEq(vat.sin(vow), 0);
+
+        // Call skim manually (will be done through deposit anyway)
+        // Position is again taken but this time the collateral goes to the End module
         end.skim(ilk, address(deposit));
+        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
+
         (ink, art) = vat.urns(ilk, address(deposit));
         assertEq(ink, 0);
         assertEq(art, 0);
-        assertEq(vat.gem(ilk, address(deposit)), pink);
-        assertEq(vat.gem(ilk, address(end)), 0);
+        assertEq(vat.gem(ilk, address(deposit)), 0);
+        assertEq(vat.gem(ilk, address(end)), pink);
         assertGe(adai.balanceOf(address(deposit)), pink);
+        assertEq(vat.sin(vow), originalSin + part * RAY - originalDai);
 
         // We try to unwind what is possible
         deposit.exec();
         VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
 
         // A part can't be unwind yet
-        assertEq(vat.gem(ilk, address(deposit)), 0);
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
         assertGt(adai.balanceOf(address(deposit)), amountSupplied / 2);
-        // So the position is restablished and just a part paid out
         assertLe(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY);
         assertGe(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2 + 1) * RAY);
 

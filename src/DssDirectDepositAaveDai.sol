@@ -130,7 +130,7 @@ contract DssDirectDepositAaveDai {
     uint256 public tic;             // Timestamp when the system is caged
     address public king;            // Who gets the rewards
 
-    enum Mode{ NORMAL, MODULE_CULLED, MCD_CAGED, MCD_CAGED_MODULE_CULLED }
+    enum Mode{ NORMAL, MODULE_CULLED, MCD_CAGED }
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -142,6 +142,7 @@ contract DssDirectDepositAaveDai {
     event Reap();
     event Cage();
     event Cull();
+    event Uncull();
 
     constructor(address chainlog_, bytes32 ilk_, address pool_, address _rewardsClaimer, uint256 tau_) public {
         address vat_ = ChainlogLike(chainlog_).getAddress("MCD_VAT");
@@ -278,7 +279,6 @@ contract DssDirectDepositAaveDai {
         // This module will have an unintended behaviour if rate is changed to some other value.
 
         bytes32 ilk_ = ilk;
-        address vow = chainlog.getAddress("MCD_VOW");
         address end;
         uint256 adaiBalance = adai.balanceOf(address(this));
         uint256 daiDebt;
@@ -290,25 +290,12 @@ contract DssDirectDepositAaveDai {
             // Module shutdown and culled
             // debt is obtained from free collateral owned by this contract
             daiDebt = vat.gem(ilk_, address(this));
-        } else if (mode == Mode.MCD_CAGED) {
+        } else {
             // MCD caged
             // debt is obtained from free collateral owned by the End module
             end = chainlog.getAddress("MCD_END");
             EndLike(end).skim(ilk_, address(this));
             daiDebt = vat.gem(ilk_, address(end));
-        } else {
-            // MCD caged but previously module was caged and culled
-            // debt is obtained from free collateral owned by the End module after some processing
-            daiDebt = vat.gem(ilk_, address(this));
-            end = chainlog.getAddress("MCD_END");
-            if (daiDebt > 0) {
-                require(daiDebt < 2 ** 255, "DssDirectDepositAaveDai/overflow");
-                vat.suck(vow, vow, _mul(daiDebt, RAY)); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
-                vat.grab(ilk_, address(this), address(this), vow, int256(daiDebt), int256(daiDebt));
-                EndLike(end).skim(ilk_, address(this));
-            } else {
-                daiDebt = vat.gem(ilk_, address(end));
-            }
         }
 
         // Unwind amount is limited by how much:
@@ -351,6 +338,7 @@ contract DssDirectDepositAaveDai {
 
         // normalized debt == erc20 DAI to join (Vat rate for this ilk fixed to 1 RAY)
 
+        address vow = chainlog.getAddress("MCD_VOW");
         if (mode == Mode.NORMAL) {
             vat.frob(ilk_, address(this), address(this), address(this), -int256(amount), -int256(amount));
             vat.slip(ilk_, address(this), -int256(amount));
@@ -375,12 +363,11 @@ contract DssDirectDepositAaveDai {
         if (vat.live() == 0) {
             // MCD caged
             require(EndLike(chainlog.getAddress("MCD_END")).debt() == 0, "DssDirectDepositAaveDai/end-debt-already-set");
+            require(culled == 0, "DssDirectDepositAaveDai/module-has-to-be-unculled-first");
             _unwind(
                 type(uint256).max,
                 availableLiquidity,
-                culled == 1
-                ? Mode.MCD_CAGED_MODULE_CULLED
-                : Mode.MCD_CAGED
+                Mode.MCD_CAGED
             );
         } else if (live == 0) {
             // This module caged
@@ -476,6 +463,23 @@ contract DssDirectDepositAaveDai {
 
         culled = 1;
         emit Cull();
+    }
+
+    // --- Rollback Write-off (only if General Shutdown happened) ---
+    // This function is required to have the collateral back in the vault so it can be taken by End module
+    // and eventually be shared to DAI holders (as any other collateral) or maybe even unwinded
+    function uncull() external {
+        require(culled == 1, "DssDirectDepositAaveDai/not-prev-culled");
+        require(vat.live() == 0, "DssDirectDepositAaveDai/no-uncull-normal-operation");
+
+        uint256 wad = vat.gem(ilk, address(this));
+        require(wad < 2 ** 255, "DssDirectDepositAaveDai/overflow");
+        address vow = chainlog.getAddress("MCD_VOW");
+        vat.suck(vow, vow, _mul(wad, RAY)); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+        vat.grab(ilk, address(this), address(this), vow, int256(wad), int256(wad));
+
+        culled = 0;
+        emit Uncull();
     }
 
     // --- Emergency Quit Everything ---
