@@ -390,6 +390,7 @@ contract DssDirectDepositAaveDai {
                                     )
                                 );
             uint256 targetSupply = calculateTargetSupply(bar);
+            targetSupply = min(targetSupply, availableLiquidity);
 
             if (targetSupply > supplyAmount) {
                 _wind(targetSupply - supplyAmount);
