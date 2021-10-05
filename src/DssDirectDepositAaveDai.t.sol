@@ -656,6 +656,41 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(vat.gem(ilk, address(end)), 0);
     }
 
+    function testFail_unwind_mcd_caged_wait_done() public {
+        uint256 currentLiquidity = dai.balanceOf(address(adai));
+
+        // Lower by 50%
+        uint256 targetBorrowRate = set_rel_borrow_target(5000);
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
+        assertGt(pink, 0);
+        assertGt(part, 0);
+
+        // Someone else borrows
+        uint256 amountSupplied = adai.balanceOf(address(deposit));
+        uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
+        pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+
+        // MCD shutdowns
+        end.cage();
+        end.cage(ilk);
+
+        hevm.warp(block.timestamp + end.wait());
+
+        // Force remove all the dai from vow so it can call end.thaw()
+        hevm.store(
+            address(vat),
+            keccak256(abi.encode(address(vow), uint256(5))),
+            bytes32(0)
+        );
+
+        end.thaw();
+
+        // Unwind via exec should fail with error "DssDirectDepositAaveDai/end-debt-already-set"
+        deposit.exec();
+    }
+
     function test_unwind_culled_then_mcd_caged() public {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
 
@@ -754,6 +789,32 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(vat.sin(vow), 0);
         assertGe(vat.dai(vow), originalDai - originalSin + daiEarned * RAY);
         assertLe(vat.dai(vow), originalDai - originalSin + (daiEarned + 1) * RAY);
+    }
+
+    function testFail_uncull_not_culled() public {
+        // Lower by 50%
+        set_rel_borrow_target(5000);
+        deposit.cage();
+
+        // MCD shutdowns
+        end.cage();
+        end.cage(ilk);
+
+        // uncull should fail with error "DssDirectDepositAaveDai/not-prev-culled"
+        deposit.uncull();
+    }
+
+    function testFail_uncull_not_shutdown() public {
+        // Lower by 50%
+        set_rel_borrow_target(5000);
+        deposit.cage();
+
+        hevm.warp(block.timestamp + deposit.tau());
+
+        deposit.cull();
+
+        // uncull should fail with error "DssDirectDepositAaveDai/no-uncull-normal-operation"
+        deposit.uncull();
     }
 
     function test_collect_stkaave() public {
