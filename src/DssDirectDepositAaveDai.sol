@@ -125,7 +125,7 @@ contract DssDirectDepositAaveDai {
 
     uint256 public immutable tau;   // Time until you can write off the debt [sec]
     uint256 public bar;             // Target Interest Rate [ray]
-    uint256 public pie;             // Maximum percentage this contract can hold of the pool's deposits
+    uint256 public pie;             // Maximum percentage this contract can hold of the pool's deposits [ray]
     uint256 public live = 1;
     uint256 public culled;
     uint256 public tic;             // Timestamp when the system is caged
