@@ -590,14 +590,21 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertGt(art, 0);
         assertEq(vat.gem(ilk, address(end)), 0);
 
+        uint256 prevSin = vat.sin(vow);
+        uint256 prevDai = vat.dai(vow);
+        assertEq(prevSin, 0);
+        assertGt(prevDai, 0);
+
         // We try to unwind what is possible
         deposit.exec();
+        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
 
-        // Part can't be done yet
+        // exec() moved the remaining urn debt to the end
         (ink, art) = vat.urns(ilk, address(deposit));
         assertEq(ink, 0);
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2); // Automatically skimmed when unwinding
+        assertEq(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai);
 
         // Some time later the pool gets some liquidity
         hevm.warp(block.timestamp + 180 days);
@@ -605,7 +612,9 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Rest of the liquidity can be withdrawn
         deposit.exec();
+        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
+        assertEq(vat.sin(vow), 0);
     }
 
     function test_unwind_mcd_caged_skimmed() public {
