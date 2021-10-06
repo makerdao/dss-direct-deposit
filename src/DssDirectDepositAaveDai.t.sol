@@ -604,7 +604,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(ink, 0);
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2); // Automatically skimmed when unwinding
-        assertEq(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai);
+        assertEqApprox(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai, RAY);
+        assertEq(vat.dai(vow), 0);
 
         // Some time later the pool gets some liquidity
         hevm.warp(block.timestamp + 180 days);
@@ -615,6 +616,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(vat.sin(vow), 0);
+        assertGe(vat.dai(vow), prevDai); // As also probably accrues interest from aDai
     }
 
     function test_unwind_mcd_caged_skimmed() public {
@@ -650,10 +652,13 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Position is taken by the End module
         end.skim(ilk, address(deposit));
+        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
         (ink, art) = vat.urns(ilk, address(deposit));
         assertEq(ink, 0);
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(end)), pink);
+        assertEqApprox(vat.sin(vow), prevSin + amountSupplied * RAY - prevDai, RAY);
+        assertEq(vat.dai(vow), 0);
 
         // We try to unwind what is possible
         deposit.exec();
@@ -661,7 +666,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Part can't be done yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
-        assertEq(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai);
+        assertEqApprox(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai, RAY);
+        assertEq(vat.dai(vow), 0);
 
         // Some time later the pool gets some liquidity
         hevm.warp(block.timestamp + 180 days);
@@ -672,6 +678,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(vat.sin(vow), 0);
+        assertGe(vat.dai(vow), prevDai); // As also probably accrues interest from aDai
     }
 
     function testFail_unwind_mcd_caged_wait_done() public {
@@ -784,7 +791,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(vat.gem(ilk, address(deposit)), 0);
         assertEq(vat.gem(ilk, address(end)), pink);
         assertGe(adai.balanceOf(address(deposit)), pink);
-        assertEq(vat.sin(vow), originalSin + part * RAY - originalDai);
+        assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai, RAY);
 
         // We try to unwind what is possible
         deposit.exec();
@@ -793,8 +800,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         // A part can't be unwind yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
         assertGt(adai.balanceOf(address(deposit)), amountSupplied / 2);
-        assertLe(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY);
-        assertGe(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2 + 1) * RAY);
+        assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY, RAY);
 
         // Then pool gets some liquidity
         pool.repay(address(dai), amountToBorrow, 2, address(this));
@@ -805,8 +811,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(adai.balanceOf(address(deposit)), 0);
         assertEq(vat.sin(vow), 0);
-        assertGe(vat.dai(vow), originalDai - originalSin + daiEarned * RAY);
-        assertLe(vat.dai(vow), originalDai - originalSin + (daiEarned + 1) * RAY);
+        assertEqApprox(vat.dai(vow), originalDai - originalSin + daiEarned * RAY, RAY);
     }
 
     function testFail_uncull_not_culled() public {
