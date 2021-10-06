@@ -242,10 +242,8 @@ contract DssDirectDepositAaveDai {
         // That's why this module converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
 
-        bytes32 ilk_ = ilk;
-
         // Wind amount is limited by the debt ceiling
-        (uint256 Art,,, uint256 line,) = vat.ilks(ilk_);
+        (uint256 Art,,, uint256 line,) = vat.ilks(ilk);
         uint256 lineWad = line / RAY; // Round down to always be under the actual limit
         if (_add(Art, amount) > lineWad) {
             amount = _sub(lineWad, Art);
@@ -260,8 +258,8 @@ contract DssDirectDepositAaveDai {
 
         uint256 scaledPrev = adai.scaledBalanceOf(address(this));
 
-        vat.slip(ilk_, address(this), int256(amount));
-        vat.frob(ilk_, address(this), address(this), address(this), int256(amount), int256(amount));
+        vat.slip(ilk, address(this), int256(amount));
+        vat.frob(ilk, address(this), address(this), address(this), int256(amount), int256(amount));
         // normalized debt == erc20 DAI to join (Vat rate for this ilk fixed to 1 RAY)
         daiJoin.exit(address(this), amount);
         pool.deposit(address(dai), amount, address(this), 0);
@@ -279,24 +277,23 @@ contract DssDirectDepositAaveDai {
         // That's why it converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
 
-        bytes32 ilk_ = ilk;
         address end;
         uint256 adaiBalance = adai.balanceOf(address(this));
         uint256 daiDebt;
         if (mode == Mode.NORMAL) {
             // Normal mode or module just caged (no culled)
             // debt is obtained from CDP ink (or art which is the same)
-            (daiDebt,) = vat.urns(ilk_, address(this));
+            (daiDebt,) = vat.urns(ilk, address(this));
         } else if (mode == Mode.MODULE_CULLED) {
             // Module shutdown and culled
             // debt is obtained from free collateral owned by this contract
-            daiDebt = vat.gem(ilk_, address(this));
+            daiDebt = vat.gem(ilk, address(this));
         } else {
             // MCD caged
             // debt is obtained from free collateral owned by the End module
             end = chainlog.getAddress("MCD_END");
-            EndLike(end).skim(ilk_, address(this));
-            daiDebt = vat.gem(ilk_, address(end));
+            EndLike(end).skim(ilk, address(this));
+            daiDebt = vat.gem(ilk, address(end));
         }
 
         // Unwind amount is limited by how much:
@@ -342,17 +339,17 @@ contract DssDirectDepositAaveDai {
 
         address vow = chainlog.getAddress("MCD_VOW");
         if (mode == Mode.NORMAL) {
-            vat.frob(ilk_, address(this), address(this), address(this), -int256(amount), -int256(amount));
-            vat.slip(ilk_, address(this), -int256(amount));
+            vat.frob(ilk, address(this), address(this), address(this), -int256(amount), -int256(amount));
+            vat.slip(ilk, address(this), -int256(amount));
             vat.move(address(this), vow, _mul(fees, RAY));
         } else if (mode == Mode.MODULE_CULLED) {
-            vat.slip(ilk_, address(this), -int256(amount));
+            vat.slip(ilk, address(this), -int256(amount));
             vat.move(address(this), vow, _mul(total, RAY));
         } else {
             // This can be done with the assumption that the price of 1 aDai equals 1 DAI.
             // That way we know that the prev End.skim call kept its gap[ilk] emptied as the CDP was always collateralized.
             // Otherwise we couldn't just simply take away the collateral from the End module as the next line will be doing.
-            vat.slip(ilk_, end, -int256(amount));
+            vat.slip(ilk, end, -int256(amount));
             vat.move(address(this), vow, _mul(total, RAY));
         }
 
