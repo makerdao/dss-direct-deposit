@@ -125,6 +125,7 @@ contract DssDirectDepositAaveDai {
 
     uint256 public immutable tau;   // Time until you can write off the debt [sec]
     uint256 public bar;             // Target Interest Rate [ray]
+    uint256 public pie;             // Maximum percentage this contract can hold of the pool's deposits
     uint256 public live = 1;
     uint256 public culled;
     uint256 public tic;             // Timestamp when the system is caged
@@ -205,6 +206,10 @@ contract DssDirectDepositAaveDai {
             require(data <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
 
             bar = data;
+        } else if (what == "pie") {
+            require(data <= RAY, "DssDirectDepositAaveDai/pie-greater-than-whole");
+
+            pie = data;
         } else revert("DssDirectDepositAaveDai/file-unrecognized-param");
 
         emit File(what, data);
@@ -237,7 +242,7 @@ contract DssDirectDepositAaveDai {
     }
 
     // --- Deposit controls ---
-    function _wind(uint256 amount) internal {
+    function _wind(uint256 amount, uint256 availableLiquidity) internal {
         // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
         // That's why this module converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
@@ -255,9 +260,16 @@ contract DssDirectDepositAaveDai {
             return;
         }
 
+
         require(int256(amount) >= 0, "DssDirectDepositAaveDai/overflow");
 
         uint256 scaledPrev = adai.scaledBalanceOf(address(this));
+        uint256 interestIndex = pool.getReserveNormalizedIncome(address(dai));
+        uint256 scaledAmount = _rdiv(amount, interestIndex);
+        uint256 scaledNew = _add(scaledPrev, scaledAmount);
+        uint256 newPiece = _rdiv(scaledNew, availableLiquidity);
+
+        require(newPiece <= pie, "DssDirectDepositAaveDai/share-too-large");
 
         vat.slip(ilk_, address(this), int256(amount));
         vat.frob(ilk_, address(this), address(this), address(this), int256(amount), int256(amount));
@@ -266,9 +278,7 @@ contract DssDirectDepositAaveDai {
         pool.deposit(address(dai), amount, address(this), 0);
 
         // Verify the correct amount of adai shows up
-        uint256 interestIndex = pool.getReserveNormalizedIncome(address(dai));
-        uint256 scaledAmount = _rdiv(amount, interestIndex);
-        require(adai.scaledBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount), "DssDirectDepositAaveDai/no-receive-adai");
+        require(adai.scaledBalanceOf(address(this)) >= scaledNew, "DssDirectDepositAaveDai/no-receive-adai");
 
         emit Wind(amount);
     }
@@ -392,7 +402,7 @@ contract DssDirectDepositAaveDai {
             uint256 targetSupply = calculateTargetSupply(bar);
 
             if (targetSupply > supplyAmount) {
-                _wind(targetSupply - supplyAmount);
+                _wind(targetSupply - supplyAmount, availableLiquidity);
             } else if (targetSupply < supplyAmount) {
                 _unwind(
                     supplyAmount - targetSupply,
