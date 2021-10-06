@@ -194,7 +194,7 @@ contract DssDirectDepositAaveDai {
     function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, RAY) / y;
     }
-    function min(uint256 x, uint256 y) internal pure returns (uint256 z) {
+    function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
     }
 
@@ -304,9 +304,9 @@ contract DssDirectDepositAaveDai {
         // - liquidity available
         // - adai we have to withdraw
         // - dai debt tracked in vat (CDP or free)
-        uint256 amount = min(
-                                min(
-                                    min(
+        uint256 amount = _min(
+                                _min(
+                                    _min(
                                         supplyReduction,
                                         availableLiquidity
                                     ),
