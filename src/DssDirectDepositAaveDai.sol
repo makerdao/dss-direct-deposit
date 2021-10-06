@@ -265,11 +265,9 @@ contract DssDirectDepositAaveDai {
 
         uint256 scaledPrev = adai.scaledBalanceOf(address(this));
         uint256 interestIndex = pool.getReserveNormalizedIncome(address(dai));
-        uint256 scaledAmount = _rdiv(amount, interestIndex);
-        uint256 scaledNew = _add(scaledPrev, scaledAmount);
-        uint256 newPiece = _rdiv(scaledNew, availableLiquidity);
+        uint256 scaledNew = _add(scaledPrev, _rdiv(amount, interestIndex));
 
-        require(newPiece <= pie, "DssDirectDepositAaveDai/share-too-large");
+        require(_rdiv(scaledNew, availableLiquidity) <= pie, "DssDirectDepositAaveDai/share-too-large");
 
         vat.slip(ilk_, address(this), int256(amount));
         vat.frob(ilk_, address(this), address(this), address(this), int256(amount), int256(amount));
