@@ -252,6 +252,7 @@ contract DssDirectDepositAaveDai {
         }
 
         if (amount == 0) {
+            emit Wind(0);
             return;
         }
 
@@ -326,6 +327,7 @@ contract DssDirectDepositAaveDai {
         }
 
         if (amount == 0 && fees == 0) {
+            emit Unwind(0);
             return;
         }
 
