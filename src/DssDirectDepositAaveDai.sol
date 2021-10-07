@@ -19,10 +19,9 @@ pragma solidity 0.6.12;
 interface TokenLike {
     function totalSupply() external view returns (uint256);
     function balanceOf(address) external view returns (uint256);
-    function allowance(address, address) external view returns (uint256);
     function approve(address, uint256) external returns (bool);
     function transfer(address, uint256) external returns (bool);
-    function transferFrom(address, address, uint256) external returns (bool);
+    function scaledBalanceOf(address) external view returns (uint256);
 }
 
 interface ChainlogLike {
@@ -51,13 +50,14 @@ interface VatLike {
     function move(address, address, uint256) external;
     function frob(bytes32, address, address, address, int256, int256) external;
     function grab(bytes32, address, address, address, int256, int256) external;
+    function fork(bytes32, address, address, int256, int256) external;
+    function suck(address, address, uint256) external;
 }
 
 interface LendingPoolLike {
     function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
     function withdraw(address asset, uint256 amount, address to) external;
-    function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external;
-    function repay(address asset, uint256 amount, uint256 rateMode, address onBehalfOf) external;
+    function getReserveNormalizedIncome(address asset) external view returns (uint256);
     function getReserveData(address asset) external view returns (
         uint256,    // Configuration
         uint128,    // the liquidity index. Expressed in ray
@@ -81,23 +81,15 @@ interface InterestRateStrategyLike {
     function variableRateSlope2() external view returns (uint256);
     function baseVariableBorrowRate() external view returns (uint256);
     function getMaxVariableBorrowRate() external view returns (uint256);
-    function calculateInterestRates(
-        address reserve,
-        uint256 availableLiquidity,
-        uint256 totalStableDebt,
-        uint256 totalVariableDebt,
-        uint256 averageStableBorrowRate,
-        uint256 reserveFactor
-    ) external returns (
-        uint256,
-        uint256,
-        uint256
-    );
 }
 
 interface RewardsClaimerLike {
     function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
-    function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
+}
+
+interface EndLike {
+    function debt() external view returns (uint256);
+    function skim(bytes32, address) external;
 }
 
 contract DssDirectDepositAaveDai {
@@ -130,13 +122,15 @@ contract DssDirectDepositAaveDai {
     TokenLike public immutable variableDebt;
     TokenLike public immutable dai;
     DaiJoinLike public immutable daiJoin;
-    uint256 public immutable tau;
 
-    uint256 public bar;         // Target Interest Rate [ray]
+    uint256 public immutable tau;   // Time until you can write off the debt [sec]
+    uint256 public bar;             // Target Interest Rate [ray]
     uint256 public live = 1;
     uint256 public culled;
-    uint256 public tic;         // Time until you can write off the debt [sec]
-    address public king;        // Who gets the rewards
+    uint256 public tic;             // Timestamp when the system is caged
+    address public king;            // Who gets the rewards
+
+    enum Mode{ NORMAL, MODULE_CULLED, MCD_CAGED }
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -148,6 +142,7 @@ contract DssDirectDepositAaveDai {
     event Reap();
     event Cage();
     event Cull();
+    event Uncull();
 
     constructor(address chainlog_, bytes32 ilk_, address pool_, address _rewardsClaimer, uint256 tau_) public {
         address vat_ = ChainlogLike(chainlog_).getAddress("MCD_VAT");
@@ -156,7 +151,10 @@ contract DssDirectDepositAaveDai {
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(address(dai_));
-        require(adai_ != address(0), "DssDirectDepositAaveDai/invalid-asset");
+        require(adai_ != address(0), "DssDirectDepositAaveDai/invalid-adai");
+        require(stableDebt_ != address(0), "DssDirectDepositAaveDai/invalid-stableDebt");
+        require(variableDebt_ != address(0), "DssDirectDepositAaveDai/invalid-variableDebt");
+        require(interestStrategy_ != address(0), "DssDirectDepositAaveDai/invalid-interestStrategy");
 
         chainlog = ChainlogLike(chainlog_);
         vat = VatLike(vat_);
@@ -180,27 +178,28 @@ contract DssDirectDepositAaveDai {
     }
 
     // --- Math ---
-    function add(uint256 x, uint256 y) public pure returns (uint256 z) {
+    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x, "DssDirectDepositAaveDai/overflow");
     }
-    function sub(uint256 x, uint256 y) public pure returns (uint256 z) {
+    function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x, "DssDirectDepositAaveDai/underflow");
     }
-    function mul(uint256 x, uint256 y) public pure returns (uint256 z) {
+    function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "DssDirectDepositAaveDai/overflow");
     }
     uint256 constant RAY  = 10 ** 27;
-    function rmul(uint256 x, uint256 y) public pure returns (uint256 z) {
-        z = mul(x, y) / RAY;
+    function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = _mul(x, y) / RAY;
     }
-    function rdiv(uint256 x, uint256 y) public pure returns (uint256 z) {
-        z = mul(x, RAY) / y;
+    function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = _mul(x, RAY) / y;
+    }
+    function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = x <= y ? x : y;
     }
 
     // --- Administration ---
     function file(bytes32 what, uint256 data) external auth {
-        require(live == 1, "DssDirectDepositAaveDai/not-live");
-
         if (what == "bar") {
             require(data > 0, "DssDirectDepositAaveDai/target-interest-zero");
             require(data <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
@@ -210,117 +209,202 @@ contract DssDirectDepositAaveDai {
 
         emit File(what, data);
     }
+
     function file(bytes32 what, address data) external auth {
+        require(vat.live() == 1, "DssDirectDepositAaveDai/no-file-during-shutdown");
+
         if (what == "king") king = data;
         else revert("DssDirectDepositAaveDai/file-unrecognized-param");
         emit File(what, data);
     }
 
-    // --- Deposit controls ---
-    function wind(uint256 amount) external auth {
-        require(live == 1, "DssDirectDepositAaveDai/not-live");
-
-        _wind(amount);
-    }
-    function _wind(uint256 amount) internal {
-        require(int256(amount) >= 0, "DssDirectDepositAaveDai/overflow");
-
-        vat.slip(ilk, address(this), int256(amount));
-        vat.frob(ilk, address(this), address(this), address(this), int256(amount), int256(amount));
-        daiJoin.exit(address(this), amount);
-        pool.deposit(address(dai), amount, address(this), 0);
-
-        emit Wind(amount);
-    }
-
-    function unwind(uint256 amount, uint256 fees) external {
-        require(wards[msg.sender] == 1 || live == 0, "DssDirectDepositAaveDai/not-authorized");
-
-        _unwind(amount, fees);
-    }
-    function _unwind(uint256 amount, uint256 fees) internal {
-        require(amount <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
-
-        // To save gas you can bring the fees back with the unwind
-        uint256 total = add(amount, fees);
-        pool.withdraw(address(dai), total, address(this));
-        daiJoin.join(address(this), total);
-        if (culled == 0) {
-            vat.frob(ilk, address(this), address(this), address(this), -int256(amount), -int256(amount));
-        }
-        vat.slip(ilk, address(this), -int256(amount));
-        vat.move(address(this), chainlog.getAddress("MCD_VOW"), mul(culled == 1 ? total : fees, RAY));
-
-        emit Unwind(amount);
-    }
-
-    // --- Automated Rate Targetting ---
+    // --- Automated Rate targeting ---
     function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
         require(targetInterestRate > 0, "DssDirectDepositAaveDai/target-interest-zero");
         require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
 
         // Do inverse calculation of interestStrategy
         uint256 targetUtil;
-        if (targetInterestRate > add(interestStrategy.baseVariableBorrowRate(), interestStrategy.variableRateSlope1())) {
+        if (targetInterestRate > _add(interestStrategy.baseVariableBorrowRate(), interestStrategy.variableRateSlope1())) {
             // Excess interest rate
             uint256 r = targetInterestRate - interestStrategy.baseVariableBorrowRate() - interestStrategy.variableRateSlope1();
-            targetUtil = add(rdiv(rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r), interestStrategy.variableRateSlope2()), interestStrategy.OPTIMAL_UTILIZATION_RATE());
+            targetUtil = _add(_rdiv(_rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r), interestStrategy.variableRateSlope2()), interestStrategy.OPTIMAL_UTILIZATION_RATE());
         } else {
-            // Optimal interst rate
-            targetUtil = rdiv(rmul(sub(targetInterestRate, interestStrategy.baseVariableBorrowRate()), interestStrategy.OPTIMAL_UTILIZATION_RATE()), interestStrategy.variableRateSlope1());
+            // Optimal interest rate
+            targetUtil = _rdiv(_rmul(_sub(targetInterestRate, interestStrategy.baseVariableBorrowRate()), interestStrategy.OPTIMAL_UTILIZATION_RATE()), interestStrategy.variableRateSlope1());
         }
-        return rdiv(add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
+        return _rdiv(_add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
     }
-    function exec() external {
-        require(bar > 0, "DssDirectDepositAaveDai/bar-not-set");
 
-        uint256 availableLiquidity = dai.balanceOf(address(adai));
-        uint256 supplyAmount = add(availableLiquidity, add(stableDebt.totalSupply(), variableDebt.totalSupply()));
-        uint256 targetSupply = calculateTargetSupply(bar);
-        if (live == 0) targetSupply = 0;    // Unwind only when caged
+    // --- Deposit controls ---
+    function _wind(uint256 amount) internal {
+        // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
+        // That's why this module converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
+        // This module will have an unintended behaviour if rate is changed to some other value.
 
-        if (targetSupply > supplyAmount) {
-            uint256 windTargetAmount = targetSupply - supplyAmount;
+        // Wind amount is limited by the debt ceiling
+        (uint256 Art,,, uint256 line,) = vat.ilks(ilk);
+        uint256 lineWad = line / RAY; // Round down to always be under the actual limit
+        if (_add(Art, amount) > lineWad) {
+            amount = _sub(lineWad, Art);
+        }
 
-            // Wind amount is limited by the debt ceiling
-            (uint256 Art,,, uint256 line,) = vat.ilks(ilk);
-            uint256 lineWad = line / RAY;      // Round down to always be under the actual limit
-            uint256 newDebt = add(Art, windTargetAmount);
-            if (newDebt > lineWad) windTargetAmount = sub(lineWad, Art);
+        if (amount == 0) {
+            emit Wind(0);
+            return;
+        }
 
-            if (windTargetAmount > 0) _wind(windTargetAmount);
-        } else if (targetSupply < supplyAmount) {
-            uint256 unwindTargetAmount = supplyAmount - targetSupply;
+        require(int256(amount) >= 0, "DssDirectDepositAaveDai/overflow");
 
-            // Unwind amount is limited by how much adai we have to withdraw
-            uint256 adaiBalance = adai.balanceOf(address(this));
-            if (adaiBalance < unwindTargetAmount) unwindTargetAmount = adaiBalance;
+        uint256 scaledPrev = adai.scaledBalanceOf(address(this));
 
-            // Unwind amount is limited by how much debt there is
-            (uint256 daiDebt,) = vat.urns(ilk, address(this));
-            if (culled == 1) daiDebt = vat.gem(ilk, address(this));
-            if (daiDebt < unwindTargetAmount) unwindTargetAmount = daiDebt;
+        vat.slip(ilk, address(this), int256(amount));
+        vat.frob(ilk, address(this), address(this), address(this), int256(amount), int256(amount));
+        // normalized debt == erc20 DAI to join (Vat rate for this ilk fixed to 1 RAY)
+        daiJoin.exit(address(this), amount);
+        pool.deposit(address(dai), amount, address(this), 0);
 
-            // Unwind amount is limited by available liquidity in the pool
-            if (availableLiquidity < unwindTargetAmount) unwindTargetAmount = availableLiquidity;
-            
-            // Determine the amount of fees to bring back
-            uint256 fees = 0;
-            if (adaiBalance > daiDebt) {
-                fees = adaiBalance - daiDebt;
+        // Verify the correct amount of adai shows up
+        uint256 interestIndex = pool.getReserveNormalizedIncome(address(dai));
+        uint256 scaledAmount = _rdiv(amount, interestIndex);
+        require(adai.scaledBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount), "DssDirectDepositAaveDai/no-receive-adai");
 
-                if (add(unwindTargetAmount, fees) > availableLiquidity) {
-                    // Don't need safe-math because this is constrained above
-                    fees = availableLiquidity - unwindTargetAmount;
-                }
+        emit Wind(amount);
+    }
+
+    function _unwind(uint256 supplyReduction, uint256 availableLiquidity, Mode mode) internal {
+        // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
+        // That's why it converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
+        // This module will have an unintended behaviour if rate is changed to some other value.
+
+        address end;
+        uint256 adaiBalance = adai.balanceOf(address(this));
+        uint256 daiDebt;
+        if (mode == Mode.NORMAL) {
+            // Normal mode or module just caged (no culled)
+            // debt is obtained from CDP ink (or art which is the same)
+            (daiDebt,) = vat.urns(ilk, address(this));
+        } else if (mode == Mode.MODULE_CULLED) {
+            // Module shutdown and culled
+            // debt is obtained from free collateral owned by this contract
+            daiDebt = vat.gem(ilk, address(this));
+        } else {
+            // MCD caged
+            // debt is obtained from free collateral owned by the End module
+            end = chainlog.getAddress("MCD_END");
+            EndLike(end).skim(ilk, address(this));
+            daiDebt = vat.gem(ilk, address(end));
+        }
+
+        // Unwind amount is limited by how much:
+        // - max reduction desired
+        // - liquidity available
+        // - adai we have to withdraw
+        // - dai debt tracked in vat (CDP or free)
+        uint256 amount = _min(
+                                _min(
+                                    _min(
+                                        supplyReduction,
+                                        availableLiquidity
+                                    ),
+                                    adaiBalance
+                                ),
+                                daiDebt
+                            );
+
+        // Determine the amount of fees to bring back
+        uint256 fees = 0;
+        if (adaiBalance > daiDebt) {
+            fees = adaiBalance - daiDebt;
+
+            if (_add(amount, fees) > availableLiquidity) {
+                // Don't need safe-math because this is constrained above
+                fees = availableLiquidity - amount;
             }
+        }
 
-            if (unwindTargetAmount > 0 || fees > 0) _unwind(unwindTargetAmount, fees);
+        if (amount == 0 && fees == 0) {
+            emit Unwind(0);
+            return;
+        }
+
+        require(amount <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
+
+        // To save gas you can bring the fees back with the unwind
+        uint256 total = _add(amount, fees);
+        pool.withdraw(address(dai), total, address(this));
+        daiJoin.join(address(this), total);
+
+        // normalized debt == erc20 DAI to join (Vat rate for this ilk fixed to 1 RAY)
+
+        address vow = chainlog.getAddress("MCD_VOW");
+        if (mode == Mode.NORMAL) {
+            vat.frob(ilk, address(this), address(this), address(this), -int256(amount), -int256(amount));
+            vat.slip(ilk, address(this), -int256(amount));
+            vat.move(address(this), vow, _mul(fees, RAY));
+        } else if (mode == Mode.MODULE_CULLED) {
+            vat.slip(ilk, address(this), -int256(amount));
+            vat.move(address(this), vow, _mul(total, RAY));
+        } else {
+            // This can be done with the assumption that the price of 1 aDai equals 1 DAI.
+            // That way we know that the prev End.skim call kept its gap[ilk] emptied as the CDP was always collateralized.
+            // Otherwise we couldn't just simply take away the collateral from the End module as the next line will be doing.
+            vat.slip(ilk, end, -int256(amount));
+            vat.move(address(this), vow, _mul(total, RAY));
+        }
+
+        emit Unwind(amount);
+    }
+
+    function exec() external {
+        uint256 availableLiquidity = dai.balanceOf(address(adai));
+
+        if (vat.live() == 0) {
+            // MCD caged
+            require(EndLike(chainlog.getAddress("MCD_END")).debt() == 0, "DssDirectDepositAaveDai/end-debt-already-set");
+            require(culled == 0, "DssDirectDepositAaveDai/module-has-to-be-unculled-first");
+            _unwind(
+                type(uint256).max,
+                availableLiquidity,
+                Mode.MCD_CAGED
+            );
+        } else if (live == 0) {
+            // This module caged
+            _unwind(
+                type(uint256).max,
+                availableLiquidity,
+                culled == 1
+                ? Mode.MODULE_CULLED
+                : Mode.NORMAL
+            );
+        } else {
+            // Normal path
+            require(bar > 0, "DssDirectDepositAaveDai/bar-not-set");
+
+            uint256 supplyAmount = _add(
+                                    availableLiquidity,
+                                    _add(
+                                        stableDebt.totalSupply(),
+                                        variableDebt.totalSupply()
+                                    )
+                                );
+            uint256 targetSupply = calculateTargetSupply(bar);
+
+            if (targetSupply > supplyAmount) {
+                _wind(targetSupply - supplyAmount);
+            } else if (targetSupply < supplyAmount) {
+                _unwind(
+                    supplyAmount - targetSupply,
+                    availableLiquidity,
+                    Mode.NORMAL
+                );
+            }
         }
     }
 
     // --- Collect Interest ---
     function reap() external {
+        require(vat.live() == 1, "DssDirectDepositAaveDai/no-reap-during-shutdown");
         uint256 adaiBalance = adai.balanceOf(address(this));
         (, uint256 daiDebt) = vat.urns(ilk, address(this));
         if (adaiBalance > daiDebt) {
@@ -350,12 +434,12 @@ contract DssDirectDepositAaveDai {
 
     // --- Shutdown ---
     function cage() external {
-        // Can shut this down if we are authed, if the vat was caged
+        require(vat.live() == 1, "DssDirectDepositAaveDai/no-cage-during-shutdown");
+        // Can shut this down if we are authed
         // or if the interest rate strategy changes
         (,,,,,,,,,, address strategy,) = pool.getReserveData(address(dai));
         require(
             wards[msg.sender] == 1 ||
-            vat.live() == 0 ||
             strategy != address(interestStrategy)
         , "DssDirectDepositAaveDai/not-authorized");
 
@@ -368,15 +452,53 @@ contract DssDirectDepositAaveDai {
     function cull() external {
         require(vat.live() == 1, "DssDirectDepositAaveDai/no-cull-during-shutdown");
         require(live == 0, "DssDirectDepositAaveDai/live");
-        require(add(tic, tau) <= block.timestamp, "DssDirectDepositAaveDai/early-cull");
+        require(_add(tic, tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositAaveDai/unauthorized-cull");
         require(culled == 0, "DssDirectDepositAaveDai/already-culled");
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(this));
         require(ink <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
         require(art <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
-        vat.grab(ilk, address(this), address(this), address(chainlog.getAddress("MCD_VOW")), -int256(ink), -int256(art));
+        vat.grab(ilk, address(this), address(this), chainlog.getAddress("MCD_VOW"), -int256(ink), -int256(art));
+
         culled = 1;
         emit Cull();
     }
 
+    // --- Rollback Write-off (only if General Shutdown happened) ---
+    // This function is required to have the collateral back in the vault so it can be taken by End module
+    // and eventually be shared to DAI holders (as any other collateral) or maybe even unwinded
+    function uncull() external {
+        require(culled == 1, "DssDirectDepositAaveDai/not-prev-culled");
+        require(vat.live() == 0, "DssDirectDepositAaveDai/no-uncull-normal-operation");
+
+        uint256 wad = vat.gem(ilk, address(this));
+        require(wad < 2 ** 255, "DssDirectDepositAaveDai/overflow");
+        address vow = chainlog.getAddress("MCD_VOW");
+        vat.suck(vow, vow, _mul(wad, RAY)); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+        vat.grab(ilk, address(this), address(this), vow, int256(wad), int256(wad));
+
+        culled = 0;
+        emit Uncull();
+    }
+
+    // --- Emergency Quit Everything ---
+    function quit(address who) external auth {
+        require(vat.live() == 1, "DssDirectDepositAaveDai/no-quit-during-shutdown");
+
+        // Send all adai in the contract to who
+        require(adai.transfer(who, adai.balanceOf(address(this))), "DssDirectDepositAaveDai/failed-transfer");
+
+        if (culled == 1) {
+            // Culled - just zero out the gems
+            uint256 wad = vat.gem(ilk, address(this));
+            require(wad <= 2 ** 255, "DssDirectDepositAaveDai/overflow");
+            vat.slip(ilk, address(this), -int256(wad));
+        } else {
+            // Regular operation - transfer the debt position (requires who to accept the transfer)
+            (uint256 ink, uint256 art) = vat.urns(ilk, address(this));
+            require(ink < 2 ** 255, "DssDirectDepositAaveDai/overflow");
+            require(art < 2 ** 255, "DssDirectDepositAaveDai/overflow");
+            vat.fork(ilk, address(this), who, int256(ink), int256(art));
+        }
+    }
 }
