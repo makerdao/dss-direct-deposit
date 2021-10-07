@@ -123,9 +123,9 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         pauseProxy = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
 
         // Force give admin access to these contracts via hevm magic
-        giveAuthAccess(address(vat), address(this));
-        giveAuthAccess(address(end), address(this));
-        giveAuthAccess(address(spot), address(this));
+        _giveAuthAccess(address(vat), address(this));
+        _giveAuthAccess(address(end), address(this));
+        _giveAuthAccess(address(spot), address(this));
         
         deposit = new DssDirectDepositAaveDai(address(chainlog), ilk, address(pool), address(rewardsClaimer), 7 days);
 
@@ -143,33 +143,18 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Give us a bunch of WETH and deposit into Aave
         uint256 amt = 1_000_000 * WAD;
-        giveTokens(weth, amt);
+        _giveTokens(weth, amt);
         weth.approve(address(pool), uint256(-1));
         dai.approve(address(pool), uint256(-1));
         pool.deposit(address(weth), amt, address(this), 0);
     }
 
     // --- Math ---
-    function add(uint256 x, uint256 y) public pure returns (uint256 z) {
-        require((z = x + y) >= x, "DssDirectDepositAaveDai/overflow");
-    }
-    function sub(uint256 x, uint256 y) public pure returns (uint256 z) {
-        require((z = x - y) <= x, "DssDirectDepositAaveDai/underflow");
-    }
-    function mul(uint256 x, uint256 y) public pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "DssDirectDepositAaveDai/overflow");
-    }
-    function rmul(uint256 x, uint256 y) public pure returns (uint256 z) {
-        z = mul(x, y) / RAY;
-    }
-    function rdiv(uint256 x, uint256 y) public pure returns (uint256 z) {
-        z = mul(x, RAY) / y;
-    }
-    function min(uint256 x, uint256 y) internal pure returns (uint256 z) {
+    function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
     }
 
-    function giveAuthAccess (address _base, address target) internal {
+    function _giveAuthAccess(address _base, address target) internal {
         AuthLike base = AuthLike(_base);
 
         // Edge case - ward is already set
@@ -203,7 +188,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertTrue(false);
     }
 
-    function giveTokens(DSTokenAbstract token, uint256 amount) internal {
+    function _giveTokens(DSTokenAbstract token, uint256 amount) internal {
         // Edge case - balance is already set for some reason
         if (token.balanceOf(address(this)) == amount) return;
 
@@ -289,7 +274,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
 
     // Set the borrow rate to a relative percent to what it currently is
-    function set_rel_borrow_target(uint256 deltaBPS) internal returns (uint256 targetBorrowRate) {
+    function _setRelBorrowTarget(uint256 deltaBPS) internal returns (uint256 targetBorrowRate) {
         targetBorrowRate = getBorrowRate() * deltaBPS / 10000;
         deposit.file("bar", targetBorrowRate);
         deposit.exec();
@@ -312,7 +297,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
 
     function test_target_decrease() public {
-        uint256 targetBorrowRate = set_rel_borrow_target(7500);
+        uint256 targetBorrowRate = _setRelBorrowTarget(7500);
         deposit.reap();     // Clear out interest to get rid of rounding errors
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
@@ -327,11 +312,11 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
     function test_target_increase() public {
         // Lower by 50%
-        uint256 targetBorrowRate = set_rel_borrow_target(5000);
+        uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         // Raise by 25%
-        targetBorrowRate = set_rel_borrow_target(12500);
+        targetBorrowRate = _setRelBorrowTarget(12500);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         uint256 amountMinted = adai.balanceOf(address(deposit));
@@ -347,7 +332,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 currBorrowRate = getBorrowRate();
 
         // Attempt to increase by 25% (you can't)
-        set_rel_borrow_target(12500);
+        _setRelBorrowTarget(12500);
         assertEqInterest(getBorrowRate(), currBorrowRate);  // Unchanged
 
         assertEq(adai.balanceOf(address(deposit)), 0);
@@ -362,7 +347,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
 
         // Lower by 50%
-        uint256 targetBorrowRate = set_rel_borrow_target(5000);
+        uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
         
         // Someone else borrows
@@ -402,7 +387,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
 
         // Lower by 50%
-        uint256 targetBorrowRate = set_rel_borrow_target(5000);
+        uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
         
         // Someone else borrows
@@ -463,7 +448,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 currBorrowRate = getBorrowRate();
 
         // Set a super low target interest rate
-        uint256 targetBorrowRate = set_rel_borrow_target(1);
+        uint256 targetBorrowRate = _setRelBorrowTarget(1);
         deposit.reap();
         (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
         assertEq(ink, debtCeiling);
@@ -492,7 +477,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
 
     function test_collect_interest() public {
-        set_rel_borrow_target(7500);
+        _setRelBorrowTarget(7500);
 
         hevm.warp(block.timestamp + 1 days);     // Collect one day of interest
 
@@ -509,7 +494,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 vowDai = vat.dai(vow);
 
         // Lower by 50%
-        uint256 targetBorrowRate = set_rel_borrow_target(5000);
+        uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         // Someone else borrows the exact amount previously available
@@ -549,7 +534,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
     function test_insufficient_liquidity_for_reap_fees() public {
         // Lower by 50%
-        uint256 targetBorrowRate = set_rel_borrow_target(5000);
+        uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         // Accumulate a bunch of interest
@@ -568,7 +553,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
 
         // Lower by 50%
-        uint256 targetBorrowRate = set_rel_borrow_target(5000);
+        uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
@@ -597,7 +582,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // We try to unwind what is possible
         deposit.exec();
-        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // exec() moved the remaining urn debt to the end
         (ink, art) = vat.urns(ilk, address(deposit));
@@ -613,7 +598,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Rest of the liquidity can be withdrawn
         deposit.exec();
-        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(vat.sin(vow), 0);
         assertGe(vat.dai(vow), prevDai); // As also probably accrues interest from aDai
@@ -623,7 +608,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
 
         // Lower by 50%
-        uint256 targetBorrowRate = set_rel_borrow_target(5000);
+        uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
@@ -652,7 +637,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Position is taken by the End module
         end.skim(ilk, address(deposit));
-        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         (ink, art) = vat.urns(ilk, address(deposit));
         assertEq(ink, 0);
         assertEq(art, 0);
@@ -662,7 +647,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // We try to unwind what is possible
         deposit.exec();
-        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // Part can't be done yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
@@ -675,7 +660,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Rest of the liquidity can be withdrawn
         deposit.exec();
-        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(vat.sin(vow), 0);
         assertGe(vat.dai(vow), prevDai); // As also probably accrues interest from aDai
@@ -685,7 +670,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
 
         // Lower by 50%
-        uint256 targetBorrowRate = set_rel_borrow_target(5000);
+        uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
@@ -720,7 +705,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
 
         // Lower by 50%
-        uint256 targetBorrowRate = set_rel_borrow_target(5000);
+        uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(deposit));
@@ -739,7 +724,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 daiEarned = adai.balanceOf(address(deposit)) - pink;
 
         VowAbstract(vow).heal(
-            min(
+            _min(
                 vat.sin(vow) - VowAbstract(vow).Sin() - VowAbstract(vow).Ash(),
                 vat.dai(vow)
             )
@@ -770,7 +755,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(vat.sin(vow), originalSin + part * RAY - originalDai);
 
         deposit.uncull();
-        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // So the position is restablished
         (ink, art) = vat.urns(ilk, address(deposit));
@@ -783,7 +768,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         // Call skim manually (will be done through deposit anyway)
         // Position is again taken but this time the collateral goes to the End module
         end.skim(ilk, address(deposit));
-        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         (ink, art) = vat.urns(ilk, address(deposit));
         assertEq(ink, 0);
@@ -795,7 +780,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // We try to unwind what is possible
         deposit.exec();
-        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // A part can't be unwind yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
@@ -807,7 +792,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Rest of the liquidity can be withdrawn
         deposit.exec();
-        VowAbstract(vow).heal(min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(adai.balanceOf(address(deposit)), 0);
         assertEq(vat.sin(vow), 0);
@@ -816,7 +801,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
     function testFail_uncull_not_culled() public {
         // Lower by 50%
-        set_rel_borrow_target(5000);
+        _setRelBorrowTarget(5000);
         deposit.cage();
 
         // MCD shutdowns
@@ -829,7 +814,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
     function testFail_uncull_not_shutdown() public {
         // Lower by 50%
-        set_rel_borrow_target(5000);
+        _setRelBorrowTarget(5000);
         deposit.cage();
 
         hevm.warp(block.timestamp + deposit.tau());
@@ -841,7 +826,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
 
     function test_collect_stkaave() public {
-        set_rel_borrow_target(7500);
+        _setRelBorrowTarget(7500);
         
         hevm.warp(block.timestamp + 1 days);
 
@@ -870,7 +855,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
 
     function testFail_collect_stkaave_king_not_set() public {
-        set_rel_borrow_target(7500);
+        _setRelBorrowTarget(7500);
         
         hevm.warp(block.timestamp + 1 days);
 
@@ -883,7 +868,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
     
     function test_cage_exit() public {
-        set_rel_borrow_target(7500);
+        _setRelBorrowTarget(7500);
 
         // Vat is caged for global settlement
         vat.cage();
@@ -897,7 +882,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
     
     function testFail_shutdown_cant_cage() public {
-        set_rel_borrow_target(7500);
+        _setRelBorrowTarget(7500);
 
         // Vat is caged for global settlement
         vat.cage();
@@ -905,7 +890,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
 
     function testFail_shutdown_cant_cull() public {
-        set_rel_borrow_target(7500);
+        _setRelBorrowTarget(7500);
 
         deposit.cage();
 
@@ -918,7 +903,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
     
     function test_quit_no_cull() public {
-        set_rel_borrow_target(7500);
+        _setRelBorrowTarget(7500);
 
         deposit.cage();
 
@@ -947,7 +932,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
     
     function test_quit_cull() public {
-        set_rel_borrow_target(7500);
+        _setRelBorrowTarget(7500);
 
         deposit.cage();
 
@@ -976,7 +961,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
     
     function testFail_quit_mcd_caged() public {
-        set_rel_borrow_target(7500);
+        _setRelBorrowTarget(7500);
 
         vat.cage();
 
