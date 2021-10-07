@@ -201,7 +201,6 @@ contract DssDirectDepositAaveDai {
     // --- Administration ---
     function file(bytes32 what, uint256 data) external auth {
         if (what == "bar") {
-            require(data > 0, "DssDirectDepositAaveDai/target-interest-zero");
             require(data <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
 
             bar = data;
@@ -379,8 +378,6 @@ contract DssDirectDepositAaveDai {
             );
         } else {
             // Normal path
-            require(bar > 0, "DssDirectDepositAaveDai/bar-not-set");
-
             uint256 supplyAmount = _add(
                                     availableLiquidity,
                                     _add(
@@ -388,7 +385,7 @@ contract DssDirectDepositAaveDai {
                                         variableDebt.totalSupply()
                                     )
                                 );
-            uint256 targetSupply = calculateTargetSupply(bar);
+            uint256 targetSupply = bar > 0 ? calculateTargetSupply(bar) : 0;
 
             if (targetSupply > supplyAmount) {
                 _wind(targetSupply - supplyAmount);
