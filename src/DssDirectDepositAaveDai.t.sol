@@ -967,4 +967,15 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         deposit.quit(address(this));
     }
+    
+    function testFail_reap_caged() public {
+        _setRelBorrowTarget(7500);
+
+        deposit.cage();
+        
+        hevm.warp(block.timestamp + 1 days);    // Accrue some interest
+
+        // uncull should fail with error "DssDirectDepositAaveDai/no-reap-during-cage"
+        deposit.reap();
+    }
 }
