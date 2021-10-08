@@ -284,8 +284,6 @@ contract DssDirectDepositAaveDai {
             // No change
             return false;
         }
-        
-        return deviation - RAY > interestRateTolerance;
     }
 
     // --- Deposit controls ---
