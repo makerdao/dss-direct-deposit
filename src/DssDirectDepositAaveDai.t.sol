@@ -328,6 +328,24 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(vat.dai(address(deposit)), 0);
     }
 
+    function test_bar_zero() public {
+        uint256 targetBorrowRate = _setRelBorrowTarget(7500);
+        deposit.reap();     // Clear out interest to get rid of rounding errors
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(deposit));
+        assertGt(ink, 0);
+        assertGt(art, 0);
+
+        // Temporarily disable the module
+        deposit.file("bar", 0);
+        deposit.exec();
+
+        (ink, art) = vat.urns(ilk, address(deposit));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+    }
+
     function test_target_increase_insufficient_liquidity() public {
         uint256 currBorrowRate = getBorrowRate();
 
