@@ -297,18 +297,50 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
 
     function test_shouldExec() public {
+        // Move down by 25%
         deposit.file("bar", getBorrowRate() * 7500 / 10000);
-
-        log_named_uint("bar", deposit.bar());
         
-        assertTrue(deposit.shouldExec(1 * RAY / 100));        // Definitely over a 1% deviation
-        assertTrue(!deposit.shouldExec(100 * RAY / 100));     // Definitely not over a 100% deviation
+        assertTrue(deposit.shouldExec(1 * RAY / 100), "1: 1% dev.");        // Definitely over a 1% deviation and winding room
+        assertTrue(!deposit.shouldExec(40 * RAY / 100), "1: 40% dev.");     // Definitely not over a 40% deviation
 
         deposit.exec();
 
         // Should be within tolerance for both now
-        assertTrue(!deposit.shouldExec(1 * RAY / 100));
-        assertTrue(!deposit.shouldExec(100 * RAY / 100));
+        assertTrue(!deposit.shouldExec(1 * RAY / 100), "2: 1% dev.");
+        assertTrue(!deposit.shouldExec(40 * RAY / 100), "2: 40% dev.");
+
+        // Target 2% up
+        deposit.file("bar", getBorrowRate() * 10200 / 10000);
+
+        // Should be outside of tolerance for 1% in the unwind direction
+        assertTrue(deposit.shouldExec(1 * RAY / 100), "3: 1% dev.");
+        assertTrue(!deposit.shouldExec(100 * RAY / 100), "3: 40% dev.");
+
+        deposit.exec();
+
+        assertTrue(!deposit.shouldExec(1 * RAY / 100), "4: 1% dev.");
+        assertTrue(!deposit.shouldExec(40 * RAY / 100), "4: 40% dev.");
+
+        // Unwind completely with very large +200% target
+        deposit.file("bar", getBorrowRate() * 30000 / 10000);
+        
+        // Outside of both tolerance now
+        assertTrue(deposit.shouldExec(1 * RAY / 100), "5: 1% dev.");
+        assertTrue(deposit.shouldExec(40 * RAY / 100), "5: 40% dev.");
+
+        deposit.exec();
+
+        // Should be outside of both tolerance, but debt is empty so should still return false
+        assertTrue(!deposit.shouldExec(1 * RAY / 100), "6: 1% dev.");
+        assertTrue(!deposit.shouldExec(40 * RAY / 100), "6: 40% dev.");
+        
+        // Set super low bar to force hitting the debt ceiling
+        deposit.file("bar", 1 * RAY / 10000);
+        deposit.exec();
+
+        // Should be outside of both tolerance, but ceiling is hit so return false
+        assertTrue(!deposit.shouldExec(1 * RAY / 100), "7: 1% dev.");
+        assertTrue(!deposit.shouldExec(40 * RAY / 100), "7: 40% dev.");
     }
 
     function test_target_decrease() public {

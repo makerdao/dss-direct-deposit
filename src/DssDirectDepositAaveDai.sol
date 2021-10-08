@@ -200,6 +200,7 @@ contract DssDirectDepositAaveDai {
         require(y == 0 || (z = x * y) / y == x, "DssDirectDepositAaveDai/overflow");
     }
     uint256 constant RAY  = 10 ** 27;
+    uint256 constant RAD  = 10 ** 45;
     function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, y) / RAY;
     }
@@ -249,10 +250,18 @@ contract DssDirectDepositAaveDai {
     }
 
     // Use this to determine whether exec() should be called based on your interest rate deviation threshold
-    // Does not take debt ceilings or being caged/disabled into account
+    // This assumes normal operation, culled / global shutdown should be handled externally
+    // Also assumes no liquidity issues
     function shouldExec(uint256 interestRateTolerance) external view returns (bool) {
+        // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
+        // That's why this module converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
+        // This module will have an unintended behaviour if rate is changed to some other value.
+
+        (uint256 daiDebt,) = vat.urns(ilk, address(this));
         uint256 _bar = bar;
-        if (_bar == 0) return true;     // Always outside of tolerance when module is disabled
+        if (_bar == 0) {
+            return daiDebt > 0;     // Always attempt to close out if we have debt remaining
+        }
 
         (,, uint256 currVarBorrow) = interestStrategy.calculateInterestRates(
             address(adai),
@@ -264,7 +273,17 @@ contract DssDirectDepositAaveDai {
         );
 
         uint256 deviation = _rdiv(currVarBorrow, _bar);
-        if (deviation < RAY) deviation = _rdiv(RAY, deviation); // Ensure deviation is always >= RAY
+        if (deviation < RAY) {
+            // Unwind case
+            return daiDebt > 0 && (RAY - deviation) > interestRateTolerance;
+        } else if (deviation > RAY) {
+            // Wind case
+            (uint256 Art,,, uint256 line,) = vat.ilks(ilk);
+            return _sub(line, Art*RAY) > RAD && (deviation - RAY) > interestRateTolerance;  // Allow for rounding errors, DC = full if 1 Dai away
+        } else {
+            // No change
+            return false;
+        }
         
         return deviation - RAY > interestRateTolerance;
     }
