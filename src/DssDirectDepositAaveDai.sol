@@ -81,6 +81,18 @@ interface InterestRateStrategyLike {
     function variableRateSlope2() external view returns (uint256);
     function baseVariableBorrowRate() external view returns (uint256);
     function getMaxVariableBorrowRate() external view returns (uint256);
+    function calculateInterestRates(
+        address reserve,
+        uint256 availableLiquidity,
+        uint256 totalStableDebt,
+        uint256 totalVariableDebt,
+        uint256 averageStableBorrowRate,
+        uint256 reserveFactor
+    ) external view returns (
+        uint256,
+        uint256,
+        uint256
+    );
 }
 
 interface RewardsClaimerLike {
@@ -234,6 +246,27 @@ contract DssDirectDepositAaveDai {
             targetUtil = _rdiv(_rmul(_sub(targetInterestRate, interestStrategy.baseVariableBorrowRate()), interestStrategy.OPTIMAL_UTILIZATION_RATE()), interestStrategy.variableRateSlope1());
         }
         return _rdiv(_add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
+    }
+
+    // Use this to determine whether exec() should be called based on your interest rate deviation threshold
+    // Does not take debt ceilings or being caged/disabled into account
+    function shouldExec(uint256 interestRateTolerance) external view returns (bool) {
+        uint256 _bar = bar;
+        if (_bar == 0) return true;     // Always outside of tolerance when module is disabled
+
+        (,, uint256 currVarBorrow) = interestStrategy.calculateInterestRates(
+            address(adai),
+            dai.balanceOf(address(adai)),
+            stableDebt.totalSupply(),
+            variableDebt.totalSupply(),
+            0,
+            0
+        );
+
+        uint256 deviation = _rdiv(currVarBorrow, _bar);
+        if (deviation < RAY) deviation = _rdiv(RAY, deviation); // Ensure deviation is always >= RAY
+        
+        return deviation - RAY > interestRateTolerance;
     }
 
     // --- Deposit controls ---

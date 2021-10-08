@@ -62,7 +62,7 @@ interface InterestRateStrategyLike {
         uint256 totalVariableDebt,
         uint256 averageStableBorrowRate,
         uint256 reserveFactor
-    ) external returns (
+    ) external view returns (
         uint256,
         uint256,
         uint256
@@ -294,6 +294,21 @@ contract DssDirectDepositAaveDaiTest is DSTest {
             );
             assertEqInterest(varBorrow, i * RAY / 100);
         }
+    }
+
+    function test_shouldExec() public {
+        deposit.file("bar", getBorrowRate() * 7500 / 10000);
+
+        log_named_uint("bar", deposit.bar());
+        
+        assertTrue(deposit.shouldExec(1 * RAY / 100));        // Definitely over a 1% deviation
+        assertTrue(!deposit.shouldExec(100 * RAY / 100));     // Definitely not over a 100% deviation
+
+        deposit.exec();
+
+        // Should be within tolerance for both now
+        assertTrue(!deposit.shouldExec(1 * RAY / 100));
+        assertTrue(!deposit.shouldExec(100 * RAY / 100));
     }
 
     function test_target_decrease() public {
