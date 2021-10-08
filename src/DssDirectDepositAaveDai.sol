@@ -279,7 +279,7 @@ contract DssDirectDepositAaveDai {
         } else if (deviation > RAY) {
             // Wind case
             (uint256 Art,,, uint256 line,) = vat.ilks(ilk);
-            return _sub(line, Art*RAY) > RAD && (deviation - RAY) > interestRateTolerance;  // Allow for rounding errors, DC = full if 1 Dai away
+            return Art*RAY < line && (deviation - RAY) > interestRateTolerance;
         } else {
             // No change
             return false;
