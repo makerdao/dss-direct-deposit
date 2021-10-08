@@ -403,6 +403,7 @@ contract DssDirectDepositAaveDai {
     // --- Collect Interest ---
     function reap() external {
         require(vat.live() == 1, "DssDirectDepositAaveDai/no-reap-during-shutdown");
+        require(live == 1, "DssDirectDepositAaveDai/no-reap-during-cage");
         uint256 adaiBalance = adai.balanceOf(address(this));
         (, uint256 daiDebt) = vat.urns(ilk, address(this));
         if (adaiBalance > daiDebt) {
