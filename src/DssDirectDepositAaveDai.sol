@@ -22,6 +22,7 @@ interface TokenLike {
     function approve(address, uint256) external returns (bool);
     function transfer(address, uint256) external returns (bool);
     function scaledBalanceOf(address) external view returns (uint256);
+    function decimals() external view returns (uint8);
 }
 
 interface ChainlogLike {
@@ -122,6 +123,8 @@ contract DssDirectDepositAaveDai {
     TokenLike public immutable variableDebt;
     TokenLike public immutable dai;
     DaiJoinLike public immutable daiJoin;
+    TokenLike public immutable gem;
+    uint256 public immutable dec;
 
     uint256 public immutable tau;   // Time until you can write off the debt [sec]
     uint256 public bar;             // Target Interest Rate [ray]
@@ -160,7 +163,8 @@ contract DssDirectDepositAaveDai {
         vat = VatLike(vat_);
         ilk = ilk_;
         pool = LendingPoolLike(pool_);
-        adai = TokenLike(adai_);
+        gem = adai = TokenLike(adai_);
+        dec = TokenLike(adai_).decimals();
         stableDebt = TokenLike(stableDebt_);
         variableDebt = TokenLike(variableDebt_);
         daiJoin = DaiJoinLike(daiJoin_);
