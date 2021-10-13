@@ -21,7 +21,7 @@ import "dss-interfaces/Interfaces.sol";
 import "ds-value/value.sol";
 
 import {DssDirectDepositAaveDai} from "./DssDirectDepositAaveDai.sol";
-import {CageMom} from "./CageMom.sol";
+import {DirectDepositMom} from "./DirectDepositMom.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -99,7 +99,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
     bytes32 constant ilk = "DD-DAI-A";
     DssDirectDepositAaveDai deposit;
-    CageMom cageMom;
+    DirectDepositMom directDepositMom;
     DSValue pip;
 
     // Allow for a 1 BPS margin of error on interest rates
@@ -130,8 +130,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         _giveAuthAccess(address(spot), address(this));
         
         deposit = new DssDirectDepositAaveDai(address(chainlog), ilk, address(pool), address(rewardsClaimer), 7 days);
-        cageMom = new CageMom();
-        deposit.rely(address(cageMom));
+        directDepositMom = new DirectDepositMom();
+        deposit.rely(address(directDepositMom));
 
         // Init new collateral
         pip = new DSValue();
@@ -1001,17 +1001,17 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         deposit.reap();
     }
 
-    function test_cage_mom() public {
+    function test_direct_deposit_mom() public {
         _setRelBorrowTarget(7500);
 
         (uint256 ink, ) = vat.urns(ilk, address(deposit));
         assertGt(ink, 0);
-        assertEq(deposit.live(), 1);
+        assertGt(deposit.bar(), 0);
 
         // Something bad happens on Aave - we need to bypass gov delay
-        cageMom.cage(address(deposit));
+        directDepositMom.disable(address(deposit));
 
-        assertEq(deposit.live(), 0);
+        assertEq(deposit.bar(), 0);
 
         // Close out our position
         deposit.exec();

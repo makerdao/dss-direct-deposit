@@ -16,22 +16,22 @@
 
 pragma solidity 0.6.12;
 
-interface CageLike {
-    function cage() external;
+interface FileLike {
+    function file(bytes32 what, uint256 data) external;
 }
 
 interface AuthorityLike {
     function canCall(address src, address dst, bytes4 sig) external view returns (bool);
 }
 
-// Bypass governance delay to cage any module that has authed this contract
-contract CageMom {
+// Bypass governance delay to disable a direct deposit module
+contract DirectDepositMom {
     address public owner;
     address public authority;
 
     event SetOwner(address indexed oldOwner, address indexed newOwner);
     event SetAuthority(address indexed oldAuthority, address indexed newAuthority);
-    event Cage(address indexed who);
+    event Disable(address indexed who);
 
     modifier onlyOwner {
         require(msg.sender == owner, "ClipperMom/only-owner");
@@ -72,8 +72,8 @@ contract CageMom {
     }
 
     // Governance action without delay
-    function cage(address who) external auth {
-        CageLike(who).cage();
-        emit Cage(who);
+    function disable(address who) external auth {
+        FileLike(who).file("bar", 0);
+        emit Disable(who);
     }
 }
