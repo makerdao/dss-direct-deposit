@@ -126,7 +126,7 @@ contract DssDirectDepositAaveDai {
     TokenLike public immutable gem;
     uint256 public immutable dec;
 
-    uint256 public immutable tau;   // Time until you can write off the debt [sec]
+    uint256 public tau;             // Time until you can write off the debt [sec]
     uint256 public bar;             // Target Interest Rate [ray]
     uint256 public live = 1;
     uint256 public culled;
@@ -147,7 +147,7 @@ contract DssDirectDepositAaveDai {
     event Cull();
     event Uncull();
 
-    constructor(address chainlog_, bytes32 ilk_, address pool_, address _rewardsClaimer, uint256 tau_) public {
+    constructor(address chainlog_, bytes32 ilk_, address pool_, address _rewardsClaimer) public {
         address vat_ = ChainlogLike(chainlog_).getAddress("MCD_VAT");
         address daiJoin_ = ChainlogLike(chainlog_).getAddress("MCD_JOIN_DAI");
         TokenLike dai_ = dai = TokenLike(DaiJoinLike(daiJoin_).dai());
@@ -170,7 +170,6 @@ contract DssDirectDepositAaveDai {
         daiJoin = DaiJoinLike(daiJoin_);
         interestStrategy = InterestRateStrategyLike(interestStrategy_);
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
-        tau = tau_;
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -208,6 +207,10 @@ contract DssDirectDepositAaveDai {
             require(data <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
 
             bar = data;
+        } else if (what == "tau" ) {
+            require(live == 1, "DssDirectDepositAaveDai/not-live");
+
+            tau = data;
         } else revert("DssDirectDepositAaveDai/file-unrecognized-param");
 
         emit File(what, data);
