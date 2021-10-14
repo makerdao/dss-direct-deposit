@@ -129,7 +129,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         _giveAuthAccess(address(end), address(this));
         _giveAuthAccess(address(spot), address(this));
         
-        deposit = new DssDirectDepositAaveDai(address(chainlog), ilk, address(pool), address(rewardsClaimer), 7 days);
+        deposit = new DssDirectDepositAaveDai(address(chainlog), ilk, address(pool), address(rewardsClaimer));
+        deposit.file("tau", 7 days);
         directDepositMom = new DirectDepositMom();
         deposit.rely(address(directDepositMom));
 
@@ -1018,5 +1019,21 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         (ink, ) = vat.urns(ilk, address(deposit));
         assertEq(ink, 0);
+    }
+
+    function test_set_tau_not_caged() public {
+        assertEq(deposit.tau(), 7 days);
+        deposit.file("tau", 1 days);
+        assertEq(deposit.tau(), 1 days);
+    }
+
+    function testFail_set_tau_caged() public {
+        assertEq(deposit.tau(), 7 days);
+
+        deposit.cage();
+        assertEq(deposit.live(), 0);
+
+        // file should fail with error "DssDirectDepositAaveDai/live"
+        deposit.file("tau", 1 days);
     }
 }
