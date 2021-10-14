@@ -21,6 +21,7 @@ import "dss-interfaces/Interfaces.sol";
 import "ds-value/value.sol";
 
 import {DssDirectDepositAaveDai} from "./DssDirectDepositAaveDai.sol";
+import {DirectDepositMom} from "./DirectDepositMom.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -98,6 +99,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
     bytes32 constant ilk = "DD-DAI-A";
     DssDirectDepositAaveDai deposit;
+    DirectDepositMom directDepositMom;
     DSValue pip;
 
     // Allow for a 1 BPS margin of error on interest rates
@@ -129,6 +131,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         
         deposit = new DssDirectDepositAaveDai(address(chainlog), ilk, address(pool), address(rewardsClaimer));
         deposit.file("tau", 7 days);
+        directDepositMom = new DirectDepositMom();
+        deposit.rely(address(directDepositMom));
 
         // Init new collateral
         pip = new DSValue();
@@ -996,6 +1000,25 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // reap should fail with error "DssDirectDepositAaveDai/no-reap-during-cage"
         deposit.reap();
+    }
+
+    function test_direct_deposit_mom() public {
+        _setRelBorrowTarget(7500);
+
+        (uint256 ink, ) = vat.urns(ilk, address(deposit));
+        assertGt(ink, 0);
+        assertGt(deposit.bar(), 0);
+
+        // Something bad happens on Aave - we need to bypass gov delay
+        directDepositMom.disable(address(deposit));
+
+        assertEq(deposit.bar(), 0);
+
+        // Close out our position
+        deposit.exec();
+
+        (ink, ) = vat.urns(ilk, address(deposit));
+        assertEq(ink, 0);
     }
 
     function test_set_tau_not_caged() public {
