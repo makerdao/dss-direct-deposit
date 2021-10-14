@@ -612,8 +612,13 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(ink, 0);
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2); // Automatically skimmed when unwinding
-        assertEqApprox(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai, RAY);
-        assertEq(vat.dai(vow), 0);
+        if (prevSin + (amountSupplied / 2) * RAY >= prevDai) {
+            assertEqApprox(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai, RAY);
+            assertEq(vat.dai(vow), 0);
+        } else {
+            assertEqApprox(vat.dai(vow), prevDai - prevSin - (amountSupplied / 2) * RAY, RAY);
+            assertEq(vat.sin(vow), 0);
+        }
 
         // Some time later the pool gets some liquidity
         hevm.warp(block.timestamp + 180 days);
@@ -665,8 +670,13 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(ink, 0);
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(end)), pink);
-        assertEqApprox(vat.sin(vow), prevSin + amountSupplied * RAY - prevDai, RAY);
-        assertEq(vat.dai(vow), 0);
+        if (prevSin + amountSupplied * RAY >= prevDai) {
+            assertEqApprox(vat.sin(vow), prevSin + amountSupplied * RAY - prevDai, RAY);
+            assertEq(vat.dai(vow), 0);
+        } else {
+            assertEqApprox(vat.dai(vow), prevDai - prevSin - amountSupplied * RAY, RAY);
+            assertEq(vat.sin(vow), 0);
+        }
 
         // We try to unwind what is possible
         deposit.exec();
@@ -674,8 +684,13 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Part can't be done yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
-        assertEqApprox(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai, RAY);
-        assertEq(vat.dai(vow), 0);
+        if (prevSin + (amountSupplied / 2) * RAY >= prevDai) {
+            assertEqApprox(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai, RAY);
+            assertEq(vat.dai(vow), 0);
+        } else {
+            assertEqApprox(vat.dai(vow), prevDai - prevSin - (amountSupplied / 2) * RAY, RAY);
+            assertEq(vat.sin(vow), 0);
+        }
 
         // Some time later the pool gets some liquidity
         hevm.warp(block.timestamp + 180 days);
@@ -775,7 +790,13 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         end.cage();
         end.cage(ilk);
 
-        assertEq(vat.sin(vow), originalSin + part * RAY - originalDai);
+        if (originalSin + part * RAY >= originalDai) {
+            assertEq(vat.sin(vow), originalSin + part * RAY - originalDai);
+            assertEq(vat.dai(vow), 0);
+        } else {
+            assertEq(vat.dai(vow), originalDai - originalSin - part * RAY);
+            assertEq(vat.sin(vow), 0);
+        }
 
         deposit.uncull();
         VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
@@ -799,7 +820,13 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(vat.gem(ilk, address(deposit)), 0);
         assertEq(vat.gem(ilk, address(end)), pink);
         assertGe(adai.balanceOf(address(deposit)), pink);
-        assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai, RAY);
+        if (originalSin + part * RAY >= originalDai) {
+            assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai, RAY);
+            assertEq(vat.dai(vow), 0);
+        } else {
+            assertEqApprox(vat.dai(vow), originalDai - originalSin - part * RAY, RAY);
+            assertEq(vat.sin(vow), 0);
+        }
 
         // We try to unwind what is possible
         deposit.exec();
@@ -808,7 +835,13 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         // A part can't be unwind yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
         assertGt(adai.balanceOf(address(deposit)), amountSupplied / 2);
-        assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY, RAY);
+        if (originalSin + part * RAY >= originalDai + (amountSupplied / 2) * RAY) {
+            assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY, RAY);
+            assertEq(vat.dai(vow), 0);
+        } else {
+            assertEqApprox(vat.dai(vow), originalDai + (amountSupplied / 2) * RAY - originalSin - part * RAY, RAY);
+            assertEq(vat.sin(vow), 0);
+        }
 
         // Then pool gets some liquidity
         pool.repay(address(dai), amountToBorrow, 2, address(this));
