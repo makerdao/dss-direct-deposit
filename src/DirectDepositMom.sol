@@ -34,12 +34,12 @@ contract DirectDepositMom {
     event Disable(address indexed who);
 
     modifier onlyOwner {
-        require(msg.sender == owner, "ClipperMom/only-owner");
+        require(msg.sender == owner, "DirectDepositMom/only-owner");
         _;
     }
 
     modifier auth {
-        require(isAuthorized(msg.sender, msg.sig), "ClipperMom/not-authorized");
+        require(isAuthorized(msg.sender, msg.sig), "DirectDepositMom/not-authorized");
         _;
     }
 
