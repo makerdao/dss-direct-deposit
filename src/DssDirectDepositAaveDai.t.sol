@@ -610,8 +610,10 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2); // Automatically skimmed when unwinding
         if (prevSin + (amountSupplied / 2) * RAY >= prevDai) {
             assertEqApprox(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai, RAY);
+            assertEq(vat.dai(vow), 0);
         } else {
             assertEqApprox(vat.dai(vow), prevDai - prevSin - (amountSupplied / 2) * RAY, RAY);
+            assertEq(vat.sin(vow), 0);
         }
 
         // Some time later the pool gets some liquidity
@@ -666,8 +668,10 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(vat.gem(ilk, address(end)), pink);
         if (prevSin + amountSupplied * RAY >= prevDai) {
             assertEqApprox(vat.sin(vow), prevSin + amountSupplied * RAY - prevDai, RAY);
+            assertEq(vat.dai(vow), 0);
         } else {
             assertEqApprox(vat.dai(vow), prevDai - prevSin - amountSupplied * RAY, RAY);
+            assertEq(vat.sin(vow), 0);
         }
 
         // We try to unwind what is possible
@@ -678,8 +682,10 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
         if (prevSin + (amountSupplied / 2) * RAY >= prevDai) {
             assertEqApprox(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai, RAY);
+            assertEq(vat.dai(vow), 0);
         } else {
             assertEqApprox(vat.dai(vow), prevDai - prevSin - (amountSupplied / 2) * RAY, RAY);
+            assertEq(vat.sin(vow), 0);
         }
 
         // Some time later the pool gets some liquidity
@@ -782,8 +788,10 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         if (originalSin + part * RAY >= originalDai) {
             assertEq(vat.sin(vow), originalSin + part * RAY - originalDai);
+            assertEq(vat.dai(vow), 0);
         } else {
             assertEq(vat.dai(vow), originalDai - originalSin - part * RAY);
+            assertEq(vat.sin(vow), 0);
         }
 
         deposit.uncull();
@@ -810,8 +818,10 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertGe(adai.balanceOf(address(deposit)), pink);
         if (originalSin + part * RAY >= originalDai) {
             assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai, RAY);
+            assertEq(vat.dai(vow), 0);
         } else {
             assertEqApprox(vat.dai(vow), originalDai - originalSin - part * RAY, RAY);
+            assertEq(vat.sin(vow), 0);
         }
 
         // We try to unwind what is possible
@@ -823,8 +833,10 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertGt(adai.balanceOf(address(deposit)), amountSupplied / 2);
         if (originalSin + part * RAY >= originalDai + (amountSupplied / 2) * RAY) {
             assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY, RAY);
+            assertEq(vat.dai(vow), 0);
         } else {
             assertEqApprox(vat.dai(vow), originalDai + (amountSupplied / 2) * RAY - originalSin - part * RAY, RAY);
+            assertEq(vat.sin(vow), 0);
         }
 
         // Then pool gets some liquidity
