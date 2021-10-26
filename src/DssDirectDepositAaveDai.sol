@@ -289,8 +289,8 @@ contract DssDirectDepositAaveDai {
         uint256 daiDebt;
         if (mode == Mode.NORMAL) {
             // Normal mode or module just caged (no culled)
-            // debt is obtained from CDP ink (or art which is the same)
-            (daiDebt,) = vat.urns(ilk, address(this));
+            // debt is obtained from CDP art
+            (,daiDebt) = vat.urns(ilk, address(this));
         } else if (mode == Mode.MODULE_CULLED) {
             // Module shutdown and culled
             // debt is obtained from free collateral owned by this contract
