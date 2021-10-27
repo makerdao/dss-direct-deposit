@@ -227,7 +227,7 @@ contract DssDirectDepositAaveDai {
     // --- Automated Rate targeting ---
     function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
-        require(targetInterestRate > base, "DssDirectDepositAaveDai/target-interest-zero");
+        require(targetInterestRate > base, "DssDirectDepositAaveDai/target-interest-base");
         require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
 
         // Do inverse calculation of interestStrategy
@@ -309,15 +309,15 @@ contract DssDirectDepositAaveDai {
         // - adai we have to withdraw
         // - dai debt tracked in vat (CDP or free)
         uint256 amount = _min(
+                            _min(
                                 _min(
-                                    _min(
-                                        supplyReduction,
-                                        availableLiquidity
-                                    ),
-                                    adaiBalance
+                                    supplyReduction,
+                                    availableLiquidity
                                 ),
-                                daiDebt
-                            );
+                                adaiBalance
+                            ),
+                            daiDebt
+                        );
 
         // Determine the amount of fees to bring back
         uint256 fees = 0;
