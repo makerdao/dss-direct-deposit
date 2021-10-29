@@ -1069,4 +1069,18 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         // file should fail with error "DssDirectDepositAaveDai/live"
         deposit.file("tau", 1 days);
     }
+
+    // Make sure the module works correctly even when someone permissionlessly repays the urn
+    function test_permissionless_repay() public {
+        _setRelBorrowTarget(7500);
+
+        // Permissionlessly repay the urn
+        _giveTokens(DSTokenAbstract(address(dai)), 100);
+        dai.approve(address(daiJoin), 100);
+        daiJoin.join(address(this), 100);
+        vat.frob(ilk, address(address(deposit)), address(this), address(this), 0, -100); // Some small amount of dai repaid
+
+        // We should be able to close out the vault completely even though ink and art do not match
+        _setRelBorrowTarget(0);
+    }
 }

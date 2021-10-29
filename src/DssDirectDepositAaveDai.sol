@@ -227,7 +227,7 @@ contract DssDirectDepositAaveDai {
     // --- Automated Rate targeting ---
     function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
-        require(targetInterestRate > base, "DssDirectDepositAaveDai/target-interest-zero");
+        require(targetInterestRate > base, "DssDirectDepositAaveDai/target-interest-base");
         require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
 
         // Do inverse calculation of interestStrategy
@@ -289,8 +289,8 @@ contract DssDirectDepositAaveDai {
         uint256 daiDebt;
         if (mode == Mode.NORMAL) {
             // Normal mode or module just caged (no culled)
-            // debt is obtained from CDP ink (or art which is the same)
-            (daiDebt,) = vat.urns(ilk, address(this));
+            // debt is obtained from CDP art
+            (,daiDebt) = vat.urns(ilk, address(this));
         } else if (mode == Mode.MODULE_CULLED) {
             // Module shutdown and culled
             // debt is obtained from free collateral owned by this contract
@@ -309,15 +309,15 @@ contract DssDirectDepositAaveDai {
         // - adai we have to withdraw
         // - dai debt tracked in vat (CDP or free)
         uint256 amount = _min(
+                            _min(
                                 _min(
-                                    _min(
-                                        supplyReduction,
-                                        availableLiquidity
-                                    ),
-                                    adaiBalance
+                                    supplyReduction,
+                                    availableLiquidity
                                 ),
-                                daiDebt
-                            );
+                                adaiBalance
+                            ),
+                            daiDebt
+                        );
 
         // Determine the amount of fees to bring back
         uint256 fees = 0;
