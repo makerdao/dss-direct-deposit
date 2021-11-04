@@ -231,14 +231,15 @@ contract DssDirectDepositAaveDai {
         require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
 
         // Do inverse calculation of interestStrategy
+        uint256 variableRateSlope1 = interestStrategy.variableRateSlope1();
         uint256 targetUtil;
-        if (targetInterestRate > _add(base, interestStrategy.variableRateSlope1())) {
+        if (targetInterestRate > _add(base, variableRateSlope1)) {
             // Excess interest rate
-            uint256 r = targetInterestRate - base - interestStrategy.variableRateSlope1();
+            uint256 r = targetInterestRate - base - variableRateSlope1;
             targetUtil = _add(_rdiv(_rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r), interestStrategy.variableRateSlope2()), interestStrategy.OPTIMAL_UTILIZATION_RATE());
         } else {
             // Optimal interest rate
-            targetUtil = _rdiv(_rmul(_sub(targetInterestRate, base), interestStrategy.OPTIMAL_UTILIZATION_RATE()), interestStrategy.variableRateSlope1());
+            targetUtil = _rdiv(_rmul(_sub(targetInterestRate, base), interestStrategy.OPTIMAL_UTILIZATION_RATE()), variableRateSlope1);
         }
         return _rdiv(_add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
     }
