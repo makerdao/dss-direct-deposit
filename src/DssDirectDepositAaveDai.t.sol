@@ -22,6 +22,7 @@ import "ds-value/value.sol";
 
 import {DssDirectDepositAaveDai} from "./DssDirectDepositAaveDai.sol";
 import {DirectDepositMom} from "./DirectDepositMom.sol";
+import {DirectHelper} from "./helper/DirectHelper.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -100,6 +101,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     bytes32 constant ilk = "DD-DAI-A";
     DssDirectDepositAaveDai deposit;
     DirectDepositMom directDepositMom;
+    DirectHelper helper;
     DSValue pip;
 
     // Allow for a 1 BPS margin of error on interest rates
@@ -133,6 +135,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         deposit.file("tau", 7 days);
         directDepositMom = new DirectDepositMom();
         deposit.rely(address(directDepositMom));
+        helper = new DirectHelper();
 
         // Init new collateral
         pip = new DSValue();
@@ -1082,5 +1085,52 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // We should be able to close out the vault completely even though ink and art do not match
         _setRelBorrowTarget(0);
+    }
+
+    function test_shouldExec() public {
+        // Move down by 25%
+        deposit.file("bar", getBorrowRate() * 7500 / 10000);
+
+        assertTrue(helper.shouldExec(address(deposit), 1 * RAY / 100), "1: 1% dev.");       // Definitely over a 1% deviation and winding room
+        assertTrue(!helper.shouldExec(address(deposit), 40 * RAY / 100), "1: 40% dev.");    // Definitely not over a 40% deviation
+
+        deposit.exec();
+
+        // Should be within tolerance for both now
+        assertTrue(!helper.shouldExec(address(deposit), 1 * RAY / 100), "2: 1% dev.");
+        assertTrue(!helper.shouldExec(address(deposit), 40 * RAY / 100), "2: 40% dev.");
+
+        // Target 2% up
+        deposit.file("bar", getBorrowRate() * 10200 / 10000);
+
+        // Should be outside of tolerance for 1% in the unwind direction
+        assertTrue(helper.shouldExec(address(deposit), 1 * RAY / 100), "3: 1% dev.");
+        assertTrue(!helper.shouldExec(address(deposit), 40 * RAY / 100), "3: 40% dev.");
+
+        deposit.exec();
+
+        assertTrue(!helper.shouldExec(address(deposit), 1 * RAY / 100), "4: 1% dev.");
+        assertTrue(!helper.shouldExec(address(deposit), 40 * RAY / 100), "4: 40% dev.");
+
+        // Unwind completely with very large +200% target
+        deposit.file("bar", getBorrowRate() * 30000 / 10000);
+
+        // Outside of both tolerance now
+        assertTrue(helper.shouldExec(address(deposit), 1 * RAY / 100), "5: 1% dev.");
+        assertTrue(helper.shouldExec(address(deposit), 40 * RAY / 100), "5: 40% dev.");
+
+        deposit.exec();
+
+        // Should be outside of both tolerance, but debt is empty so should still return false
+        assertTrue(!helper.shouldExec(address(deposit), 1 * RAY / 100), "6: 1% dev.");
+        assertTrue(!helper.shouldExec(address(deposit), 40 * RAY / 100), "6: 40% dev.");
+
+        // Set super low bar to force hitting the debt ceiling
+        deposit.file("bar", 1 * RAY / 10000);
+        deposit.exec();
+
+        // Should be outside of both tolerance, but ceiling is hit so return false
+        assertTrue(!helper.shouldExec(address(deposit), 1 * RAY / 100), "7: 1% dev.");
+        assertTrue(!helper.shouldExec(address(deposit), 40 * RAY / 100), "7: 40% dev.");
     }
 }
