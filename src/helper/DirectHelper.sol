@@ -88,7 +88,7 @@ contract DirectHelper {
         bytes32 ilk = direct.ilk();
         InterestRateStrategyLike interestStrategy = InterestRateStrategyLike(direct.interestStrategy());
 
-        (uint256 daiDebt,) = vat.urns(ilk, address(this));
+        (uint256 daiDebt,) = vat.urns(ilk, address(direct));
         uint256 _bar = direct.bar();
         if (_bar == 0) {
             return daiDebt > 0;     // Always attempt to close out if we have debt remaining
