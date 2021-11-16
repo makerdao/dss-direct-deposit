@@ -30,6 +30,7 @@ interface DirectLike {
     function variableDebt() external view returns (address);
     function bar() external view returns (uint256);
     function ilk() external view returns (bytes32);
+    function exec() external;
 }
 
 interface LendingPoolLike {
@@ -67,7 +68,7 @@ contract DirectHelper {
     function shouldExec(
         address _direct,
         uint256 interestRateTolerance
-    ) external view returns (bool) {
+    ) public view returns (bool) {
         // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
         // That's why this module converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
@@ -98,6 +99,15 @@ contract DirectHelper {
             // No change
             return false;
         }
+    }
+
+    function conditionalExec(
+        address _direct,
+        uint256 interestRateTolerance
+    ) external {
+        require(shouldExec(_direct, interestRateTolerance), "DirectHelper/not-ready");
+        
+        DirectLike(_direct).exec();
     }
 
 }

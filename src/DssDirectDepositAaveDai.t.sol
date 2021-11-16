@@ -1117,9 +1117,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Outside of both tolerance now
         assertTrue(helper.shouldExec(address(deposit), 1 * RAY / 100), "5: 1% dev.");
-        assertTrue(helper.shouldExec(address(deposit), 40 * RAY / 100), "5: 40% dev.");
-
-        deposit.exec();
+        
+        helper.conditionalExec(address(deposit), 40 * RAY / 100); // Trigger the exec here
 
         // Should be outside of both tolerance, but debt is empty so should still return false
         (uint256 daiDebt,) = vat.urns(ilk, address(deposit));
