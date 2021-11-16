@@ -23,7 +23,7 @@ interface VatLike {
 
 interface DirectLike {
     function vat() external view returns (address);
-    function interestStrategy() external view returns (address);
+    function pool() external view returns (address);
     function dai() external view returns (address);
     function adai() external view returns (address);
     function stableDebt() external view returns (address);
@@ -41,18 +41,20 @@ interface TokenLike {
     function decimals() external view returns (uint8);
 }
 
-interface InterestRateStrategyLike {
-    function calculateInterestRates(
-        address reserve,
-        uint256 availableLiquidity,
-        uint256 totalStableDebt,
-        uint256 totalVariableDebt,
-        uint256 averageStableBorrowRate,
-        uint256 reserveFactor
-    ) external view returns (
-        uint256,
-        uint256,
-        uint256
+interface LendingPoolLike {
+    function getReserveData(address asset) external view returns (
+        uint256,    // Configuration
+        uint128,    // the liquidity index. Expressed in ray
+        uint128,    // variable borrow index. Expressed in ray
+        uint128,    // the current supply rate. Expressed in ray
+        uint128,    // the current variable borrow rate. Expressed in ray
+        uint128,    // the current stable borrow rate. Expressed in ray
+        uint40,
+        address,    // address of the adai interest bearing token
+        address,    // address of the stable debt token
+        address,    // address of the variable debt token
+        address,    // address of the interest rate strategy
+        uint8
     );
 }
 
@@ -82,11 +84,8 @@ contract DirectHelper {
         DirectLike direct = DirectLike(_direct);
         VatLike vat = VatLike(direct.vat());
         TokenLike dai = TokenLike(direct.dai());
-        address adai = direct.adai();
-        TokenLike stableDebt = TokenLike(direct.stableDebt());
-        TokenLike variableDebt = TokenLike(direct.variableDebt());
         bytes32 ilk = direct.ilk();
-        InterestRateStrategyLike interestStrategy = InterestRateStrategyLike(direct.interestStrategy());
+        LendingPoolLike pool = LendingPoolLike(direct.pool());
 
         (uint256 daiDebt,) = vat.urns(ilk, address(direct));
         uint256 _bar = direct.bar();
@@ -94,14 +93,7 @@ contract DirectHelper {
             return daiDebt > 0;     // Always attempt to close out if we have debt remaining
         }
 
-        (,, uint256 currVarBorrow) = interestStrategy.calculateInterestRates(
-            adai,
-            dai.balanceOf(adai),
-            stableDebt.totalSupply(),
-            variableDebt.totalSupply(),
-            0,
-            0
-        );
+        (,,,, uint256 currVarBorrow,,,,,,,) = pool.getReserveData(address(dai));
 
         uint256 deviation = _rdiv(currVarBorrow, _bar);
         if (deviation < RAY) {
