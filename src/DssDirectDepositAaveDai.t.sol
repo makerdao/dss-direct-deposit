@@ -1112,8 +1112,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertTrue(!helper.shouldExec(address(deposit), 1 * RAY / 100), "4: 1% dev.");
         assertTrue(!helper.shouldExec(address(deposit), 40 * RAY / 100), "4: 40% dev.");
 
-        // Unwind completely with very large +200% target
-        deposit.file("bar", getBorrowRate() * 30000 / 10000);
+        // Unwind completely by disabling the module
+        deposit.file("bar", 0);
 
         // Outside of both tolerance now
         assertTrue(helper.shouldExec(address(deposit), 1 * RAY / 100), "5: 1% dev.");
@@ -1122,6 +1122,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         deposit.exec();
 
         // Should be outside of both tolerance, but debt is empty so should still return false
+        (uint256 daiDebt,) = vat.urns(ilk, address(deposit));
+        log_named_uint("daiDebt", daiDebt);
         assertTrue(!helper.shouldExec(address(deposit), 1 * RAY / 100), "6: 1% dev.");
         assertTrue(!helper.shouldExec(address(deposit), 40 * RAY / 100), "6: 40% dev.");
 

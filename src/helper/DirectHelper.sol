@@ -78,10 +78,10 @@ contract DirectHelper {
         bytes32 ilk = direct.ilk();
         LendingPoolLike pool = LendingPoolLike(direct.pool());
 
-        (uint256 daiDebt,) = vat.urns(ilk, address(direct));
+        (, uint256 daiDebt) = vat.urns(ilk, address(direct));
         uint256 _bar = direct.bar();
         if (_bar == 0) {
-            return daiDebt > 0;     // Always attempt to close out if we have debt remaining
+            return daiDebt > 1;     // Always attempt to close out if we have debt remaining
         }
 
         (,,,, uint256 currVarBorrow,,,,,,,) = pool.getReserveData(dai);
@@ -89,11 +89,11 @@ contract DirectHelper {
         uint256 deviation = _rdiv(currVarBorrow, _bar);
         if (deviation < RAY) {
             // Unwind case
-            return daiDebt > 0 && (RAY - deviation) > interestRateTolerance;
+            return daiDebt > 1 && (RAY - deviation) > interestRateTolerance;
         } else if (deviation > RAY) {
             // Wind case
-            (uint256 Art,,, uint256 line,) = vat.ilks(ilk);
-            return Art*RAY < line && (deviation - RAY) > interestRateTolerance;
+            (,,, uint256 line,) = vat.ilks(ilk);
+            return (daiDebt + 1)*RAY < line && (deviation - RAY) > interestRateTolerance;
         } else {
             // No change
             return false;
