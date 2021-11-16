@@ -32,15 +32,6 @@ interface DirectLike {
     function ilk() external view returns (bytes32);
 }
 
-interface TokenLike {
-    function totalSupply() external view returns (uint256);
-    function balanceOf(address) external view returns (uint256);
-    function approve(address, uint256) external returns (bool);
-    function transfer(address, uint256) external returns (bool);
-    function scaledBalanceOf(address) external view returns (uint256);
-    function decimals() external view returns (uint8);
-}
-
 interface LendingPoolLike {
     function getReserveData(address asset) external view returns (
         uint256,    // Configuration
@@ -83,7 +74,7 @@ contract DirectHelper {
 
         DirectLike direct = DirectLike(_direct);
         VatLike vat = VatLike(direct.vat());
-        TokenLike dai = TokenLike(direct.dai());
+        address dai = direct.dai();
         bytes32 ilk = direct.ilk();
         LendingPoolLike pool = LendingPoolLike(direct.pool());
 
@@ -93,7 +84,7 @@ contract DirectHelper {
             return daiDebt > 0;     // Always attempt to close out if we have debt remaining
         }
 
-        (,,,, uint256 currVarBorrow,,,,,,,) = pool.getReserveData(address(dai));
+        (,,,, uint256 currVarBorrow,,,,,,,) = pool.getReserveData(dai);
 
         uint256 deviation = _rdiv(currVarBorrow, _bar);
         if (deviation < RAY) {
