@@ -9,8 +9,8 @@ The Direct Deposit Module interfaces with third party lending protocols to enabl
 
 Below are the configurable parameters for the Aave DAI D3M:
 
-`tau` [seconds] - The expiry for when bad debt is sent to the vow debt queue. This must be set during initialization to enforce a deadline for when this module is considered to be in a failure mode where no more liquidity is available in the pool to unwind. Unwinding can still occur after this period elapses.
-`bar` [ray] - The target borrow rate on Aave for the DAI market. This module will aim to enforce that borrow limit.
+- `tau` [seconds] - The expiry for when bad debt is sent to the vow debt queue. This must be set during initialization to enforce a deadline for when this module is considered to be in a failure mode where no more liquidity is available in the pool to unwind. Unwinding can still occur after this period elapses.
+- `bar` [ray] - The target borrow rate on Aave for the DAI market. This module will aim to enforce that borrow limit.
 
 ### Operation
 
