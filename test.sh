@@ -11,12 +11,12 @@ do
     case "$KEY" in
             match)      MATCH="$VALUE" ;;
             runs)       RUNS="$VALUE" ;;
-            *)
+            optimizer)  OPTIMIZER="$VALUE" ;;     
+            *)   
     esac
-
 done
 
-export DAPP_BUILD_OPTIMIZE=1
+export DAPP_BUILD_OPTIMIZE="$OPTIMIZER"
 export DAPP_BUILD_OPTIMIZE_RUNS=200
 
 if [[ -z "$MATCH" && -z "$RUNS" ]]; then
