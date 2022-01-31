@@ -16,11 +16,11 @@ do
 done
 
 if [[ -z "$MATCH" && -z "$BLOCK" ]]; then
-    forge test --fork-url "$ETH_RPC_URL" --vv --force
+    forge test --fork-url "$ETH_RPC_URL" -vv --force
 elif [[ -z "$BLOCK" ]]; then
     forge test --fork-url "$ETH_RPC_URL" --match "$MATCH" -vvv --force
 elif [[ -z "$MATCH" ]]; then
-    forge test --fork-url "$ETH_RPC_URL" --fork-block-number "$BLOCK" --vv --force
+    forge test --fork-url "$ETH_RPC_URL" --fork-block-number "$BLOCK" -vv --force
 else
     forge test --fork-url "$ETH_RPC_URL" --match "$MATCH" --fork-block-number "$BLOCK" -vvv --force
 fi

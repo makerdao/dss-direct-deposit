@@ -790,6 +790,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertGe(adai.balanceOf(address(deposit)), pink);
 
         // MCD shutdowns
+        originalDai = originalDai + vat.dai(VowAbstract(vow).flapper());
         end.cage();
         end.cage(ilk);
 
