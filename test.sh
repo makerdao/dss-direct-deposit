@@ -10,9 +10,9 @@ do
 
     case "$KEY" in
             match)      MATCH="$VALUE" ;;
-            runs)       RUNS="$VALUE" ;;
-            optimizer)  OPTIMIZER="$VALUE" ;;     
-            *)   
+             runs)       RUNS="$VALUE" ;;
+        optimizer)  OPTIMIZER="$VALUE" ;;
+        *)
     esac
 done
 
