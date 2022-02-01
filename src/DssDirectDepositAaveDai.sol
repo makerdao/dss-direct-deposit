@@ -169,6 +169,10 @@ contract DssDirectDepositAaveDai {
         (,,,,,,,,,, strategy,) = pool.getReserveData(wat);
     }
 
+    function getCurrentRate(address wat) public view returns (uint256) {
+        (,,,, uint256 currVarBorrow,,,,,,,) = pool.getReserveData(wat);
+    }
+
     // --- Balance in standard ERC-20 denominations
     function getNormalizedBalanceOf(address who) external view returns (uint256) {
         adai.scaledBalanceOf(who);
