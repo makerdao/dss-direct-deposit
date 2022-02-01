@@ -25,7 +25,7 @@ interface AuthorityLike {
 }
 
 // Bypass governance delay to disable a direct deposit module
-contract DirectDepositMom {
+contract DssDirectDepositMom {
     address public owner;
     address public authority;
 

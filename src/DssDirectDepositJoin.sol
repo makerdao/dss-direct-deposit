@@ -392,6 +392,7 @@ contract DssDirectDepositJoin {
         , "DssDirectDepositJoin/not-authorized");
 
         live = 0;
+        d3mTarget.cage();
         tic = block.timestamp;
         emit Cage();
     }
