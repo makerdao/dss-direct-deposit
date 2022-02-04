@@ -21,6 +21,7 @@ interface TargetTokenLike {
     function balanceOf(address) external view returns (uint256);
     function approve(address, uint256) external returns (bool);
     function transfer(address, uint256) external returns (bool);
+    function transferFrom(address, uint256) external returns (bool);
     function scaledBalanceOf(address) external view returns (uint256);
 }
 
@@ -156,12 +157,19 @@ contract DssDirectDepositAaveDai {
         return _rdiv(_add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
     }
 
+    // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
+    // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
     function supply(address wat, uint256 amt) external auth {
         pool.deposit(wat, amt, msg.sender, 0);
 
     }
 
+    // Withdraws Dai from Aave in exchange for adai
+    // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
     function withdraw(address wat, uint256 amt) external auth {
+        // We need to adai tokens in this address before calling withdraw
+        adai.transferFrom(msg.sender, address(this), amt);
+        // Then we can withdraw and send the Dai to the msg.sender
         pool.withdraw(wat, amt, msg.sender);
     }
 

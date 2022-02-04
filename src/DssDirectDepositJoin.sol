@@ -143,6 +143,7 @@ contract DssDirectDepositJoin {
 
         // Auths
         VatLike(vat_).hope(daiJoin_);
+        gem_.approve(address(target_), type(uint256).max);
         dai_.approve(address(target_), type(uint256).max);
         dai_.approve(daiJoin_, type(uint256).max);
     }
