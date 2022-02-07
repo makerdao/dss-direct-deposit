@@ -68,7 +68,7 @@ interface DssDirectDepositPlanLike {
     function maxBar() external view returns (uint256);
 }
 
-contract DssDirectDepositAaveDaiPoolPool {
+contract DssDirectDepositAaveDaiPool {
 
     // --- Auth ---
     mapping (address => uint) public wards;
