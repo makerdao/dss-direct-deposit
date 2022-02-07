@@ -54,10 +54,6 @@ interface InterestRateStrategyLike {
     function getMaxVariableBorrowRate() external view returns (uint256);
 }
 
-interface RewardsClaimerLike {
-    function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
-}
-
 contract DssDirectDepositAaveDai {
 
     // --- Auth ---
@@ -110,6 +106,10 @@ contract DssDirectDepositAaveDai {
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
+
+        TargetTokenLike(adai_).approve(address(pool_), type(uint256).max);
+        TargetTokenLike(dai_).approve(address(pool_), type(uint256).max);
+
     }
 
     // --- Math ---
@@ -134,7 +134,7 @@ contract DssDirectDepositAaveDai {
     }
 
     function getMaxBar() public view returns (uint256) {
-        interestStrategy.getMaxVariableBorrowRate();
+        return interestStrategy.getMaxVariableBorrowRate();
     }
     
     // --- Automated Rate targeting ---
@@ -160,6 +160,9 @@ contract DssDirectDepositAaveDai {
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
     function supply(address wat, uint256 amt) external auth {
+        // We need to pull the dai tokens to this address before calling deposit
+        require(TargetTokenLike(wat).transferFrom(msg.sender, address(this), amt), "DssDirectDepositAaveDai/deposit-transfer-failed");
+        // Then we can deposit and send the aDai to the msg.sender
         pool.deposit(wat, amt, msg.sender, 0);
 
     }
@@ -167,7 +170,7 @@ contract DssDirectDepositAaveDai {
     // Withdraws Dai from Aave in exchange for adai
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
     function withdraw(address wat, uint256 amt) external auth {
-        // We need to adai tokens in this address before calling withdraw
+        // We need to pull adai tokens in this address before calling withdraw
         require(adai.transferFrom(msg.sender, address(this), amt), "DssDirectDepositAaveDai/withdraw-transfer-failed");
         // Then we can withdraw and send the Dai to the msg.sender
         pool.withdraw(wat, amt, msg.sender);
@@ -177,13 +180,13 @@ contract DssDirectDepositAaveDai {
         (,,,,,,,,,, strategy,) = pool.getReserveData(wat);
     }
 
-    function getCurrentRate(address wat) public view returns (uint256) {
-        (,,,, uint256 currVarBorrow,,,,,,,) = pool.getReserveData(wat);
+    function getCurrentRate(address wat) public view returns (uint256 currVarBorrow) {
+        (,,,, currVarBorrow,,,,,,,) = pool.getReserveData(wat);
     }
 
     // --- Balance in standard ERC-20 denominations
     function getNormalizedBalanceOf(address who) external view returns (uint256) {
-        adai.scaledBalanceOf(who);
+        return adai.scaledBalanceOf(who);
     }
 
     // --- Convert a standard ERC-20 amount to a the normalized amount 
@@ -201,11 +204,6 @@ contract DssDirectDepositAaveDai {
                         variableDebt.totalSupply()
                     )
                 );
-    }
-
-    // --- Collect any rewards ---
-    function collect(address[] memory assets, uint256 amount, address dst) external auth returns (uint256) {
-        return rewardsClaimer.claimRewards(assets, amount, dst);
     }
 
     // --- Shutdown ---

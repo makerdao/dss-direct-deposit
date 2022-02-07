@@ -147,7 +147,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
     bytes32 constant ilk = "DD-DAI-A";
     DssDirectDepositJoin directDepositJoin;
-    DssDirectDepositAaveDai depositAave;
+    DssDirectDepositAaveDai directDepositAave;
     DssDirectDepositMom directDepositMom;
     DSValue pip;
 
@@ -178,9 +178,10 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         _giveAuthAccess(address(end), address(this));
         _giveAuthAccess(address(spot), address(this));
 
-        depositAave = new DssDirectDepositAaveDai(address(dai), address(pool), address(rewardsClaimer));
-        directDepositJoin = new DssDirectDepositJoin(address(chainlog), ilk, address(depositAave), address(adai));
+        directDepositAave = new DssDirectDepositAaveDai(address(dai), address(pool), address(rewardsClaimer));
+        directDepositJoin = new DssDirectDepositJoin(address(chainlog), ilk, address(directDepositAave), address(adai));
         directDepositJoin.file("tau", 7 days);
+        directDepositAave.rely(address(directDepositJoin));
         directDepositMom = new DssDirectDepositMom();
         directDepositJoin.rely(address(directDepositMom));
 
@@ -191,7 +192,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         spot.file(ilk, "mat", RAY);
         spot.poke(ilk);
 
-        vat.rely(address(depositAave));
+        vat.rely(address(directDepositJoin));
         vat.init(ilk);
         vat.file(ilk, "line", 5_000_000_000 * RAD);
         vat.file("Line", vat.Line() + 5_000_000_000 * RAD);
@@ -338,7 +339,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     function test_interest_rate_calc() public {
         // Confirm that the inverse function is correct by comparing all percentages
         for (uint256 i = 1; i <= 100 * interestStrategy.getMaxVariableBorrowRate() / RAY; i++) {
-            uint256 targetSupply = depositAave.calculateTargetSupply(i * RAY / 100);
+            uint256 targetSupply = directDepositAave.calculateTargetSupply(i * RAY / 100);
             (,, uint256 varBorrow) = interestStrategy.calculateInterestRates(
                 address(adai),
                 targetSupply - (adai.totalSupply() - dai.balanceOf(address(adai))),
@@ -356,13 +357,13 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         directDepositJoin.reap();     // Clear out interest to get rid of rounding errors
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
-        uint256 amountMinted = adai.balanceOf(address(depositAave));
+        uint256 amountMinted = adai.balanceOf(address(directDepositJoin));
         assertTrue(amountMinted > 0);
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(depositAave));
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositJoin));
         assertEqRoundingAgainst(ink, amountMinted);    // We allow a rounding error of 1 because aTOKENs round against the user
         assertEqRoundingAgainst(art, amountMinted);
-        assertEq(vat.gem(ilk, address(depositAave)), 0);
-        assertEq(vat.dai(address(depositAave)), 0);
+        assertEq(vat.gem(ilk, address(directDepositJoin)), 0);
+        assertEq(vat.dai(address(directDepositJoin)), 0);
     }
 
     function test_target_increase() public {
@@ -374,13 +375,13 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         targetBorrowRate = _setRelBorrowTarget(12500);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
-        uint256 amountMinted = adai.balanceOf(address(depositAave));
+        uint256 amountMinted = adai.balanceOf(address(directDepositJoin));
         assertTrue(amountMinted > 0);
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(depositAave));
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositJoin));
         assertEqRoundingAgainst(ink, amountMinted);    // We allow a rounding error of 1 because aTOKENs round against the user
         assertEqRoundingAgainst(art, amountMinted);
-        assertEq(vat.gem(ilk, address(depositAave)), 0);
-        assertEq(vat.dai(address(depositAave)), 0);
+        assertEq(vat.gem(ilk, address(directDepositJoin)), 0);
+        assertEq(vat.dai(address(directDepositJoin)), 0);
     }
 
     function test_bar_zero() public {
@@ -388,7 +389,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         directDepositJoin.reap();     // Clear out interest to get rid of rounding errors
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(depositAave));
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositJoin));
         assertGt(ink, 0);
         assertGt(art, 0);
 
@@ -396,7 +397,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         directDepositJoin.file("bar", 0);
         directDepositJoin.exec();
 
-        (ink, art) = vat.urns(ilk, address(depositAave));
+        (ink, art) = vat.urns(ilk, address(directDepositJoin));
         assertEq(ink, 0);
         assertEq(art, 0);
     }
@@ -408,12 +409,12 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         _setRelBorrowTarget(12500);
         assertEqInterest(getBorrowRate(), currBorrowRate);  // Unchanged
 
-        assertEq(adai.balanceOf(address(depositAave)), 0);
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(depositAave));
+        assertEq(adai.balanceOf(address(directDepositJoin)), 0);
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositJoin));
         assertEq(ink, 0);
         assertEq(art, 0);
-        assertEq(vat.gem(ilk, address(depositAave)), 0);
-        assertEq(vat.dai(address(depositAave)), 0);
+        assertEq(vat.gem(ilk, address(directDepositJoin)), 0);
+        assertEq(vat.dai(address(directDepositJoin)), 0);
     }
 
     function test_cage_temp_insufficient_liquidity() public {
@@ -424,19 +425,19 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         // Someone else borrows
-        uint256 amountSupplied = adai.balanceOf(address(depositAave));
+        uint256 amountSupplied = adai.balanceOf(address(directDepositJoin));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
         pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
         // Cage the system and start unwinding
         currentLiquidity = dai.balanceOf(address(adai));
-        (uint256 pink, uint256 part) = vat.urns(ilk, address(depositAave));
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(directDepositJoin));
         directDepositJoin.cage();
-        assertEq(depositAave.live(), 0);
+        assertEq(directDepositJoin.live(), 0);
         directDepositJoin.exec();
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(depositAave));
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositJoin));
         assertTrue(ink > 0);
         assertTrue(art > 0);
         assertEq(pink - ink, currentLiquidity);
@@ -449,9 +450,9 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         pool.repay(address(dai), amountToBorrow, 2, address(this));
 
         directDepositJoin.exec();
-        assertEq(adai.balanceOf(address(depositAave)), 0);
+        assertEq(adai.balanceOf(address(directDepositJoin)), 0);
         assertTrue(dai.balanceOf(address(adai)) > 0);
-        (ink, art) = vat.urns(ilk, address(depositAave));
+        (ink, art) = vat.urns(ilk, address(directDepositJoin));
         assertEq(ink, 0);
         assertEq(art, 0);
     }
@@ -464,19 +465,20 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         // Someone else borrows
-        uint256 amountSupplied = adai.balanceOf(address(depositAave));
+        uint256 amountSupplied = adai.balanceOf(address(directDepositJoin));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
         pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
         // Cage the system and start unwinding
         currentLiquidity = dai.balanceOf(address(adai));
-        (uint256 pink, uint256 part) = vat.urns(ilk, address(depositAave));
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(directDepositJoin));
         directDepositJoin.cage();
-        assertEq(depositAave.live(), 0);
+        assertEq(directDepositJoin.live(), 0);
+        assertEq(directDepositAave.live(), 0);
         directDepositJoin.exec();
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(depositAave));
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositJoin));
         assertTrue(ink > 0);
         assertTrue(art > 0);
         assertEq(pink - ink, currentLiquidity);
@@ -490,11 +492,11 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 sin = vat.sin(vow);
         uint256 vowDai = vat.dai(vow);
         directDepositJoin.cull();
-        (uint256 ink2, uint256 art2) = vat.urns(ilk, address(depositAave));
+        (uint256 ink2, uint256 art2) = vat.urns(ilk, address(directDepositJoin));
         assertEq(directDepositJoin.culled(), 1);
         assertEq(ink2, 0);
         assertEq(art2, 0);
-        assertEq(vat.gem(ilk, address(depositAave)), ink);
+        assertEq(vat.gem(ilk, address(directDepositJoin)), ink);
         assertEq(vat.sin(vow), sin + art * RAY);
         assertEq(vat.dai(vow), vowDai);
 
@@ -503,14 +505,14 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         pool.repay(address(dai), amountToBorrow, 2, address(this));
 
         // Close out the remainder of the position
-        uint256 adaiBalance = adai.balanceOf(address(depositAave));
+        uint256 adaiBalance = adai.balanceOf(address(directDepositJoin));
         assertTrue(adaiBalance >= art);
         directDepositJoin.exec();
-        assertEq(adai.balanceOf(address(depositAave)), 0);
+        assertEq(adai.balanceOf(address(directDepositJoin)), 0);
         assertTrue(dai.balanceOf(address(adai)) > 0);
         assertEq(vat.sin(vow), sin + art * RAY);
         assertEq(vat.dai(vow), vowDai + adaiBalance * RAY);
-        assertEq(vat.gem(ilk, address(depositAave)), 0);
+        assertEq(vat.gem(ilk, address(directDepositJoin)), 0);
     }
 
     function test_hit_debt_ceiling() public {
@@ -523,18 +525,18 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         // Set a super low target interest rate
         uint256 targetBorrowRate = _setRelBorrowTarget(1);
         directDepositJoin.reap();
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(depositAave));
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositJoin));
         assertEq(ink, debtCeiling);
         assertEq(art, debtCeiling);
         assertTrue(getBorrowRate() > targetBorrowRate && getBorrowRate() < currBorrowRate);
-        assertEqRoundingAgainst(adai.balanceOf(address(depositAave)), debtCeiling);    // We allow a rounding error of 1 because aTOKENs round against the user
+        assertEqRoundingAgainst(adai.balanceOf(address(directDepositJoin)), debtCeiling);    // We allow a rounding error of 1 because aTOKENs round against the user
 
         // Should be a no-op
         directDepositJoin.exec();
-        (ink, art) = vat.urns(ilk, address(depositAave));
+        (ink, art) = vat.urns(ilk, address(directDepositJoin));
         assertEq(ink, debtCeiling);
         assertEq(art, debtCeiling);
-        assertEqRoundingAgainst(adai.balanceOf(address(depositAave)), debtCeiling);
+        assertEqRoundingAgainst(adai.balanceOf(address(directDepositJoin)), debtCeiling);
 
         // Raise it by a bit
         currBorrowRate = getBorrowRate();
@@ -542,11 +544,11 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         vat.file(ilk, "line", debtCeiling * RAY);
         directDepositJoin.exec();
         directDepositJoin.reap();
-        (ink, art) = vat.urns(ilk, address(depositAave));
+        (ink, art) = vat.urns(ilk, address(directDepositJoin));
         assertEq(ink, debtCeiling);
         assertEq(art, debtCeiling);
         assertTrue(getBorrowRate() > targetBorrowRate && getBorrowRate() < currBorrowRate);
-        assertEqRoundingAgainst(adai.balanceOf(address(depositAave)), debtCeiling);    // We allow a rounding error of 1 because aTOKENs round against the user
+        assertEqRoundingAgainst(adai.balanceOf(address(directDepositJoin)), debtCeiling);    // We allow a rounding error of 1 because aTOKENs round against the user
     }
 
     function test_collect_interest() public {
@@ -571,13 +573,13 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         // Someone else borrows the exact amount previously available
-        (uint256 amountSupplied,) = vat.urns(ilk, address(depositAave));
+        (uint256 amountSupplied,) = vat.urns(ilk, address(directDepositJoin));
         uint256 amountToBorrow = currentLiquidity;
         pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
         // Accumulate a bunch of interest
         hevm.warp(block.timestamp + 180 days);
-        uint256 feesAccrued = adai.balanceOf(address(depositAave)) - amountSupplied;
+        uint256 feesAccrued = adai.balanceOf(address(directDepositJoin)) - amountSupplied;
         currentLiquidity = dai.balanceOf(address(adai));
         assertGt(feesAccrued, 0);
         assertEq(amountSupplied, currentLiquidity);
@@ -588,20 +590,20 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         directDepositJoin.exec();
 
         // The full debt should be paid off, but we are still owed fees
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(depositAave));
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositJoin));
         assertEq(ink, 0);
         assertEq(art, 0);
-        assertGt(adai.balanceOf(address(depositAave)), 0);
+        assertGt(adai.balanceOf(address(directDepositJoin)), 0);
         assertEq(vat.dai(vow), vowDai);
 
         // Someone repays
         pool.repay(address(dai), amountToBorrow, 2, address(this));
         directDepositJoin.exec();
 
-        (ink, art) = vat.urns(ilk, address(depositAave));
+        (ink, art) = vat.urns(ilk, address(directDepositJoin));
         assertEq(ink, 0);
         assertEq(art, 0);
-        assertEq(adai.balanceOf(address(depositAave)), 0);
+        assertEq(adai.balanceOf(address(directDepositJoin)), 0);
         assertEqApprox(vat.dai(vow), vowDai + feesAccrued * RAY, RAY);
     }
 
@@ -629,12 +631,12 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
-        (uint256 pink, uint256 part) = vat.urns(ilk, address(depositAave));
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(directDepositJoin));
         assertGt(pink, 0);
         assertGt(part, 0);
 
         // Someone else borrows
-        uint256 amountSupplied = adai.balanceOf(address(depositAave));
+        uint256 amountSupplied = adai.balanceOf(address(directDepositJoin));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
         pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
@@ -643,7 +645,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         end.cage(ilk);
 
         // CDP still has the position built
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(depositAave));
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositJoin));
         assertGt(ink, 0);
         assertGt(art, 0);
         assertEq(vat.gem(ilk, address(end)), 0);
@@ -658,7 +660,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // exec() moved the remaining urn debt to the end
-        (ink, art) = vat.urns(ilk, address(depositAave));
+        (ink, art) = vat.urns(ilk, address(directDepositJoin));
         assertEq(ink, 0);
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2); // Automatically skimmed when unwinding
@@ -689,12 +691,12 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
-        (uint256 pink, uint256 part) = vat.urns(ilk, address(depositAave));
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(directDepositJoin));
         assertGt(pink, 0);
         assertGt(part, 0);
 
         // Someone else borrows
-        uint256 amountSupplied = adai.balanceOf(address(depositAave));
+        uint256 amountSupplied = adai.balanceOf(address(directDepositJoin));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
         pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
@@ -703,7 +705,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         end.cage(ilk);
 
         // CDP still has the position built
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(depositAave));
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositJoin));
         assertGt(ink, 0);
         assertGt(art, 0);
         assertEq(vat.gem(ilk, address(end)), 0);
@@ -714,9 +716,15 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertGt(prevDai, 0);
 
         // Position is taken by the End module
+<<<<<<< HEAD
         end.skim(ilk, address(depositAave));
         VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         (ink, art) = vat.urns(ilk, address(depositAave));
+=======
+        end.skim(ilk, address(directDepositJoin));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        (ink, art) = vat.urns(ilk, address(directDepositJoin));
+>>>>>>> update tests and fix reward claimer
         assertEq(ink, 0);
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(end)), pink);
@@ -761,12 +769,12 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
-        (uint256 pink, uint256 part) = vat.urns(ilk, address(depositAave));
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(directDepositJoin));
         assertGt(pink, 0);
         assertGt(part, 0);
 
         // Someone else borrows
-        uint256 amountSupplied = adai.balanceOf(address(depositAave));
+        uint256 amountSupplied = adai.balanceOf(address(directDepositJoin));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
         pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
@@ -796,12 +804,12 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
-        (uint256 pink, uint256 part) = vat.urns(ilk, address(depositAave));
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(directDepositJoin));
         assertGt(pink, 0);
         assertGt(part, 0);
 
         // Someone else borrows
-        uint256 amountSupplied = adai.balanceOf(address(depositAave));
+        uint256 amountSupplied = adai.balanceOf(address(directDepositJoin));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
         pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
@@ -809,7 +817,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         hevm.warp(block.timestamp + directDepositJoin.tau());
 
-        uint256 daiEarned = adai.balanceOf(address(depositAave)) - pink;
+        uint256 daiEarned = adai.balanceOf(address(directDepositJoin)) - pink;
 
         VowLike(vow).heal(
             _min(
@@ -830,11 +838,11 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(vat.sin(vow), originalSin + part * RAY);
 
         // CDP grabbed and ink moved as free collateral to the deposit contract
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(depositAave));
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositJoin));
         assertEq(ink, 0);
         assertEq(art, 0);
-        assertEq(vat.gem(ilk, address(depositAave)), pink);
-        assertGe(adai.balanceOf(address(depositAave)), pink);
+        assertEq(vat.gem(ilk, address(directDepositJoin)), pink);
+        assertGe(adai.balanceOf(address(directDepositJoin)), pink);
 
         // MCD shutdowns
         originalDai = originalDai + vat.dai(VowLike(vow).flapper());
@@ -853,24 +861,29 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // So the position is restablished
-        (ink, art) = vat.urns(ilk, address(depositAave));
+        (ink, art) = vat.urns(ilk, address(directDepositJoin));
         assertEq(ink, pink);
         assertEq(art, part);
-        assertEq(vat.gem(ilk, address(depositAave)), 0);
-        assertGe(adai.balanceOf(address(depositAave)), pink);
+        assertEq(vat.gem(ilk, address(directDepositJoin)), 0);
+        assertGe(adai.balanceOf(address(directDepositJoin)), pink);
         assertEq(vat.sin(vow), 0);
 
         // Call skim manually (will be done through deposit anyway)
         // Position is again taken but this time the collateral goes to the End module
+<<<<<<< HEAD
         end.skim(ilk, address(depositAave));
         VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+=======
+        end.skim(ilk, address(directDepositJoin));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+>>>>>>> update tests and fix reward claimer
 
-        (ink, art) = vat.urns(ilk, address(depositAave));
+        (ink, art) = vat.urns(ilk, address(directDepositJoin));
         assertEq(ink, 0);
         assertEq(art, 0);
-        assertEq(vat.gem(ilk, address(depositAave)), 0);
+        assertEq(vat.gem(ilk, address(directDepositJoin)), 0);
         assertEq(vat.gem(ilk, address(end)), pink);
-        assertGe(adai.balanceOf(address(depositAave)), pink);
+        assertGe(adai.balanceOf(address(directDepositJoin)), pink);
         if (originalSin + part * RAY >= originalDai) {
             assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai, RAY);
             assertEq(vat.dai(vow), 0);
@@ -885,7 +898,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // A part can't be unwind yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
-        assertGt(adai.balanceOf(address(depositAave)), amountSupplied / 2);
+        assertGt(adai.balanceOf(address(directDepositJoin)), amountSupplied / 2);
         if (originalSin + part * RAY >= originalDai + (amountSupplied / 2) * RAY) {
             assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY, RAY);
             assertEq(vat.dai(vow), 0);
@@ -901,7 +914,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         directDepositJoin.exec();
         VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
-        assertEq(adai.balanceOf(address(depositAave)), 0);
+        assertEq(adai.balanceOf(address(directDepositJoin)), 0);
         assertEq(vat.sin(vow), 0);
         assertEqApprox(vat.dai(vow), originalDai - originalSin + daiEarned * RAY, RAY);
     }
@@ -943,22 +956,22 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         // Collect some stake rewards into the pause proxy
         address[] memory tokens = new address[](1);
         tokens[0] = address(adai);
-        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(depositAave));
+        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(directDepositJoin));
         if (amountToClaim == 0) return;     // Rewards are turned off - this is still an acceptable state
         uint256 amountClaimed = directDepositJoin.collect(tokens, uint256(-1));
         assertEq(amountClaimed, amountToClaim);
         assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed);
-        assertEq(rewardsClaimer.getRewardsBalance(tokens, address(depositAave)), 0);
+        assertEq(rewardsClaimer.getRewardsBalance(tokens, address(directDepositJoin)), 0);
 
         hevm.warp(block.timestamp + 1 days);
 
         // Collect some more rewards
-        uint256 amountToClaim2 = rewardsClaimer.getRewardsBalance(tokens, address(depositAave));
+        uint256 amountToClaim2 = rewardsClaimer.getRewardsBalance(tokens, address(directDepositJoin));
         assertGt(amountToClaim2, 0);
         uint256 amountClaimed2 = directDepositJoin.collect(tokens, uint256(-1));
         assertEq(amountClaimed2, amountToClaim2);
         assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed + amountClaimed2);
-        assertEq(rewardsClaimer.getRewardsBalance(tokens, address(depositAave)), 0);
+        assertEq(rewardsClaimer.getRewardsBalance(tokens, address(directDepositJoin)), 0);
     }
 
     function testFail_collect_stkaave_king_not_set() public {
@@ -969,7 +982,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         // Collect some stake rewards into the pause proxy
         address[] memory tokens = new address[](1);
         tokens[0] = address(adai);
-        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(depositAave));
+        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(directDepositJoin));
         assertTrue(amountToClaim > 0);
         directDepositJoin.collect(tokens, uint256(-1));
     }
@@ -981,7 +994,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         vat.cage();
 
         // Simulate DAI holder gets some gems from GS
-        vat.grab(ilk, address(depositAave), address(this), address(this), -int256(100 ether), -int256(0));
+        vat.grab(ilk, address(directDepositJoin), address(this), address(this), -int256(100 ether), -int256(0));
 
         // User can exit and get the aDAI
         directDepositJoin.exit(address(this), 100 ether);
@@ -1016,17 +1029,17 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Test that we can extract the whole position in emergency situations
         // aDAI should be sitting in the deposit contract, urn should be owned by deposit contract
-        (uint256 pink, uint256 part) = vat.urns(ilk, address(depositAave));
-        uint256 pbal = adai.balanceOf(address(depositAave));
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(directDepositJoin));
+        uint256 pbal = adai.balanceOf(address(directDepositJoin));
         assertGt(pink, 0);
         assertGt(part, 0);
         assertGt(pbal, 0);
 
-        vat.hope(address(depositAave));     // Need to approve urn transfer
+        vat.hope(address(directDepositJoin));     // Need to approve urn transfer
         directDepositJoin.quit(address(this));
 
-        (uint256 nink, uint256 nart) = vat.urns(ilk, address(depositAave));
-        uint256 nbal = adai.balanceOf(address(depositAave));
+        (uint256 nink, uint256 nart) = vat.urns(ilk, address(directDepositJoin));
+        uint256 nbal = adai.balanceOf(address(directDepositJoin));
         assertEq(nink, 0);
         assertEq(nart, 0);
         assertEq(nbal, 0);
@@ -1049,15 +1062,15 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Test that we can extract the adai in emergency situations
         // aDAI should be sitting in the deposit contract, gems should be owned by deposit contract
-        uint256 pgem = vat.gem(ilk, address(depositAave));
-        uint256 pbal = adai.balanceOf(address(depositAave));
+        uint256 pgem = vat.gem(ilk, address(directDepositJoin));
+        uint256 pbal = adai.balanceOf(address(directDepositJoin));
         assertGt(pgem, 0);
         assertGt(pbal, 0);
 
         directDepositJoin.quit(address(this));
 
-        uint256 ngem = vat.gem(ilk, address(depositAave));
-        uint256 nbal = adai.balanceOf(address(depositAave));
+        uint256 ngem = vat.gem(ilk, address(directDepositJoin));
+        uint256 nbal = adai.balanceOf(address(directDepositJoin));
         assertEq(ngem, 0);
         assertEq(nbal, 0);
 
@@ -1089,19 +1102,19 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     function test_direct_deposit_mom() public {
         _setRelBorrowTarget(7500);
 
-        (uint256 ink, ) = vat.urns(ilk, address(depositAave));
+        (uint256 ink, ) = vat.urns(ilk, address(directDepositJoin));
         assertGt(ink, 0);
         assertGt(directDepositJoin.bar(), 0);
 
         // Something bad happens on Aave - we need to bypass gov delay
-        directDepositMom.disable(address(depositAave));
+        directDepositMom.disable(address(directDepositJoin));
 
         assertEq(directDepositJoin.bar(), 0);
 
         // Close out our position
         directDepositJoin.exec();
 
-        (ink, ) = vat.urns(ilk, address(depositAave));
+        (ink, ) = vat.urns(ilk, address(directDepositJoin));
         assertEq(ink, 0);
     }
 
@@ -1115,7 +1128,8 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertEq(directDepositJoin.tau(), 7 days);
 
         directDepositJoin.cage();
-        assertEq(depositAave.live(), 0);
+        assertEq(directDepositJoin.live(), 0);
+        assertEq(directDepositAave.live(), 0);
 
         // file should fail with error "DssDirectDepositAaveDai/live"
         directDepositJoin.file("tau", 1 days);
@@ -1129,7 +1143,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         _giveTokens(dai, 100);
         dai.approve(address(daiJoin), 100);
         daiJoin.join(address(this), 100);
-        vat.frob(ilk, address(address(depositAave)), address(this), address(this), 0, -100); // Some small amount of dai repaid
+        vat.frob(ilk, address(address(directDepositJoin)), address(this), address(this), 0, -100); // Some small amount of dai repaid
 
         // We should be able to close out the vault completely even though ink and art do not match
         _setRelBorrowTarget(0);
