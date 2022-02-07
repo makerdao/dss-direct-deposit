@@ -64,14 +64,13 @@ interface DssDirectDepositTargetLike {
     function rewardsClaimer() external view returns (address);
     function gem() external view returns (TokenLike);
     function getMaxBar() external view returns (uint256);
-    function calculateTargetSupply(uint256) external view returns (uint256);
+    function calcSupplies(uint256, uint256) external view returns (uint256, uint256);
     function supply(address, uint256) external;
     function withdraw(address, uint256) external;
     function interestStrategy() external view returns (address);
     function getStrategy(address) external view returns (address);
     function getNormalizedBalanceOf(address) external view returns(uint256);
     function getNormalizedAmount(address, uint256) external view returns(uint256);
-    function getTotalSupply(uint256) external view returns(uint256);
     function collect(address[] memory, uint256, address) external returns (uint256);
     function cage() external;
 }
@@ -226,7 +225,7 @@ contract DssDirectDepositJoin {
         daiJoin.exit(address(this), amount);
         d3mTarget.supply(address(dai), amount);
 
-        // Verify the correct amount of adai shows up
+        // Verify the correct amount of gem shows up
         uint256 scaledAmount = d3mTarget.getNormalizedAmount(address(dai), amount);
         require(d3mTarget.getNormalizedBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount), "DssDirectDepositJoin/no-receive-gem-tokens");
 
@@ -260,7 +259,7 @@ contract DssDirectDepositJoin {
         // Unwind amount is limited by how much:
         // - max reduction desired
         // - liquidity available
-        // - adai we have to withdraw
+        // - gem we have to withdraw
         // - dai debt tracked in vat (CDP or free)
         uint256 amount = _min(
                             _min(
@@ -340,8 +339,7 @@ contract DssDirectDepositJoin {
             );
         } else {
             // Normal path
-            uint256 supplyAmount = d3mTarget.getTotalSupply(availableLiquidity);
-            uint256 targetSupply = bar > 0 ? d3mTarget.calculateTargetSupply(bar) : 0;
+            (uint256 supplyAmount, uint256 targetSupply) = d3mTarget.calcSupplies(availableLiquidity, bar);
 
             if (targetSupply > supplyAmount) {
                 _wind(targetSupply - supplyAmount);
@@ -441,7 +439,7 @@ contract DssDirectDepositJoin {
     function quit(address who) external auth {
         require(vat.live() == 1, "DssDirectDepositJoin/no-quit-during-shutdown");
 
-        // Send all adai in the contract to who
+        // Send all gem in the contract to who
         require(gem.transfer(who, gem.balanceOf(address(this))), "DssDirectDepositJoin/failed-transfer");
 
         if (culled == 1) {

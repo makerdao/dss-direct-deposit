@@ -157,6 +157,17 @@ contract DssDirectDepositAaveDai {
         return _rdiv(_add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
     }
 
+    function calcSupplies(uint256 availableLiquidity, uint256 targetBar) external view returns(uint256 supplyAmount, uint256 targetSupply) {
+        supplyAmount = _add(
+                          availableLiquidity,
+                            _add(
+                                stableDebt.totalSupply(),
+                                variableDebt.totalSupply()
+                            )
+                        );
+        targetSupply = targetBar > 0 ? calculateTargetSupply(targetBar) : 0;
+    }
+
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
     function supply(address wat, uint256 amt) external auth {
@@ -194,16 +205,6 @@ contract DssDirectDepositAaveDai {
     function getNormalizedAmount(address wat, uint256 amt) external view returns (uint256) {
         uint256 interestIndex = pool.getReserveNormalizedIncome(wat);
         return _rdiv(amt, interestIndex);
-    }
-
-    function getTotalSupply(uint256 availableLiquidity) external view returns (uint256) {
-        return _add(
-                    availableLiquidity,
-                    _add(
-                        stableDebt.totalSupply(),
-                        variableDebt.totalSupply()
-                    )
-                );
     }
 
     // --- Shutdown ---
