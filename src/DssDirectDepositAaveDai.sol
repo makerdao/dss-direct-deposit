@@ -75,7 +75,7 @@ contract DssDirectDepositAaveDai {
 
     LendingPoolLike public immutable pool;
     InterestRateStrategyLike public immutable interestStrategy;
-    RewardsClaimerLike public immutable rewardsClaimer;
+    address public immutable rewardsClaimer;
     TargetTokenLike public immutable gem;
     TargetTokenLike public immutable adai;
     TargetTokenLike public immutable stableDebt;
@@ -102,7 +102,7 @@ contract DssDirectDepositAaveDai {
         stableDebt = TargetTokenLike(stableDebt_);
         variableDebt = TargetTokenLike(variableDebt_);
         interestStrategy = InterestRateStrategyLike(interestStrategy_);
-        rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
+        rewardsClaimer = _rewardsClaimer;
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);

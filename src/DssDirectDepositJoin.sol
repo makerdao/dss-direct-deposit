@@ -102,7 +102,7 @@ contract DssDirectDepositJoin {
     ChainlogLike public immutable chainlog;
     VatLike public immutable vat;
     bytes32 public immutable ilk;
-    DssDirectDepositTargetLike public immutable d3mTarget;
+    DssDirectDepositTargetLike public d3mTarget;
     TokenLike public immutable dai;
     DaiJoinLike public immutable daiJoin;
     TokenLike public immutable gem;
@@ -193,6 +193,7 @@ contract DssDirectDepositJoin {
         require(vat.live() == 1, "DssDirectDepositJoin/no-file-during-shutdown");
 
         if (what == "king") king = data;
+        else if (what == "target") d3mTarget = DssDirectDepositTargetLike(data);
         else revert("DssDirectDepositJoin/file-unrecognized-param");
         emit File(what, data);
     }
@@ -375,7 +376,7 @@ contract DssDirectDepositJoin {
     // --- Collect any rewards ---
     function collect(address[] memory assets, uint256 amount) external returns (uint256 amt) {
         require(king != address(0), "DssDirectDepositJoin/king-not-set");
-        
+
         amt = RewardsClaimerLike(d3mTarget.rewardsClaimer()).claimRewards(assets, amount, king);
         Collect(king, assets, amt);
     }
