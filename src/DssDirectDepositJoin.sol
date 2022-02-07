@@ -61,6 +61,7 @@ interface EndLike {
 }
 
 interface DssDirectDepositTargetLike {
+    function rewardsClaimer() external view returns (address);
     function gem() external view returns (TokenLike);
     function getMaxBar() external view returns (uint256);
     function calculateTargetSupply(uint256) external view returns (uint256);
@@ -73,6 +74,10 @@ interface DssDirectDepositTargetLike {
     function getTotalSupply(uint256) external view returns(uint256);
     function collect(address[] memory, uint256, address) external returns (uint256);
     function cage() external;
+}
+
+interface RewardsClaimerLike {
+    function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
 }
 
 contract DssDirectDepositJoin {
@@ -370,8 +375,8 @@ contract DssDirectDepositJoin {
     // --- Collect any rewards ---
     function collect(address[] memory assets, uint256 amount) external returns (uint256 amt) {
         require(king != address(0), "DssDirectDepositJoin/king-not-set");
-
-        amt = d3mTarget.collect(assets, amount, king);
+        
+        amt = RewardsClaimerLike(d3mTarget.rewardsClaimer()).claimRewards(assets, amount, king);
         Collect(king, assets, amt);
     }
 
