@@ -62,13 +62,11 @@ interface EndLike {
 
 interface DssDirectDepositTargetLike {
     function rewardsClaimer() external view returns (address);
-    function gem() external view returns (TokenLike);
     function getMaxBar() external view returns (uint256);
+    function validTarget(address) external view returns (bool);
     function calcSupplies(uint256, uint256) external view returns (uint256, uint256);
     function supply(address, uint256) external;
     function withdraw(address, uint256) external;
-    function interestStrategy() external view returns (address);
-    function getStrategy(address) external view returns (address);
     function getNormalizedBalanceOf(address) external view returns(uint256);
     function getNormalizedAmount(address, uint256) external view returns(uint256);
     function cage() external;
@@ -392,7 +390,8 @@ contract DssDirectDepositJoin {
         // or if the interest rate strategy changes
         require(
             wards[msg.sender] == 1 ||
-            d3mTarget.getStrategy(address(dai)) != address(d3mTarget.interestStrategy())
+            address(d3mTarget) == address(0) ||
+            !d3mTarget.validTarget()
         , "DssDirectDepositJoin/not-authorized");
 
         live = 0;

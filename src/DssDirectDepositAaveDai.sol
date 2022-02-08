@@ -136,6 +136,11 @@ contract DssDirectDepositAaveDai {
     function getMaxBar() public view returns (uint256) {
         return interestStrategy.getMaxVariableBorrowRate();
     }
+
+    function validTarget(address wat) external view returns (bool) {
+        (,,,,,,,,,, address strategy,) = pool.getReserveData(wat);
+        return strategy == address(interestStrategy);
+    }
     
     // --- Automated Rate targeting ---
     function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
@@ -185,10 +190,6 @@ contract DssDirectDepositAaveDai {
         require(adai.transferFrom(msg.sender, address(this), amt), "DssDirectDepositAaveDai/withdraw-transfer-failed");
         // Then we can withdraw and send the Dai to the msg.sender
         pool.withdraw(wat, amt, msg.sender);
-    }
-
-    function getStrategy(address wat) public view returns (address strategy) {
-        (,,,,,,,,,, strategy,) = pool.getReserveData(wat);
     }
 
     function getCurrentRate(address wat) public view returns (uint256 currVarBorrow) {
