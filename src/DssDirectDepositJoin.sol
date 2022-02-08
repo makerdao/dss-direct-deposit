@@ -71,7 +71,6 @@ interface DssDirectDepositTargetLike {
     function getStrategy(address) external view returns (address);
     function getNormalizedBalanceOf(address) external view returns(uint256);
     function getNormalizedAmount(address, uint256) external view returns(uint256);
-    function collect(address[] memory, uint256, address) external returns (uint256);
     function cage() external;
 }
 
