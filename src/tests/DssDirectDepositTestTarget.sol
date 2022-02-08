@@ -30,7 +30,7 @@ contract DssDirectDepositTestTarget {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "DssDirectDepositAaveDai/not-authorized");
+        require(wards[msg.sender] == 1, "DssDirectDepositTestTarget/not-authorized");
         _;
     }
 
@@ -38,10 +38,13 @@ contract DssDirectDepositTestTarget {
     address public immutable rewardsClaimer;
 
     // test helper variables
+    mapping (address => uint256) public balances;
+
     uint256 maxBar;
-    bool    isValidTarget;
     uint256 supplyAmount;
     uint256 targetSupply;
+
+    bool    isValidTarget;
 
     uint256 public live = 1;
 
@@ -71,9 +74,9 @@ contract DssDirectDepositTestTarget {
     }
 
     function file(bytes32 what, bool data) external auth {
-    if (what == "isValidTarget") {
-        isValidTarget = data;
-    }
+        if (what == "isValidTarget") {
+            isValidTarget = data;
+        }
     }
 
     function getMaxBar() external view returns (uint256) {
@@ -81,6 +84,7 @@ contract DssDirectDepositTestTarget {
     }
 
     function validTarget(address wat) external view returns (bool) {
+        wat;
         return isValidTarget;
     }
 
@@ -89,10 +93,29 @@ contract DssDirectDepositTestTarget {
         return (supplyAmount, targetSupply);
     }
 
-    function supply(address, uint256) external;
-    function withdraw(address, uint256) external;
-    function getNormalizedBalanceOf(address) external view returns(uint256);
-    function getNormalizedAmount(address, uint256) external view returns(uint256);
-    function cage() external;
+    function supply(address wat, uint256 amt) external {
+        wat;
+        balances[msg.sender] += amt;
+    }
+
+    function withdraw(address wat, uint256 amt) external {
+        wat;
+        uint256 balance = balances[msg.sender];
+        require(balance >= amt, "DssDirectDepositTestTarget/balance-underflow");
+        balances[msg.sender] = balance - amt;
+    }
+
+    function getNormalizedBalanceOf(address who) external view returns(uint256) {
+        return balances[who];
+    }
+
+    function getNormalizedAmount(address wat, uint256 amt) external pure returns(uint256) {
+        wat;
+        return amt;
+    }
+
+    function cage() external auth {
+        live = 0;
+    }
 
 }
