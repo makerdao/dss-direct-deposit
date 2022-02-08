@@ -391,7 +391,7 @@ contract DssDirectDepositJoin {
         require(
             wards[msg.sender] == 1 ||
             address(d3mTarget) == address(0) ||
-            !d3mTarget.validTarget()
+            !d3mTarget.validTarget(address(dai))
         , "DssDirectDepositJoin/not-authorized");
 
         live = 0;
