@@ -36,6 +36,8 @@ contract DssDirectDepositTestTarget {
 
     address public immutable pool;
     address public immutable rewardsClaimer;
+    address public           gem;
+    address public immutable dai;
 
     // test helper variables
     mapping (address => uint256) public balances;
@@ -60,7 +62,7 @@ contract DssDirectDepositTestTarget {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
-        dai_;
+        dai = dai_;
     }
 
     function file(bytes32 what, uint256 data) external auth {
@@ -79,12 +81,17 @@ contract DssDirectDepositTestTarget {
         }
     }
 
+    function file(bytes32 what, address data) external auth {
+        if (what == "gem") {
+            gem = data;
+        }
+    }
+
     function getMaxBar() external view returns (uint256) {
         return maxBar;
     }
 
-    function validTarget(address wat) external view returns (bool) {
-        wat;
+    function validTarget() external view returns (bool) {
         return isValidTarget;
     }
 
@@ -93,13 +100,11 @@ contract DssDirectDepositTestTarget {
         return (supplyAmount, targetSupply);
     }
 
-    function supply(address wat, uint256 amt) external {
-        wat;
+    function supply(uint256 amt) external {
         balances[msg.sender] += amt;
     }
 
-    function withdraw(address wat, uint256 amt) external {
-        wat;
+    function withdraw(uint256 amt) external {
         uint256 balance = balances[msg.sender];
         require(balance >= amt, "DssDirectDepositTestTarget/balance-underflow");
         balances[msg.sender] = balance - amt;
@@ -109,8 +114,7 @@ contract DssDirectDepositTestTarget {
         return balances[who];
     }
 
-    function getNormalizedAmount(address wat, uint256 amt) external pure returns(uint256) {
-        wat;
+    function getNormalizedAmount(uint256 amt) external pure returns(uint256) {
         return amt;
     }
 

@@ -77,6 +77,7 @@ contract DssDirectDepositAaveDai {
     InterestRateStrategyLike public immutable interestStrategy;
     address public immutable rewardsClaimer;
     TargetTokenLike public immutable gem;
+    address public immutable dai;
     TargetTokenLike public immutable adai;
     TargetTokenLike public immutable stableDebt;
     TargetTokenLike public immutable variableDebt;
@@ -98,6 +99,7 @@ contract DssDirectDepositAaveDai {
         require(interestStrategy_ != address(0), "DssDirectDepositAaveDai/invalid-interestStrategy");
 
         pool = LendingPoolLike(pool_);
+        dai = dai_;
         gem = adai = TargetTokenLike(adai_);
         stableDebt = TargetTokenLike(stableDebt_);
         variableDebt = TargetTokenLike(variableDebt_);
@@ -137,8 +139,8 @@ contract DssDirectDepositAaveDai {
         return interestStrategy.getMaxVariableBorrowRate();
     }
 
-    function validTarget(address wat) external view returns (bool) {
-        (,,,,,,,,,, address strategy,) = pool.getReserveData(wat);
+    function validTarget() external view returns (bool) {
+        (,,,,,,,,,, address strategy,) = pool.getReserveData(dai);
         return strategy == address(interestStrategy);
     }
     
@@ -175,25 +177,25 @@ contract DssDirectDepositAaveDai {
 
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
-    function supply(address wat, uint256 amt) external auth {
+    function supply(uint256 amt) external auth {
         // We need to pull the dai tokens to this address before calling deposit
-        require(TargetTokenLike(wat).transferFrom(msg.sender, address(this), amt), "DssDirectDepositAaveDai/deposit-transfer-failed");
+        require(TargetTokenLike(dai).transferFrom(msg.sender, address(this), amt), "DssDirectDepositAaveDai/deposit-transfer-failed");
         // Then we can deposit and send the aDai to the msg.sender
-        pool.deposit(wat, amt, msg.sender, 0);
+        pool.deposit(dai, amt, msg.sender, 0);
 
     }
 
     // Withdraws Dai from Aave in exchange for adai
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
-    function withdraw(address wat, uint256 amt) external auth {
+    function withdraw(uint256 amt) external auth {
         // We need to pull adai tokens in this address before calling withdraw
         require(adai.transferFrom(msg.sender, address(this), amt), "DssDirectDepositAaveDai/withdraw-transfer-failed");
         // Then we can withdraw and send the Dai to the msg.sender
-        pool.withdraw(wat, amt, msg.sender);
+        pool.withdraw(dai, amt, msg.sender);
     }
 
-    function getCurrentRate(address wat) public view returns (uint256 currVarBorrow) {
-        (,,,, currVarBorrow,,,,,,,) = pool.getReserveData(wat);
+    function getCurrentRate() public view returns (uint256 currVarBorrow) {
+        (,,,, currVarBorrow,,,,,,,) = pool.getReserveData(dai);
     }
 
     // --- Balance in standard ERC-20 denominations
@@ -203,8 +205,8 @@ contract DssDirectDepositAaveDai {
 
     // --- Convert a standard ERC-20 amount to a the normalized amount 
     //     when added to the balance
-    function getNormalizedAmount(address wat, uint256 amt) external view returns (uint256) {
-        uint256 interestIndex = pool.getReserveNormalizedIncome(wat);
+    function getNormalizedAmount(uint256 amt) external view returns (uint256) {
+        uint256 interestIndex = pool.getReserveNormalizedIncome(dai);
         return _rdiv(amt, interestIndex);
     }
 
