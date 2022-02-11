@@ -16,6 +16,8 @@
 
 pragma solidity 0.6.12;
 
+import "./DssDirectDepositTestGem.sol";
+
 contract DssDirectDepositTestTarget {
     // --- Auth ---
     mapping (address => uint) public wards;
@@ -102,12 +104,14 @@ contract DssDirectDepositTestTarget {
 
     function supply(uint256 amt) external {
         balances[msg.sender] += amt;
+        DssDirectDepositTestGem(gem).mint(msg.sender, amt);
     }
 
     function withdraw(uint256 amt) external {
         uint256 balance = balances[msg.sender];
         require(balance >= amt, "DssDirectDepositTestTarget/balance-underflow");
         balances[msg.sender] = balance - amt;
+        DssDirectDepositTestGem(gem).burn(msg.sender, amt);
     }
 
     function getNormalizedBalanceOf(address who) external view returns(uint256) {
