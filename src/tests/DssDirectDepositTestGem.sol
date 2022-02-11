@@ -16,6 +16,10 @@
 
 pragma solidity 0.6.12;
 
+interface TokenLike {
+    function approve(address, uint256) external returns (bool);
+}
+
 contract DssDirectDepositTestGem {
     uint256 public totalSupply = 1_000_000 ether;
     uint256 public immutable decimals;
@@ -90,5 +94,9 @@ contract DssDirectDepositTestGem {
         }
         balanceOf[usr] = sub(balanceOf[usr], wad);
         totalSupply    = sub(totalSupply, wad);
+    }
+
+    function giveAllowance(address token, address dst, uint amt) external auth {
+        require(TokenLike(token).approve(dst, amt), "TestGem/give-allowance-failed");
     }
 }
