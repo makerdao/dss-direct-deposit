@@ -63,12 +63,12 @@ interface EndLike {
 interface DssDirectDepositTargetLike {
     function rewardsClaimer() external view returns (address);
     function getMaxBar() external view returns (uint256);
-    function validTarget(address) external view returns (bool);
+    function validTarget() external view returns (bool);
     function calcSupplies(uint256, uint256) external view returns (uint256, uint256);
-    function supply(address, uint256) external;
-    function withdraw(address, uint256) external;
+    function supply(uint256) external;
+    function withdraw(uint256) external;
     function getNormalizedBalanceOf(address) external view returns(uint256);
-    function getNormalizedAmount(address, uint256) external view returns(uint256);
+    function getNormalizedAmount(uint256) external view returns(uint256);
     function cage() external;
 }
 
@@ -220,10 +220,10 @@ contract DssDirectDepositJoin {
         vat.frob(ilk, address(this), address(this), address(this), int256(amount), int256(amount));
         // normalized debt == erc20 DAI to join (Vat rate for this ilk fixed to 1 RAY)
         daiJoin.exit(address(this), amount);
-        d3mTarget.supply(address(dai), amount);
+        d3mTarget.supply(amount);
 
         // Verify the correct amount of gem shows up
-        uint256 scaledAmount = d3mTarget.getNormalizedAmount(address(dai), amount);
+        uint256 scaledAmount = d3mTarget.getNormalizedAmount(amount);
         require(d3mTarget.getNormalizedBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount), "DssDirectDepositJoin/no-receive-gem-tokens");
 
         emit Wind(amount);
@@ -289,7 +289,7 @@ contract DssDirectDepositJoin {
 
         // To save gas you can bring the fees back with the unwind
         uint256 total = _add(amount, fees);
-        d3mTarget.withdraw(address(dai), total);
+        d3mTarget.withdraw(total);
         daiJoin.join(address(this), total);
 
         // normalized debt == erc20 DAI to join (Vat rate for this ilk fixed to 1 RAY)
@@ -362,7 +362,7 @@ contract DssDirectDepositJoin {
             if (fees > availableLiquidity) {
                 fees = availableLiquidity;
             }
-            d3mTarget.withdraw(address(dai), fees);
+            d3mTarget.withdraw(fees);
             daiJoin.join(address(chainlog.getAddress("MCD_VOW")), fees);
             Reap(fees);
         }
@@ -391,7 +391,7 @@ contract DssDirectDepositJoin {
         require(
             wards[msg.sender] == 1 ||
             address(d3mTarget) == address(0) ||
-            !d3mTarget.validTarget(address(dai))
+            !d3mTarget.validTarget()
         , "DssDirectDepositJoin/not-authorized");
 
         live = 0;
