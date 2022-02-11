@@ -106,6 +106,7 @@ contract DssDirectDepositTestTarget {
     function supply(uint256 amt) external {
         balances[msg.sender] += amt;
         DssDirectDepositTestGem(gem).mint(msg.sender, amt);
+        DssDirectDepositTestGem(dai).transferFrom(msg.sender, gem, amt);
     }
 
     function withdraw(uint256 amt) external {
@@ -113,6 +114,7 @@ contract DssDirectDepositTestTarget {
         require(balance >= amt, "DssDirectDepositTestTarget/balance-underflow");
         balances[msg.sender] = balance - amt;
         DssDirectDepositTestGem(gem).burn(msg.sender, amt);
+        DssDirectDepositTestGem(dai).transferFrom(gem, msg.sender, amt);
     }
 
     function getNormalizedBalanceOf(address who) external view returns(uint256) {
