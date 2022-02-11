@@ -98,8 +98,9 @@ contract DssDirectDepositTestTarget {
     }
 
     function calcSupplies(uint256 availableLiquidity, uint256 bar) external view returns (uint256, uint256) {
-        availableLiquidity; bar;
-        return (supplyAmount, targetSupply);
+        availableLiquidity;
+
+        return (supplyAmount, bar > 0 ? targetSupply : 0);
     }
 
     function supply(uint256 amt) external {
