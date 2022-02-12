@@ -138,7 +138,7 @@ contract DssDirectDepositJoin {
         gem = TokenLike(gem_);
         dec = TokenLike(gem_).decimals();
         daiJoin = DaiJoinLike(daiJoin_);
-        
+
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
@@ -189,7 +189,7 @@ contract DssDirectDepositJoin {
         require(vat.live() == 1, "DssDirectDepositJoin/no-file-during-shutdown");
 
         if (what == "king") king = data;
-        else if (what == "target") d3mTarget = DssDirectDepositTargetLike(data);
+        else if (what == "d3mTarget") d3mTarget = DssDirectDepositTargetLike(data);
         else revert("DssDirectDepositJoin/file-unrecognized-param");
         emit File(what, data);
     }
@@ -395,7 +395,7 @@ contract DssDirectDepositJoin {
         , "DssDirectDepositJoin/not-authorized");
 
         live = 0;
-        d3mTarget.cage();
+        if (address(d3mTarget) != address(0)) d3mTarget.cage();
         tic = block.timestamp;
         emit Cage();
     }
