@@ -179,9 +179,8 @@ contract DssDirectDepositAaveDai {
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
     function supply(uint256 amt) external auth {
         // We need to pull the dai tokens to this address before calling deposit
-        require(TargetTokenLike(dai).transferFrom(msg.sender, address(this), amt), "DssDirectDepositAaveDai/deposit-transfer-failed");
         // Then we can deposit and send the aDai to the msg.sender
-        pool.deposit(dai, amt, msg.sender, 0);
+        pool.deposit(dai, amt, address(this), 0);
 
     }
 
@@ -189,9 +188,8 @@ contract DssDirectDepositAaveDai {
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
     function withdraw(uint256 amt) external auth {
         // We need to pull adai tokens in this address before calling withdraw
-        require(adai.transferFrom(msg.sender, address(this), amt), "DssDirectDepositAaveDai/withdraw-transfer-failed");
         // Then we can withdraw and send the Dai to the msg.sender
-        pool.withdraw(dai, amt, msg.sender);
+        pool.withdraw(dai, amt, address(this));
     }
 
     function getCurrentRate() public view returns (uint256 currVarBorrow) {

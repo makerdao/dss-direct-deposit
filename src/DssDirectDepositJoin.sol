@@ -219,7 +219,7 @@ contract DssDirectDepositJoin {
         vat.slip(ilk, address(this), int256(amount));
         vat.frob(ilk, address(this), address(this), address(this), int256(amount), int256(amount));
         // normalized debt == erc20 DAI to join (Vat rate for this ilk fixed to 1 RAY)
-        daiJoin.exit(address(this), amount);
+        daiJoin.exit(address(d3mTarget), amount);
         d3mTarget.supply(amount);
 
         // Verify the correct amount of gem shows up
@@ -290,7 +290,7 @@ contract DssDirectDepositJoin {
         // To save gas you can bring the fees back with the unwind
         uint256 total = _add(amount, fees);
         d3mTarget.withdraw(total);
-        daiJoin.join(address(this), total);
+        daiJoin.join(address(d3mTarget), total);
 
         // normalized debt == erc20 DAI to join (Vat rate for this ilk fixed to 1 RAY)
 
