@@ -18,6 +18,8 @@ pragma solidity 0.6.12;
 
 interface TokenLike {
     function approve(address, uint256) external returns (bool);
+    function transfer(address, uint256) external returns (bool);
+    function transferFrom(address, address, uint256) external returns (bool);
 }
 
 contract DssDirectDepositTestGem {
@@ -39,7 +41,7 @@ contract DssDirectDepositTestGem {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "DssDirectDepositJoin/not-authorized");
+        require(wards[msg.sender] == 1, "DssDirectDepositTestGem/not-authorized");
         _;
     }
 
@@ -57,9 +59,9 @@ contract DssDirectDepositTestGem {
     constructor(uint256 decimals_) public {
         balanceOf[msg.sender] = totalSupply;
         decimals = decimals_;
-        
+
         wards[msg.sender] = 1;
-    } 
+    }
 
     function approve(address who, uint256 amt) external returns (bool) {
         allowance[msg.sender][who] = amt;

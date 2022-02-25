@@ -18,6 +18,26 @@ pragma solidity 0.6.12;
 
 import "./DssDirectDepositTestGem.sol";
 
+interface RewardsClaimerLike {
+    function claimRewards(address[] memory assets, uint256 amount, address to) external returns (uint256);
+}
+
+interface d3mJoinLike {
+    function vat() external view returns (address);
+    function gem() external view returns (address);
+}
+
+interface DaiJoinLike {
+    function dai() external view returns (address);
+    function join(address, uint256) external;
+    function exit(address, uint256) external;
+}
+
+interface CanLike {
+    function hope(address) external;
+    function nope(address) external;
+}
+
 contract DssDirectDepositTestTarget {
     // --- Auth ---
     mapping (address => uint) public wards;
@@ -36,10 +56,12 @@ contract DssDirectDepositTestTarget {
         _;
     }
 
+    RewardsClaimerLike public immutable rewardsClaimer;
+    TokenLike          public immutable dai;
+    DaiJoinLike        public immutable daiJoin;
+
     address public immutable pool;
-    address public immutable rewardsClaimer;
     address public           gem;
-    address public immutable dai;
 
     // test helper variables
     uint256 maxBar;
@@ -54,17 +76,26 @@ contract DssDirectDepositTestTarget {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(address dai_, address pool_, address _rewardsClaimer) public {
+    constructor(address d3mJoin_, address daiJoin_, address pool_, address _rewardsClaimer) public {
 
         pool = pool_;
-        rewardsClaimer = _rewardsClaimer;
+        rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
-        dai = dai_;
+        daiJoin = DaiJoinLike(daiJoin_);
+        TokenLike dai_ = dai = TokenLike(DaiJoinLike(daiJoin_).dai());
+        dai_.approve(daiJoin_, type(uint256).max);
+
+
+        wards[d3mJoin_] = 1;
+        emit Rely(d3mJoin_);
+        CanLike(d3mJoinLike(d3mJoin_).vat()).hope(d3mJoin_);
+        TokenLike(d3mJoinLike(d3mJoin_).gem()).approve(d3mJoin_, type(uint256).max);
     }
 
+    // --- Testing Admin ---
     function file(bytes32 what, uint256 data) external auth {
         if (what == "maxBar") {
             maxBar = data;
@@ -87,6 +118,15 @@ contract DssDirectDepositTestTarget {
         }
     }
 
+    // --- Admin ---
+    function hope(address dst, address who) external auth {
+        CanLike(dst).hope(who);
+    }
+
+    function nope(address dst, address who) external auth {
+        CanLike(dst).nope(who);
+    }
+
     function getMaxBar() external view returns (uint256) {
         return maxBar;
     }
@@ -102,17 +142,23 @@ contract DssDirectDepositTestTarget {
     }
 
     function supply(uint256 amt) external {
-        DssDirectDepositTestGem(gem).mint(msg.sender, amt);
-        DssDirectDepositTestGem(dai).transferFrom(msg.sender, gem, amt);
+        daiJoin.exit(address(this), amt);
+        DssDirectDepositTestGem(gem).mint(address(this), amt);
+        TokenLike(dai).transfer(gem, amt);
     }
 
     function withdraw(uint256 amt) external {
-        DssDirectDepositTestGem(gem).burn(msg.sender, amt);
-        DssDirectDepositTestGem(dai).transferFrom(gem, msg.sender, amt);
+        DssDirectDepositTestGem(gem).burn(address(this), amt);
+        TokenLike(dai).transferFrom(gem, address(this), amt);
+        daiJoin.join(address(this), amt);
     }
 
-    function getNormalizedBalanceOf(address who) external view returns(uint256) {
-        return DssDirectDepositTestGem(gem).balanceOf(who);
+    function collect(address[] memory assets, uint256 amount, address dst) external auth returns (uint256 amt) {
+        amt = rewardsClaimer.claimRewards(assets, amount, dst);
+    }
+
+    function getNormalizedBalanceOf() external view returns(uint256) {
+        return DssDirectDepositTestGem(gem).balanceOf(address(this));
     }
 
     function getNormalizedAmount(uint256 amt) external pure returns(uint256) {

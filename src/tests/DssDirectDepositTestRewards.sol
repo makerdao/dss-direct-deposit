@@ -20,8 +20,8 @@ import "./DssDirectDepositTestGem.sol";
 
 contract DssDirectDepositTestRewards {
 
-    DssDirectDepositTestGem public rewards;
-    address public testGem;
+    DssDirectDepositTestGem public immutable rewards;
+    address public immutable testGem;
 
      // --- Math ---
     function add(uint x, uint y) internal pure returns (uint z) {

@@ -20,7 +20,7 @@ interface TokenLike {
     function totalSupply() external view returns (uint256);
     function balanceOf(address) external view returns (uint256);
     function approve(address, uint256) external returns (bool);
-    function transfer(address, uint256) external returns (bool);
+    function transferFrom(address, address, uint256) external returns (bool);
     function scaledBalanceOf(address) external view returns (uint256);
     function decimals() external view returns (uint8);
 }
@@ -30,15 +30,7 @@ interface ChainlogLike {
 }
 
 interface DaiJoinLike {
-    function wards(address) external view returns (uint256);
-    function rely(address usr) external;
-    function deny(address usr) external;
-    function vat() external view returns (address);
     function dai() external view returns (address);
-    function live() external view returns (uint256);
-    function cage() external;
-    function join(address, uint256) external;
-    function exit(address, uint256) external;
 }
 
 interface VatLike {
@@ -61,19 +53,15 @@ interface EndLike {
 }
 
 interface DssDirectDepositTargetLike {
-    function rewardsClaimer() external view returns (address);
     function getMaxBar() external view returns (uint256);
     function validTarget() external view returns (bool);
     function calcSupplies(uint256, uint256) external view returns (uint256, uint256);
     function supply(uint256) external;
     function withdraw(uint256) external;
-    function getNormalizedBalanceOf(address) external view returns(uint256);
+    function collect(address[] memory, uint256, address) external returns (uint256);
+    function getNormalizedBalanceOf() external view returns(uint256);
     function getNormalizedAmount(uint256) external view returns(uint256);
     function cage() external;
-}
-
-interface RewardsClaimerLike {
-    function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
 }
 
 contract DssDirectDepositJoin {
@@ -126,27 +114,20 @@ contract DssDirectDepositJoin {
     event Cull();
     event Uncull();
 
-    constructor(address chainlog_, bytes32 ilk_, address target_, address gem_) public {
+    constructor(address chainlog_, bytes32 ilk_, address gem_) public {
         address vat_ = ChainlogLike(chainlog_).getAddress("MCD_VAT");
         address daiJoin_ = ChainlogLike(chainlog_).getAddress("MCD_JOIN_DAI");
-        TokenLike dai_ = dai = TokenLike(DaiJoinLike(daiJoin_).dai());
 
         chainlog = ChainlogLike(chainlog_);
         vat = VatLike(vat_);
         ilk = ilk_;
-        d3mTarget = DssDirectDepositTargetLike(target_);
         gem = TokenLike(gem_);
         dec = TokenLike(gem_).decimals();
         daiJoin = DaiJoinLike(daiJoin_);
+        dai = TokenLike(DaiJoinLike(daiJoin_).dai());
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
-
-        // Auths
-        VatLike(vat_).hope(daiJoin_);
-        TokenLike(gem_).approve(address(target_), type(uint256).max);
-        dai_.approve(address(target_), type(uint256).max);
-        dai_.approve(daiJoin_, type(uint256).max);
     }
 
     // --- Math ---
@@ -214,17 +195,16 @@ contract DssDirectDepositJoin {
 
         require(int256(amount) >= 0, "DssDirectDepositJoin/overflow");
 
-        uint256 scaledPrev = d3mTarget.getNormalizedBalanceOf(address(this));
+        uint256 scaledPrev = d3mTarget.getNormalizedBalanceOf();
 
-        vat.slip(ilk, address(this), int256(amount));
-        vat.frob(ilk, address(this), address(this), address(this), int256(amount), int256(amount));
-        // normalized debt == erc20 DAI to join (Vat rate for this ilk fixed to 1 RAY)
-        daiJoin.exit(address(d3mTarget), amount);
+        vat.slip(ilk, address(d3mTarget), int256(amount));
+        vat.frob(ilk, address(d3mTarget), address(d3mTarget), address(d3mTarget), int256(amount), int256(amount));
+        // normalized debt == erc20 DAI (Vat rate for this ilk fixed to 1 RAY)
         d3mTarget.supply(amount);
 
         // Verify the correct amount of gem shows up
         uint256 scaledAmount = d3mTarget.getNormalizedAmount(amount);
-        require(d3mTarget.getNormalizedBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount), "DssDirectDepositJoin/no-receive-gem-tokens");
+        require(d3mTarget.getNormalizedBalanceOf() >= _add(scaledPrev, scaledAmount), "DssDirectDepositJoin/no-receive-gem-tokens");
 
         emit Wind(amount);
     }
@@ -235,21 +215,21 @@ contract DssDirectDepositJoin {
         // This module will have an unintended behaviour if rate is changed to some other value.
 
         address end;
-        uint256 gemBalance = gem.balanceOf(address(this));
+        uint256 gemBalance = gem.balanceOf(address(d3mTarget));
         uint256 daiDebt;
         if (mode == Mode.NORMAL) {
             // Normal mode or module just caged (no culled)
             // debt is obtained from CDP art
-            (,daiDebt) = vat.urns(ilk, address(this));
+            (,daiDebt) = vat.urns(ilk, address(d3mTarget));
         } else if (mode == Mode.MODULE_CULLED) {
             // Module shutdown and culled
             // debt is obtained from free collateral owned by this contract
-            daiDebt = vat.gem(ilk, address(this));
+            daiDebt = vat.gem(ilk, address(d3mTarget));
         } else {
             // MCD caged
             // debt is obtained from free collateral owned by the End module
             end = chainlog.getAddress("MCD_END");
-            EndLike(end).skim(ilk, address(this));
+            EndLike(end).skim(ilk, address(d3mTarget));
             daiDebt = vat.gem(ilk, address(end));
         }
 
@@ -290,24 +270,23 @@ contract DssDirectDepositJoin {
         // To save gas you can bring the fees back with the unwind
         uint256 total = _add(amount, fees);
         d3mTarget.withdraw(total);
-        daiJoin.join(address(d3mTarget), total);
 
         // normalized debt == erc20 DAI to join (Vat rate for this ilk fixed to 1 RAY)
 
         address vow = chainlog.getAddress("MCD_VOW");
         if (mode == Mode.NORMAL) {
-            vat.frob(ilk, address(this), address(this), address(this), -int256(amount), -int256(amount));
-            vat.slip(ilk, address(this), -int256(amount));
-            vat.move(address(this), vow, _mul(fees, RAY));
+            vat.frob(ilk, address(d3mTarget), address(d3mTarget), address(d3mTarget), -int256(amount), -int256(amount));
+            vat.slip(ilk, address(d3mTarget), -int256(amount));
+            vat.move(address(d3mTarget), vow, _mul(fees, RAY));
         } else if (mode == Mode.MODULE_CULLED) {
-            vat.slip(ilk, address(this), -int256(amount));
-            vat.move(address(this), vow, _mul(total, RAY));
+            vat.slip(ilk, address(d3mTarget), -int256(amount));
+            vat.move(address(d3mTarget), vow, _mul(total, RAY));
         } else {
             // This can be done with the assumption that the price of 1 aDai equals 1 DAI.
             // That way we know that the prev End.skim call kept its gap[ilk] emptied as the CDP was always collateralized.
             // Otherwise we couldn't just simply take away the collateral from the End module as the next line will be doing.
             vat.slip(ilk, end, -int256(amount));
-            vat.move(address(this), vow, _mul(total, RAY));
+            vat.move(address(d3mTarget), vow, _mul(total, RAY));
         }
 
         emit Unwind(amount);
@@ -354,8 +333,8 @@ contract DssDirectDepositJoin {
     function reap() external {
         require(vat.live() == 1, "DssDirectDepositJoin/no-reap-during-shutdown");
         require(live == 1, "DssDirectDepositJoin/no-reap-during-cage");
-        uint256 gemBalance = gem.balanceOf(address(this));
-        (, uint256 daiDebt) = vat.urns(ilk, address(this));
+        uint256 gemBalance = gem.balanceOf(address(d3mTarget));
+        (, uint256 daiDebt) = vat.urns(ilk, address(d3mTarget));
         if (gemBalance > daiDebt) {
             uint256 fees = gemBalance - daiDebt;
             uint256 availableLiquidity = dai.balanceOf(address(gem));
@@ -363,7 +342,7 @@ contract DssDirectDepositJoin {
                 fees = availableLiquidity;
             }
             d3mTarget.withdraw(fees);
-            daiJoin.join(address(chainlog.getAddress("MCD_VOW")), fees);
+            vat.move(address(d3mTarget), address(chainlog.getAddress("MCD_VOW")), _mul(RAY, fees));
             Reap(fees);
         }
     }
@@ -372,7 +351,7 @@ contract DssDirectDepositJoin {
     function collect(address[] memory assets, uint256 amount) external returns (uint256 amt) {
         require(king != address(0), "DssDirectDepositJoin/king-not-set");
 
-        amt = RewardsClaimerLike(d3mTarget.rewardsClaimer()).claimRewards(assets, amount, king);
+        amt = d3mTarget.collect(assets, amount, king);
         Collect(king, assets, amt);
     }
 
@@ -380,7 +359,7 @@ contract DssDirectDepositJoin {
     function exit(address usr, uint256 wad) external {
         require(wad <= 2 ** 255, "DssDirectDepositJoin/overflow");
         vat.slip(ilk, msg.sender, -int256(wad));
-        require(gem.transfer(usr, wad), "DssDirectDepositJoin/failed-transfer");
+        require(gem.transferFrom(address(d3mTarget), usr, wad), "DssDirectDepositJoin/failed-transfer");
     }
 
     // --- Shutdown ---
@@ -407,10 +386,10 @@ contract DssDirectDepositJoin {
         require(_add(tic, tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositJoin/unauthorized-cull");
         require(culled == 0, "DssDirectDepositJoin/already-culled");
 
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(this));
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTarget));
         require(ink <= 2 ** 255, "DssDirectDepositJoin/overflow");
         require(art <= 2 ** 255, "DssDirectDepositJoin/overflow");
-        vat.grab(ilk, address(this), address(this), chainlog.getAddress("MCD_VOW"), -int256(ink), -int256(art));
+        vat.grab(ilk, address(d3mTarget), address(d3mTarget), chainlog.getAddress("MCD_VOW"), -int256(ink), -int256(art));
 
         culled = 1;
         emit Cull();
@@ -423,11 +402,11 @@ contract DssDirectDepositJoin {
         require(culled == 1, "DssDirectDepositJoin/not-prev-culled");
         require(vat.live() == 0, "DssDirectDepositJoin/no-uncull-normal-operation");
 
-        uint256 wad = vat.gem(ilk, address(this));
+        uint256 wad = vat.gem(ilk, address(d3mTarget));
         require(wad < 2 ** 255, "DssDirectDepositJoin/overflow");
         address vow = chainlog.getAddress("MCD_VOW");
         vat.suck(vow, vow, _mul(wad, RAY)); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
-        vat.grab(ilk, address(this), address(this), vow, int256(wad), int256(wad));
+        vat.grab(ilk, address(d3mTarget), address(d3mTarget), vow, int256(wad), int256(wad));
 
         culled = 0;
         emit Uncull();
@@ -438,19 +417,19 @@ contract DssDirectDepositJoin {
         require(vat.live() == 1, "DssDirectDepositJoin/no-quit-during-shutdown");
 
         // Send all gem in the contract to who
-        require(gem.transfer(who, gem.balanceOf(address(this))), "DssDirectDepositJoin/failed-transfer");
+        require(gem.transferFrom(address(d3mTarget), who, gem.balanceOf(address(d3mTarget))), "DssDirectDepositJoin/failed-transfer");
 
         if (culled == 1) {
             // Culled - just zero out the gems
-            uint256 wad = vat.gem(ilk, address(this));
+            uint256 wad = vat.gem(ilk, address(d3mTarget));
             require(wad <= 2 ** 255, "DssDirectDepositJoin/overflow");
-            vat.slip(ilk, address(this), -int256(wad));
+            vat.slip(ilk, address(d3mTarget), -int256(wad));
         } else {
             // Regular operation - transfer the debt position (requires who to accept the transfer)
-            (uint256 ink, uint256 art) = vat.urns(ilk, address(this));
+            (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTarget));
             require(ink < 2 ** 255, "DssDirectDepositJoin/overflow");
             require(art < 2 ** 255, "DssDirectDepositJoin/overflow");
-            vat.fork(ilk, address(this), who, int256(ink), int256(art));
+            vat.fork(ilk, address(d3mTarget), who, int256(ink), int256(art));
         }
     }
 }
