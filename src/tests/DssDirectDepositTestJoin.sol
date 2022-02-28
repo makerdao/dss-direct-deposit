@@ -38,7 +38,7 @@ interface CanLike {
     function nope(address) external;
 }
 
-contract DssDirectDepositTestTarget {
+contract DssDirectDepositTestJoin {
     // --- Auth ---
     mapping (address => uint) public wards;
     function rely(address usr) external auth {
@@ -52,7 +52,7 @@ contract DssDirectDepositTestTarget {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "DssDirectDepositTestTarget/not-authorized");
+        require(wards[msg.sender] == 1, "DssDirectDepositTestJoin/not-authorized");
         _;
     }
 
