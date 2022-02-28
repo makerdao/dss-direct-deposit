@@ -157,8 +157,12 @@ contract DssDirectDepositTestJoin {
         amt = rewardsClaimer.claimRewards(assets, amount, dst);
     }
 
+    function gemBalanceOf() external view returns(uint256) {
+        return TokenLike(gem).balanceOf(address(this));
+    }
+
     function getNormalizedBalanceOf() external view returns(uint256) {
-        return DssDirectDepositTestGem(gem).balanceOf(address(this));
+        return TokenLike(gem).balanceOf(address(this));
     }
 
     function getNormalizedAmount(uint256 amt) external pure returns(uint256) {
