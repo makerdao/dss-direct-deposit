@@ -20,7 +20,7 @@ import "ds-test/test.sol";
 import "dss-interfaces/Interfaces.sol";
 import "ds-value/value.sol";
 
-import {DssDirectDepositJoin} from "./DssDirectDepositJoin.sol";
+import {DssDirectDepositHub} from "./DssDirectDepositHub.sol":
 import {DssDirectDepositMom} from "./DssDirectDepositMom.sol";
 import {DssDirectDepositHelper} from "./helper/DssDirectDepositHelper.sol";
 
@@ -38,7 +38,7 @@ interface AuthLike {
     function wards(address) external returns (uint256);
 }
 
-contract DssDirectDepositJoinTest is DSTest {
+contract DssDirectDepositHubTest is DSTest {
 
     uint256 constant WAD = 10 ** 18;
     uint256 constant RAY = 10 ** 27;
@@ -60,7 +60,7 @@ contract DssDirectDepositJoinTest is DSTest {
     address pauseProxy;
 
     bytes32 constant ilk = "DD-DAI-TEST";
-    DssDirectDepositJoin directDepositJoin;
+    DssDirectDepositHub directDepositHub;
     DssDirectDepositTestTarget directDepositTestTarget;
     DssDirectDepositMom directDepositMom;
     DssDirectDepositHelper helper;
@@ -89,10 +89,10 @@ contract DssDirectDepositJoinTest is DSTest {
         _giveAuthAccess(address(spot), address(this));
 
         testGem = new DssDirectDepositTestGem(18);
-        directDepositJoin = new DssDirectDepositJoin(address(chainlog), ilk, address(testGem));
+        directDepositHub = new DssDirectDepositHub(address(chainlog), ilk, address(testGem));
 
         rewardsClaimer = new DssDirectDepositTestRewards(address(testGem));
-        directDepositTestTarget = new DssDirectDepositTestTarget(address(directDepositJoin), address(daiJoin), address(123), address(rewardsClaimer));
+        directDepositTestTarget = new DssDirectDepositTestTarget(address(directDepositHub), address(daiJoin), address(123), address(rewardsClaimer));
         directDepositTestTarget.hope(address(vat), address(daiJoin));
 
         // Test Target Setup
@@ -102,10 +102,10 @@ contract DssDirectDepositJoinTest is DSTest {
         directDepositTestTarget.file("isValidTarget", true);
         testGem.giveAllowance(address(dai), address(directDepositTestTarget), type(uint256).max);
 
-        directDepositJoin.file("tau", 7 days);
-        directDepositJoin.file("d3mTarget", address(directDepositTestTarget));
+        directDepositHub.file("tau", 7 days);
+        directDepositHub.file("d3mTarget", address(directDepositTestTarget));
         directDepositMom = new DssDirectDepositMom();
-        directDepositJoin.rely(address(directDepositMom));
+        directDepositHub.rely(address(directDepositMom));
         helper = new DssDirectDepositHelper();
 
         // Init new collateral
@@ -115,7 +115,7 @@ contract DssDirectDepositJoinTest is DSTest {
         spot.file(ilk, "mat", RAY);
         spot.poke(ilk);
 
-        vat.rely(address(directDepositJoin));
+        vat.rely(address(directDepositHub));
         vat.init(ilk);
         vat.file(ilk, "line", 5_000_000_000 * RAD);
         vat.file("Line", vat.Line() + 5_000_000_000 * RAD);
@@ -200,10 +200,10 @@ contract DssDirectDepositJoinTest is DSTest {
     }
 
     function _windSystem() internal {
-        directDepositJoin.file("bar", 10);
+        directDepositHub.file("bar", 10);
         directDepositTestTarget.file("supplyAmount", 50 * WAD);
         directDepositTestTarget.file("targetSupply", 100 * WAD);
-        directDepositJoin.exec();
+        directDepositHub.exec();
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositTestTarget));
         assertEq(ink, 50 * WAD);
@@ -215,95 +215,95 @@ contract DssDirectDepositJoinTest is DSTest {
     }
 
     function test_can_file_bar() public {
-        assertEq(directDepositJoin.bar(), 0);
-        directDepositJoin.file("bar", 1);
-        assertEq(directDepositJoin.bar(), 1);
+        assertEq(directDepositHub.bar(), 0);
+        directDepositHub.file("bar", 1);
+        assertEq(directDepositHub.bar(), 1);
     }
 
     function test_can_file_tau() public {
-        assertEq(directDepositJoin.tau(), 7 days);
-        directDepositJoin.file("tau", 1 days);
-        assertEq(directDepositJoin.tau(), 1 days);
+        assertEq(directDepositHub.tau(), 7 days);
+        directDepositHub.file("tau", 1 days);
+        assertEq(directDepositHub.tau(), 1 days);
     }
 
     function testFail_unauth_file_bar() public {
-        directDepositJoin.deny(address(this));
+        directDepositHub.deny(address(this));
 
-        directDepositJoin.file("bar", 1);
+        directDepositHub.file("bar", 1);
     }
 
     function testFail_unauth_file_tau() public {
-        directDepositJoin.deny(address(this));
+        directDepositHub.deny(address(this));
 
-        directDepositJoin.file("tau", 1 days);
+        directDepositHub.file("tau", 1 days);
     }
 
     function testFail_unknown_uint256_file() public {
-        directDepositJoin.file("unknown", 1);
+        directDepositHub.file("unknown", 1);
     }
 
     function testFail_bar_file_too_high() public {
         directDepositTestTarget.file("maxBar", 1);
 
-        directDepositJoin.file("bar", 1);
-        assertEq(directDepositJoin.bar(), 1);
+        directDepositHub.file("bar", 1);
+        assertEq(directDepositHub.bar(), 1);
 
-        directDepositJoin.file("bar", 2);
+        directDepositHub.file("bar", 2);
     }
 
     function testFail_vat_not_live_tau_file() public {
-        directDepositJoin.file("tau", 1 days);
-        assertEq(directDepositJoin.tau(), 1 days);
+        directDepositHub.file("tau", 1 days);
+        assertEq(directDepositHub.tau(), 1 days);
 
         // Cage Join
-        directDepositJoin.cage();
+        directDepositHub.cage();
 
-        directDepositJoin.file("tau", 7 days);
+        directDepositHub.file("tau", 7 days);
     }
 
     function test_can_file_king() public {
-        assertEq(directDepositJoin.king(), address(0));
+        assertEq(directDepositHub.king(), address(0));
 
-        directDepositJoin.file("king", address(this));
+        directDepositHub.file("king", address(this));
     }
 
     function test_can_file_target() public {
-        assertEq(address(directDepositJoin.d3mTarget()), address(directDepositTestTarget));
+        assertEq(address(directDepositHub.d3mTarget()), address(directDepositTestTarget));
 
-        directDepositJoin.file("d3mTarget", address(this));
+        directDepositHub.file("d3mTarget", address(this));
 
-        assertEq(address(directDepositJoin.d3mTarget()), address(this));
+        assertEq(address(directDepositHub.d3mTarget()), address(this));
     }
 
     function testFail_unauth_file_king() public {
-        directDepositJoin.deny(address(this));
+        directDepositHub.deny(address(this));
 
-        directDepositJoin.file("king", address(this));
+        directDepositHub.file("king", address(this));
     }
 
     function testFail_unauth_file_target() public {
-        directDepositJoin.deny(address(this));
+        directDepositHub.deny(address(this));
 
-        directDepositJoin.file("d3mTarget", address(this));
+        directDepositHub.file("d3mTarget", address(this));
     }
 
     function testFail_unknown_address_file() public {
-        directDepositJoin.file("unknown", address(123));
+        directDepositHub.file("unknown", address(123));
     }
 
     function testFail_vat_not_live_address_file() public {
-        directDepositJoin.file("king", address(this));
-        assertEq(directDepositJoin.king(), address(this));
+        directDepositHub.file("king", address(this));
+        assertEq(directDepositHub.king(), address(this));
 
         // MCD shutdowns
         end.cage();
         end.cage(ilk);
 
-        directDepositJoin.file("king", address(123));
+        directDepositHub.file("king", address(123));
     }
 
     function test_wind_amount_less_target() public {
-        directDepositJoin.file("bar", 10);
+        directDepositHub.file("bar", 10);
         directDepositTestTarget.file("supplyAmount", 50 * WAD);
         directDepositTestTarget.file("targetSupply", 100 * WAD);
 
@@ -312,7 +312,7 @@ contract DssDirectDepositJoinTest is DSTest {
         assertEq(part, 0);
         assertEq(dai.balanceOf(address(testGem)), 0);
 
-        directDepositJoin.exec();
+        directDepositHub.exec();
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositTestTarget));
         assertEq(ink, 50 * WAD);
@@ -325,8 +325,8 @@ contract DssDirectDepositJoinTest is DSTest {
         _windSystem();
 
         // Temporarily disable the module
-        directDepositJoin.file("bar", 0);
-        directDepositJoin.exec();
+        directDepositHub.file("bar", 0);
+        directDepositHub.exec();
 
         // Ensure we unwound our position
         (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositTestTarget));
@@ -341,7 +341,7 @@ contract DssDirectDepositJoinTest is DSTest {
         end.cage();
         end.cage(ilk);
 
-        directDepositJoin.exec();
+        directDepositHub.exec();
 
         // Ensure we unwound our position
         (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositTestTarget));
@@ -353,9 +353,9 @@ contract DssDirectDepositJoinTest is DSTest {
         _windSystem();
 
         // Module caged
-        directDepositJoin.cage();
+        directDepositHub.cage();
 
-        directDepositJoin.exec();
+        directDepositHub.exec();
 
         // Ensure we unwound our position
         (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositTestTarget));
@@ -373,7 +373,7 @@ contract DssDirectDepositJoinTest is DSTest {
         directDepositTestTarget.file("targetSupply", 75 * WAD);
         directDepositTestTarget.file("supplyAmount", 100 * WAD);
 
-        directDepositJoin.exec();
+        directDepositHub.exec();
 
         // Ensure we unwound our position
         (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositTestTarget));
@@ -392,7 +392,7 @@ contract DssDirectDepositJoinTest is DSTest {
         assertEq(part, 50 * WAD);
         uint256 prevDai = vat.dai(vow);
 
-        directDepositJoin.reap();
+        directDepositHub.reap();
 
         (, uint256 art) = vat.urns(ilk, address(directDepositTestTarget));
         assertEq(art, 50 * WAD);
@@ -418,7 +418,7 @@ contract DssDirectDepositJoinTest is DSTest {
         dai.transferFrom(address(testGem), address(this), 45 * WAD);
         assertEq(dai.balanceOf(address(testGem)), 5 * WAD); // liquidity after
 
-        directDepositJoin.reap();
+        directDepositHub.reap();
 
         (, uint256 art) = vat.urns(ilk, address(directDepositTestTarget));
         assertEq(art, 50 * WAD);
@@ -437,7 +437,7 @@ contract DssDirectDepositJoinTest is DSTest {
         end.cage();
         end.cage(ilk);
 
-        directDepositJoin.reap();
+        directDepositHub.reap();
     }
 
     function testFail_no_reap_module_caged() public {
@@ -448,20 +448,20 @@ contract DssDirectDepositJoinTest is DSTest {
         testGem.transfer(address(directDepositTestTarget), 10 * WAD);
 
         // module caged
-        directDepositJoin.cage();
+        directDepositHub.cage();
 
-        directDepositJoin.reap();
+        directDepositHub.reap();
     }
 
     function test_collect() public {
         address rewardToken = address(rewardsClaimer.rewards());
-        directDepositJoin.file("king", address(pauseProxy));
+        directDepositHub.file("king", address(pauseProxy));
 
         assertEq(DSTokenAbstract(rewardToken).balanceOf(address(pauseProxy)), 0);
 
         address[] memory tokens = new address[](1);
         tokens[0] = address(testGem);
-        directDepositJoin.collect(tokens, 10 * WAD);
+        directDepositHub.collect(tokens, 10 * WAD);
 
         assertEq(DSTokenAbstract(rewardToken).balanceOf(address(pauseProxy)), 10 * WAD);
     }
@@ -473,7 +473,7 @@ contract DssDirectDepositJoinTest is DSTest {
 
         address[] memory tokens = new address[](1);
         tokens[0] = address(testGem);
-        directDepositJoin.collect(tokens, 10 * WAD);
+        directDepositHub.collect(tokens, 10 * WAD);
     }
 
     function test_exit() public {
@@ -487,61 +487,61 @@ contract DssDirectDepositJoinTest is DSTest {
         uint256 prevBalance = testGem.balanceOf(address(this));
 
         // User can exit and get the aDAI
-        directDepositJoin.exit(address(this), 50 * WAD);
+        directDepositHub.exit(address(this), 50 * WAD);
         assertEq(testGem.balanceOf(address(this)), prevBalance + 50 * WAD);
     }
 
     function test_caged() public {
-        assertEq(directDepositJoin.live(), 1);
-        assertEq(directDepositJoin.tic(), 0);
+        assertEq(directDepositHub.live(), 1);
+        assertEq(directDepositHub.tic(), 0);
         assertEq(directDepositTestTarget.live(), 1);
 
-        directDepositJoin.cage();
+        directDepositHub.cage();
 
-        assertEq(directDepositJoin.live(), 0);
-        assertEq(directDepositJoin.tic(), block.timestamp);
+        assertEq(directDepositHub.live(), 0);
+        assertEq(directDepositHub.tic(), block.timestamp);
         assertEq(directDepositTestTarget.live(), 0);
     }
 
     function testFail_cage_no_auth() public {
-        directDepositJoin.deny(address(this));
-        directDepositJoin.cage();
+        directDepositHub.deny(address(this));
+        directDepositHub.cage();
     }
 
     function test_cage_no_target() public {
-        assertEq(directDepositJoin.live(), 1);
-        assertEq(directDepositJoin.tic(), 0);
+        assertEq(directDepositHub.live(), 1);
+        assertEq(directDepositHub.tic(), 0);
 
-        directDepositJoin.file("d3mTarget", address(0));
+        directDepositHub.file("d3mTarget", address(0));
         // Once the target is 0 anyone should be able to cage
-        directDepositJoin.deny(address(this));
+        directDepositHub.deny(address(this));
 
-        directDepositJoin.cage();
+        directDepositHub.cage();
 
-        assertEq(directDepositJoin.live(), 0);
-        assertEq(directDepositJoin.tic(), block.timestamp);
+        assertEq(directDepositHub.live(), 0);
+        assertEq(directDepositHub.tic(), block.timestamp);
     }
 
     function test_cage_invalid_target() public {
-        assertEq(directDepositJoin.live(), 1);
-        assertEq(directDepositJoin.tic(), 0);
+        assertEq(directDepositHub.live(), 1);
+        assertEq(directDepositHub.tic(), 0);
         assertEq(directDepositTestTarget.live(), 1);
 
         // We should not need permission for this
-        directDepositJoin.deny(address(this));
+        directDepositHub.deny(address(this));
         // Simulate some condition on the target that makes it invalid
         directDepositTestTarget.file("isValidTarget", false);
 
-        directDepositJoin.cage();
+        directDepositHub.cage();
 
-        assertEq(directDepositJoin.live(), 0);
-        assertEq(directDepositJoin.tic(), block.timestamp);
+        assertEq(directDepositHub.live(), 0);
+        assertEq(directDepositHub.tic(), block.timestamp);
         assertEq(directDepositTestTarget.live(), 0);
     }
 
     function test_cull() public {
         _windSystem();
-        directDepositJoin.cage();
+        directDepositHub.cage();
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(directDepositTestTarget));
         assertEq(pink, 50 * WAD);
@@ -550,7 +550,7 @@ contract DssDirectDepositJoinTest is DSTest {
         assertEq(gemBefore, 0);
         uint256 sinBefore = vat.sin(vow);
 
-        directDepositJoin.cull();
+        directDepositHub.cull();
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositTestTarget));
         assertEq(ink, 0);
@@ -558,14 +558,14 @@ contract DssDirectDepositJoinTest is DSTest {
         uint256 gemAfter = vat.gem(ilk, address(directDepositTestTarget));
         assertEq(gemAfter, 50 * WAD);
         assertEq(sinBefore + 50 * RAD, vat.sin(vow));
-        assertEq(directDepositJoin.culled(), 1);
+        assertEq(directDepositHub.culled(), 1);
     }
 
     function test_cull_no_auth_time_passed() public {
         _windSystem();
-        directDepositJoin.cage();
+        directDepositHub.cage();
         // with auth we can cull anytime
-        directDepositJoin.deny(address(this));
+        directDepositHub.deny(address(this));
         // but with enough time, anyone can cull
         hevm.warp(block.timestamp + 7 days);
 
@@ -576,7 +576,7 @@ contract DssDirectDepositJoinTest is DSTest {
         assertEq(gemBefore, 0);
         uint256 sinBefore = vat.sin(vow);
 
-        directDepositJoin.cull();
+        directDepositHub.cull();
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositTestTarget));
         assertEq(ink, 0);
@@ -584,55 +584,55 @@ contract DssDirectDepositJoinTest is DSTest {
         uint256 gemAfter = vat.gem(ilk, address(directDepositTestTarget));
         assertEq(gemAfter, 50 * WAD);
         assertEq(sinBefore + 50 * RAD, vat.sin(vow));
-        assertEq(directDepositJoin.culled(), 1);
+        assertEq(directDepositHub.culled(), 1);
     }
 
     function testFail_no_cull_mcd_caged() public {
         _windSystem();
-        directDepositJoin.cage();
+        directDepositHub.cage();
         vat.cage();
 
-        directDepositJoin.cull();
+        directDepositHub.cull();
     }
 
     function testFail_no_cull_module_live() public {
         _windSystem();
 
-        directDepositJoin.cull();
+        directDepositHub.cull();
     }
 
     function testFail_no_cull_unauth_too_soon() public {
         _windSystem();
-        directDepositJoin.cage();
-        directDepositJoin.deny(address(this));
+        directDepositHub.cage();
+        directDepositHub.deny(address(this));
         hevm.warp(block.timestamp + 6 days);
 
-        directDepositJoin.cull();
+        directDepositHub.cull();
     }
 
     function testFail_no_cull_already_culled() public {
         _windSystem();
-        directDepositJoin.cage();
+        directDepositHub.cage();
 
-        directDepositJoin.cull();
-        directDepositJoin.cull();
+        directDepositHub.cull();
+        directDepositHub.cull();
     }
 
     function test_uncull() public {
         _windSystem();
-        directDepositJoin.cage();
+        directDepositHub.cage();
 
-        directDepositJoin.cull();
+        directDepositHub.cull();
         (uint256 pink, uint256 part) = vat.urns(ilk, address(directDepositTestTarget));
         assertEq(pink, 0);
         assertEq(part, 0);
         uint256 gemBefore = vat.gem(ilk, address(directDepositTestTarget));
         assertEq(gemBefore, 50 * WAD);
         uint256 sinBefore = vat.sin(vow);
-        assertEq(directDepositJoin.culled(), 1);
+        assertEq(directDepositHub.culled(), 1);
 
         vat.cage();
-        directDepositJoin.uncull();
+        directDepositHub.uncull();
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(directDepositTestTarget));
         assertEq(ink, 50 * WAD);
@@ -641,37 +641,37 @@ contract DssDirectDepositJoinTest is DSTest {
         assertEq(gemAfter, 0);
         // Sin should not change since we suck before grabbing
         assertEq(sinBefore, vat.sin(vow));
-        assertEq(directDepositJoin.culled(), 0);
+        assertEq(directDepositHub.culled(), 0);
     }
 
     function testFail_no_uncull_not_culled() public {
         _windSystem();
-        directDepositJoin.cage();
+        directDepositHub.cage();
 
         vat.cage();
-        directDepositJoin.uncull();
+        directDepositHub.uncull();
     }
 
     function testFail_no_uncull_mcd_live() public {
         _windSystem();
-        directDepositJoin.cage();
+        directDepositHub.cage();
 
-        directDepositJoin.cull();
+        directDepositHub.cull();
 
-        directDepositJoin.uncull();
+        directDepositHub.uncull();
     }
 
     function test_quit_culled() public {
         _windSystem();
-        directDepositJoin.cage();
+        directDepositHub.cage();
 
-        directDepositJoin.cull();
+        directDepositHub.cull();
 
         uint256 balBefore = testGem.balanceOf(address(this));
         assertEq(50 * WAD, testGem.balanceOf(address(directDepositTestTarget)));
         assertEq(50 * WAD, vat.gem(ilk, address(directDepositTestTarget)));
 
-        directDepositJoin.quit(address(this));
+        directDepositHub.quit(address(this));
 
         assertEq(balBefore + 50 * WAD, testGem.balanceOf(address(this)));
         assertEq(0, testGem.balanceOf(address(directDepositTestTarget)));
@@ -680,8 +680,8 @@ contract DssDirectDepositJoinTest is DSTest {
 
     function test_quit_not_culled() public {
         _windSystem();
-        directDepositJoin.cage();
-        vat.hope(address(directDepositJoin));
+        directDepositHub.cage();
+        vat.hope(address(directDepositHub));
 
         uint256 balBefore = testGem.balanceOf(address(this));
         assertEq(50 * WAD, testGem.balanceOf(address(directDepositTestTarget)));
@@ -692,7 +692,7 @@ contract DssDirectDepositJoinTest is DSTest {
         assertEq(tink, 0);
         assertEq(tart, 0);
 
-        directDepositJoin.quit(address(this));
+        directDepositHub.quit(address(this));
 
         assertEq(balBefore + 50 * WAD, testGem.balanceOf(address(this)));
         (uint256 joinInk, uint256 joinArt) = vat.urns(ilk, address(directDepositTestTarget));
@@ -705,26 +705,26 @@ contract DssDirectDepositJoinTest is DSTest {
 
     function testFail_no_quit_not_culled_who_not_accepting() public {
         _windSystem();
-        directDepositJoin.cage();
+        directDepositHub.cage();
 
-        directDepositJoin.quit(address(this));
+        directDepositHub.quit(address(this));
     }
 
     function testFail_no_quit_mcd_caged() public {
         _windSystem();
-        directDepositJoin.cage();
-        directDepositJoin.cull();
+        directDepositHub.cage();
+        directDepositHub.cull();
 
         vat.cage();
-        directDepositJoin.quit(address(this));
+        directDepositHub.quit(address(this));
     }
 
     function testFail_no_quit_no_auth() public {
         _windSystem();
-        directDepositJoin.cage();
-        directDepositJoin.cull();
+        directDepositHub.cage();
+        directDepositHub.cull();
 
-        directDepositJoin.deny(address(this));
-        directDepositJoin.quit(address(this));
+        directDepositHub.deny(address(this));
+        directDepositHub.quit(address(this));
     }
 }
