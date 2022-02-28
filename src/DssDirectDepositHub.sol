@@ -64,7 +64,7 @@ interface DssDirectDepositTargetLike {
     function cage() external;
 }
 
-contract DssDirectDepositJoin {
+contract DssDirectDepositHub {
 
     // --- Auth ---
     mapping (address => uint) public wards;
@@ -79,7 +79,7 @@ contract DssDirectDepositJoin {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "DssDirectDepositJoin/not-authorized");
+        require(wards[msg.sender] == 1, "DssDirectDepositHub/not-authorized");
         _;
     }
 
@@ -132,13 +132,13 @@ contract DssDirectDepositJoin {
 
     // --- Math ---
     function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "DssDirectDepositJoin/overflow");
+        require((z = x + y) >= x, "DssDirectDepositHub/overflow");
     }
     function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "DssDirectDepositJoin/underflow");
+        require((z = x - y) <= x, "DssDirectDepositHub/underflow");
     }
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "DssDirectDepositJoin/overflow");
+        require(y == 0 || (z = x * y) / y == x, "DssDirectDepositHub/overflow");
     }
     uint256 constant RAY  = 10 ** 27;
     function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
@@ -154,24 +154,24 @@ contract DssDirectDepositJoin {
     // --- Administration ---
     function file(bytes32 what, uint256 data) external auth {
         if (what == "bar") {
-            require(data <= d3mTarget.getMaxBar(), "DssDirectDepositJoin/above-max-interest");
+            require(data <= d3mTarget.getMaxBar(), "DssDirectDepositHub/above-max-interest");
 
             bar = data;
         } else if (what == "tau" ) {
-            require(live == 1, "DssDirectDepositJoin/not-live");
+            require(live == 1, "DssDirectDepositHub/not-live");
 
             tau = data;
-        } else revert("DssDirectDepositJoin/file-unrecognized-param");
+        } else revert("DssDirectDepositHub/file-unrecognized-param");
 
         emit File(what, data);
     }
 
     function file(bytes32 what, address data) external auth {
-        require(vat.live() == 1, "DssDirectDepositJoin/no-file-during-shutdown");
+        require(vat.live() == 1, "DssDirectDepositHub/no-file-during-shutdown");
 
         if (what == "king") king = data;
         else if (what == "d3mTarget") d3mTarget = DssDirectDepositTargetLike(data);
-        else revert("DssDirectDepositJoin/file-unrecognized-param");
+        else revert("DssDirectDepositHub/file-unrecognized-param");
         emit File(what, data);
     }
 
@@ -193,7 +193,7 @@ contract DssDirectDepositJoin {
             return;
         }
 
-        require(int256(amount) >= 0, "DssDirectDepositJoin/overflow");
+        require(int256(amount) >= 0, "DssDirectDepositHub/overflow");
 
         uint256 scaledPrev = d3mTarget.getNormalizedBalanceOf();
 
@@ -204,7 +204,7 @@ contract DssDirectDepositJoin {
 
         // Verify the correct amount of gem shows up
         uint256 scaledAmount = d3mTarget.getNormalizedAmount(amount);
-        require(d3mTarget.getNormalizedBalanceOf() >= _add(scaledPrev, scaledAmount), "DssDirectDepositJoin/no-receive-gem-tokens");
+        require(d3mTarget.getNormalizedBalanceOf() >= _add(scaledPrev, scaledAmount), "DssDirectDepositHub/no-receive-gem-tokens");
 
         emit Wind(amount);
     }
@@ -265,7 +265,7 @@ contract DssDirectDepositJoin {
             return;
         }
 
-        require(amount <= 2 ** 255, "DssDirectDepositJoin/overflow");
+        require(amount <= 2 ** 255, "DssDirectDepositHub/overflow");
 
         // To save gas you can bring the fees back with the unwind
         uint256 total = _add(amount, fees);
@@ -297,8 +297,8 @@ contract DssDirectDepositJoin {
 
         if (vat.live() == 0) {
             // MCD caged
-            require(EndLike(chainlog.getAddress("MCD_END")).debt() == 0, "DssDirectDepositJoin/end-debt-already-set");
-            require(culled == 0, "DssDirectDepositJoin/module-has-to-be-unculled-first");
+            require(EndLike(chainlog.getAddress("MCD_END")).debt() == 0, "DssDirectDepositHub/end-debt-already-set");
+            require(culled == 0, "DssDirectDepositHub/module-has-to-be-unculled-first");
             _unwind(
                 type(uint256).max,
                 availableLiquidity,
@@ -331,8 +331,8 @@ contract DssDirectDepositJoin {
 
     // --- Collect Interest ---
     function reap() external {
-        require(vat.live() == 1, "DssDirectDepositJoin/no-reap-during-shutdown");
-        require(live == 1, "DssDirectDepositJoin/no-reap-during-cage");
+        require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
+        require(live == 1, "DssDirectDepositHub/no-reap-during-cage");
         uint256 gemBalance = gem.balanceOf(address(d3mTarget));
         (, uint256 daiDebt) = vat.urns(ilk, address(d3mTarget));
         if (gemBalance > daiDebt) {
@@ -349,7 +349,7 @@ contract DssDirectDepositJoin {
 
     // --- Collect any rewards ---
     function collect(address[] memory assets, uint256 amount) external returns (uint256 amt) {
-        require(king != address(0), "DssDirectDepositJoin/king-not-set");
+        require(king != address(0), "DssDirectDepositHub/king-not-set");
 
         amt = d3mTarget.collect(assets, amount, king);
         Collect(king, assets, amt);
@@ -357,21 +357,21 @@ contract DssDirectDepositJoin {
 
     // --- Allow DAI holders to exit during global settlement ---
     function exit(address usr, uint256 wad) external {
-        require(wad <= 2 ** 255, "DssDirectDepositJoin/overflow");
+        require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
         vat.slip(ilk, msg.sender, -int256(wad));
-        require(gem.transferFrom(address(d3mTarget), usr, wad), "DssDirectDepositJoin/failed-transfer");
+        require(gem.transferFrom(address(d3mTarget), usr, wad), "DssDirectDepositHub/failed-transfer");
     }
 
     // --- Shutdown ---
     function cage() external {
-        require(vat.live() == 1, "DssDirectDepositJoin/no-cage-during-shutdown");
+        require(vat.live() == 1, "DssDirectDepositHub/no-cage-during-shutdown");
         // Can shut this down if we are authed
         // or if the interest rate strategy changes
         require(
             wards[msg.sender] == 1 ||
             address(d3mTarget) == address(0) ||
             !d3mTarget.validTarget()
-        , "DssDirectDepositJoin/not-authorized");
+        , "DssDirectDepositHub/not-authorized");
 
         live = 0;
         if (address(d3mTarget) != address(0)) d3mTarget.cage();
@@ -381,14 +381,14 @@ contract DssDirectDepositJoin {
 
     // --- Write-off ---
     function cull() external {
-        require(vat.live() == 1, "DssDirectDepositJoin/no-cull-during-shutdown");
-        require(live == 0, "DssDirectDepositJoin/live");
-        require(_add(tic, tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositJoin/unauthorized-cull");
-        require(culled == 0, "DssDirectDepositJoin/already-culled");
+        require(vat.live() == 1, "DssDirectDepositHub/no-cull-during-shutdown");
+        require(live == 0, "DssDirectDepositHub/live");
+        require(_add(tic, tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
+        require(culled == 0, "DssDirectDepositHub/already-culled");
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTarget));
-        require(ink <= 2 ** 255, "DssDirectDepositJoin/overflow");
-        require(art <= 2 ** 255, "DssDirectDepositJoin/overflow");
+        require(ink <= 2 ** 255, "DssDirectDepositHub/overflow");
+        require(art <= 2 ** 255, "DssDirectDepositHub/overflow");
         vat.grab(ilk, address(d3mTarget), address(d3mTarget), chainlog.getAddress("MCD_VOW"), -int256(ink), -int256(art));
 
         culled = 1;
@@ -399,11 +399,11 @@ contract DssDirectDepositJoin {
     // This function is required to have the collateral back in the vault so it can be taken by End module
     // and eventually be shared to DAI holders (as any other collateral) or maybe even unwinded
     function uncull() external {
-        require(culled == 1, "DssDirectDepositJoin/not-prev-culled");
-        require(vat.live() == 0, "DssDirectDepositJoin/no-uncull-normal-operation");
+        require(culled == 1, "DssDirectDepositHub/not-prev-culled");
+        require(vat.live() == 0, "DssDirectDepositHub/no-uncull-normal-operation");
 
         uint256 wad = vat.gem(ilk, address(d3mTarget));
-        require(wad < 2 ** 255, "DssDirectDepositJoin/overflow");
+        require(wad < 2 ** 255, "DssDirectDepositHub/overflow");
         address vow = chainlog.getAddress("MCD_VOW");
         vat.suck(vow, vow, _mul(wad, RAY)); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
         vat.grab(ilk, address(d3mTarget), address(d3mTarget), vow, int256(wad), int256(wad));
@@ -414,21 +414,21 @@ contract DssDirectDepositJoin {
 
     // --- Emergency Quit Everything ---
     function quit(address who) external auth {
-        require(vat.live() == 1, "DssDirectDepositJoin/no-quit-during-shutdown");
+        require(vat.live() == 1, "DssDirectDepositHub/no-quit-during-shutdown");
 
         // Send all gem in the contract to who
-        require(gem.transferFrom(address(d3mTarget), who, gem.balanceOf(address(d3mTarget))), "DssDirectDepositJoin/failed-transfer");
+        require(gem.transferFrom(address(d3mTarget), who, gem.balanceOf(address(d3mTarget))), "DssDirectDepositHub/failed-transfer");
 
         if (culled == 1) {
             // Culled - just zero out the gems
             uint256 wad = vat.gem(ilk, address(d3mTarget));
-            require(wad <= 2 ** 255, "DssDirectDepositJoin/overflow");
+            require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
             vat.slip(ilk, address(d3mTarget), -int256(wad));
         } else {
             // Regular operation - transfer the debt position (requires who to accept the transfer)
             (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTarget));
-            require(ink < 2 ** 255, "DssDirectDepositJoin/overflow");
-            require(art < 2 ** 255, "DssDirectDepositJoin/overflow");
+            require(ink < 2 ** 255, "DssDirectDepositHub/overflow");
+            require(art < 2 ** 255, "DssDirectDepositHub/overflow");
             vat.fork(ilk, address(d3mTarget), who, int256(ink), int256(art));
         }
     }
