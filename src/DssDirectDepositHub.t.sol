@@ -22,7 +22,6 @@ import "ds-value/value.sol";
 
 import {DssDirectDepositHub, DssDirectDepositJoinLike} from "./DssDirectDepositHub.sol";
 import {DssDirectDepositMom} from "./DssDirectDepositMom.sol";
-import {DssDirectDepositHelper} from "./helper/DssDirectDepositHelper.sol";
 
 import {DssDirectDepositTestJoin} from "./tests/DssDirectDepositTestJoin.sol";
 import {DssDirectDepositTestGem} from "./tests/DssDirectDepositTestGem.sol";
@@ -68,7 +67,6 @@ contract DssDirectDepositHubTest is DSTest {
     DssDirectDepositHub directDepositHub;
     DssDirectDepositTestJoin directDepositTestJoin;
     DssDirectDepositMom directDepositMom;
-    DssDirectDepositHelper helper;
     DSValue pip;
 
     // Allow for a 1 BPS margin of error on interest rates
@@ -123,7 +121,6 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "join", address(directDepositTestJoin));
         directDepositMom = new DssDirectDepositMom();
         directDepositHub.rely(address(directDepositMom));
-        helper = new DssDirectDepositHelper();
 
         // Init new collateral
         pip = new DSValue();
