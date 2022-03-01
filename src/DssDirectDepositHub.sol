@@ -91,7 +91,7 @@ contract DssDirectDepositHub {
         uint256                  bar; // Target Interest Rate [ray]
         uint256                  culled;
         address                  king; // Who gets the rewards
-        uint256                  tic; // Timestamp when the system is caged
+        uint256                  tic; // Timestamp when the join is caged
     }
 
     ChainlogLike public immutable chainlog;
@@ -383,16 +383,16 @@ contract DssDirectDepositHub {
 
         D3M storage d3m = d3ms[ilk];
 
-        // Can shut this down if we are authed
+        // Can shut joins down if we are authed
         // or if the interest rate strategy changes
+        // or if the main module is caged
         require(
             wards[msg.sender] == 1 ||
-            address(d3m.join) == address(0) ||
+            live == 0 ||
             !d3m.join.validTarget()
         , "DssDirectDepositHub/not-authorized");
 
-        live = 0;
-        if (address(d3m.join) != address(0)) d3m.join.cage();
+        d3m.join.cage();
         d3m.tic = block.timestamp;
         emit Cage(ilk);
     }
@@ -410,6 +410,7 @@ contract DssDirectDepositHub {
         require(vat.live() == 1, "DssDirectDepositHub/no-cull-during-shutdown");
         require(live == 0, "DssDirectDepositHub/live");
         D3M storage d3m = d3ms[ilk];
+        require(d3m.tic > 0, "DssDirectDepositHub/join-live");
         require(_add(d3m.tic, d3m.tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
         require(d3m.culled == 0, "DssDirectDepositHub/already-culled");
 

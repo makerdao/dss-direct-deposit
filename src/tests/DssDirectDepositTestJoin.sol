@@ -60,6 +60,7 @@ contract DssDirectDepositTestJoin {
     TokenLike          public immutable dai;
     DaiJoinLike        public immutable daiJoin;
 
+    address public immutable hub;
     address public immutable pool;
     address public           gem;
 
@@ -76,7 +77,7 @@ contract DssDirectDepositTestJoin {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(address d3mJoin_, address daiJoin_, address pool_, address _rewardsClaimer) public {
+    constructor(address hub_, address daiJoin_, address pool_, address _rewardsClaimer) public {
 
         pool = pool_;
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
@@ -89,10 +90,10 @@ contract DssDirectDepositTestJoin {
         dai_.approve(daiJoin_, type(uint256).max);
 
 
-        wards[d3mJoin_] = 1;
-        emit Rely(d3mJoin_);
-        CanLike(d3mJoinLike(d3mJoin_).vat()).hope(d3mJoin_);
-        TokenLike(d3mJoinLike(d3mJoin_).gem()).approve(d3mJoin_, type(uint256).max);
+        hub = hub_;
+        wards[hub_] = 1;
+        emit Rely(hub_);
+        CanLike(d3mJoinLike(hub_).vat()).hope(hub_);
     }
 
     // --- Testing Admin ---
@@ -114,7 +115,9 @@ contract DssDirectDepositTestJoin {
 
     function file(bytes32 what, address data) external auth {
         if (what == "gem") {
+            if (gem != address(0)) TokenLike(gem).approve(hub, 0);
             gem = data;
+            TokenLike(data).approve(hub, type(uint256).max);
         }
     }
 
