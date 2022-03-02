@@ -84,7 +84,7 @@ contract DssDirectDepositHub {
         _;
     }
 
-    struct D3M {
+    struct Ilk {
         DssDirectDepositJoinLike join;
         TokenLike                gem;
         uint256                  tau; // Time until you can write off the debt [sec]
@@ -96,7 +96,7 @@ contract DssDirectDepositHub {
 
     ChainlogLike public immutable chainlog;
     VatLike public immutable vat;
-    mapping (bytes32 => D3M) public d3ms;
+    mapping (bytes32 => Ilk) public ilks;
     TokenLike public immutable dai;
     DaiJoinLike public immutable daiJoin;
     uint256 public live = 1;
@@ -152,29 +152,29 @@ contract DssDirectDepositHub {
     }
 
     // --- Administration ---
-    function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
-        D3M storage d3m = d3ms[ilk];
+    function file(bytes32 ilk_, bytes32 what, uint256 data) external auth {
+        Ilk storage ilk = ilks[ilk_];
         if (what == "bar") {
-            require(data <= d3m.join.getMaxBar(), "DssDirectDepositHub/above-max-interest");
+            require(data <= ilk.join.getMaxBar(), "DssDirectDepositHub/above-max-interest");
 
-            d3m.bar = data;
+            ilk.bar = data;
         } else if (what == "tau" ) {
             require(live == 1, "DssDirectDepositHub/hub-not-live");
-            require(d3m.tic == 0, "DssDirectDepositHub/join-not-live");
+            require(ilk.tic == 0, "DssDirectDepositHub/join-not-live");
 
-            d3m.tau = data;
+            ilk.tau = data;
         } else revert("DssDirectDepositHub/file-unrecognized-param");
 
-        emit File(ilk, what, data);
+        emit File(ilk_, what, data);
     }
 
     function file(bytes32 ilk, bytes32 what, address data) external auth {
         require(vat.live() == 1, "DssDirectDepositHub/no-file-during-shutdown");
-        require(d3ms[ilk].tic == 0, "DssDirectDepositHub/join-not-live");
+        require(ilks[ilk].tic == 0, "DssDirectDepositHub/join-not-live");
 
-        if (what == "king") d3ms[ilk].king = data;
-        else if (what == "join") d3ms[ilk].join = DssDirectDepositJoinLike(data);
-        else if (what == "gem") d3ms[ilk].gem = TokenLike(data);
+        if (what == "king") ilks[ilk].king = data;
+        else if (what == "join") ilks[ilk].join = DssDirectDepositJoinLike(data);
+        else if (what == "gem") ilks[ilk].gem = TokenLike(data);
         else revert("DssDirectDepositHub/file-unrecognized-param");
         emit File(ilk, what, data);
     }
@@ -296,18 +296,18 @@ contract DssDirectDepositHub {
         emit Unwind(ilk, amount);
     }
 
-    function exec(bytes32 ilk) external {
-        D3M memory d3m = d3ms[ilk];
+    function exec(bytes32 ilk_) external {
+        Ilk memory ilk = ilks[ilk_];
 
-        uint256 availableLiquidity = dai.balanceOf(address(d3m.gem));
+        uint256 availableLiquidity = dai.balanceOf(address(ilk.gem));
 
         if (vat.live() == 0) {
             // MCD caged
             require(EndLike(chainlog.getAddress("MCD_END")).debt() == 0, "DssDirectDepositHub/end-debt-already-set");
-            require(d3m.culled == 0, "DssDirectDepositHub/module-has-to-be-unculled-first");
+            require(ilk.culled == 0, "DssDirectDepositHub/module-has-to-be-unculled-first");
             _unwind(
-                ilk,
-                d3m.join,
+                ilk_,
+                ilk.join,
                 type(uint256).max,
                 availableLiquidity,
                 Mode.MCD_CAGED
@@ -315,24 +315,24 @@ contract DssDirectDepositHub {
         } else if (live == 0) {
             // This module caged
             _unwind(
-                ilk,
-                d3m.join,
+                ilk_,
+                ilk.join,
                 type(uint256).max,
                 availableLiquidity,
-                d3m.culled == 1
+                ilk.culled == 1
                 ? Mode.MODULE_CULLED
                 : Mode.NORMAL
             );
         } else {
             // Normal path
-            (uint256 supplyAmount, uint256 targetSupply) = d3m.join.calcSupplies(availableLiquidity, d3m.bar);
+            (uint256 supplyAmount, uint256 targetSupply) = ilk.join.calcSupplies(availableLiquidity, ilk.bar);
 
             if (targetSupply > supplyAmount) {
-                _wind(ilk, d3m.join, targetSupply - supplyAmount);
+                _wind(ilk_, ilk.join, targetSupply - supplyAmount);
             } else if (targetSupply < supplyAmount) {
                 _unwind(
-                    ilk,
-                    d3m.join,
+                    ilk_,
+                    ilk.join,
                     supplyAmount - targetSupply,
                     availableLiquidity,
                     Mode.NORMAL
@@ -342,48 +342,48 @@ contract DssDirectDepositHub {
     }
 
     // --- Collect Interest ---
-    function reap(bytes32 ilk) external {
-        D3M memory d3m = d3ms[ilk];
+    function reap(bytes32 ilk_) external {
+        Ilk memory ilk = ilks[ilk_];
 
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
         require(live == 1, "DssDirectDepositHub/no-reap-during-cage");
 
-        uint256 gemBalance = d3m.join.gemBalanceOf();
-        (, uint256 daiDebt) = vat.urns(ilk, address(d3m.join));
+        uint256 gemBalance = ilk.join.gemBalanceOf();
+        (, uint256 daiDebt) = vat.urns(ilk_, address(ilk.join));
         if (gemBalance > daiDebt) {
             uint256 fees = gemBalance - daiDebt;
-            uint256 availableLiquidity = dai.balanceOf(address(d3m.gem));
+            uint256 availableLiquidity = dai.balanceOf(address(ilk.gem));
             if (fees > availableLiquidity) {
                 fees = availableLiquidity;
             }
-            d3m.join.withdraw(fees);
-            vat.move(address(d3m.join), address(chainlog.getAddress("MCD_VOW")), _mul(RAY, fees));
-            Reap(ilk, fees);
+            ilk.join.withdraw(fees);
+            vat.move(address(ilk.join), address(chainlog.getAddress("MCD_VOW")), _mul(RAY, fees));
+            Reap(ilk_, fees);
         }
     }
 
     // --- Collect any rewards ---
-    function collect(bytes32 ilk, address[] memory assets, uint256 amount) external returns (uint256 amt) {
-        D3M memory d3m = d3ms[ilk];
-        require(d3m.king != address(0), "DssDirectDepositHub/king-not-set");
+    function collect(bytes32 ilk_, address[] memory assets, uint256 amount) external returns (uint256 amt) {
+        Ilk memory ilk = ilks[ilk_];
+        require(ilk.king != address(0), "DssDirectDepositHub/king-not-set");
 
-        amt = d3m.join.collect(assets, amount, d3m.king);
-        Collect(ilk, d3m.king, assets, amt);
+        amt = ilk.join.collect(assets, amount, ilk.king);
+        Collect(ilk_, ilk.king, assets, amt);
     }
 
     // --- Allow DAI holders to exit during global settlement ---
-    function exit(bytes32 ilk, address usr, uint256 wad) external {
+    function exit(bytes32 ilk_, address usr, uint256 wad) external {
         require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
-        vat.slip(ilk, msg.sender, -int256(wad));
-        D3M memory d3m = d3ms[ilk];
-        require(d3m.gem.transferFrom(address(d3m.join), usr, wad), "DssDirectDepositHub/failed-transfer");
+        vat.slip(ilk_, msg.sender, -int256(wad));
+        Ilk memory ilk = ilks[ilk_];
+        require(ilk.gem.transferFrom(address(ilk.join), usr, wad), "DssDirectDepositHub/failed-transfer");
     }
 
     // --- Shutdown ---
-    function cage(bytes32 ilk) external {
+    function cage(bytes32 ilk_) external {
         require(vat.live() == 1, "DssDirectDepositHub/no-cage-during-shutdown");
 
-        D3M storage d3m = d3ms[ilk];
+        Ilk storage ilk = ilks[ilk_];
 
         // Can shut joins down if we are authed
         // or if the interest rate strategy changes
@@ -391,12 +391,12 @@ contract DssDirectDepositHub {
         require(
             wards[msg.sender] == 1 ||
             live == 0 ||
-            !d3m.join.validTarget()
+            !ilk.join.validTarget()
         , "DssDirectDepositHub/not-authorized");
 
-        d3m.join.cage();
-        d3m.tic = block.timestamp;
-        emit Cage(ilk);
+        ilk.join.cage();
+        ilk.tic = block.timestamp;
+        emit Cage(ilk_);
     }
 
     function cage() external {
@@ -408,62 +408,62 @@ contract DssDirectDepositHub {
     }
 
     // --- Write-off ---
-    function cull(bytes32 ilk) external {
+    function cull(bytes32 ilk_) external {
         require(vat.live() == 1, "DssDirectDepositHub/no-cull-during-shutdown");
         require(live == 0, "DssDirectDepositHub/live");
-        D3M storage d3m = d3ms[ilk];
-        require(d3m.tic > 0, "DssDirectDepositHub/join-live");
-        require(_add(d3m.tic, d3m.tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
-        require(d3m.culled == 0, "DssDirectDepositHub/already-culled");
+        Ilk storage ilk = ilks[ilk_];
+        require(ilk.tic > 0, "DssDirectDepositHub/join-live");
+        require(_add(ilk.tic, ilk.tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
+        require(ilk.culled == 0, "DssDirectDepositHub/already-culled");
 
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3m.join));
+        (uint256 ink, uint256 art) = vat.urns(ilk_, address(ilk.join));
         require(ink <= 2 ** 255, "DssDirectDepositHub/overflow");
         require(art <= 2 ** 255, "DssDirectDepositHub/overflow");
-        vat.grab(ilk, address(d3m.join), address(d3m.join), chainlog.getAddress("MCD_VOW"), -int256(ink), -int256(art));
+        vat.grab(ilk_, address(ilk.join), address(ilk.join), chainlog.getAddress("MCD_VOW"), -int256(ink), -int256(art));
 
-        d3m.culled = 1;
-        emit Cull(ilk);
+        ilk.culled = 1;
+        emit Cull(ilk_);
     }
 
     // --- Rollback Write-off (only if General Shutdown happened) ---
     // This function is required to have the collateral back in the vault so it can be taken by End module
     // and eventually be shared to DAI holders (as any other collateral) or maybe even unwinded
-    function uncull(bytes32 ilk) external {
-        D3M storage d3m = d3ms[ilk];
+    function uncull(bytes32 ilk_) external {
+        Ilk storage ilk = ilks[ilk_];
 
-        require(d3m.culled == 1, "DssDirectDepositHub/not-prev-culled");
+        require(ilk.culled == 1, "DssDirectDepositHub/not-prev-culled");
         require(vat.live() == 0, "DssDirectDepositHub/no-uncull-normal-operation");
 
-        uint256 wad = vat.gem(ilk, address(d3m.join));
+        uint256 wad = vat.gem(ilk_, address(ilk.join));
         require(wad < 2 ** 255, "DssDirectDepositHub/overflow");
         address vow = chainlog.getAddress("MCD_VOW");
         vat.suck(vow, vow, _mul(wad, RAY)); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
-        vat.grab(ilk, address(d3m.join), address(d3m.join), vow, int256(wad), int256(wad));
+        vat.grab(ilk_, address(ilk.join), address(ilk.join), vow, int256(wad), int256(wad));
 
-        d3m.culled = 0;
-        emit Uncull(ilk);
+        ilk.culled = 0;
+        emit Uncull(ilk_);
     }
 
     // --- Emergency Quit Everything ---
-    function quit(bytes32 ilk, address who) external auth {
+    function quit(bytes32 ilk_, address who) external auth {
         require(vat.live() == 1, "DssDirectDepositHub/no-quit-during-shutdown");
 
-        D3M memory d3m = d3ms[ilk];
+        Ilk memory ilk = ilks[ilk_];
 
         // Send all gem in the contract to who
-        require(d3m.gem.transferFrom(address(d3m.join), who, d3m.join.gemBalanceOf()), "DssDirectDepositHub/failed-transfer");
+        require(ilk.gem.transferFrom(address(ilk.join), who, ilk.join.gemBalanceOf()), "DssDirectDepositHub/failed-transfer");
 
-        if (d3m.culled == 1) {
+        if (ilk.culled == 1) {
             // Culled - just zero out the gems
-            uint256 wad = vat.gem(ilk, address(d3m.join));
+            uint256 wad = vat.gem(ilk_, address(ilk.join));
             require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
-            vat.slip(ilk, address(d3m.join), -int256(wad));
+            vat.slip(ilk_, address(ilk.join), -int256(wad));
         } else {
             // Regular operation - transfer the debt position (requires who to accept the transfer)
-            (uint256 ink, uint256 art) = vat.urns(ilk, address(d3m.join));
+            (uint256 ink, uint256 art) = vat.urns(ilk_, address(ilk.join));
             require(ink < 2 ** 255, "DssDirectDepositHub/overflow");
             require(art < 2 ** 255, "DssDirectDepositHub/overflow");
-            vat.fork(ilk, address(d3m.join), who, int256(ink), int256(art));
+            vat.fork(ilk_, address(ilk.join), who, int256(ink), int256(art));
         }
     }
 }
