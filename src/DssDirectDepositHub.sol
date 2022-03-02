@@ -159,7 +159,8 @@ contract DssDirectDepositHub {
 
             d3m.bar = data;
         } else if (what == "tau" ) {
-            require(live == 1, "DssDirectDepositHub/not-live");
+            require(live == 1, "DssDirectDepositHub/hub-not-live");
+            require(d3m.tic == 0, "DssDirectDepositHub/join-not-live");
 
             d3m.tau = data;
         } else revert("DssDirectDepositHub/file-unrecognized-param");
@@ -169,6 +170,7 @@ contract DssDirectDepositHub {
 
     function file(bytes32 ilk, bytes32 what, address data) external auth {
         require(vat.live() == 1, "DssDirectDepositHub/no-file-during-shutdown");
+        require(d3ms[ilk].tic == 0, "DssDirectDepositHub/join-not-live");
 
         if (what == "king") d3ms[ilk].king = data;
         else if (what == "join") d3ms[ilk].join = DssDirectDepositJoinLike(data);

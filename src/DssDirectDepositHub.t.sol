@@ -243,20 +243,42 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(tau, 1 days);
     }
 
-    function testFail_unauth_file_bar() public {
-        directDepositHub.deny(address(this));
-
-        directDepositHub.file(ilk, "bar", 1);
-    }
-
     function testFail_unauth_file_tau() public {
         directDepositHub.deny(address(this));
 
         directDepositHub.file(ilk, "tau", 1 days);
     }
 
+    function testFail_hub_not_live_tau_file() public {
+        directDepositHub.file(ilk, "tau", 1 days);
+        (, , uint256 tau, , , , ) = directDepositHub.d3ms(ilk);
+        assertEq(tau, 1 days);
+
+        // Cage Join
+        directDepositHub.cage();
+
+        directDepositHub.file(ilk, "tau", 7 days);
+    }
+
+    function testFail_join_not_live_tau_file() public {
+        directDepositHub.file(ilk, "tau", 1 days);
+        (, , uint256 tau, , , , ) = directDepositHub.d3ms(ilk);
+        assertEq(tau, 1 days);
+
+        // Cage Join
+        directDepositHub.cage(ilk);
+
+        directDepositHub.file(ilk, "tau", 7 days);
+    }
+
     function testFail_unknown_uint256_file() public {
         directDepositHub.file(ilk, "unknown", 1);
+    }
+
+    function testFail_unauth_file_bar() public {
+        directDepositHub.deny(address(this));
+
+        directDepositHub.file(ilk, "bar", 1);
     }
 
     function testFail_bar_file_too_high() public {
@@ -268,18 +290,6 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(bar, 1);
 
         directDepositHub.file(ilk, "bar", 2);
-    }
-
-    function testFail_vat_not_live_tau_file() public {
-        directDepositHub.file(ilk, "tau", 1 days);
-        (, , uint256 tau, , , , ) = directDepositHub.d3ms(ilk);
-
-        assertEq(tau, 1 days);
-
-        // Cage Join
-        directDepositHub.cage();
-
-        directDepositHub.file(ilk, "tau", 7 days);
     }
 
     function test_can_file_king() public {
@@ -311,10 +321,35 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "king", address(this));
     }
 
-    function testFail_unauth_file_target() public {
+    function testFail_join_not_live_king_file() public {
+        directDepositHub.file(ilk, "king", address(this));
+        (, , , , , address king, ) = directDepositHub.d3ms(ilk);
+        assertEq(king, address(this));
+
+        // Cage Join
+        directDepositHub.cage(ilk);
+
+        directDepositHub.file(ilk, "king", address(123));
+    }
+
+    function testFail_unauth_file_join() public {
         directDepositHub.deny(address(this));
 
         directDepositHub.file(ilk, "join", address(this));
+    }
+
+    function testFail_join_not_live_join_file() public {
+        // Cage Join
+        directDepositHub.cage(ilk);
+
+        directDepositHub.file(ilk, "join", address(123));
+    }
+
+    function testFail_join_not_live_gem_file() public {
+        // Cage Join
+        directDepositHub.cage(ilk);
+
+        directDepositHub.file(ilk, "gem", address(123));
     }
 
     function testFail_unknown_address_file() public {
