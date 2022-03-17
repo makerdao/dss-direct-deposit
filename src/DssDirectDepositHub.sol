@@ -153,9 +153,7 @@ contract DssDirectDepositHub {
     // --- Administration ---
     function file(bytes32 ilk_, bytes32 what, uint256 data) external auth {
         Ilk storage ilk = ilks[ilk_];
-        if (what == "bar") {
-
-        } else if (what == "tau" ) {
+        if (what == "tau" ) {
             require(live == 1, "DssDirectDepositHub/hub-not-live");
             require(ilk.tic == 0, "DssDirectDepositHub/join-not-live");
 
