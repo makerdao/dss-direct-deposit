@@ -38,7 +38,7 @@ interface CanLike {
     function nope(address) external;
 }
 
-contract DssDirectDepositTestJoin {
+contract DssDirectDepositTestPool {
     // --- Auth ---
     mapping (address => uint) public wards;
     function rely(address usr) external auth {
