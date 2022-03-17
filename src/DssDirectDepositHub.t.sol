@@ -23,9 +23,9 @@ import "ds-value/value.sol";
 import {DssDirectDepositHub, DssDirectDepositJoinLike} from "./DssDirectDepositHub.sol";
 import {DssDirectDepositMom} from "./DssDirectDepositMom.sol";
 
-import {DssDirectDepositTestJoin} from "./tests/DssDirectDepositTestJoin.sol";
-import {DssDirectDepositTestGem} from "./tests/DssDirectDepositTestGem.sol";
-import {DssDirectDepositTestRewards} from "./tests/DssDirectDepositTestRewards.sol";
+import {DssDirectDepositTestPool} from "./test-stubs/DssDirectDepositTestPool.sol";
+import {DssDirectDepositTestGem} from "./test-stubs/DssDirectDepositTestGem.sol";
+import {DssDirectDepositTestRewards} from "./test-stubs/DssDirectDepositTestRewards.sol";
 
 interface Hevm {
     function warp(uint256) external;

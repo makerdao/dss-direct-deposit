@@ -54,6 +54,15 @@ interface InterestRateStrategyLike {
     function getMaxVariableBorrowRate() external view returns (uint256);
 }
 
+interface RewardsClaimerLike {
+    function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
+}
+
+interface CanLike {
+    function hope(address) external;
+    function nope(address) external;
+}
+
 contract DssDirectDepositAaveDai {
 
     // --- Auth ---
@@ -75,7 +84,7 @@ contract DssDirectDepositAaveDai {
 
     LendingPoolLike public immutable pool;
     InterestRateStrategyLike public immutable interestStrategy;
-    address public immutable rewardsClaimer;
+    RewardsClaimerLike public immutable rewardsClaimer;
     TargetTokenLike public immutable gem;
     address public immutable dai;
     TargetTokenLike public immutable adai;
@@ -104,7 +113,7 @@ contract DssDirectDepositAaveDai {
         stableDebt = TargetTokenLike(stableDebt_);
         variableDebt = TargetTokenLike(variableDebt_);
         interestStrategy = InterestRateStrategyLike(interestStrategy_);
-        rewardsClaimer = _rewardsClaimer;
+        rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -135,6 +144,16 @@ contract DssDirectDepositAaveDai {
         z = x <= y ? x : y;
     }
 
+    // --- Admin ---
+    function hope(address dst, address who) external auth {
+        CanLike(dst).hope(who);
+    }
+
+    // --- Admin ---
+    function nope(address dst, address who) external auth {
+        CanLike(dst).nope(who);
+    }
+
     function getMaxBar() public view returns (uint256) {
         return interestStrategy.getMaxVariableBorrowRate();
     }
@@ -143,7 +162,7 @@ contract DssDirectDepositAaveDai {
         (,,,,,,,,,, address strategy,) = pool.getReserveData(dai);
         return strategy == address(interestStrategy);
     }
-    
+
     // --- Automated Rate targeting ---
     function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
@@ -178,8 +197,6 @@ contract DssDirectDepositAaveDai {
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
     function supply(uint256 amt) external auth {
-        // We need to pull the dai tokens to this address before calling deposit
-        // Then we can deposit and send the aDai to the msg.sender
         pool.deposit(dai, amt, address(this), 0);
 
     }
@@ -187,9 +204,14 @@ contract DssDirectDepositAaveDai {
     // Withdraws Dai from Aave in exchange for adai
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
     function withdraw(uint256 amt) external auth {
-        // We need to pull adai tokens in this address before calling withdraw
-        // Then we can withdraw and send the Dai to the msg.sender
         pool.withdraw(dai, amt, address(this));
+    }
+
+    // --- Collect any rewards ---
+    function collect(address[] memory assets, uint256 amount, address king) external auth returns (uint256 amt) {
+        require(king != address(0), "DssDirectDepositJoin/king-not-set");
+
+        amt = rewardsClaimer.claimRewards(assets, amount, king);
     }
 
     function getCurrentRate() public view returns (uint256 currVarBorrow) {
@@ -197,11 +219,11 @@ contract DssDirectDepositAaveDai {
     }
 
     // --- Balance in standard ERC-20 denominations
-    function getNormalizedBalanceOf(address who) external view returns (uint256) {
-        return adai.scaledBalanceOf(who);
+    function getNormalizedBalanceOf() external view returns (uint256) {
+        return adai.scaledBalanceOf(address(this));
     }
 
-    // --- Convert a standard ERC-20 amount to a the normalized amount 
+    // --- Convert a standard ERC-20 amount to a the normalized amount
     //     when added to the balance
     function getNormalizedAmount(uint256 amt) external view returns (uint256) {
         uint256 interestIndex = pool.getReserveNormalizedIncome(dai);
