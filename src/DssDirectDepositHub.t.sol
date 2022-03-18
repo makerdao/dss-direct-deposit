@@ -20,7 +20,7 @@ import "ds-test/test.sol";
 import "dss-interfaces/Interfaces.sol";
 import "ds-value/value.sol";
 
-import {DssDirectDepositHub, DssDirectDepositJoinLike} from "./DssDirectDepositHub.sol";
+import {DssDirectDepositHub, DssDirectDepositPoolLike} from "./DssDirectDepositHub.sol";
 import {DssDirectDepositMom} from "./DssDirectDepositMom.sol";
 
 import {DssDirectDepositTestPool} from "./test-stubs/DssDirectDepositTestPool.sol";
