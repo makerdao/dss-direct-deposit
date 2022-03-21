@@ -611,7 +611,7 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.cage();
     }
 
-    function test_cage_ppol() public {
+    function test_cage_pool() public {
         (, , , , uint256 tic) = directDepositHub.ilks(ilk);
         assertEq(tic, 0);
         assertEq(directDepositTestPool.live(), 1);
