@@ -18,17 +18,9 @@ pragma solidity 0.6.12;
 
 interface TargetTokenLike {
     function totalSupply() external view returns (uint256);
-    function balanceOf(address) external view returns (uint256);
-    function approve(address, uint256) external returns (bool);
-    function transfer(address, uint256) external returns (bool);
-    function transferFrom(address, address, uint256) external returns (bool);
-    function scaledBalanceOf(address) external view returns (uint256);
 }
 
 interface LendingPoolLike {
-    function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
-    function withdraw(address asset, uint256 amount, address to) external;
-    function getReserveNormalizedIncome(address asset) external view returns (uint256);
     function getReserveData(address asset) external view returns (
         uint256,    // Configuration
         uint128,    // the liquidity index. Expressed in ray
@@ -54,73 +46,27 @@ interface InterestRateStrategyLike {
     function getMaxVariableBorrowRate() external view returns (uint256);
 }
 
-interface RewardsClaimerLike {
-    function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
-}
-
-interface CanLike {
-    function hope(address) external;
-    function nope(address) external;
-}
-
-contract DssDirectDepositAaveDai {
-
-    // --- Auth ---
-    mapping (address => uint) public wards;
-    function rely(address usr) external auth {
-        wards[usr] = 1;
-
-        emit Rely(usr);
-    }
-    function deny(address usr) external auth {
-        wards[usr] = 0;
-
-        emit Deny(usr);
-    }
-    modifier auth {
-        require(wards[msg.sender] == 1, "DssDirectDepositAaveDai/not-authorized");
-        _;
-    }
+contract DssDirectDepositAaveDaiPlan {
 
     LendingPoolLike public immutable pool;
     InterestRateStrategyLike public immutable interestStrategy;
-    RewardsClaimerLike public immutable rewardsClaimer;
-    TargetTokenLike public immutable gem;
     address public immutable dai;
-    TargetTokenLike public immutable adai;
     TargetTokenLike public immutable stableDebt;
     TargetTokenLike public immutable variableDebt;
 
-    uint256 public live = 1;
-
-    // --- Events ---
-    event Rely(address indexed usr);
-    event Deny(address indexed usr);
-    event Cage();
-
-    constructor(address dai_, address pool_, address _rewardsClaimer) public {
+    constructor(address dai_, address pool_) public {
 
         // Fetch the reserve data from Aave
-        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(address(dai_));
-        require(adai_ != address(0), "DssDirectDepositAaveDai/invalid-adai");
+        (,,,,,,,, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(address(dai_));
         require(stableDebt_ != address(0), "DssDirectDepositAaveDai/invalid-stableDebt");
         require(variableDebt_ != address(0), "DssDirectDepositAaveDai/invalid-variableDebt");
         require(interestStrategy_ != address(0), "DssDirectDepositAaveDai/invalid-interestStrategy");
 
         pool = LendingPoolLike(pool_);
         dai = dai_;
-        gem = adai = TargetTokenLike(adai_);
         stableDebt = TargetTokenLike(stableDebt_);
         variableDebt = TargetTokenLike(variableDebt_);
         interestStrategy = InterestRateStrategyLike(interestStrategy_);
-        rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
-
-        wards[msg.sender] = 1;
-        emit Rely(msg.sender);
-
-        TargetTokenLike(adai_).approve(address(pool_), type(uint256).max);
-        TargetTokenLike(dai_).approve(address(pool_), type(uint256).max);
-
     }
 
     // --- Math ---
@@ -140,34 +86,16 @@ contract DssDirectDepositAaveDai {
     function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, RAY) / y;
     }
-    function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = x <= y ? x : y;
-    }
 
-    // --- Admin ---
-    function hope(address dst, address who) external auth {
-        CanLike(dst).hope(who);
-    }
-
-    // --- Admin ---
-    function nope(address dst, address who) external auth {
-        CanLike(dst).nope(who);
-    }
-
-    function getMaxBar() public view returns (uint256) {
+    function maxBar() public view returns (uint256) {
         return interestStrategy.getMaxVariableBorrowRate();
-    }
-
-    function validTarget() external view returns (bool) {
-        (,,,,,,,,,, address strategy,) = pool.getReserveData(dai);
-        return strategy == address(interestStrategy);
     }
 
     // --- Automated Rate targeting ---
     function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
         require(targetInterestRate > base, "DssDirectDepositAaveDai/target-interest-base");
-        require(targetInterestRate <= getMaxBar(), "DssDirectDepositAaveDai/above-max-interest");
+        require(targetInterestRate <= maxBar(), "DssDirectDepositAaveDai/above-max-interest");
 
         // Do inverse calculation of interestStrategy
         uint256 variableRateSlope1 = interestStrategy.variableRateSlope1();
@@ -194,45 +122,7 @@ contract DssDirectDepositAaveDai {
         targetSupply = targetBar > 0 ? calculateTargetSupply(targetBar) : 0;
     }
 
-    // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
-    // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
-    function supply(uint256 amt) external auth {
-        pool.deposit(dai, amt, address(this), 0);
-
-    }
-
-    // Withdraws Dai from Aave in exchange for adai
-    // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
-    function withdraw(uint256 amt) external auth {
-        pool.withdraw(dai, amt, address(this));
-    }
-
-    // --- Collect any rewards ---
-    function collect(address[] memory assets, uint256 amount, address king) external auth returns (uint256 amt) {
-        require(king != address(0), "DssDirectDepositJoin/king-not-set");
-
-        amt = rewardsClaimer.claimRewards(assets, amount, king);
-    }
-
     function getCurrentRate() public view returns (uint256 currVarBorrow) {
         (,,,, currVarBorrow,,,,,,,) = pool.getReserveData(dai);
-    }
-
-    // --- Balance in standard ERC-20 denominations
-    function getNormalizedBalanceOf() external view returns (uint256) {
-        return adai.scaledBalanceOf(address(this));
-    }
-
-    // --- Convert a standard ERC-20 amount to a the normalized amount
-    //     when added to the balance
-    function getNormalizedAmount(uint256 amt) external view returns (uint256) {
-        uint256 interestIndex = pool.getReserveNormalizedIncome(dai);
-        return _rdiv(amt, interestIndex);
-    }
-
-    // --- Shutdown ---
-    function cage() external auth {
-        live = 0;
-        emit Cage();
     }
 }

@@ -38,6 +38,11 @@ interface CanLike {
     function nope(address) external;
 }
 
+interface DssDirectDepositPlanLike {
+    function calcSupplies(uint256, uint256) external view returns (uint256, uint256);
+    function maxBar() external view returns (uint256);
+}
+
 contract DssDirectDepositTestPool {
     // --- Auth ---
     mapping (address => uint) public wards;
@@ -63,9 +68,12 @@ contract DssDirectDepositTestPool {
     address public immutable hub;
     address public immutable pool;
     address public           gem;
+    address public           king; // Who gets the rewards
+    address public           plan; // How we calculate target debt
+    uint256 public           bar;  // Target Interest Rate [ray]
+
 
     // test helper variables
-    uint256 maxBar;
     uint256 supplyAmount;
     uint256 targetSupply;
 
@@ -96,14 +104,12 @@ contract DssDirectDepositTestPool {
         CanLike(d3mJoinLike(hub_).vat()).hope(hub_);
     }
 
-    // --- Testing Admin ---
+    // --- Admin ---
     function file(bytes32 what, uint256 data) external auth {
-        if (what == "maxBar") {
-            maxBar = data;
-        } else if (what == "supplyAmount") {
-            supplyAmount = data;
-        } else if (what == "targetSupply") {
-            targetSupply = data;
+        if (what == "bar") {
+            require(data <= DssDirectDepositPlanLike(plan).maxBar(), "DssDirectDepositTestPool/above-max-interest");
+
+            bar = data;
         }
     }
 
@@ -114,14 +120,16 @@ contract DssDirectDepositTestPool {
     }
 
     function file(bytes32 what, address data) external auth {
+        require(live == 1, "DssDirectDepositTestPool/no-file-not-live");
+
         if (what == "gem") {
             if (gem != address(0)) TokenLike(gem).approve(hub, 0);
             gem = data;
             TokenLike(data).approve(hub, type(uint256).max);
-        }
+        } else if (what == "king") king = data;
+        else if (what == "plan") plan = data;
     }
 
-    // --- Admin ---
     function hope(address dst, address who) external auth {
         CanLike(dst).hope(who);
     }
@@ -130,18 +138,12 @@ contract DssDirectDepositTestPool {
         CanLike(dst).nope(who);
     }
 
-    function getMaxBar() external view returns (uint256) {
-        return maxBar;
-    }
-
     function validTarget() external view returns (bool) {
         return isValidTarget;
     }
 
-    function calcSupplies(uint256 availableLiquidity, uint256 bar) external view returns (uint256, uint256) {
-        availableLiquidity;
-
-        return (supplyAmount, bar > 0 ? targetSupply : 0);
+    function calcSupplies(uint256 availableLiquidity) external view returns (uint256, uint256) {
+        return DssDirectDepositPlanLike(plan).calcSupplies(availableLiquidity, bar);
     }
 
     function supply(uint256 amt) external {
@@ -156,8 +158,10 @@ contract DssDirectDepositTestPool {
         daiJoin.join(address(this), amt);
     }
 
-    function collect(address[] memory assets, uint256 amount, address dst) external auth returns (uint256 amt) {
-        amt = rewardsClaimer.claimRewards(assets, amount, dst);
+    function collect(address[] memory assets, uint256 amount) external auth returns (uint256 amt) {
+        require(king != address(0), "DssDirectDepositPool/king-not-set");
+
+        amt = rewardsClaimer.claimRewards(assets, amount, king);
     }
 
     function gemBalanceOf() external view returns(uint256) {
