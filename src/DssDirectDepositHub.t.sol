@@ -264,7 +264,7 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "tau", 7 days);
     }
 
-    function testFail_join_not_live_tau_file() public {
+    function testFail_pool_not_live_tau_file() public {
         directDepositHub.file(ilk, "tau", 1 days);
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
         assertEq(tau, 1 days);
@@ -324,7 +324,7 @@ contract DssDirectDepositHubTest is DSTest {
     //     directDepositHub.file(ilk, "king", address(this));
     // }
 
-    // function testFail_join_not_live_king_file() public {
+    // function testFail_pool_not_live_king_file() public {
     //     directDepositHub.file(ilk, "king", address(this));
     //     (, , , , , address king, ) = directDepositHub.ilks(ilk);
     //     assertEq(king, address(this));
@@ -341,14 +341,14 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "pool", address(this));
     }
 
-    function testFail_join_not_live_pool_file() public {
+    function testFail_hub_not_live_pool_file() public {
         // Cage Pool
         directDepositHub.cage(ilk);
 
         directDepositHub.file(ilk, "pool", address(123));
     }
 
-    function testFail_join_not_live_gem_file() public {
+    function testFail_hub_not_live_gem_file() public {
         // Cage Pool
         directDepositHub.cage(ilk);
 
@@ -611,7 +611,7 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.cage();
     }
 
-    function test_cage_join() public {
+    function test_cage_ppol() public {
         (, , , , uint256 tic) = directDepositHub.ilks(ilk);
         assertEq(tic, 0);
         assertEq(directDepositTestPool.live(), 1);
@@ -623,12 +623,12 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(directDepositTestPool.live(), 0);
     }
 
-    function testFail_cage_join_no_auth() public {
+    function testFail_cage_pool_no_auth() public {
         directDepositHub.deny(address(this));
         directDepositHub.cage(ilk);
     }
 
-    function test_cage_join_invalid_target() public {
+    function test_cage_pool_invalid_target() public {
         (, , , , uint256 tic) = directDepositHub.ilks(ilk);
         assertEq(tic, 0);
         assertEq(directDepositTestPool.live(), 1);
@@ -645,7 +645,7 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(directDepositTestPool.live(), 0);
     }
 
-    function test_cage_join_hub_caged() public {
+    function test_cage_pool_hub_caged() public {
         (, , , , uint256 tic) = directDepositHub.ilks(ilk);
         assertEq(tic, 0);
         assertEq(directDepositTestPool.live(), 1);
