@@ -53,12 +53,13 @@ interface EndLike {
 }
 
 interface DssDirectDepositPoolLike {
+    function king() external view returns (address);
     function getMaxBar() external view returns (uint256);
     function validTarget() external view returns (bool);
-    function calcSupplies(uint256, uint256) external view returns (uint256, uint256);
+    function calcSupplies(uint256) external view returns (uint256, uint256);
     function supply(uint256) external;
     function withdraw(uint256) external;
-    function collect(address[] memory, uint256, address) external returns (uint256);
+    function collect(address[] memory, uint256) external returns (uint256);
     function gemBalanceOf() external view returns(uint256);
     function getNormalizedBalanceOf() external view returns(uint256);
     function getNormalizedAmount(uint256) external view returns(uint256);
@@ -88,9 +89,7 @@ contract DssDirectDepositHub {
         DssDirectDepositPoolLike pool;
         TokenLike                gem;
         uint256                  tau; // Time until you can write off the debt [sec]
-        uint256                  bar; // Target Interest Rate [ray]
         uint256                  culled;
-        address                  king; // Who gets the rewards
         uint256                  tic; // Timestamp when the pool is caged
     }
 
@@ -155,9 +154,7 @@ contract DssDirectDepositHub {
     function file(bytes32 ilk_, bytes32 what, uint256 data) external auth {
         Ilk storage ilk = ilks[ilk_];
         if (what == "bar") {
-            require(data <= ilk.pool.getMaxBar(), "DssDirectDepositHub/above-max-interest");
 
-            ilk.bar = data;
         } else if (what == "tau" ) {
             require(live == 1, "DssDirectDepositHub/hub-not-live");
             require(ilk.tic == 0, "DssDirectDepositHub/join-not-live");
@@ -170,10 +167,9 @@ contract DssDirectDepositHub {
 
     function file(bytes32 ilk, bytes32 what, address data) external auth {
         require(vat.live() == 1, "DssDirectDepositHub/no-file-during-shutdown");
-        require(ilks[ilk].tic == 0, "DssDirectDepositHub/join-not-live");
+        require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
 
-        if (what == "king") ilks[ilk].king = data;
-        else if (what == "join") ilks[ilk].pool = DssDirectDepositPoolLike(data);
+        if (what == "pool") ilks[ilk].pool = DssDirectDepositPoolLike(data);
         else if (what == "gem") ilks[ilk].gem = TokenLike(data);
         else revert("DssDirectDepositHub/file-unrecognized-param");
         emit File(ilk, what, data);
@@ -325,7 +321,7 @@ contract DssDirectDepositHub {
             );
         } else {
             // Normal path
-            (uint256 supplyAmount, uint256 targetSupply) = ilk.pool.calcSupplies(availableLiquidity, ilk.bar);
+            (uint256 supplyAmount, uint256 targetSupply) = ilk.pool.calcSupplies(availableLiquidity);
 
             if (targetSupply > supplyAmount) {
                 _wind(ilk_, ilk.pool, targetSupply - supplyAmount);
@@ -365,10 +361,9 @@ contract DssDirectDepositHub {
     // --- Collect any rewards ---
     function collect(bytes32 ilk_, address[] memory assets, uint256 amount) external returns (uint256 amt) {
         Ilk memory ilk = ilks[ilk_];
-        require(ilk.king != address(0), "DssDirectDepositHub/king-not-set");
 
-        amt = ilk.pool.collect(assets, amount, ilk.king);
-        Collect(ilk_, ilk.king, assets, amt);
+        amt = ilk.pool.collect(assets, amount);
+        Collect(ilk_, ilk.pool.king(), assets, amt);
     }
 
     // --- Allow DAI holders to exit during global settlement ---
