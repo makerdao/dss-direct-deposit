@@ -182,8 +182,8 @@ contract DssDirectDepositAaveDaiPool {
         return strategy == address(interestStrategy);
     }
 
-    function calcSupplies(uint256 availableLiquidity) external view returns(uint256 supplyAmount, uint256 targetSupply) {
-        return plan.calcSupplies(availableLiquidity, bar);
+    function calcSupplies(uint256 availableAssets) external view returns(uint256, uint256) {
+        return plan.calcSupplies(availableAssets, bar);
     }
 
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender

@@ -60,9 +60,8 @@ interface DssDirectDepositPoolLike {
     function supply(uint256) external;
     function withdraw(uint256) external;
     function collect(address[] memory, uint256) external returns (uint256);
-    function gemBalanceOf() external view returns(uint256);
-    function getNormalizedBalanceOf() external view returns(uint256);
-    function getNormalizedAmount(uint256) external view returns(uint256);
+    function maxRedeem() external view returns(uint256);
+    function convertToShares(uint256) external view returns(uint256);
     function cage() external;
 }
 
@@ -193,7 +192,7 @@ contract DssDirectDepositHub {
 
         require(int256(amount) >= 0, "DssDirectDepositHub/overflow");
 
-        uint256 scaledPrev = pool.getNormalizedBalanceOf();
+        uint256 sharesPrev = pool.maxRedeem();
 
         vat.slip(ilk, address(pool), int256(amount));
         vat.frob(ilk, address(pool), address(pool), address(pool), int256(amount), int256(amount));
@@ -201,8 +200,8 @@ contract DssDirectDepositHub {
         pool.supply(amount);
 
         // Verify the correct amount of gem shows up
-        uint256 scaledAmount = pool.getNormalizedAmount(amount);
-        require(pool.getNormalizedBalanceOf() >= _add(scaledPrev, scaledAmount), "DssDirectDepositHub/no-receive-gem-tokens");
+        uint256 newShares = pool.convertToShares(amount);
+        require(pool.maxRedeem() >= _add(sharesPrev, newShares), "DssDirectDepositHub/no-receive-gem-tokens");
 
         emit Wind(ilk, amount);
     }
@@ -213,7 +212,7 @@ contract DssDirectDepositHub {
         // This module will have an unintended behaviour if rate is changed to some other value.
 
         address end;
-        uint256 gemBalance = pool.gemBalanceOf();
+        uint256 gemBalance = pool.maxRedeem();
         uint256 daiDebt;
         if (mode == Mode.NORMAL) {
             // Normal mode or module just caged (no culled)
@@ -293,7 +292,7 @@ contract DssDirectDepositHub {
     function exec(bytes32 ilk_) external {
         Ilk memory ilk = ilks[ilk_];
 
-        uint256 availableLiquidity = dai.balanceOf(address(ilk.gem));
+        uint256 availableAssets = dai.balanceOf(address(ilk.gem));
 
         if (vat.live() == 0) {
             // MCD caged
@@ -303,7 +302,7 @@ contract DssDirectDepositHub {
                 ilk_,
                 ilk.pool,
                 type(uint256).max,
-                availableLiquidity,
+                availableAssets,
                 Mode.MCD_CAGED
             );
         } else if (live == 0) {
@@ -312,23 +311,23 @@ contract DssDirectDepositHub {
                 ilk_,
                 ilk.pool,
                 type(uint256).max,
-                availableLiquidity,
+                availableAssets,
                 ilk.culled == 1
                 ? Mode.MODULE_CULLED
                 : Mode.NORMAL
             );
         } else {
             // Normal path
-            (uint256 supplyAmount, uint256 targetSupply) = ilk.pool.calcSupplies(availableLiquidity);
+            (uint256 totalAssets, uint256 targetAssets) = ilk.pool.calcSupplies(availableAssets);
 
-            if (targetSupply > supplyAmount) {
-                _wind(ilk_, ilk.pool, targetSupply - supplyAmount);
-            } else if (targetSupply < supplyAmount) {
+            if (targetAssets > totalAssets) {
+                _wind(ilk_, ilk.pool, targetAssets - totalAssets);
+            } else if (targetAssets < totalAssets) {
                 _unwind(
                     ilk_,
                     ilk.pool,
-                    supplyAmount - targetSupply,
-                    availableLiquidity,
+                    totalAssets - targetAssets,
+                    availableAssets,
                     Mode.NORMAL
                 );
             }
@@ -342,13 +341,13 @@ contract DssDirectDepositHub {
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
         require(live == 1, "DssDirectDepositHub/no-reap-during-cage");
 
-        uint256 gemBalance = ilk.pool.gemBalanceOf();
+        uint256 gemBalance = ilk.pool.maxRedeem();
         (, uint256 daiDebt) = vat.urns(ilk_, address(ilk.pool));
         if (gemBalance > daiDebt) {
             uint256 fees = gemBalance - daiDebt;
-            uint256 availableLiquidity = dai.balanceOf(address(ilk.gem));
-            if (fees > availableLiquidity) {
-                fees = availableLiquidity;
+            uint256 availableAssets = dai.balanceOf(address(ilk.gem));
+            if (fees > availableAssets) {
+                fees = availableAssets;
             }
             ilk.pool.withdraw(fees);
             vat.move(address(ilk.pool), address(chainlog.getAddress("MCD_VOW")), _mul(RAY, fees));
@@ -444,7 +443,7 @@ contract DssDirectDepositHub {
         Ilk memory ilk = ilks[ilk_];
 
         // Send all gem in the contract to who
-        require(ilk.gem.transferFrom(address(ilk.pool), who, ilk.pool.gemBalanceOf()), "DssDirectDepositHub/failed-transfer");
+        require(ilk.gem.transferFrom(address(ilk.pool), who, ilk.pool.maxRedeem()), "DssDirectDepositHub/failed-transfer");
 
         if (ilk.culled == 1) {
             // Culled - just zero out the gems

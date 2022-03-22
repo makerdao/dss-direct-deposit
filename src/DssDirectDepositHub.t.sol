@@ -212,8 +212,8 @@ contract DssDirectDepositHubTest is DSTest {
 
     function _windSystem() internal {
         directDepositTestPool.file("bar", 10);
-        directDepositTestPlan.file("supplyAmount", 50 * WAD);
-        directDepositTestPlan.file("targetSupply", 100 * WAD);
+        directDepositTestPlan.file("totalAssets", 50 * WAD);
+        directDepositTestPlan.file("targetAssets", 100 * WAD);
         directDepositHub.exec(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(
@@ -374,8 +374,8 @@ contract DssDirectDepositHubTest is DSTest {
 
     function test_wind_amount_less_target() public {
         directDepositTestPool.file("bar", 10);
-        directDepositTestPlan.file("supplyAmount", 50 * WAD);
-        directDepositTestPlan.file("targetSupply", 100 * WAD);
+        directDepositTestPlan.file("totalAssets", 50 * WAD);
+        directDepositTestPlan.file("targetAssets", 100 * WAD);
 
         (uint256 pink, uint256 part) = vat.urns(
             ilk,
@@ -458,8 +458,8 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(pink, 50 * WAD);
         assertEq(part, 50 * WAD);
 
-        directDepositTestPlan.file("targetSupply", 75 * WAD);
-        directDepositTestPlan.file("supplyAmount", 100 * WAD);
+        directDepositTestPlan.file("targetAssets", 75 * WAD);
+        directDepositTestPlan.file("totalAssets", 100 * WAD);
 
         directDepositHub.exec(ilk);
 

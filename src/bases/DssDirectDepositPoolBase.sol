@@ -61,12 +61,12 @@ abstract contract DssDirectDepositPoolBase {
         _;
     }
 
-    TokenLike   public immutable dai;
+    TokenLike   public immutable asset; // Dai
     DaiJoinLike public immutable daiJoin;
 
     address public immutable hub;
     address public immutable pool;
-    address public           gem;
+    address public           share;
     address public           plan; // How we calculate target debt
     uint256 public           bar;  // Target Interest Rate [ray]
     uint256 public           live = 1;
@@ -75,6 +75,9 @@ abstract contract DssDirectDepositPoolBase {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
+    // --- EIP-4626 Events ---
+    event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
+    event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
 
     constructor(address hub_, address daiJoin_, address pool_) internal {
 
@@ -84,7 +87,7 @@ abstract contract DssDirectDepositPoolBase {
         emit Rely(msg.sender);
 
         daiJoin = DaiJoinLike(daiJoin_);
-        TokenLike dai_ = dai = TokenLike(DaiJoinLike(daiJoin_).dai());
+        TokenLike dai_ = asset = TokenLike(DaiJoinLike(daiJoin_).dai());
         dai_.approve(daiJoin_, type(uint256).max);
 
 
@@ -106,9 +109,9 @@ abstract contract DssDirectDepositPoolBase {
     function file(bytes32 what, address data) public virtual auth {
         require(live == 1, "DssDirectDepositPoolBase/no-file-not-live");
 
-        if (what == "gem") {
-            if (gem != address(0)) TokenLike(gem).approve(hub, 0);
-            gem = data;
+        if (what == "share") {
+            if (share != address(0)) TokenLike(share).approve(hub, 0);
+            share = data;
             TokenLike(data).approve(hub, type(uint256).max);
         } else if (what == "plan") plan = data;
     }
@@ -131,11 +134,9 @@ abstract contract DssDirectDepositPoolBase {
 
     function collect(address[] memory assets, uint256 amount) external virtual returns (uint256 amt); // should use auth
 
-    function gemBalanceOf() external view virtual returns(uint256);
+    function maxRedeem() external view virtual returns(uint256);
 
-    function getNormalizedBalanceOf() external view virtual returns(uint256);
-
-    function getNormalizedAmount(uint256 amt) external virtual returns(uint256);
+    function convertToShares(uint256 amt) external virtual returns(uint256);
 
     function cage() external virtual auth {
         live = 0;

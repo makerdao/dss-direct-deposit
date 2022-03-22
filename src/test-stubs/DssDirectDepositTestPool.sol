@@ -58,20 +58,22 @@ contract DssDirectDepositTestPool is DssDirectDepositPoolBase {
         return isValidTarget;
     }
 
-    function calcSupplies(uint256 availableLiquidity) external view override returns (uint256, uint256) {
-        return DssDirectDepositPlanLike(plan).calcSupplies(availableLiquidity, bar);
+    function calcSupplies(uint256 availableAssets) external view override returns (uint256, uint256) {
+        return DssDirectDepositPlanLike(plan).calcSupplies(availableAssets, bar);
     }
 
     function supply(uint256 amt) external override {
         daiJoin.exit(address(this), amt);
-        DssDirectDepositTestGem(gem).mint(address(this), amt);
-        TokenLike(dai).transfer(gem, amt);
+        DssDirectDepositTestGem(share).mint(address(this), amt);
+        TokenLike(asset).transfer(share, amt);
+        Deposit(msg.sender, address(this), amt, amt);
     }
 
     function withdraw(uint256 amt) external override {
-        DssDirectDepositTestGem(gem).burn(address(this), amt);
-        TokenLike(dai).transferFrom(gem, address(this), amt);
+        DssDirectDepositTestGem(share).burn(address(this), amt);
+        TokenLike(asset).transferFrom(share, address(this), amt);
         daiJoin.join(address(this), amt);
+        Withdraw(msg.sender, address(this), address(this), amt, amt);
     }
 
     function collect(address[] memory assets, uint256 amount) external override auth returns (uint256 amt) {
@@ -80,15 +82,11 @@ contract DssDirectDepositTestPool is DssDirectDepositPoolBase {
         amt = rewardsClaimer.claimRewards(assets, amount, king);
     }
 
-    function gemBalanceOf() external view override returns(uint256) {
-        return TokenLike(gem).balanceOf(address(this));
+    function maxRedeem() external view override returns(uint256) {
+        return TokenLike(share).balanceOf(address(this));
     }
 
-    function getNormalizedBalanceOf() external view override returns(uint256) {
-        return TokenLike(gem).balanceOf(address(this));
-    }
-
-    function getNormalizedAmount(uint256 amt) external override returns(uint256) {
+    function convertToShares(uint256 amt) external override returns(uint256) {
         return amt;
     }
 }
