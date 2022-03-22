@@ -57,7 +57,7 @@ interface DssDirectDepositPoolLike {
     function getMaxBar() external view returns (uint256);
     function validTarget() external view returns (bool);
     function calcSupplies(uint256) external view returns (uint256, uint256);
-    function supply(uint256) external;
+    function deposit(uint256) external;
     function withdraw(uint256) external;
     function collect(address[] memory, uint256) external returns (uint256);
     function maxRedeem() external view returns(uint256);
@@ -197,7 +197,7 @@ contract DssDirectDepositHub {
         vat.slip(ilk, address(pool), int256(amount));
         vat.frob(ilk, address(pool), address(pool), address(pool), int256(amount), int256(amount));
         // normalized debt == erc20 DAI (Vat rate for this ilk fixed to 1 RAY)
-        pool.supply(amount);
+        pool.deposit(amount);
 
         // Verify the correct amount of gem shows up
         uint256 newShares = pool.convertToShares(amount);

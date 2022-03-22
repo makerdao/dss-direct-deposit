@@ -113,7 +113,7 @@ contract DssDirectDepositHubTest is DSTest {
         // Test Target Setup
         testGem.rely(address(directDepositTestPool));
         directDepositTestPlan.file("maxBar_", type(uint256).max);
-        directDepositTestPool.file("gem", address(testGem));
+        directDepositTestPool.file("share", address(testGem));
         directDepositTestPool.file("isValidTarget", true);
         testGem.giveAllowance(
             address(dai),
