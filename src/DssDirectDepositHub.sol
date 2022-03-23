@@ -369,7 +369,7 @@ contract DssDirectDepositHub {
         require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
         vat.slip(ilk_, msg.sender, -int256(wad));
         Ilk memory ilk = ilks[ilk_];
-        require(ilk.pool.transferShares(usr, wad), "DssDirectDepositHub/failed-transfer");
+        require(ilk.pool.transferShares(usr, ilk.pool.convertToShares(wad)), "DssDirectDepositHub/failed-transfer");
     }
 
     // --- Shutdown ---
@@ -444,7 +444,7 @@ contract DssDirectDepositHub {
         Ilk memory ilk = ilks[ilk_];
 
         // Send all gem in the contract to who
-        require(ilk.pool.transferShares(who, ilk.pool.maxWithdraw(), "DssDirectDepositHub/failed-transfer");
+        require(ilk.pool.transferShares(who, ilk.pool.shareBalance()), "DssDirectDepositHub/failed-transfer");
 
         if (ilk.culled == 1) {
             // Culled - just zero out the gems
