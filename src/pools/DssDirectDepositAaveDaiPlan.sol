@@ -121,8 +121,4 @@ contract DssDirectDepositAaveDaiPlan {
                         );
         targetAssets = targetBar > 0 ? calculateTargetSupply(targetBar) : 0;
     }
-
-    function getCurrentRate() public view returns (uint256 currVarBorrow) {
-        (,,,, currVarBorrow,,,,,,,) = pool.getReserveData(dai);
-    }
 }
