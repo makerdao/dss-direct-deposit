@@ -128,7 +128,7 @@ abstract contract DssDirectDepositPoolBase {
 
     function calcSupplies(uint256 availableLiquidity) external view virtual returns (uint256, uint256);
 
-    function supply(uint256 amt) external virtual;
+    function deposit(uint256 amt) external virtual;
 
     function withdraw(uint256 amt) external virtual;
 

@@ -62,7 +62,7 @@ contract DssDirectDepositTestPool is DssDirectDepositPoolBase {
         return DssDirectDepositPlanLike(plan).calcSupplies(availableAssets, bar);
     }
 
-    function supply(uint256 amt) external override {
+    function deposit(uint256 amt) external override {
         daiJoin.exit(address(this), amt);
         DssDirectDepositTestGem(share).mint(address(this), amt);
         TokenLike(asset).transfer(share, amt);

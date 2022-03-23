@@ -64,6 +64,7 @@ interface DssDirectDepositPoolLike {
     function assetBalance() external returns (uint256);
     function shareBalance() external returns (uint256);
     function convertToShares(uint256) external view returns(uint256);
+    function convertToAssets(uint256) external view returns(uint256);
     function maxWithdraw() external view returns(uint256);
     function cage() external;
 }
@@ -342,7 +343,7 @@ contract DssDirectDepositHub {
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
         require(live == 1, "DssDirectDepositHub/no-reap-during-cage");
 
-        uint256 assetBalance = ilk.pool.maxWithdraw();
+        uint256 assetBalance = ilk.pool.convertToAssets(ilk.pool.shareBalance());
         (, uint256 daiDebt) = vat.urns(ilk_, address(ilk.pool));
         if (assetBalance > daiDebt) {
             uint256 fees = assetBalance - daiDebt;

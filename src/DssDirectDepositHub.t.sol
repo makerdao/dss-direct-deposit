@@ -97,7 +97,6 @@ contract DssDirectDepositHubTest is DSTest {
 
         testGem = new DssDirectDepositTestGem(18);
         directDepositHub = new DssDirectDepositHub(address(chainlog));
-        directDepositHub.file(ilk, "gem", address(testGem));
 
         rewardsClaimer = new DssDirectDepositTestRewards(address(testGem));
         directDepositTestPool = new DssDirectDepositTestPool(
@@ -240,10 +239,10 @@ contract DssDirectDepositHubTest is DSTest {
     // }
 
     function test_can_file_tau() public {
-        (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
+        (, uint256 tau, , ) = directDepositHub.ilks(ilk);
         assertEq(tau, 7 days);
         directDepositHub.file(ilk, "tau", 1 days);
-        (, , tau, , ) = directDepositHub.ilks(ilk);
+        (, tau, , ) = directDepositHub.ilks(ilk);
         assertEq(tau, 1 days);
     }
 
@@ -255,7 +254,7 @@ contract DssDirectDepositHubTest is DSTest {
 
     function testFail_hub_not_live_tau_file() public {
         directDepositHub.file(ilk, "tau", 1 days);
-        (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
+        (, uint256 tau, , ) = directDepositHub.ilks(ilk);
         assertEq(tau, 1 days);
 
         // Cage Join
@@ -266,7 +265,7 @@ contract DssDirectDepositHubTest is DSTest {
 
     function testFail_pool_not_live_tau_file() public {
         directDepositHub.file(ilk, "tau", 1 days);
-        (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
+        (, uint256 tau, , ) = directDepositHub.ilks(ilk);
         assertEq(tau, 1 days);
 
         // Cage Join
@@ -306,15 +305,13 @@ contract DssDirectDepositHubTest is DSTest {
     // }
 
     function test_can_file_pool() public {
-        (DssDirectDepositPoolLike pool, , , , ) = directDepositHub.ilks(
-            ilk
-        );
+        (DssDirectDepositPoolLike pool, , , ) = directDepositHub.ilks(ilk);
 
         assertEq(address(pool), address(directDepositTestPool));
 
         directDepositHub.file(ilk, "pool", address(this));
 
-        (pool, , , , ) = directDepositHub.ilks(ilk);
+        (pool, , , ) = directDepositHub.ilks(ilk);
         assertEq(address(pool), address(this));
     }
 
@@ -348,12 +345,12 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "pool", address(123));
     }
 
-    function testFail_hub_not_live_gem_file() public {
-        // Cage Pool
-        directDepositHub.cage(ilk);
+    // function testFail_hub_not_live_gem_file() public {
+    //     // Cage Pool
+    //     directDepositHub.cage(ilk);
 
-        directDepositHub.file(ilk, "gem", address(123));
-    }
+    //     directDepositHub.file(ilk, "gem", address(123));
+    // }
 
     function testFail_unknown_address_file() public {
         directDepositHub.file(ilk, "unknown", address(123));
@@ -361,7 +358,7 @@ contract DssDirectDepositHubTest is DSTest {
 
     function testFail_vat_not_live_address_file() public {
         directDepositHub.file(ilk, "pool", address(this));
-        (DssDirectDepositPoolLike pool, , , ,) = directDepositHub.ilks(ilk);
+        (DssDirectDepositPoolLike pool, , ,) = directDepositHub.ilks(ilk);
 
         assertEq(address(pool), address(this));
 
@@ -612,13 +609,13 @@ contract DssDirectDepositHubTest is DSTest {
     }
 
     function test_cage_pool() public {
-        (, , , , uint256 tic) = directDepositHub.ilks(ilk);
+        (, , , uint256 tic) = directDepositHub.ilks(ilk);
         assertEq(tic, 0);
         assertEq(directDepositTestPool.live(), 1);
 
         directDepositHub.cage(ilk);
 
-        (, , , , tic) = directDepositHub.ilks(ilk);
+        (, , , tic) = directDepositHub.ilks(ilk);
         assertEq(tic, block.timestamp);
         assertEq(directDepositTestPool.live(), 0);
     }
@@ -629,7 +626,7 @@ contract DssDirectDepositHubTest is DSTest {
     }
 
     function test_cage_pool_invalid_target() public {
-        (, , , , uint256 tic) = directDepositHub.ilks(ilk);
+        (, , , uint256 tic) = directDepositHub.ilks(ilk);
         assertEq(tic, 0);
         assertEq(directDepositTestPool.live(), 1);
 
@@ -640,13 +637,13 @@ contract DssDirectDepositHubTest is DSTest {
 
         directDepositHub.cage(ilk);
 
-        (, , , , tic) = directDepositHub.ilks(ilk);
+        (, , , tic) = directDepositHub.ilks(ilk);
         assertEq(tic, block.timestamp);
         assertEq(directDepositTestPool.live(), 0);
     }
 
     function test_cage_pool_hub_caged() public {
-        (, , , , uint256 tic) = directDepositHub.ilks(ilk);
+        (, , , uint256 tic) = directDepositHub.ilks(ilk);
         assertEq(tic, 0);
         assertEq(directDepositTestPool.live(), 1);
 
@@ -656,7 +653,7 @@ contract DssDirectDepositHubTest is DSTest {
 
         directDepositHub.cage(ilk);
 
-        (, , , , tic) = directDepositHub.ilks(ilk);
+        (, , , tic) = directDepositHub.ilks(ilk);
         assertEq(tic, block.timestamp);
         assertEq(directDepositTestPool.live(), 0);
     }
@@ -688,7 +685,7 @@ contract DssDirectDepositHubTest is DSTest {
         uint256 gemAfter = vat.gem(ilk, address(directDepositTestPool));
         assertEq(gemAfter, 50 * WAD);
         assertEq(sinBefore + 50 * RAD, vat.sin(vow));
-        (, , , uint256 culled, ) = directDepositHub.ilks(ilk);
+        (, , uint256 culled, ) = directDepositHub.ilks(ilk);
         assertEq(culled, 1);
     }
 
@@ -722,7 +719,7 @@ contract DssDirectDepositHubTest is DSTest {
         uint256 gemAfter = vat.gem(ilk, address(directDepositTestPool));
         assertEq(gemAfter, 50 * WAD);
         assertEq(sinBefore + 50 * RAD, vat.sin(vow));
-        (, , , uint256 culled, ) = directDepositHub.ilks(ilk);
+        (, , uint256 culled, ) = directDepositHub.ilks(ilk);
         assertEq(culled, 1);
     }
 
@@ -783,7 +780,7 @@ contract DssDirectDepositHubTest is DSTest {
         uint256 gemBefore = vat.gem(ilk, address(directDepositTestPool));
         assertEq(gemBefore, 50 * WAD);
         uint256 sinBefore = vat.sin(vow);
-        (, , , uint256 culled, ) = directDepositHub.ilks(ilk);
+        (, , uint256 culled, ) = directDepositHub.ilks(ilk);
         assertEq(culled, 1);
 
         vat.cage();
@@ -799,7 +796,7 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(gemAfter, 0);
         // Sin should not change since we suck before grabbing
         assertEq(sinBefore, vat.sin(vow));
-        (, , , culled, ) = directDepositHub.ilks(ilk);
+        (, , culled, ) = directDepositHub.ilks(ilk);
         assertEq(culled, 0);
     }
 
