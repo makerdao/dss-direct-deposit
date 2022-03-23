@@ -82,11 +82,27 @@ contract DssDirectDepositTestPool is DssDirectDepositPoolBase {
         amt = rewardsClaimer.claimRewards(assets, amount, king);
     }
 
-    function maxRedeem() external view override returns(uint256) {
+    function transferShares(address dst, uint256 amt) external override returns(bool) {
+        return TokenLike(share).transfer(dst, amt);
+    }
+
+    function assetBalance() external view override returns(uint256) {
+        return TokenLike(asset).balanceOf(share);
+    }
+
+    function maxWithdraw() external view override returns(uint256) {
+        return TokenLike(asset).balanceOf(share);
+    }
+
+    function shareBalance() external view override returns(uint256) {
         return TokenLike(share).balanceOf(address(this));
     }
 
     function convertToShares(uint256 amt) external override returns(uint256) {
+        return amt;
+    }
+
+    function convertToAssets(uint256 amt) external override returns(uint256) {
         return amt;
     }
 }

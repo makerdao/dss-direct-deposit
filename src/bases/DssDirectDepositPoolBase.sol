@@ -134,9 +134,17 @@ abstract contract DssDirectDepositPoolBase {
 
     function collect(address[] memory assets, uint256 amount) external virtual returns (uint256 amt); // should use auth
 
-    function maxRedeem() external view virtual returns(uint256);
+    function transferShares(address, uint256) external virtual returns(bool);
+
+    function assetBalance() external view virtual returns(uint256);
+
+    function shareBalance() external view virtual returns(uint256);
+
+    function maxWithdraw() external view virtual returns(uint256);
 
     function convertToShares(uint256 amt) external virtual returns(uint256);
+
+    function convertToAssets(uint256 amt) external virtual returns(uint256);
 
     function cage() external virtual auth {
         live = 0;
