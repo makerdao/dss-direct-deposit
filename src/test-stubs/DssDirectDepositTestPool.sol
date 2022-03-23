@@ -16,168 +16,79 @@
 
 pragma solidity 0.6.12;
 
-import "./DssDirectDepositTestGem.sol";
+import { DssDirectDepositTestGem } from "./DssDirectDepositTestGem.sol";
+import "../bases/DssDirectDepositPoolBase.sol";
 
 interface RewardsClaimerLike {
     function claimRewards(address[] memory assets, uint256 amount, address to) external returns (uint256);
 }
 
-interface d3mJoinLike {
-    function vat() external view returns (address);
-    function gem() external view returns (address);
-}
-
-interface DaiJoinLike {
-    function dai() external view returns (address);
-    function join(address, uint256) external;
-    function exit(address, uint256) external;
-}
-
-interface CanLike {
-    function hope(address) external;
-    function nope(address) external;
-}
-
-interface DssDirectDepositPlanLike {
-    function calcSupplies(uint256, uint256) external view returns (uint256, uint256);
-    function maxBar() external view returns (uint256);
-}
-
-contract DssDirectDepositTestPool {
-    // --- Auth ---
-    mapping (address => uint) public wards;
-    function rely(address usr) external auth {
-        wards[usr] = 1;
-
-        emit Rely(usr);
-    }
-    function deny(address usr) external auth {
-        wards[usr] = 0;
-
-        emit Deny(usr);
-    }
-    modifier auth {
-        require(wards[msg.sender] == 1, "DssDirectDepositTestJoin/not-authorized");
-        _;
-    }
+contract DssDirectDepositTestPool is DssDirectDepositPoolBase {
 
     RewardsClaimerLike public immutable rewardsClaimer;
-    TokenLike          public immutable dai;
-    DaiJoinLike        public immutable daiJoin;
-
-    address public immutable hub;
-    address public immutable pool;
-    address public           gem;
-    address public           king; // Who gets the rewards
-    address public           plan; // How we calculate target debt
-    uint256 public           bar;  // Target Interest Rate [ray]
-
+    address            public           king; // Who gets the rewards
 
     // test helper variables
     uint256 supplyAmount;
     uint256 targetSupply;
-
     bool    isValidTarget;
 
-    uint256 public live = 1;
-
-    // --- Events ---
-    event Rely(address indexed usr);
-    event Deny(address indexed usr);
-
-    constructor(address hub_, address daiJoin_, address pool_, address _rewardsClaimer) public {
-
-        pool = pool_;
+    constructor(address hub_, address daiJoin_, address pool_, address _rewardsClaimer)
+        public
+        DssDirectDepositPoolBase(hub_, daiJoin_, pool_)
+    {
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
-
-        wards[msg.sender] = 1;
-        emit Rely(msg.sender);
-
-        daiJoin = DaiJoinLike(daiJoin_);
-        TokenLike dai_ = dai = TokenLike(DaiJoinLike(daiJoin_).dai());
-        dai_.approve(daiJoin_, type(uint256).max);
-
-
-        hub = hub_;
-        wards[hub_] = 1;
-        emit Rely(hub_);
-        CanLike(d3mJoinLike(hub_).vat()).hope(hub_);
     }
 
     // --- Admin ---
-    function file(bytes32 what, uint256 data) external auth {
-        if (what == "bar") {
-            require(data <= DssDirectDepositPlanLike(plan).maxBar(), "DssDirectDepositTestPool/above-max-interest");
-
-            bar = data;
-        }
-    }
-
     function file(bytes32 what, bool data) external auth {
         if (what == "isValidTarget") {
             isValidTarget = data;
         }
     }
 
-    function file(bytes32 what, address data) external auth {
+    function file(bytes32 what, address data) public override auth {
         require(live == 1, "DssDirectDepositTestPool/no-file-not-live");
 
-        if (what == "gem") {
-            if (gem != address(0)) TokenLike(gem).approve(hub, 0);
-            gem = data;
-            TokenLike(data).approve(hub, type(uint256).max);
-        } else if (what == "king") king = data;
-        else if (what == "plan") plan = data;
+        if (what == "king") king = data;
+        else super.file(what, data);
     }
 
-    function hope(address dst, address who) external auth {
-        CanLike(dst).hope(who);
-    }
-
-    function nope(address dst, address who) external auth {
-        CanLike(dst).nope(who);
-    }
-
-    function validTarget() external view returns (bool) {
+    function validTarget() external view override returns (bool) {
         return isValidTarget;
     }
 
-    function calcSupplies(uint256 availableLiquidity) external view returns (uint256, uint256) {
+    function calcSupplies(uint256 availableLiquidity) external view override returns (uint256, uint256) {
         return DssDirectDepositPlanLike(plan).calcSupplies(availableLiquidity, bar);
     }
 
-    function supply(uint256 amt) external {
+    function supply(uint256 amt) external override {
         daiJoin.exit(address(this), amt);
         DssDirectDepositTestGem(gem).mint(address(this), amt);
         TokenLike(dai).transfer(gem, amt);
     }
 
-    function withdraw(uint256 amt) external {
+    function withdraw(uint256 amt) external override {
         DssDirectDepositTestGem(gem).burn(address(this), amt);
         TokenLike(dai).transferFrom(gem, address(this), amt);
         daiJoin.join(address(this), amt);
     }
 
-    function collect(address[] memory assets, uint256 amount) external auth returns (uint256 amt) {
+    function collect(address[] memory assets, uint256 amount) external override auth returns (uint256 amt) {
         require(king != address(0), "DssDirectDepositPool/king-not-set");
 
         amt = rewardsClaimer.claimRewards(assets, amount, king);
     }
 
-    function gemBalanceOf() external view returns(uint256) {
+    function gemBalanceOf() external view override returns(uint256) {
         return TokenLike(gem).balanceOf(address(this));
     }
 
-    function getNormalizedBalanceOf() external view returns(uint256) {
+    function getNormalizedBalanceOf() external view override returns(uint256) {
         return TokenLike(gem).balanceOf(address(this));
     }
 
-    function getNormalizedAmount(uint256 amt) external pure returns(uint256) {
+    function getNormalizedAmount(uint256 amt) external override returns(uint256) {
         return amt;
     }
-
-    function cage() external auth {
-        live = 0;
-    }
-
 }
