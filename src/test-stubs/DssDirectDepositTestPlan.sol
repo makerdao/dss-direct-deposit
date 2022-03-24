@@ -17,14 +17,9 @@
 pragma solidity 0.6.12;
 
 import "./DssDirectDepositTestGem.sol";
+import "../bases/DssDirectDepositPlanBase.sol";
 
-interface DaiJoinLike {
-    function dai() external view returns (address);
-    function join(address, uint256) external;
-    function exit(address, uint256) external;
-}
-
-contract DssDirectDepositTestPlan {
+contract DssDirectDepositTestPlan is DssDirectDepositPlanBase {
     // --- Auth ---
     mapping (address => uint) public wards;
     function rely(address usr) external auth {
@@ -42,9 +37,6 @@ contract DssDirectDepositTestPlan {
         _;
     }
 
-    address public immutable dai;
-    address public immutable pool;
-
     // test helper variables
     uint256 maxBar_;
     uint256 supplyAmount;
@@ -55,11 +47,7 @@ contract DssDirectDepositTestPlan {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(address dai_, address pool_) public {
-
-        pool = pool_;
-        dai = dai_;
-
+    constructor(address dai_, address pool_) public DssDirectDepositPlanBase(dai_, pool_) {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
@@ -77,17 +65,13 @@ contract DssDirectDepositTestPlan {
         }
     }
 
-    function maxBar() external view returns (uint256) {
+    function maxBar() public override view returns (uint256) {
         return maxBar_;
     }
 
-    function calcSupplies(uint256 availableLiquidity, uint256 bar) external view returns (uint256, uint256) {
+    function calcSupplies(uint256 availableLiquidity, uint256 bar) external override view returns (uint256, uint256) {
         availableLiquidity;
 
         return (supplyAmount, bar > 0 ? targetSupply : 0);
-    }
-
-    function getCurrentRate() public view returns (uint256) {
-        return currentRate;
     }
 }
