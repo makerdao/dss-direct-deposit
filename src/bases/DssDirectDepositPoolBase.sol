@@ -36,7 +36,6 @@ interface CanLike {
 
 interface d3mHubLike {
     function vat() external view returns (address);
-    function gem() external view returns (address);
 }
 
 interface DssDirectDepositPlanLike {
@@ -62,15 +61,15 @@ abstract contract DssDirectDepositPoolBase {
         _;
     }
 
-    TokenLike          public immutable dai;
-    DaiJoinLike        public immutable daiJoin;
+    TokenLike   public immutable dai;
+    DaiJoinLike public immutable daiJoin;
 
     address public immutable hub;
     address public immutable pool;
     address public           gem;
     address public           plan; // How we calculate target debt
     uint256 public           bar;  // Target Interest Rate [ray]
-    uint256 public live = 1;
+    uint256 public           live = 1;
 
 
     // --- Events ---
