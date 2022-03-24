@@ -214,7 +214,7 @@ contract DssDirectDepositHub {
         // This module will have an unintended behaviour if rate is changed to some other value.
 
         address end;
-        uint256 assetBalance = pool.maxWithdraw();
+        uint256 assetBalance = pool.convertToAssets(pool.shareBalance());
         uint256 daiDebt;
         if (mode == Mode.NORMAL) {
             // Normal mode or module just caged (no culled)
