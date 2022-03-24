@@ -16,7 +16,6 @@
 
 pragma solidity 0.6.12;
 
-import "./DssDirectDepositTestGem.sol";
 import "../bases/DssDirectDepositPlanBase.sol";
 
 contract DssDirectDepositTestPlan is DssDirectDepositPlanBase {
