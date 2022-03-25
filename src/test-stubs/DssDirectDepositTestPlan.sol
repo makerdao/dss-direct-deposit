@@ -19,32 +19,11 @@ pragma solidity 0.6.12;
 import "../bases/DssDirectDepositPlanBase.sol";
 
 contract DssDirectDepositTestPlan is DssDirectDepositPlanBase {
-    // --- Auth ---
-    mapping (address => uint) public wards;
-    function rely(address usr) external auth {
-        wards[usr] = 1;
-
-        emit Rely(usr);
-    }
-    function deny(address usr) external auth {
-        wards[usr] = 0;
-
-        emit Deny(usr);
-    }
-    modifier auth {
-        require(wards[msg.sender] == 1, "DssDirectDepositTestJoin/not-authorized");
-        _;
-    }
-
     // test helper variables
     uint256 maxBar_;
     uint256 totalAssets;
     uint256 targetAssets;
     uint256 currentRate;
-
-    // --- Events ---
-    event Rely(address indexed usr);
-    event Deny(address indexed usr);
 
     constructor(address dai_, address pool_) public DssDirectDepositPlanBase(dai_, pool_) {
         wards[msg.sender] = 1;
@@ -52,7 +31,7 @@ contract DssDirectDepositTestPlan is DssDirectDepositPlanBase {
     }
 
     // --- Testing Admin ---
-    function file(bytes32 what, uint256 data) external auth {
+    function file(bytes32 what, uint256 data) public override auth {
         if (what == "maxBar_") {
             maxBar_ = data;
         } else if (what == "totalAssets") {
@@ -61,14 +40,14 @@ contract DssDirectDepositTestPlan is DssDirectDepositPlanBase {
             targetAssets = data;
         } else if (what == "currentRate") {
             currentRate = data;
-        }
+        } else super.file(what, data);
     }
 
     function maxBar() public override view returns (uint256) {
         return maxBar_;
     }
 
-    function calcSupplies(uint256 availableAssets, uint256 bar) external override view returns (uint256, uint256) {
+    function calcSupplies(uint256 availableAssets) external override view returns (uint256, uint256) {
         availableAssets;
 
         return (totalAssets, bar > 0 ? targetAssets : 0);
