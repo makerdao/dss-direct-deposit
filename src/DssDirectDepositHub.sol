@@ -25,10 +25,6 @@ interface TokenLike {
     function decimals() external view returns (uint8);
 }
 
-interface ChainlogLike {
-    function getAddress(bytes32) external view returns (address);
-}
-
 interface DaiJoinLike {
     function dai() external view returns (address);
 }
@@ -88,16 +84,17 @@ contract DssDirectDepositHub {
     enum Mode{ NORMAL, MODULE_CULLED, MCD_CAGED }
     uint256             constant  RAY  = 10 ** 27;
 
-    ChainlogLike public immutable chainlog;
     VatLike      public immutable vat;
     TokenLike    public immutable dai;
     DaiJoinLike  public immutable daiJoin;
+    address      public           vow;
+    EndLike      public           end;
 
     struct Ilk {
         D3MPoolLike pool;
-        uint256                  tau; // Time until you can write off the debt [sec]
-        uint256                  culled;
-        uint256                  tic; // Timestamp when the pool is caged
+        uint256     tau; // Time until you can write off the debt [sec]
+        uint256     culled;
+        uint256     tic; // Timestamp when the pool is caged
     }
     mapping (bytes32 => Ilk) public ilks;
     uint256                  public live = 1;
@@ -107,6 +104,7 @@ contract DssDirectDepositHub {
     event Deny(address indexed usr);
     event File(bytes32 indexed ilk, bytes32 indexed what, address data);
     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
+    event File(bytes32 indexed what, address data);
     event Wind(bytes32 indexed ilk, uint256 amount);
     event Unwind(bytes32 indexed ilk, uint256 amount);
     event Reap(bytes32 indexed ilk, uint256 amt);
@@ -118,11 +116,7 @@ contract DssDirectDepositHub {
     event Quit(bytes32 indexed ilk, address indexed usr);
     event Exit(bytes32 indexed ilk, address indexed usr, uint256 amt);
 
-    constructor(address chainlog_) public {
-        address vat_ = ChainlogLike(chainlog_).getAddress("MCD_VAT");
-        address daiJoin_ = ChainlogLike(chainlog_).getAddress("MCD_JOIN_DAI");
-
-        chainlog = ChainlogLike(chainlog_);
+    constructor(address vat_, address daiJoin_) public {
         vat = VatLike(vat_);
         daiJoin = DaiJoinLike(daiJoin_);
         dai = TokenLike(DaiJoinLike(daiJoin_).dai());
@@ -152,6 +146,15 @@ contract DssDirectDepositHub {
     }
 
     // --- Administration ---
+    function file(bytes32 what, address data) external auth {
+        require(vat.live() == 1, "DssDirectDepositHub/no-file-during-shutdown");
+
+        if (what == "vow") vow = data;
+        else if (what == "end") end = EndLike(data);
+        else revert("DssDirectDepositHub/file-unrecognized-param");
+        emit File(what, data);
+    }
+
     function file(bytes32 ilk_, bytes32 what, uint256 data) external auth {
         Ilk storage ilk = ilks[ilk_];
         if (what == "tau" ) {
@@ -169,6 +172,8 @@ contract DssDirectDepositHub {
         require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
 
         if (what == "pool") ilks[ilk].pool = D3MPoolLike(data);
+        else if (what == "vow") vow = data;
+        else if (what == "end") end = EndLike(data);
         else revert("DssDirectDepositHub/file-unrecognized-param");
         emit File(ilk, what, data);
     }
@@ -212,7 +217,6 @@ contract DssDirectDepositHub {
         // That's why it converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
 
-        address end;
         uint256 assetBalance = pool.assetBalance();
         uint256 daiDebt;
         if (mode == Mode.NORMAL) {
@@ -226,8 +230,7 @@ contract DssDirectDepositHub {
         } else {
             // MCD caged
             // debt is obtained from free collateral owned by the End module
-            end = chainlog.getAddress("MCD_END");
-            EndLike(end).skim(ilk, address(pool));
+            end.skim(ilk, address(pool));
             daiDebt = vat.gem(ilk, address(end));
         }
 
@@ -271,7 +274,6 @@ contract DssDirectDepositHub {
 
         // normalized debt == erc20 DAI to pool (Vat rate for this ilk fixed to 1 RAY)
 
-        address vow = chainlog.getAddress("MCD_VOW");
         if (mode == Mode.NORMAL) {
             vat.frob(ilk, address(pool), address(pool), address(pool), -int256(amount), -int256(amount));
             vat.slip(ilk, address(pool), -int256(amount));
@@ -283,7 +285,7 @@ contract DssDirectDepositHub {
             // This can be done with the assumption that the price of 1 aDai equals 1 DAI.
             // That way we know that the prev End.skim call kept its gap[ilk] emptied as the CDP was always collateralized.
             // Otherwise we couldn't just simply take away the collateral from the End module as the next line will be doing.
-            vat.slip(ilk, end, -int256(amount));
+            vat.slip(ilk, address(end), -int256(amount));
             vat.move(address(pool), vow, _mul(total, RAY));
         }
 
@@ -297,7 +299,7 @@ contract DssDirectDepositHub {
 
         if (vat.live() == 0) {
             // MCD caged
-            require(EndLike(chainlog.getAddress("MCD_END")).debt() == 0, "DssDirectDepositHub/end-debt-already-set");
+            require(end.debt() == 0, "DssDirectDepositHub/end-debt-already-set");
             require(ilk.culled == 0, "DssDirectDepositHub/module-has-to-be-unculled-first");
             _unwind(
                 ilk_,
@@ -351,7 +353,7 @@ contract DssDirectDepositHub {
                 fees = availableAssets;
             }
             ilk.pool.withdraw(fees);
-            vat.move(address(ilk.pool), address(chainlog.getAddress("MCD_VOW")), _mul(RAY, fees));
+            vat.move(address(ilk.pool), vow, _mul(RAY, fees));
             emit Reap(ilk_, fees);
         }
     }
@@ -413,7 +415,7 @@ contract DssDirectDepositHub {
         (uint256 ink, uint256 art) = vat.urns(ilk_, address(ilk.pool));
         require(ink <= 2 ** 255, "DssDirectDepositHub/overflow");
         require(art <= 2 ** 255, "DssDirectDepositHub/overflow");
-        vat.grab(ilk_, address(ilk.pool), address(ilk.pool), chainlog.getAddress("MCD_VOW"), -int256(ink), -int256(art));
+        vat.grab(ilk_, address(ilk.pool), address(ilk.pool), vow, -int256(ink), -int256(art));
 
         ilk.culled = 1;
         emit Cull(ilk_);
@@ -430,7 +432,6 @@ contract DssDirectDepositHub {
 
         uint256 wad = vat.gem(ilk_, address(ilk.pool));
         require(wad < 2 ** 255, "DssDirectDepositHub/overflow");
-        address vow = chainlog.getAddress("MCD_VOW");
         vat.suck(vow, vow, _mul(wad, RAY)); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
         vat.grab(ilk_, address(ilk.pool), address(ilk.pool), vow, int256(wad), int256(wad));
 
