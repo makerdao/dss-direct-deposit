@@ -30,7 +30,7 @@ contract DssDirectDepositTestGem {
     mapping (address => mapping(address => uint256)) public allowance;
 
     // --- Auth ---
-    mapping (address => uint) public wards;
+    mapping (address => uint256) public wards;
     function rely(address usr) external auth {
         wards[usr] = 1;
 
