@@ -17,12 +17,12 @@
 // pragma solidity 0.6.12;
 
 // import "ds-test/test.sol";
-// import "ds-value/value.sol";
 // import "../interfaces/interfaces.sol";
 
 // import {D3MAaveDai} from "./D3MAaveDai.sol";
 // import {D3MHub} from "./D3MHub.sol";
 // import {D3MMom} from "./D3MMom.sol";
+// import {ValueStub} from "./test-stubs/ValueStub.sol";
 
 // interface Hevm {
 //     function warp(uint256) external;
@@ -97,7 +97,7 @@
 //     D3MHub directDepositHub;
 //     D3MAaveDai directDepositAave;
 //     D3MMom directDepositMom;
-//     DSValue pip;
+//     ValueStub pip;
 
 //     // Allow for a 1 BPS margin of error on interest rates
 //     uint256 constant INTEREST_RATE_TOLERANCE = RAY / 10000;
@@ -134,7 +134,7 @@
 //         directDepositHub.rely(address(directDepositMom));
 
 //         // Init new collateral
-//         pip = new DSValue();
+//         pip = new ValueStub();
 //         pip.poke(bytes32(WAD));
 //         spot.file(ilk, "pip", address(pip));
 //         spot.file(ilk, "mat", RAY);
