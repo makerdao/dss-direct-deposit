@@ -111,18 +111,14 @@ contract DssDirectDepositAaveDaiPlan {
         return _rdiv(_add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
     }
 
-    function calcSupplies(uint256 availableLiquidity, uint256 targetBar) external view returns(uint256 supplyAmount, uint256 targetSupply) {
-        supplyAmount = _add(
-                          availableLiquidity,
+    function calcSupplies(uint256 availableAssets, uint256 targetBar) external view returns(uint256 totalAssets, uint256 targetAssets) {
+        totalAssets = _add(
+                          availableAssets,
                             _add(
                                 stableDebt.totalSupply(),
                                 variableDebt.totalSupply()
                             )
                         );
-        targetSupply = targetBar > 0 ? calculateTargetSupply(targetBar) : 0;
-    }
-
-    function getCurrentRate() public view returns (uint256 currVarBorrow) {
-        (,,,, currVarBorrow,,,,,,,) = pool.getReserveData(dai);
+        targetAssets = targetBar > 0 ? calculateTargetSupply(targetBar) : 0;
     }
 }
