@@ -87,19 +87,21 @@ contract DssDirectDepositHub {
         _;
     }
 
+    uint256             constant  RAY  = 10 ** 27;
+
+    ChainlogLike public immutable chainlog;
+    VatLike      public immutable vat;
+    TokenLike    public immutable dai;
+    DaiJoinLike  public immutable daiJoin;
+
     struct Ilk {
         DssDirectDepositPoolLike pool;
         uint256                  tau; // Time until you can write off the debt [sec]
         uint256                  culled;
         uint256                  tic; // Timestamp when the pool is caged
     }
-
-    ChainlogLike public immutable chainlog;
-    VatLike public immutable vat;
     mapping (bytes32 => Ilk) public ilks;
-    TokenLike public immutable dai;
-    DaiJoinLike public immutable daiJoin;
-    uint256 public live = 1;
+    uint256                  public live = 1;
 
     enum Mode{ NORMAL, MODULE_CULLED, MCD_CAGED }
 
@@ -116,6 +118,7 @@ contract DssDirectDepositHub {
     event Cage(bytes32 indexed ilk);
     event Cull(bytes32 indexed ilk);
     event Uncull(bytes32 indexed ilk);
+    event Quit(bytes32 indexed ilk, address indexed who);
 
     constructor(address chainlog_) public {
         address vat_ = ChainlogLike(chainlog_).getAddress("MCD_VAT");
@@ -140,7 +143,6 @@ contract DssDirectDepositHub {
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "DssDirectDepositHub/overflow");
     }
-    uint256 constant RAY  = 10 ** 27;
     function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, y) / RAY;
     }
@@ -458,5 +460,6 @@ contract DssDirectDepositHub {
             require(art < 2 ** 255, "DssDirectDepositHub/overflow");
             vat.fork(ilk_, address(ilk.pool), who, int256(ink), int256(art));
         }
+        emit Quit(ilk_, who);
     }
 }
