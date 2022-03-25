@@ -71,6 +71,8 @@ abstract contract DssDirectDepositPoolBase {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
+    event Hope(address indexed dst, address indexed usr);
+    event Nope(address indexed dst, address indexed usr);
     event Cage();
     // --- EIP-4626 Events ---
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
@@ -106,10 +108,12 @@ abstract contract DssDirectDepositPoolBase {
 
     function hope(address dst, address who) external auth {
         CanLike(dst).hope(who);
+        emit Hope(dst, who);
     }
 
     function nope(address dst, address who) external auth {
         CanLike(dst).nope(who);
+        emit Nope(dst, who);
     }
 
     function validTarget() external view virtual returns (bool);
