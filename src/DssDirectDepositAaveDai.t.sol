@@ -19,7 +19,7 @@ pragma solidity 0.6.12;
 import "ds-test/test.sol";
 import "ds-value/value.sol";
 
-import "./DssDirectDepositAaveDai.sol";
+import {DssDirectDepositAaveDai} from "./DssDirectDepositAaveDai.sol";
 import {DirectDepositMom} from "./DirectDepositMom.sol";
 
 interface Hevm {
@@ -28,29 +28,41 @@ interface Hevm {
     function load(address,bytes32) external view returns (bytes32);
 }
 
-interface GemAbstract {
+interface AuthLike {
+    function wards(address) external view returns (uint256);
+}
+
+interface TokenLike {
     function totalSupply() external view returns (uint256);
     function balanceOf(address) external view returns (uint256);
     function approve(address, uint256) external returns (bool);
 }
 
-interface DaiAbstract is GemAbstract {} // declared for dai-specific expansions
+interface DaiLike is TokenLike {} // declared for dai-specific expansions
 
-interface EndAbstract is EndLike {
+interface DaiJoinLike {
+    function join(address, uint256) external;
+}
+
+interface EndLike {
     function wait() external view returns (uint256);
     function cage() external;
     function cage(bytes32) external;
+    function skim(bytes32, address) external;
     function thaw() external;
 }
 
-interface SpotAbstract {
+interface SpotLike {
     function file(bytes32, bytes32, address) external;
     function file(bytes32, bytes32, uint256) external;
     function poke(bytes32) external;
 }
 
-interface VatAbstract is VatLike {
+interface VatLike {
     function rely(address) external;
+    function hope(address) external;
+    function urns(bytes32, address) external view returns (uint256, uint256);
+    function gem(bytes32, address) external view returns (uint256);
     function dai(address) external view returns (uint256);
     function sin(address) external view returns (uint256);
     function Line() external view returns (uint256);
@@ -58,25 +70,39 @@ interface VatAbstract is VatLike {
     function file(bytes32, uint256) external;
     function file(bytes32, bytes32, uint256) external;
     function cage() external;
+    function frob(bytes32, address, address, address, int256, int256) external;
+    function grab(bytes32, address, address, address, int256, int256) external;
 }
 
-interface VowAbstract {
+interface VowLike {
     function flapper() external view returns (address);
     function Sin() external view returns (uint256);
     function Ash() external view returns (uint256);
     function heal(uint256) external;
 }
 
-interface WardsAbstract {
-    function wards(address) external view returns (uint256);
-}
-
-interface LendingPoolAbstract is LendingPoolLike {
+interface LendingPoolLike {
+    function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
     function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external;
     function repay(address asset, uint256 amount, uint256 rateMode, address onBehalfOf) external;
+    function getReserveData(address asset) external view returns (
+        uint256,    // Configuration
+        uint128,    // the liquidity index. Expressed in ray
+        uint128,    // variable borrow index. Expressed in ray
+        uint128,    // the current supply rate. Expressed in ray
+        uint128,    // the current variable borrow rate. Expressed in ray
+        uint128,    // the current stable borrow rate. Expressed in ray
+        uint40,
+        address,    // address of the adai interest bearing token
+        address,    // address of the stable debt token
+        address,    // address of the variable debt token
+        address,    // address of the interest rate strategy
+        uint8
+    );
 }
 
-interface InterestRateStrategyAbstract is InterestRateStrategyLike {
+interface InterestRateStrategyLike {
+    function getMaxVariableBorrowRate() external view returns (uint256);
     function calculateInterestRates(
         address reserve,
         uint256 availableLiquidity,
@@ -91,7 +117,7 @@ interface InterestRateStrategyAbstract is InterestRateStrategyLike {
     );
 }
 
-interface RewardsClaimerAbstract {
+interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 }
 
@@ -103,18 +129,18 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
     Hevm hevm;
 
-    ChainlogLike chainlog;
-    VatAbstract vat;
-    EndAbstract end;
-    LendingPoolAbstract pool;
-    InterestRateStrategyAbstract interestStrategy;
-    RewardsClaimerAbstract rewardsClaimer;
-    DaiAbstract dai;
+    address chainlog;
+    VatLike vat;
+    EndLike end;
+    LendingPoolLike pool;
+    InterestRateStrategyLike interestStrategy;
+    RewardsClaimerLike rewardsClaimer;
+    DaiLike dai;
     DaiJoinLike daiJoin;
-    GemAbstract adai;
-    GemAbstract stkAave;
-    SpotAbstract spot;
-    GemAbstract weth;
+    TokenLike adai;
+    TokenLike stkAave;
+    SpotLike spot;
+    TokenLike weth;
     address vow;
     address pauseProxy;
 
@@ -130,18 +156,18 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     function setUp() public {
         hevm = Hevm(address(bytes20(uint160(uint256(keccak256('hevm cheat code'))))));
 
-        chainlog = ChainlogLike(0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F);
-        vat = VatAbstract(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
-        end = EndAbstract(0xBB856d1742fD182a90239D7AE85706C2FE4e5922);
-        pool = LendingPoolAbstract(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
-        adai = GemAbstract(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
-        stkAave = GemAbstract(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
-        dai = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+        chainlog = 0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F;
+        vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
+        end = EndLike(0xBB856d1742fD182a90239D7AE85706C2FE4e5922);
+        pool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
+        adai = TokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
+        stkAave = TokenLike(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
+        dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         daiJoin = DaiJoinLike(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
-        interestStrategy = InterestRateStrategyAbstract(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
-        rewardsClaimer = RewardsClaimerAbstract(0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5);
-        spot = SpotAbstract(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
-        weth = GemAbstract(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+        interestStrategy = InterestRateStrategyLike(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
+        rewardsClaimer = RewardsClaimerLike(0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5);
+        spot = SpotLike(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
+        weth = TokenLike(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
         pauseProxy = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
 
@@ -150,7 +176,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         _giveAuthAccess(address(end), address(this));
         _giveAuthAccess(address(spot), address(this));
         
-        deposit = new DssDirectDepositAaveDai(address(chainlog), ilk, address(pool), address(rewardsClaimer));
+        deposit = new DssDirectDepositAaveDai(chainlog, ilk, address(pool), address(rewardsClaimer));
         deposit.file("tau", 7 days);
         directDepositMom = new DirectDepositMom();
         deposit.rely(address(directDepositMom));
@@ -181,7 +207,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     }
 
     function _giveAuthAccess(address _base, address target) internal {
-        WardsAbstract base = WardsAbstract(_base);
+        AuthLike base = AuthLike(_base);
 
         // Edge case - ward is already set
         if (base.wards(target) == 1) return;
@@ -214,7 +240,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertTrue(false);
     }
 
-    function _giveTokens(GemAbstract token, uint256 amount) internal {
+    function _giveTokens(TokenLike token, uint256 amount) internal {
         // Edge case - balance is already set for some reason
         if (token.balanceOf(address(this)) == amount) return;
 
@@ -626,7 +652,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // We try to unwind what is possible
         deposit.exec();
-        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // exec() moved the remaining urn debt to the end
         (ink, art) = vat.urns(ilk, address(deposit));
@@ -647,7 +673,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Rest of the liquidity can be withdrawn
         deposit.exec();
-        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(vat.sin(vow), 0);
         assertGe(vat.dai(vow), prevDai); // As also probably accrues interest from aDai
@@ -686,7 +712,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Position is taken by the End module
         end.skim(ilk, address(deposit));
-        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         (ink, art) = vat.urns(ilk, address(deposit));
         assertEq(ink, 0);
         assertEq(art, 0);
@@ -701,7 +727,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // We try to unwind what is possible
         deposit.exec();
-        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // Part can't be done yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
@@ -719,7 +745,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Rest of the liquidity can be withdrawn
         deposit.exec();
-        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(vat.sin(vow), 0);
         assertGe(vat.dai(vow), prevDai); // As also probably accrues interest from aDai
@@ -782,9 +808,9 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         uint256 daiEarned = adai.balanceOf(address(deposit)) - pink;
 
-        VowAbstract(vow).heal(
+        VowLike(vow).heal(
             _min(
-                vat.sin(vow) - VowAbstract(vow).Sin() - VowAbstract(vow).Ash(),
+                vat.sin(vow) - VowLike(vow).Sin() - VowLike(vow).Ash(),
                 vat.dai(vow)
             )
         );
@@ -808,7 +834,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertGe(adai.balanceOf(address(deposit)), pink);
 
         // MCD shutdowns
-        originalDai = originalDai + vat.dai(VowAbstract(vow).flapper());
+        originalDai = originalDai + vat.dai(VowLike(vow).flapper());
         end.cage();
         end.cage(ilk);
 
@@ -821,7 +847,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         }
 
         deposit.uncull();
-        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // So the position is restablished
         (ink, art) = vat.urns(ilk, address(deposit));
@@ -834,7 +860,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         // Call skim manually (will be done through deposit anyway)
         // Position is again taken but this time the collateral goes to the End module
         end.skim(ilk, address(deposit));
-        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         (ink, art) = vat.urns(ilk, address(deposit));
         assertEq(ink, 0);
@@ -852,7 +878,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // We try to unwind what is possible
         deposit.exec();
-        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // A part can't be unwind yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
@@ -870,7 +896,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
 
         // Rest of the liquidity can be withdrawn
         deposit.exec();
-        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(adai.balanceOf(address(deposit)), 0);
         assertEq(vat.sin(vow), 0);
