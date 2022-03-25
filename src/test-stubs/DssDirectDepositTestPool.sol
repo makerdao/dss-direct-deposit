@@ -59,7 +59,7 @@ contract DssDirectDepositTestPool is DssDirectDepositPoolBase {
     }
 
     function calcSupplies(uint256 availableAssets) external view override returns (uint256, uint256) {
-        return DssDirectDepositPlanLike(plan).calcSupplies(availableAssets, bar);
+        return DssDirectDepositPlanLike(plan).calcSupplies(availableAssets);
     }
 
     function deposit(uint256 amt) external override {

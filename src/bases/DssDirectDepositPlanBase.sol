@@ -18,15 +18,49 @@ pragma solidity 0.6.12;
 
 abstract contract DssDirectDepositPlanBase {
 
+        // --- Auth ---
+    mapping (address => uint) public wards;
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+
+        emit Rely(usr);
+    }
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+
+        emit Deny(usr);
+    }
+    modifier auth {
+        require(wards[msg.sender] == 1, "DssDirectDepositTestJoin/not-authorized");
+        _;
+    }
+
     address public immutable pool;
     address public immutable dai;
+    uint256 public           bar;  // Target Interest Rate [ray]
+
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
 
     constructor(address dai_, address pool_) public {
         pool = pool_;
         dai = dai_;
+
+        wards[msg.sender] = 1;
+        emit Rely(msg.sender);
+    }
+
+        // --- Admin ---
+    function file(bytes32 what, uint256 data) public virtual auth {
+        if (what == "bar") {
+            require(data <= maxBar(), "DssDirectDepositTestPlan/above-max-interest");
+
+            bar = data;
+        }
     }
 
     function maxBar() public virtual view returns (uint256);
 
-    function calcSupplies(uint256 availableLiquidity, uint256 targetBar) external virtual view returns(uint256 supplyAmount, uint256 targetSupply);
+    function calcSupplies(uint256 availableLiquidity) external virtual view returns(uint256 supplyAmount, uint256 targetSupply);
 }

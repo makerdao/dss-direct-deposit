@@ -39,7 +39,7 @@ interface d3mHubLike {
 }
 
 interface DssDirectDepositPlanLike {
-    function calcSupplies(uint256, uint256) external view returns (uint256, uint256);
+    function calcSupplies(uint256) external view returns (uint256, uint256);
     function maxBar() external view returns (uint256);
 }
 
@@ -68,7 +68,6 @@ abstract contract DssDirectDepositPoolBase {
     address public immutable pool;
     address public           share;
     address public           plan; // How we calculate target debt
-    uint256 public           bar;  // Target Interest Rate [ray]
     uint256 public           live = 1;
 
 
@@ -98,14 +97,6 @@ abstract contract DssDirectDepositPoolBase {
     }
 
     // --- Admin ---
-    function file(bytes32 what, uint256 data) external virtual auth {
-        if (what == "bar") {
-            require(data <= DssDirectDepositPlanLike(plan).maxBar(), "DssDirectDepositTestPool/above-max-interest");
-
-            bar = data;
-        }
-    }
-
     function file(bytes32 what, address data) public virtual auth {
         require(live == 1, "DssDirectDepositPoolBase/no-file-not-live");
 
