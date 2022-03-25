@@ -48,16 +48,14 @@ abstract contract DssDirectDepositPoolBase {
     mapping (address => uint) public wards;
     function rely(address usr) external auth {
         wards[usr] = 1;
-
         emit Rely(usr);
     }
     function deny(address usr) external auth {
         wards[usr] = 0;
-
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "DssDirectDepositTestJoin/not-authorized");
+        require(wards[msg.sender] == 1, "DssDirectDepositPoolBase/not-authorized");
         _;
     }
 
