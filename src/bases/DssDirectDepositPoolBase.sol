@@ -63,17 +63,17 @@ abstract contract DssDirectDepositPoolBase {
 
     TokenLike   public immutable asset; // Dai
     DaiJoinLike public immutable daiJoin;
+    address     public immutable hub;
+    address     public immutable pool;
 
-    address public immutable hub;
-    address public immutable pool;
-    address public           share;
-    address public           plan; // How we calculate target debt
-    uint256 public           live = 1;
-
+    address     public           share;
+    address     public           plan; // How we calculate target debt
+    uint256     public           live = 1;
 
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
+    event Cage();
     // --- EIP-4626 Events ---
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
     event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
@@ -88,7 +88,6 @@ abstract contract DssDirectDepositPoolBase {
         daiJoin = DaiJoinLike(daiJoin_);
         TokenLike dai_ = asset = TokenLike(DaiJoinLike(daiJoin_).dai());
         dai_.approve(daiJoin_, type(uint256).max);
-
 
         hub = hub_;
         wards[hub_] = 1;
@@ -139,5 +138,6 @@ abstract contract DssDirectDepositPoolBase {
 
     function cage() external virtual auth {
         live = 0;
+        emit Cage();
     }
 }
