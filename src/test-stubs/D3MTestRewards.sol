@@ -16,15 +16,15 @@
 
 pragma solidity 0.6.12;
 
-import "./DssDirectDepositTestGem.sol";
+import "./D3MTestGem.sol";
 
-contract DssDirectDepositTestRewards {
+contract D3MTestRewards {
 
-    DssDirectDepositTestGem public immutable rewards;
+    D3MTestGem public immutable rewards;
     address public immutable testGem;
 
     constructor(address testGem_) public {
-        rewards = new DssDirectDepositTestGem(18);
+        rewards = new D3MTestGem(18);
         testGem = testGem_;
     }
 

@@ -16,14 +16,14 @@
 
 pragma solidity 0.6.12;
 
-import { DssDirectDepositTestGem } from "./DssDirectDepositTestGem.sol";
-import "../bases/DssDirectDepositPoolBase.sol";
+import { D3MTestGem } from "./D3MTestGem.sol";
+import "../bases/D3MPoolBase.sol";
 
 interface RewardsClaimerLike {
     function claimRewards(address[] memory assets, uint256 amount, address to) external returns (uint256);
 }
 
-contract DssDirectDepositTestPool is DssDirectDepositPoolBase {
+contract D3MTestPool is D3MPoolBase {
 
     RewardsClaimerLike public immutable rewardsClaimer;
     address            public           king; // Who gets the rewards
@@ -35,7 +35,7 @@ contract DssDirectDepositTestPool is DssDirectDepositPoolBase {
 
     constructor(address hub_, address daiJoin_, address pool_, address _rewardsClaimer)
         public
-        DssDirectDepositPoolBase(hub_, daiJoin_, pool_)
+        D3MPoolBase(hub_, daiJoin_, pool_)
     {
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
     }
@@ -48,7 +48,7 @@ contract DssDirectDepositTestPool is DssDirectDepositPoolBase {
     }
 
     function file(bytes32 what, address data) public override auth {
-        require(live == 1, "DssDirectDepositTestPool/no-file-not-live");
+        require(live == 1, "D3MTestPool/no-file-not-live");
 
         if (what == "king") king = data;
         else super.file(what, data);
@@ -59,25 +59,25 @@ contract DssDirectDepositTestPool is DssDirectDepositPoolBase {
     }
 
     function calcSupplies(uint256 availableAssets) external view override returns (uint256, uint256) {
-        return DssDirectDepositPlanLike(plan).calcSupplies(availableAssets);
+        return D3MPlanLike(plan).calcSupplies(availableAssets);
     }
 
     function deposit(uint256 amt) external override {
         daiJoin.exit(address(this), amt);
-        DssDirectDepositTestGem(share).mint(address(this), amt);
+        D3MTestGem(share).mint(address(this), amt);
         TokenLike(asset).transfer(share, amt);
         Deposit(msg.sender, address(this), amt, amt);
     }
 
     function withdraw(uint256 amt) external override {
-        DssDirectDepositTestGem(share).burn(address(this), amt);
+        D3MTestGem(share).burn(address(this), amt);
         TokenLike(asset).transferFrom(share, address(this), amt);
         daiJoin.join(address(this), amt);
         Withdraw(msg.sender, address(this), address(this), amt, amt);
     }
 
     function collect(address[] memory assets, uint256 amount) external override auth returns (uint256 amt) {
-        require(king != address(0), "DssDirectDepositPool/king-not-set");
+        require(king != address(0), "D3MPool/king-not-set");
 
         amt = rewardsClaimer.claimRewards(assets, amount, king);
     }

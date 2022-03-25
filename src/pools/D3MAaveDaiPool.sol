@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-import "../bases/DssDirectDepositPoolBase.sol";
+import "../bases/D3MPoolBase.sol";
 
 interface ShareTokenLike is TokenLike {
     function scaledBalanceOf(address) external view returns (uint256);
@@ -55,7 +55,7 @@ interface RewardsClaimerLike {
     function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
 }
 
-contract DssDirectDepositAaveDaiPool is DssDirectDepositPoolBase {
+contract D3MAaveDaiPool is D3MPoolBase {
 
     InterestRateStrategyLike public immutable interestStrategy;
     RewardsClaimerLike       public immutable rewardsClaimer;
@@ -65,17 +65,17 @@ contract DssDirectDepositAaveDaiPool is DssDirectDepositPoolBase {
     address public king;     // Who gets the rewards
     uint256 public bar;      // Target Interest Rate [ray]
 
-    constructor(address hub_, address daiJoin_, address pool_, address _rewardsClaimer) public DssDirectDepositPoolBase(hub_, daiJoin_, pool_) {
+    constructor(address hub_, address daiJoin_, address pool_, address _rewardsClaimer) public D3MPoolBase(hub_, daiJoin_, pool_) {
         // address dai_, address pool_,
 
         address dai_ = DaiJoinLike(daiJoin_).dai();
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(address(dai_));
-        require(adai_ != address(0), "DssDirectDepositAaveDaiPool/invalid-adai");
-        require(stableDebt_ != address(0), "DssDirectDepositAaveDaiPool/invalid-stableDebt");
-        require(variableDebt_ != address(0), "DssDirectDepositAaveDaiPool/invalid-variableDebt");
-        require(interestStrategy_ != address(0), "DssDirectDepositAaveDaiPool/invalid-interestStrategy");
+        require(adai_ != address(0), "D3MAaveDaiPool/invalid-adai");
+        require(stableDebt_ != address(0), "D3MAaveDaiPool/invalid-stableDebt");
+        require(variableDebt_ != address(0), "D3MAaveDaiPool/invalid-variableDebt");
+        require(interestStrategy_ != address(0), "D3MAaveDaiPool/invalid-interestStrategy");
 
         stableDebt = ShareTokenLike(stableDebt_);
         variableDebt = ShareTokenLike(variableDebt_);
@@ -92,13 +92,13 @@ contract DssDirectDepositAaveDaiPool is DssDirectDepositPoolBase {
 
     // --- Math ---
     function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "DssDirectDepositAaveDaiPool/overflow");
+        require((z = x + y) >= x, "D3MAaveDaiPool/overflow");
     }
     function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "DssDirectDepositAaveDaiPool/underflow");
+        require((z = x - y) <= x, "D3MAaveDaiPool/underflow");
     }
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "DssDirectDepositAaveDaiPool/overflow");
+        require(y == 0 || (z = x * y) / y == x, "D3MAaveDaiPool/overflow");
     }
     uint256 constant RAY  = 10 ** 27;
     function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
@@ -113,7 +113,7 @@ contract DssDirectDepositAaveDaiPool is DssDirectDepositPoolBase {
 
     // --- Admin ---
     function file(bytes32 what, address data) public override auth {
-        require(live == 1, "DssDirectDepositAaveDaiPoolPool/no-file-not-live");
+        require(live == 1, "D3MAaveDaiPoolPool/no-file-not-live");
 
         if (what == "king") king = data;
         else super.file(what, data);
@@ -125,7 +125,7 @@ contract DssDirectDepositAaveDaiPool is DssDirectDepositPoolBase {
     }
 
     function calcSupplies(uint256 availableAssets) external view override returns(uint256, uint256) {
-        return DssDirectDepositPlanLike(plan).calcSupplies(availableAssets);
+        return D3MPlanLike(plan).calcSupplies(availableAssets);
     }
 
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
@@ -143,7 +143,7 @@ contract DssDirectDepositAaveDaiPool is DssDirectDepositPoolBase {
 
     // --- Collect any rewards ---
     function collect(address[] memory assets, uint256 amount) external override auth returns (uint256 amt) {
-        require(king != address(0), "DssDirectDepositAaveDaiPool/king-not-set");
+        require(king != address(0), "D3MAaveDaiPool/king-not-set");
 
         amt = rewardsClaimer.claimRewards(assets, amount, king);
     }

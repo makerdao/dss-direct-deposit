@@ -16,16 +16,16 @@
 
 pragma solidity 0.6.12;
 
-import "../bases/DssDirectDepositPlanBase.sol";
+import "../bases/D3MPlanBase.sol";
 
-contract DssDirectDepositTestPlan is DssDirectDepositPlanBase {
+contract D3MTestPlan is D3MPlanBase {
     // test helper variables
     uint256 maxBar_;
     uint256 totalAssets;
     uint256 targetAssets;
     uint256 currentRate;
 
-    constructor(address dai_, address pool_) public DssDirectDepositPlanBase(dai_, pool_) {
+    constructor(address dai_, address pool_) public D3MPlanBase(dai_, pool_) {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }

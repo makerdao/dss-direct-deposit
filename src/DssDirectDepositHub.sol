@@ -52,7 +52,7 @@ interface EndLike {
     function skim(bytes32, address) external;
 }
 
-interface DssDirectDepositPoolLike {
+interface D3MPoolLike {
     function king() external view returns (address);
     function getMaxBar() external view returns (uint256);
     function validTarget() external view returns (bool);
@@ -94,7 +94,7 @@ contract DssDirectDepositHub {
     DaiJoinLike  public immutable daiJoin;
 
     struct Ilk {
-        DssDirectDepositPoolLike pool;
+        D3MPoolLike pool;
         uint256                  tau; // Time until you can write off the debt [sec]
         uint256                  culled;
         uint256                  tic; // Timestamp when the pool is caged
@@ -168,13 +168,13 @@ contract DssDirectDepositHub {
         require(vat.live() == 1, "DssDirectDepositHub/no-file-during-shutdown");
         require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
 
-        if (what == "pool") ilks[ilk].pool = DssDirectDepositPoolLike(data);
+        if (what == "pool") ilks[ilk].pool = D3MPoolLike(data);
         else revert("DssDirectDepositHub/file-unrecognized-param");
         emit File(ilk, what, data);
     }
 
     // --- Deposit controls ---
-    function _wind(bytes32 ilk, DssDirectDepositPoolLike pool, uint256 amount) internal {
+    function _wind(bytes32 ilk, D3MPoolLike pool, uint256 amount) internal {
         // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
         // That's why this module converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
@@ -207,7 +207,7 @@ contract DssDirectDepositHub {
         emit Wind(ilk, amount);
     }
 
-    function _unwind(bytes32 ilk, DssDirectDepositPoolLike pool, uint256 supplyReduction, uint256 availableLiquidity, Mode mode) internal {
+    function _unwind(bytes32 ilk, D3MPoolLike pool, uint256 supplyReduction, uint256 availableLiquidity, Mode mode) internal {
         // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
         // That's why it converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.

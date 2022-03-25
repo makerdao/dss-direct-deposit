@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-abstract contract DssDirectDepositPlanBase {
+abstract contract D3MPlanBase {
 
         // --- Auth ---
     mapping (address => uint256) public wards;
@@ -29,7 +29,7 @@ abstract contract DssDirectDepositPlanBase {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "DssDirectDepositPlanBase/not-authorized");
+        require(wards[msg.sender] == 1, "D3MPlanBase/not-authorized");
         _;
     }
 
@@ -53,7 +53,7 @@ abstract contract DssDirectDepositPlanBase {
         // --- Admin ---
     function file(bytes32 what, uint256 data) public virtual auth {
         if (what == "bar") {
-            require(data <= maxBar(), "DssDirectDepositPlanBase/above-max-interest");
+            require(data <= maxBar(), "D3MPlanBase/above-max-interest");
 
             bar = data;
         }

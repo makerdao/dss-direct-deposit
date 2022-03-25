@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-import "../bases/DssDirectDepositPlanBase.sol";
+import "../bases/D3MPlanBase.sol";
 
 interface TargetTokenLike {
     function totalSupply() external view returns (uint256);
@@ -48,19 +48,19 @@ interface InterestRateStrategyLike {
     function getMaxVariableBorrowRate() external view returns (uint256);
 }
 
-contract DssDirectDepositAaveDaiPlan is DssDirectDepositPlanBase {
+contract D3MAaveDaiPlan is D3MPlanBase {
 
     InterestRateStrategyLike public immutable interestStrategy;
     TargetTokenLike public immutable stableDebt;
     TargetTokenLike public immutable variableDebt;
 
-    constructor(address dai_, address pool_) public DssDirectDepositPlanBase(dai_, pool_) {
+    constructor(address dai_, address pool_) public D3MPlanBase(dai_, pool_) {
 
         // Fetch the reserve data from Aave
         (,,,,,,,, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(address(dai_));
-        require(stableDebt_ != address(0), "DssDirectDepositAaveDai/invalid-stableDebt");
-        require(variableDebt_ != address(0), "DssDirectDepositAaveDai/invalid-variableDebt");
-        require(interestStrategy_ != address(0), "DssDirectDepositAaveDai/invalid-interestStrategy");
+        require(stableDebt_ != address(0), "D3MAaveDai/invalid-stableDebt");
+        require(variableDebt_ != address(0), "D3MAaveDai/invalid-variableDebt");
+        require(interestStrategy_ != address(0), "D3MAaveDai/invalid-interestStrategy");
 
         stableDebt = TargetTokenLike(stableDebt_);
         variableDebt = TargetTokenLike(variableDebt_);
@@ -69,13 +69,13 @@ contract DssDirectDepositAaveDaiPlan is DssDirectDepositPlanBase {
 
     // --- Math ---
     function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "DssDirectDepositAaveDai/overflow");
+        require((z = x + y) >= x, "D3MAaveDai/overflow");
     }
     function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "DssDirectDepositAaveDai/underflow");
+        require((z = x - y) <= x, "D3MAaveDai/underflow");
     }
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "DssDirectDepositAaveDai/overflow");
+        require(y == 0 || (z = x * y) / y == x, "D3MAaveDai/overflow");
     }
     uint256 constant RAY  = 10 ** 27;
     function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
@@ -92,8 +92,8 @@ contract DssDirectDepositAaveDaiPlan is DssDirectDepositPlanBase {
     // --- Automated Rate targeting ---
     function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
-        require(targetInterestRate > base, "DssDirectDepositAaveDai/target-interest-base");
-        require(targetInterestRate <= maxBar(), "DssDirectDepositAaveDai/above-max-interest");
+        require(targetInterestRate > base, "D3MAaveDai/target-interest-base");
+        require(targetInterestRate <= maxBar(), "D3MAaveDai/above-max-interest");
 
         // Do inverse calculation of interestStrategy
         uint256 variableRateSlope1 = interestStrategy.variableRateSlope1();

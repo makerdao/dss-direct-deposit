@@ -19,9 +19,9 @@
 // import "ds-test/test.sol";
 // import "ds-value/value.sol";
 
-// import {DssDirectDepositAaveDai} from "./DssDirectDepositAaveDai.sol";
-// import {DssDirectDepositJoin} from "./DssDirectDepositJoin.sol";
-// import {DssDirectDepositMom} from "./DssDirectDepositMom.sol";
+// import {D3MAaveDai} from "./D3MAaveDai.sol";
+// import {D3MHub} from "./D3MHub.sol";
+// import {D3MMom} from "./D3MMom.sol";
 
 // interface Hevm {
 //     function warp(uint256) external;
@@ -122,7 +122,7 @@
 //     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 // }
 
-// contract DssDirectDepositAaveDaiTest is DSTest {
+// contract D3MAaveDaiTest is DSTest {
 
 //     uint256 constant WAD = 10 ** 18;
 //     uint256 constant RAY = 10 ** 27;
@@ -146,9 +146,9 @@
 //     address pauseProxy;
 
 //     bytes32 constant ilk = "DD-DAI-A";
-//     DssDirectDepositJoin directDepositJoin;
-//     DssDirectDepositAaveDai directDepositAave;
-//     DssDirectDepositMom directDepositMom;
+//     D3MHub directDepositHub;
+//     D3MAaveDai directDepositAave;
+//     D3MMom directDepositMom;
 //     DSValue pip;
 
 //     // Allow for a 1 BPS margin of error on interest rates
@@ -178,12 +178,12 @@
 //         _giveAuthAccess(address(end), address(this));
 //         _giveAuthAccess(address(spot), address(this));
 
-//         directDepositAave = new DssDirectDepositAaveDai(address(dai), address(pool), address(rewardsClaimer));
-//         directDepositJoin = new DssDirectDepositJoin(address(chainlog), ilk, address(directDepositAave), address(adai));
-//         directDepositJoin.file("tau", 7 days);
-//         directDepositAave.rely(address(directDepositJoin));
-//         directDepositMom = new DssDirectDepositMom();
-//         directDepositJoin.rely(address(directDepositMom));
+//         directDepositAave = new D3MAaveDai(address(dai), address(pool), address(rewardsClaimer));
+//         directDepositHub = new D3MHub(address(chainlog), ilk, address(adai));
+//         directDepositHub.file("tau", 7 days);
+//         directDepositAave.rely(address(directDepositHub));
+//         directDepositMom = new D3MMom();
+//         directDepositHub.rely(address(directDepositMom));
 
 //         // Init new collateral
 //         pip = new DSValue();
@@ -787,8 +787,8 @@
 
 //         end.thaw();
 
-//         // Unwind via exec should fail with error "DssDirectDepositAaveDai/end-debt-already-set"
-//         directDepositJoin.exec();
+//         // Unwind via exec should fail with error "D3MAaveDai/end-debt-already-set"
+//         directDepositHub.exec();
 //     }
 
 //     function test_unwind_culled_then_mcd_caged() public {
@@ -917,8 +917,8 @@
 //         end.cage();
 //         end.cage(ilk);
 
-//         // uncull should fail with error "DssDirectDepositAaveDai/not-prev-culled"
-//         directDepositJoin.uncull();
+//         // uncull should fail with error "D3MAaveDai/not-prev-culled"
+//         directDepositHub.uncull();
 //     }
 
 //     function testFail_uncull_not_shutdown() public {
@@ -930,8 +930,8 @@
 
 //         directDepositJoin.cull();
 
-//         // uncull should fail with error "DssDirectDepositAaveDai/no-uncull-normal-operation"
-//         directDepositJoin.uncull();
+//         // uncull should fail with error "D3MAaveDai/no-uncull-normal-operation"
+//         directDepositHub.uncull();
 //     }
 
 //     function test_collect_stkaave() public {
@@ -1084,8 +1084,8 @@
 
 //         hevm.warp(block.timestamp + 1 days);    // Accrue some interest
 
-//         // reap should fail with error "DssDirectDepositAaveDai/no-reap-during-cage"
-//         directDepositJoin.reap();
+//         // reap should fail with error "D3MAaveDai/no-reap-during-cage"
+//         directDepositHub.reap();
 //     }
 
 //     function test_direct_deposit_mom() public {
@@ -1120,8 +1120,8 @@
 //         assertEq(directDepositJoin.live(), 0);
 //         assertEq(directDepositAave.live(), 0);
 
-//         // file should fail with error "DssDirectDepositAaveDai/live"
-//         directDepositJoin.file("tau", 1 days);
+//         // file should fail with error "D3MAaveDai/live"
+//         directDepositHub.file("tau", 1 days);
 //     }
 
 //     // Make sure the module works correctly even when someone permissionlessly repays the urn

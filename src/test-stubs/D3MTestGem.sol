@@ -23,7 +23,7 @@ interface TokenLike {
     function balanceOf(address) external view returns (uint256);
 }
 
-contract DssDirectDepositTestGem {
+contract D3MTestGem {
     uint256 public totalSupply = 1_000_000 ether;
     uint256 public immutable decimals;
     mapping (address => uint256) public balanceOf;

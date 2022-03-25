@@ -38,12 +38,12 @@ interface d3mHubLike {
     function vat() external view returns (address);
 }
 
-interface DssDirectDepositPlanLike {
+interface D3MPlanLike {
     function calcSupplies(uint256) external view returns (uint256, uint256);
     function maxBar() external view returns (uint256);
 }
 
-abstract contract DssDirectDepositPoolBase {
+abstract contract D3MPoolBase {
     // --- Auth ---
     mapping (address => uint256) public wards;
     function rely(address usr) external auth {
@@ -55,7 +55,7 @@ abstract contract DssDirectDepositPoolBase {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "DssDirectDepositPoolBase/not-authorized");
+        require(wards[msg.sender] == 1, "D3MPoolBase/not-authorized");
         _;
     }
 
@@ -97,7 +97,7 @@ abstract contract DssDirectDepositPoolBase {
 
     // --- Admin ---
     function file(bytes32 what, address data) public virtual auth {
-        require(live == 1, "DssDirectDepositPoolBase/no-file-not-live");
+        require(live == 1, "D3MPoolBase/no-file-not-live");
 
         if (what == "share") {
             if (share != address(0)) TokenLike(share).approve(hub, 0);
