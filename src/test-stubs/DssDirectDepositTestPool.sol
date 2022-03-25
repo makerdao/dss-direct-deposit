@@ -58,20 +58,22 @@ contract DssDirectDepositTestPool is DssDirectDepositPoolBase {
         return isValidTarget;
     }
 
-    function calcSupplies(uint256 availableLiquidity) external view override returns (uint256, uint256) {
-        return DssDirectDepositPlanLike(plan).calcSupplies(availableLiquidity, bar);
+    function calcSupplies(uint256 availableAssets) external view override returns (uint256, uint256) {
+        return DssDirectDepositPlanLike(plan).calcSupplies(availableAssets, bar);
     }
 
-    function supply(uint256 amt) external override {
+    function deposit(uint256 amt) external override {
         daiJoin.exit(address(this), amt);
-        DssDirectDepositTestGem(gem).mint(address(this), amt);
-        TokenLike(dai).transfer(gem, amt);
+        DssDirectDepositTestGem(share).mint(address(this), amt);
+        TokenLike(asset).transfer(share, amt);
+        Deposit(msg.sender, address(this), amt, amt);
     }
 
     function withdraw(uint256 amt) external override {
-        DssDirectDepositTestGem(gem).burn(address(this), amt);
-        TokenLike(dai).transferFrom(gem, address(this), amt);
+        DssDirectDepositTestGem(share).burn(address(this), amt);
+        TokenLike(asset).transferFrom(share, address(this), amt);
         daiJoin.join(address(this), amt);
+        Withdraw(msg.sender, address(this), address(this), amt, amt);
     }
 
     function collect(address[] memory assets, uint256 amount) external override auth returns (uint256 amt) {
@@ -80,15 +82,27 @@ contract DssDirectDepositTestPool is DssDirectDepositPoolBase {
         amt = rewardsClaimer.claimRewards(assets, amount, king);
     }
 
-    function gemBalanceOf() external view override returns(uint256) {
-        return TokenLike(gem).balanceOf(address(this));
+    function transferShares(address dst, uint256 amt) external override returns(bool) {
+        return TokenLike(share).transfer(dst, amt);
     }
 
-    function getNormalizedBalanceOf() external view override returns(uint256) {
-        return TokenLike(gem).balanceOf(address(this));
+    function assetBalance() external view override returns(uint256) {
+        return convertToAssets(shareBalance());
     }
 
-    function getNormalizedAmount(uint256 amt) external override returns(uint256) {
+    function maxWithdraw() external view override returns(uint256) {
+        return TokenLike(asset).balanceOf(share);
+    }
+
+    function shareBalance() public view override returns(uint256) {
+        return TokenLike(share).balanceOf(address(this));
+    }
+
+    function convertToShares(uint256 amt) external view override returns(uint256) {
+        return amt;
+    }
+
+    function convertToAssets(uint256 amt) public view override returns(uint256) {
         return amt;
     }
 }

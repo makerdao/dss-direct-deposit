@@ -38,8 +38,8 @@ contract DssDirectDepositTestPlan is DssDirectDepositPlanBase {
 
     // test helper variables
     uint256 maxBar_;
-    uint256 supplyAmount;
-    uint256 targetSupply;
+    uint256 totalAssets;
+    uint256 targetAssets;
     uint256 currentRate;
 
     // --- Events ---
@@ -55,10 +55,10 @@ contract DssDirectDepositTestPlan is DssDirectDepositPlanBase {
     function file(bytes32 what, uint256 data) external auth {
         if (what == "maxBar_") {
             maxBar_ = data;
-        } else if (what == "supplyAmount") {
-            supplyAmount = data;
-        } else if (what == "targetSupply") {
-            targetSupply = data;
+        } else if (what == "totalAssets") {
+            totalAssets = data;
+        } else if (what == "targetAssets") {
+            targetAssets = data;
         } else if (what == "currentRate") {
             currentRate = data;
         }
@@ -68,9 +68,9 @@ contract DssDirectDepositTestPlan is DssDirectDepositPlanBase {
         return maxBar_;
     }
 
-    function calcSupplies(uint256 availableLiquidity, uint256 bar) external override view returns (uint256, uint256) {
-        availableLiquidity;
+    function calcSupplies(uint256 availableAssets, uint256 bar) external override view returns (uint256, uint256) {
+        availableAssets;
 
-        return (supplyAmount, bar > 0 ? targetSupply : 0);
+        return (totalAssets, bar > 0 ? targetAssets : 0);
     }
 }
