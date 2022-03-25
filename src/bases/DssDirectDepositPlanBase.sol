@@ -19,7 +19,7 @@ pragma solidity 0.6.12;
 abstract contract DssDirectDepositPlanBase {
 
         // --- Auth ---
-    mapping (address => uint) public wards;
+    mapping (address => uint256) public wards;
     function rely(address usr) external auth {
         wards[usr] = 1;
         emit Rely(usr);
