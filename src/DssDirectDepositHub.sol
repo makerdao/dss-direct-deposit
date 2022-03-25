@@ -16,19 +16,6 @@
 
 pragma solidity 0.6.12;
 
-interface TokenLike {
-    function totalSupply() external view returns (uint256);
-    function balanceOf(address) external view returns (uint256);
-    function approve(address, uint256) external returns (bool);
-    function transferFrom(address, address, uint256) external returns (bool);
-    function scaledBalanceOf(address) external view returns (uint256);
-    function decimals() external view returns (uint8);
-}
-
-interface DaiJoinLike {
-    function dai() external view returns (address);
-}
-
 interface VatLike {
     function hope(address) external;
     function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
@@ -85,8 +72,6 @@ contract DssDirectDepositHub {
     uint256             constant  RAY  = 10 ** 27;
 
     VatLike      public immutable vat;
-    TokenLike    public immutable dai;
-    DaiJoinLike  public immutable daiJoin;
     address      public           vow;
     EndLike      public           end;
 
@@ -116,10 +101,8 @@ contract DssDirectDepositHub {
     event Quit(bytes32 indexed ilk, address indexed usr);
     event Exit(bytes32 indexed ilk, address indexed usr, uint256 amt);
 
-    constructor(address vat_, address daiJoin_) public {
+    constructor(address vat_) public {
         vat = VatLike(vat_);
-        daiJoin = DaiJoinLike(daiJoin_);
-        dai = TokenLike(DaiJoinLike(daiJoin_).dai());
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);

@@ -90,7 +90,7 @@ contract DssDirectDepositHubTest is DSTest {
         _giveAuthAccess(address(spot), address(this));
 
         testGem = new D3MTestGem(18);
-        directDepositHub = new DssDirectDepositHub(address(vat), address(daiJoin));
+        directDepositHub = new DssDirectDepositHub(address(vat));
 
         rewardsClaimer = new D3MTestRewards(address(testGem));
         d3mTestPool = new D3MTestPool(
