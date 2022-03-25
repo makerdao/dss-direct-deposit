@@ -115,7 +115,8 @@ contract DssDirectDepositHub {
     event Cage(bytes32 indexed ilk);
     event Cull(bytes32 indexed ilk);
     event Uncull(bytes32 indexed ilk);
-    event Quit(bytes32 indexed ilk, address indexed who);
+    event Quit(bytes32 indexed ilk, address indexed usr);
+    event Exit(bytes32 indexed ilk, address indexed usr, uint256 amt);
 
     constructor(address chainlog_) public {
         address vat_ = ChainlogLike(chainlog_).getAddress("MCD_VAT");
@@ -369,6 +370,7 @@ contract DssDirectDepositHub {
         vat.slip(ilk_, msg.sender, -int256(wad));
         Ilk memory ilk = ilks[ilk_];
         require(ilk.pool.transferShares(usr, ilk.pool.convertToShares(wad)), "DssDirectDepositHub/failed-transfer");
+        emit Exit(ilk_, usr, wad);
     }
 
     // --- Shutdown ---
