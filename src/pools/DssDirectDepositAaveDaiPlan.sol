@@ -16,6 +16,8 @@
 
 pragma solidity 0.6.12;
 
+import "../bases/DssDirectDepositPlanBase.sol";
+
 interface TargetTokenLike {
     function totalSupply() external view returns (uint256);
 }
@@ -46,15 +48,13 @@ interface InterestRateStrategyLike {
     function getMaxVariableBorrowRate() external view returns (uint256);
 }
 
-contract DssDirectDepositAaveDaiPlan {
+contract DssDirectDepositAaveDaiPlan is DssDirectDepositPlanBase {
 
-    LendingPoolLike public immutable pool;
     InterestRateStrategyLike public immutable interestStrategy;
-    address public immutable dai;
     TargetTokenLike public immutable stableDebt;
     TargetTokenLike public immutable variableDebt;
 
-    constructor(address dai_, address pool_) public {
+    constructor(address dai_, address pool_) public DssDirectDepositPlanBase(dai_, pool_) {
 
         // Fetch the reserve data from Aave
         (,,,,,,,, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(address(dai_));
@@ -62,8 +62,6 @@ contract DssDirectDepositAaveDaiPlan {
         require(variableDebt_ != address(0), "DssDirectDepositAaveDai/invalid-variableDebt");
         require(interestStrategy_ != address(0), "DssDirectDepositAaveDai/invalid-interestStrategy");
 
-        pool = LendingPoolLike(pool_);
-        dai = dai_;
         stableDebt = TargetTokenLike(stableDebt_);
         variableDebt = TargetTokenLike(variableDebt_);
         interestStrategy = InterestRateStrategyLike(interestStrategy_);
@@ -87,7 +85,7 @@ contract DssDirectDepositAaveDaiPlan {
         z = _mul(x, RAY) / y;
     }
 
-    function maxBar() public view returns (uint256) {
+    function maxBar() public override view returns (uint256) {
         return interestStrategy.getMaxVariableBorrowRate();
     }
 
@@ -111,7 +109,7 @@ contract DssDirectDepositAaveDaiPlan {
         return _rdiv(_add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
     }
 
-    function calcSupplies(uint256 availableAssets, uint256 targetBar) external view returns(uint256 totalAssets, uint256 targetAssets) {
+    function calcSupplies(uint256 availableAssets) external override view returns(uint256 totalAssets, uint256 targetAssets) {
         totalAssets = _add(
                           availableAssets,
                             _add(
@@ -119,6 +117,6 @@ contract DssDirectDepositAaveDaiPlan {
                                 variableDebt.totalSupply()
                             )
                         );
-        targetAssets = targetBar > 0 ? calculateTargetSupply(targetBar) : 0;
+        targetAssets = bar > 0 ? calculateTargetSupply(bar) : 0;
     }
 }
