@@ -28,6 +28,14 @@ interface Hevm {
     function load(address,bytes32) external view returns (bytes32);
 }
 
+interface GemAbstract {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address) external view returns (uint256);
+    function approve(address, uint256) external returns (bool);
+}
+
+interface DaiAbstract is GemAbstract {} // declared for dai-specific expansions
+
 interface EndAbstract is EndLike {
     function wait() external view returns (uint256);
     function cage() external;
@@ -101,12 +109,12 @@ contract DssDirectDepositAaveDaiTest is DSTest {
     LendingPoolAbstract pool;
     InterestRateStrategyAbstract interestStrategy;
     RewardsClaimerAbstract rewardsClaimer;
-    TokenLike dai;
+    DaiAbstract dai;
     DaiJoinLike daiJoin;
-    TokenLike adai;
-    TokenLike stkAave;
+    GemAbstract adai;
+    GemAbstract stkAave;
     SpotAbstract spot;
-    TokenLike weth;
+    GemAbstract weth;
     address vow;
     address pauseProxy;
 
@@ -126,14 +134,14 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         vat = VatAbstract(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndAbstract(0xBB856d1742fD182a90239D7AE85706C2FE4e5922);
         pool = LendingPoolAbstract(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
-        adai = TokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
-        stkAave = TokenLike(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
-        dai = TokenLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+        adai = GemAbstract(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
+        stkAave = GemAbstract(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
+        dai = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         daiJoin = DaiJoinLike(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
         interestStrategy = InterestRateStrategyAbstract(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
         rewardsClaimer = RewardsClaimerAbstract(0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5);
         spot = SpotAbstract(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
-        weth = TokenLike(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+        weth = GemAbstract(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
         pauseProxy = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
 
@@ -206,7 +214,7 @@ contract DssDirectDepositAaveDaiTest is DSTest {
         assertTrue(false);
     }
 
-    function _giveTokens(TokenLike token, uint256 amount) internal {
+    function _giveTokens(GemAbstract token, uint256 amount) internal {
         // Edge case - balance is already set for some reason
         if (token.balanceOf(address(this)) == amount) return;
 
