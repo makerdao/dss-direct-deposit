@@ -64,7 +64,6 @@ interface DssDirectDepositPoolLike {
     function assetBalance() external returns (uint256);
     function shareBalance() external returns (uint256);
     function convertToShares(uint256) external view returns(uint256);
-    function convertToAssets(uint256) external view returns(uint256);
     function maxWithdraw() external view returns(uint256);
     function cage() external;
 }
@@ -203,7 +202,7 @@ contract DssDirectDepositHub {
 
         // Verify the correct amount of gem shows up
         uint256 newShares = pool.convertToShares(amount);
-        require(pool.shareBalance() >= _add(sharesPrev, newShares), "DssDirectDepositHub/no-receive-gem-tokens");
+        require(pool.shareBalance() >= _add(sharesPrev, newShares), "DssDirectDepositHub/no-receive-shares");
 
         emit Wind(ilk, amount);
     }
@@ -214,7 +213,7 @@ contract DssDirectDepositHub {
         // This module will have an unintended behaviour if rate is changed to some other value.
 
         address end;
-        uint256 assetBalance = pool.convertToAssets(pool.shareBalance());
+        uint256 assetBalance = pool.assetBalance();
         uint256 daiDebt;
         if (mode == Mode.NORMAL) {
             // Normal mode or module just caged (no culled)
@@ -343,11 +342,11 @@ contract DssDirectDepositHub {
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
         require(live == 1, "DssDirectDepositHub/no-reap-during-cage");
 
-        uint256 assetBalance = ilk.pool.convertToAssets(ilk.pool.shareBalance());
+        uint256 assetBalance = ilk.pool.assetBalance();
         (, uint256 daiDebt) = vat.urns(ilk_, address(ilk.pool));
         if (assetBalance > daiDebt) {
             uint256 fees = assetBalance - daiDebt;
-            uint256 availableAssets = ilk.pool.assetBalance();
+            uint256 availableAssets = ilk.pool.maxWithdraw();
             if (fees > availableAssets) {
                 fees = availableAssets;
             }

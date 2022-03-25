@@ -142,9 +142,9 @@ abstract contract DssDirectDepositPoolBase {
 
     function maxWithdraw() external view virtual returns(uint256);
 
-    function convertToShares(uint256 amt) external virtual returns(uint256);
+    function convertToShares(uint256 amt) external view virtual returns(uint256);
 
-    function convertToAssets(uint256 amt) external virtual returns(uint256);
+    function convertToAssets(uint256 amt) external view virtual returns(uint256);
 
     function cage() external virtual auth {
         live = 0;
