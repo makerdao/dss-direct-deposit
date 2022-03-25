@@ -210,7 +210,7 @@ contract DssDirectDepositHubTest is DSTest {
     }
 
     function _windSystem() internal {
-        directDepositTestPool.file("bar", 10);
+        directDepositTestPlan.file("bar", 10);
         directDepositTestPlan.file("totalAssets", 50 * WAD);
         directDepositTestPlan.file("targetAssets", 100 * WAD);
         directDepositHub.exec(ilk);
@@ -370,7 +370,7 @@ contract DssDirectDepositHubTest is DSTest {
     }
 
     function test_wind_amount_less_target() public {
-        directDepositTestPool.file("bar", 10);
+        directDepositTestPlan.file("bar", 10);
         directDepositTestPlan.file("totalAssets", 50 * WAD);
         directDepositTestPlan.file("targetAssets", 100 * WAD);
 
@@ -398,7 +398,7 @@ contract DssDirectDepositHubTest is DSTest {
         _windSystem();
 
         // Temporarily disable the module
-        directDepositTestPool.file("bar", 0);
+        directDepositTestPlan.file("bar", 0);
         directDepositHub.exec(ilk);
 
         // Ensure we unwound our position
