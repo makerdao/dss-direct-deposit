@@ -18,6 +18,7 @@
 
 // import "ds-test/test.sol";
 // import "ds-value/value.sol";
+// import "../interfaces/interfaces.sol";
 
 // import {D3MAaveDai} from "./D3MAaveDai.sol";
 // import {D3MHub} from "./D3MHub.sol";
@@ -27,59 +28,6 @@
 //     function warp(uint256) external;
 //     function store(address,bytes32,bytes32) external;
 //     function load(address,bytes32) external view returns (bytes32);
-// }
-
-// interface AuthLike {
-//     function wards(address) external view returns (uint256);
-// }
-
-// interface TokenLike {
-//     function totalSupply() external view returns (uint256);
-//     function balanceOf(address) external view returns (uint256);
-//     function approve(address, uint256) external returns (bool);
-// }
-
-// interface DaiLike is TokenLike {} // declared for dai-specific expansions
-
-// interface DaiJoinLike {
-//     function join(address, uint256) external;
-// }
-
-// interface EndLike {
-//     function wait() external view returns (uint256);
-//     function cage() external;
-//     function cage(bytes32) external;
-//     function skim(bytes32, address) external;
-//     function thaw() external;
-// }
-
-// interface SpotLike {
-//     function file(bytes32, bytes32, address) external;
-//     function file(bytes32, bytes32, uint256) external;
-//     function poke(bytes32) external;
-// }
-
-// interface VatLike {
-//     function rely(address) external;
-//     function hope(address) external;
-//     function urns(bytes32, address) external view returns (uint256, uint256);
-//     function gem(bytes32, address) external view returns (uint256);
-//     function dai(address) external view returns (uint256);
-//     function sin(address) external view returns (uint256);
-//     function Line() external view returns (uint256);
-//     function init(bytes32) external;
-//     function file(bytes32, uint256) external;
-//     function file(bytes32, bytes32, uint256) external;
-//     function cage() external;
-//     function frob(bytes32, address, address, address, int256, int256) external;
-//     function grab(bytes32, address, address, address, int256, int256) external;
-// }
-
-// interface VowLike {
-//     function flapper() external view returns (address);
-//     function Sin() external view returns (uint256);
-//     function Ash() external view returns (uint256);
-//     function heal(uint256) external;
 // }
 
 // interface LendingPoolLike {

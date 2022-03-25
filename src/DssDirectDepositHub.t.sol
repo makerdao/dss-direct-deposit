@@ -17,8 +17,8 @@
 pragma solidity 0.6.12;
 
 import "ds-test/test.sol";
-import "dss-interfaces/Interfaces.sol";
 import "ds-value/value.sol";
+import "./interfaces/interfaces.sol";
 
 import {DssDirectDepositHub, D3MPoolLike} from "./DssDirectDepositHub.sol";
 import {D3MMom} from "./D3MMom.sol";
@@ -40,10 +40,6 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
-interface AuthLike {
-    function wards(address) external returns (uint256);
-}
-
 contract DssDirectDepositHubTest is DSTest {
     uint256 constant WAD = 10**18;
     uint256 constant RAY = 10**27;
@@ -51,15 +47,15 @@ contract DssDirectDepositHubTest is DSTest {
 
     Hevm hevm;
 
-    VatAbstract vat;
-    EndAbstract end;
+    VatLike vat;
+    EndLike end;
     D3MTestRewards rewardsClaimer;
-    DaiAbstract dai;
-    DaiJoinAbstract daiJoin;
+    DaiLike dai;
+    DaiJoinLike daiJoin;
     D3MTestGem testGem;
-    DSTokenAbstract testReward;
-    SpotAbstract spot;
-    DSTokenAbstract weth;
+    TokenLike testReward;
+    SpotLike spot;
+    TokenLike weth;
     address vow;
     address pauseProxy;
 
@@ -75,12 +71,12 @@ contract DssDirectDepositHubTest is DSTest {
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );
 
-        vat = VatAbstract(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
-        end = EndAbstract(0xBB856d1742fD182a90239D7AE85706C2FE4e5922);
-        dai = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
-        daiJoin = DaiJoinAbstract(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
-        spot = SpotAbstract(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
-        weth = DSTokenAbstract(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+        vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
+        end = EndLike(0xBB856d1742fD182a90239D7AE85706C2FE4e5922);
+        dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+        daiJoin = DaiJoinLike(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
+        spot = SpotLike(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
+        weth = TokenLike(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
         pauseProxy = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
 
@@ -173,7 +169,7 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(false);
     }
 
-    function _giveTokens(DSTokenAbstract token, uint256 amount) internal {
+    function _giveTokens(TokenLike token, uint256 amount) internal {
         // Edge case - balance is already set for some reason
         if (token.balanceOf(address(this)) == amount) return;
 
@@ -491,7 +487,7 @@ contract DssDirectDepositHubTest is DSTest {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        _giveTokens(DSTokenAbstract(address(testGem)), 10 * WAD);
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
         testGem.transfer(address(d3mTestPool), 10 * WAD);
 
         (, uint256 part) = vat.urns(ilk, address(d3mTestPool));
@@ -510,7 +506,7 @@ contract DssDirectDepositHubTest is DSTest {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        _giveTokens(DSTokenAbstract(address(testGem)), 55 * WAD);
+        _giveTokens(TokenLike(address(testGem)), 55 * WAD);
         testGem.transfer(address(d3mTestPool), 10 * WAD);
 
         (, uint256 part) = vat.urns(ilk, address(d3mTestPool));
@@ -536,7 +532,7 @@ contract DssDirectDepositHubTest is DSTest {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        _giveTokens(DSTokenAbstract(address(testGem)), 10 * WAD);
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
         testGem.transfer(address(d3mTestPool), 10 * WAD);
 
         // MCD shutdowns
@@ -550,7 +546,7 @@ contract DssDirectDepositHubTest is DSTest {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        _giveTokens(DSTokenAbstract(address(testGem)), 10 * WAD);
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
         testGem.transfer(address(d3mTestPool), 10 * WAD);
 
         // module caged
@@ -564,7 +560,7 @@ contract DssDirectDepositHubTest is DSTest {
         d3mTestPool.file("king", address(pauseProxy));
 
         assertEq(
-            DSTokenAbstract(rewardToken).balanceOf(address(pauseProxy)),
+            TokenLike(rewardToken).balanceOf(address(pauseProxy)),
             0
         );
 
@@ -573,7 +569,7 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.collect(ilk, tokens, 10 * WAD);
 
         assertEq(
-            DSTokenAbstract(rewardToken).balanceOf(address(pauseProxy)),
+            TokenLike(rewardToken).balanceOf(address(pauseProxy)),
             10 * WAD
         );
     }
@@ -582,7 +578,7 @@ contract DssDirectDepositHubTest is DSTest {
         address rewardToken = address(rewardsClaimer.rewards());
 
         assertEq(
-            DSTokenAbstract(rewardToken).balanceOf(address(pauseProxy)),
+            TokenLike(rewardToken).balanceOf(address(pauseProxy)),
             0
         );
 
