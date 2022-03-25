@@ -71,15 +71,13 @@ interface DssDirectDepositPoolLike {
 contract DssDirectDepositHub {
 
     // --- Auth ---
-    mapping (address => uint) public wards;
+    mapping (address => uint256) public wards;
     function rely(address usr) external auth {
         wards[usr] = 1;
-
         emit Rely(usr);
     }
     function deny(address usr) external auth {
         wards[usr] = 0;
-
         emit Deny(usr);
     }
     modifier auth {
@@ -87,21 +85,22 @@ contract DssDirectDepositHub {
         _;
     }
 
+    enum Mode{ NORMAL, MODULE_CULLED, MCD_CAGED }
+    uint256             constant  RAY  = 10 ** 27;
+
+    ChainlogLike public immutable chainlog;
+    VatLike      public immutable vat;
+    TokenLike    public immutable dai;
+    DaiJoinLike  public immutable daiJoin;
+
     struct Ilk {
         DssDirectDepositPoolLike pool;
         uint256                  tau; // Time until you can write off the debt [sec]
         uint256                  culled;
         uint256                  tic; // Timestamp when the pool is caged
     }
-
-    ChainlogLike public immutable chainlog;
-    VatLike public immutable vat;
     mapping (bytes32 => Ilk) public ilks;
-    TokenLike public immutable dai;
-    DaiJoinLike public immutable daiJoin;
-    uint256 public live = 1;
-
-    enum Mode{ NORMAL, MODULE_CULLED, MCD_CAGED }
+    uint256                  public live = 1;
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -116,6 +115,8 @@ contract DssDirectDepositHub {
     event Cage(bytes32 indexed ilk);
     event Cull(bytes32 indexed ilk);
     event Uncull(bytes32 indexed ilk);
+    event Quit(bytes32 indexed ilk, address indexed usr);
+    event Exit(bytes32 indexed ilk, address indexed usr, uint256 amt);
 
     constructor(address chainlog_) public {
         address vat_ = ChainlogLike(chainlog_).getAddress("MCD_VAT");
@@ -140,7 +141,6 @@ contract DssDirectDepositHub {
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "DssDirectDepositHub/overflow");
     }
-    uint256 constant RAY  = 10 ** 27;
     function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, y) / RAY;
     }
@@ -352,7 +352,7 @@ contract DssDirectDepositHub {
             }
             ilk.pool.withdraw(fees);
             vat.move(address(ilk.pool), address(chainlog.getAddress("MCD_VOW")), _mul(RAY, fees));
-            Reap(ilk_, fees);
+            emit Reap(ilk_, fees);
         }
     }
 
@@ -361,7 +361,7 @@ contract DssDirectDepositHub {
         Ilk memory ilk = ilks[ilk_];
 
         amt = ilk.pool.collect(assets, amount);
-        Collect(ilk_, ilk.pool.king(), assets, amt);
+        emit Collect(ilk_, ilk.pool.king(), assets, amt);
     }
 
     // --- Allow DAI holders to exit during global settlement ---
@@ -370,6 +370,7 @@ contract DssDirectDepositHub {
         vat.slip(ilk_, msg.sender, -int256(wad));
         Ilk memory ilk = ilks[ilk_];
         require(ilk.pool.transferShares(usr, ilk.pool.convertToShares(wad)), "DssDirectDepositHub/failed-transfer");
+        emit Exit(ilk_, usr, wad);
     }
 
     // --- Shutdown ---
@@ -458,5 +459,6 @@ contract DssDirectDepositHub {
             require(art < 2 ** 255, "DssDirectDepositHub/overflow");
             vat.fork(ilk_, address(ilk.pool), who, int256(ink), int256(art));
         }
+        emit Quit(ilk_, who);
     }
 }

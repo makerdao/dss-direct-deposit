@@ -45,35 +45,35 @@ interface DssDirectDepositPlanLike {
 
 abstract contract DssDirectDepositPoolBase {
     // --- Auth ---
-    mapping (address => uint) public wards;
+    mapping (address => uint256) public wards;
     function rely(address usr) external auth {
         wards[usr] = 1;
-
         emit Rely(usr);
     }
     function deny(address usr) external auth {
         wards[usr] = 0;
-
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "DssDirectDepositTestJoin/not-authorized");
+        require(wards[msg.sender] == 1, "DssDirectDepositPoolBase/not-authorized");
         _;
     }
 
     TokenLike   public immutable asset; // Dai
     DaiJoinLike public immutable daiJoin;
+    address     public immutable hub;
+    address     public immutable pool;
 
-    address public immutable hub;
-    address public immutable pool;
-    address public           share;
-    address public           plan; // How we calculate target debt
-    uint256 public           live = 1;
-
+    address     public           share;
+    address     public           plan; // How we calculate target debt
+    uint256     public           live = 1;
 
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
+    event Hope(address indexed dst, address indexed usr);
+    event Nope(address indexed dst, address indexed usr);
+    event Cage();
     // --- EIP-4626 Events ---
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
     event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
@@ -88,7 +88,6 @@ abstract contract DssDirectDepositPoolBase {
         daiJoin = DaiJoinLike(daiJoin_);
         TokenLike dai_ = asset = TokenLike(DaiJoinLike(daiJoin_).dai());
         dai_.approve(daiJoin_, type(uint256).max);
-
 
         hub = hub_;
         wards[hub_] = 1;
@@ -109,10 +108,12 @@ abstract contract DssDirectDepositPoolBase {
 
     function hope(address dst, address who) external auth {
         CanLike(dst).hope(who);
+        emit Hope(dst, who);
     }
 
     function nope(address dst, address who) external auth {
         CanLike(dst).nope(who);
+        emit Nope(dst, who);
     }
 
     function validTarget() external view virtual returns (bool);
@@ -139,5 +140,6 @@ abstract contract DssDirectDepositPoolBase {
 
     function cage() external virtual auth {
         live = 0;
+        emit Cage();
     }
 }

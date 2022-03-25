@@ -23,14 +23,6 @@ contract DssDirectDepositTestRewards {
     DssDirectDepositTestGem public immutable rewards;
     address public immutable testGem;
 
-     // --- Math ---
-    function add(uint x, uint y) internal pure returns (uint z) {
-        require((z = x + y) >= x);
-    }
-    function sub(uint x, uint y) internal pure returns (uint z) {
-        require((z = x - y) <= x);
-    }
-
     constructor(address testGem_) public {
         rewards = new DssDirectDepositTestGem(18);
         testGem = testGem_;
