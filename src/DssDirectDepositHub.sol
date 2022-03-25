@@ -74,12 +74,10 @@ contract DssDirectDepositHub {
     mapping (address => uint) public wards;
     function rely(address usr) external auth {
         wards[usr] = 1;
-
         emit Rely(usr);
     }
     function deny(address usr) external auth {
         wards[usr] = 0;
-
         emit Deny(usr);
     }
     modifier auth {
@@ -87,6 +85,7 @@ contract DssDirectDepositHub {
         _;
     }
 
+    enum Mode{ NORMAL, MODULE_CULLED, MCD_CAGED }
     uint256             constant  RAY  = 10 ** 27;
 
     ChainlogLike public immutable chainlog;
@@ -102,8 +101,6 @@ contract DssDirectDepositHub {
     }
     mapping (bytes32 => Ilk) public ilks;
     uint256                  public live = 1;
-
-    enum Mode{ NORMAL, MODULE_CULLED, MCD_CAGED }
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -354,7 +351,7 @@ contract DssDirectDepositHub {
             }
             ilk.pool.withdraw(fees);
             vat.move(address(ilk.pool), address(chainlog.getAddress("MCD_VOW")), _mul(RAY, fees));
-            Reap(ilk_, fees);
+            emit Reap(ilk_, fees);
         }
     }
 
@@ -363,7 +360,7 @@ contract DssDirectDepositHub {
         Ilk memory ilk = ilks[ilk_];
 
         amt = ilk.pool.collect(assets, amount);
-        Collect(ilk_, ilk.pool.king(), assets, amt);
+        emit Collect(ilk_, ilk.pool.king(), assets, amt);
     }
 
     // --- Allow DAI holders to exit during global settlement ---

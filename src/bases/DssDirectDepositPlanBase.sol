@@ -35,6 +35,7 @@ abstract contract DssDirectDepositPlanBase {
 
     address public immutable pool;
     address public immutable dai;
+
     uint256 public           bar;  // Target Interest Rate [ray]
 
     // --- Events ---
