@@ -218,6 +218,7 @@ contract DssDirectDepositHubTest is DSTest {
         );
     }
 
+    // TODO: move to Plan tests
     // function test_can_file_bar() public {
     //     (, , , uint256 bar, , , ) = directDepositHub.ilks(ilk);
     //     assertEq(bar, 0);
@@ -266,12 +267,14 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "unknown", 1);
     }
 
+    // TODO: move to Plan tests
     // function testFail_unauth_file_bar() public {
     //     directDepositHub.deny(address(this));
 
     //     directDepositHub.file(ilk, "bar", 1);
     // }
 
+    // TODO: move to Plan tests
     // function testFail_bar_file_too_high() public {
     //     d3mTestPlan.file("maxBar", 1);
 
@@ -282,6 +285,7 @@ contract DssDirectDepositHubTest is DSTest {
     //     d3mTestPool.file("bar", 2);
     // }
 
+    // TODO: move to Pool tests
     // function test_can_file_king() public {
     //     (, , , , , address king, ) = directDepositHub.ilks(ilk);
     //     assertEq(king, address(0));
@@ -325,12 +329,14 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(setEnd, address(this));
     }
 
+    // TODO: move to Pool tests
     // function testFail_unauth_file_king() public {
     //     directDepositHub.deny(address(this));
 
     //     directDepositHub.file(ilk, "king", address(this));
     // }
 
+    // TODO: move to Pool tests
     // function testFail_pool_not_live_king_file() public {
     //     directDepositHub.file(ilk, "king", address(this));
     //     (, , , , , address king, ) = directDepositHub.ilks(ilk);
@@ -355,6 +361,7 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "pool", address(123));
     }
 
+    // TODO: move to Pool tests
     // function testFail_hub_not_live_gem_file() public {
     //     // Cage Pool
     //     directDepositHub.cage(ilk);
