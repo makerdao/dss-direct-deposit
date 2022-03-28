@@ -86,16 +86,15 @@ contract DssDirectDepositHubTest is DSTest {
         _giveAuthAccess(address(spot), address(this));
 
         testGem = new D3MTestGem(18);
-        directDepositHub = new DssDirectDepositHub(address(vat));
+        directDepositHub = new DssDirectDepositHub(address(vat), address(daiJoin));
 
         rewardsClaimer = new D3MTestRewards(address(testGem));
         d3mTestPool = new D3MTestPool(
             address(directDepositHub),
-            address(daiJoin),
+            address(dai),
             address(123),
             address(rewardsClaimer)
         );
-        d3mTestPool.hope(address(vat), address(daiJoin));
         d3mTestPlan = new D3MTestPlan(address(dai), address(123));
         d3mTestPool.file("plan", address(d3mTestPlan));
 
@@ -214,7 +213,7 @@ contract DssDirectDepositHubTest is DSTest {
 
     function test_approvals() public {
         assertEq(
-            dai.allowance(address(d3mTestPool), address(daiJoin)),
+            dai.allowance(address(directDepositHub), address(daiJoin)),
             type(uint256).max
         );
     }

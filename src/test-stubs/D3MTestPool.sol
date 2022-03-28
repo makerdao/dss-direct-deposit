@@ -63,7 +63,6 @@ contract D3MTestPool is D3MPoolBase {
     }
 
     function deposit(uint256 amt) external override {
-        daiJoin.exit(address(this), amt);
         D3MTestGem(share).mint(address(this), amt);
         TokenLike(asset).transfer(share, amt);
         Deposit(msg.sender, address(this), amt, amt);
@@ -71,8 +70,7 @@ contract D3MTestPool is D3MPoolBase {
 
     function withdraw(uint256 amt) external override {
         D3MTestGem(share).burn(address(this), amt);
-        TokenLike(asset).transferFrom(share, address(this), amt);
-        daiJoin.join(address(this), amt);
+        TokenLike(asset).transferFrom(share, address(hub), amt);
         Withdraw(msg.sender, address(this), address(this), amt, amt);
     }
 

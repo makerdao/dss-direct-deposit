@@ -51,6 +51,16 @@ interface D3MPoolLike {
     function cage() external;
 }
 
+interface DaiJoinLike {
+    function dai() external view returns (address);
+    function join(address, uint256) external;
+    function exit(address, uint256) external;
+}
+
+interface TokenLike {
+    function approve(address, uint256) external returns (bool);
+}
+
 contract DssDirectDepositHub {
 
     // --- Auth ---
@@ -74,6 +84,7 @@ contract DssDirectDepositHub {
     VatLike      public immutable vat;
     address      public           vow;
     EndLike      public           end;
+    DaiJoinLike  public immutable daiJoin;
 
     struct Ilk {
         D3MPoolLike pool;
@@ -101,8 +112,11 @@ contract DssDirectDepositHub {
     event Quit(bytes32 indexed ilk, address indexed usr);
     event Exit(bytes32 indexed ilk, address indexed usr, uint256 amt);
 
-    constructor(address vat_) public {
+    constructor(address vat_, address daiJoin_) public {
         vat = VatLike(vat_);
+        daiJoin = DaiJoinLike(daiJoin_);
+        TokenLike(DaiJoinLike(daiJoin_).dai()).approve(daiJoin_, type(uint256).max);
+        VatLike(vat_).hope(daiJoin_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -184,7 +198,8 @@ contract DssDirectDepositHub {
         uint256 sharesPrev = pool.shareBalance();
 
         vat.slip(ilk, address(pool), int256(amount));
-        vat.frob(ilk, address(pool), address(pool), address(pool), int256(amount), int256(amount));
+        vat.frob(ilk, address(pool), address(pool), address(this), int256(amount), int256(amount));
+        daiJoin.exit(address(pool), amount);
         // normalized debt == erc20 DAI (Vat rate for this ilk fixed to 1 RAY)
         pool.deposit(amount);
 
@@ -254,6 +269,7 @@ contract DssDirectDepositHub {
         // To save gas you can bring the fees back with the unwind
         uint256 total = _add(amount, fees);
         pool.withdraw(total);
+        daiJoin.join(address(pool), total);
 
         // normalized debt == erc20 DAI to pool (Vat rate for this ilk fixed to 1 RAY)
 
@@ -336,6 +352,7 @@ contract DssDirectDepositHub {
                 fees = availableAssets;
             }
             ilk.pool.withdraw(fees);
+            daiJoin.join(address(ilk.pool), fees);
             vat.move(address(ilk.pool), vow, _mul(RAY, fees));
             emit Reap(ilk_, fees);
         }

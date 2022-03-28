@@ -23,12 +23,6 @@ interface TokenLike {
     function balanceOf(address) external view returns (uint256);
 }
 
-interface DaiJoinLike {
-    function dai() external view returns (address);
-    function join(address, uint256) external;
-    function exit(address, uint256) external;
-}
-
 interface CanLike {
     function hope(address) external;
     function nope(address) external;
@@ -60,7 +54,6 @@ abstract contract D3MPoolBase {
     }
 
     TokenLike   public immutable asset; // Dai
-    DaiJoinLike public immutable daiJoin;
     address     public immutable hub;
     address     public immutable pool;
 
@@ -71,23 +64,19 @@ abstract contract D3MPoolBase {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
-    event Hope(address indexed dst, address indexed usr);
-    event Nope(address indexed dst, address indexed usr);
     event Cage();
     // --- EIP-4626 Events ---
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
     event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
 
-    constructor(address hub_, address daiJoin_, address pool_) internal {
+    constructor(address hub_, address dai_, address pool_) internal {
 
         pool = pool_;
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
-        daiJoin = DaiJoinLike(daiJoin_);
-        TokenLike dai_ = asset = TokenLike(DaiJoinLike(daiJoin_).dai());
-        dai_.approve(daiJoin_, type(uint256).max);
+        asset = TokenLike(dai_);
 
         hub = hub_;
         wards[hub_] = 1;
@@ -104,16 +93,6 @@ abstract contract D3MPoolBase {
             share = data;
             TokenLike(data).approve(hub, type(uint256).max);
         } else if (what == "plan") plan = data;
-    }
-
-    function hope(address dst, address who) external auth {
-        CanLike(dst).hope(who);
-        emit Hope(dst, who);
-    }
-
-    function nope(address dst, address who) external auth {
-        CanLike(dst).nope(who);
-        emit Nope(dst, who);
     }
 
     function validTarget() external view virtual returns (bool);
