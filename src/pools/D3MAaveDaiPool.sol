@@ -65,13 +65,11 @@ contract D3MAaveDaiPool is D3MPoolBase {
     address public king;     // Who gets the rewards
     uint256 public bar;      // Target Interest Rate [ray]
 
-    constructor(address hub_, address daiJoin_, address pool_, address _rewardsClaimer) public D3MPoolBase(hub_, daiJoin_, pool_) {
+    constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) public D3MPoolBase(hub_, dai_, pool_) {
         // address dai_, address pool_,
 
-        address dai_ = DaiJoinLike(daiJoin_).dai();
-
         // Fetch the reserve data from Aave
-        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(address(dai_));
+        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
         require(adai_ != address(0), "D3MAaveDaiPool/invalid-adai");
         require(stableDebt_ != address(0), "D3MAaveDaiPool/invalid-stableDebt");
         require(variableDebt_ != address(0), "D3MAaveDaiPool/invalid-variableDebt");

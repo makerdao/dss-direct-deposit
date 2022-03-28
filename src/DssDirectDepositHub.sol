@@ -82,9 +82,9 @@ contract DssDirectDepositHub {
     uint256             constant  RAY  = 10 ** 27;
 
     VatLike      public immutable vat;
+    DaiJoinLike  public immutable daiJoin;
     address      public           vow;
     EndLike      public           end;
-    DaiJoinLike  public immutable daiJoin;
 
     struct Ilk {
         D3MPoolLike pool;
@@ -292,42 +292,44 @@ contract DssDirectDepositHub {
     }
 
     function exec(bytes32 ilk_) external {
-        Ilk memory ilk = ilks[ilk_];
+        D3MPoolLike pool = ilks[ilk_].pool;
 
-        uint256 availableAssets = ilk.pool.maxWithdraw();
+        uint256 availableAssets = pool.maxWithdraw();
 
         if (vat.live() == 0) {
+            uint256 culled = ilks[ilk_].culled;
             // MCD caged
             require(end.debt() == 0, "DssDirectDepositHub/end-debt-already-set");
-            require(ilk.culled == 0, "DssDirectDepositHub/module-has-to-be-unculled-first");
+            require(culled == 0, "DssDirectDepositHub/module-has-to-be-unculled-first");
             _unwind(
                 ilk_,
-                ilk.pool,
+                pool,
                 type(uint256).max,
                 availableAssets,
                 Mode.MCD_CAGED
             );
         } else if (live == 0) {
+            uint256 culled = ilks[ilk_].culled;
             // This module caged
             _unwind(
                 ilk_,
-                ilk.pool,
+                pool,
                 type(uint256).max,
                 availableAssets,
-                ilk.culled == 1
+                culled == 1
                 ? Mode.MODULE_CULLED
                 : Mode.NORMAL
             );
         } else {
             // Normal path
-            (uint256 totalAssets, uint256 targetAssets) = ilk.pool.calcSupplies(availableAssets);
+            (uint256 totalAssets, uint256 targetAssets) = pool.calcSupplies(availableAssets);
 
             if (targetAssets > totalAssets) {
-                _wind(ilk_, ilk.pool, targetAssets - totalAssets);
+                _wind(ilk_, pool, targetAssets - totalAssets);
             } else if (targetAssets < totalAssets) {
                 _unwind(
                     ilk_,
-                    ilk.pool,
+                    pool,
                     totalAssets - targetAssets,
                     availableAssets,
                     Mode.NORMAL
@@ -338,40 +340,40 @@ contract DssDirectDepositHub {
 
     // --- Collect Interest ---
     function reap(bytes32 ilk_) external {
-        Ilk memory ilk = ilks[ilk_];
+        D3MPoolLike pool = ilks[ilk_].pool;
 
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
         require(live == 1, "DssDirectDepositHub/no-reap-during-cage");
 
-        uint256 assetBalance = ilk.pool.assetBalance();
-        (, uint256 daiDebt) = vat.urns(ilk_, address(ilk.pool));
+        uint256 assetBalance = pool.assetBalance();
+        (, uint256 daiDebt) = vat.urns(ilk_, address(pool));
         if (assetBalance > daiDebt) {
             uint256 fees = assetBalance - daiDebt;
-            uint256 availableAssets = ilk.pool.maxWithdraw();
+            uint256 availableAssets = pool.maxWithdraw();
             if (fees > availableAssets) {
                 fees = availableAssets;
             }
-            ilk.pool.withdraw(fees);
-            daiJoin.join(address(ilk.pool), fees);
-            vat.move(address(ilk.pool), vow, _mul(RAY, fees));
+            pool.withdraw(fees);
+            daiJoin.join(address(this), fees);
+            vat.move(address(this), vow, _mul(RAY, fees));
             emit Reap(ilk_, fees);
         }
     }
 
     // --- Collect any rewards ---
     function collect(bytes32 ilk_, address[] memory assets, uint256 amount) external returns (uint256 amt) {
-        Ilk memory ilk = ilks[ilk_];
+        D3MPoolLike pool = ilks[ilk_].pool;
 
-        amt = ilk.pool.collect(assets, amount);
-        emit Collect(ilk_, ilk.pool.king(), assets, amt);
+        amt = pool.collect(assets, amount);
+        emit Collect(ilk_, pool.king(), assets, amt);
     }
 
     // --- Allow DAI holders to exit during global settlement ---
     function exit(bytes32 ilk_, address usr, uint256 wad) external {
         require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
         vat.slip(ilk_, msg.sender, -int256(wad));
-        Ilk memory ilk = ilks[ilk_];
-        require(ilk.pool.transferShares(usr, ilk.pool.convertToShares(wad)), "DssDirectDepositHub/failed-transfer");
+        D3MPoolLike pool = ilks[ilk_].pool;
+        require(pool.transferShares(usr, pool.convertToShares(wad)), "DssDirectDepositHub/failed-transfer");
         emit Exit(ilk_, usr, wad);
     }
 
@@ -379,7 +381,7 @@ contract DssDirectDepositHub {
     function cage(bytes32 ilk_) external {
         require(vat.live() == 1, "DssDirectDepositHub/no-cage-during-shutdown");
 
-        Ilk storage ilk = ilks[ilk_];
+        D3MPoolLike pool = ilks[ilk_].pool;
 
         // Can shut joins down if we are authed
         // or if the interest rate strategy changes
@@ -387,11 +389,11 @@ contract DssDirectDepositHub {
         require(
             wards[msg.sender] == 1 ||
             live == 0 ||
-            !ilk.pool.validTarget()
+            !pool.validTarget()
         , "DssDirectDepositHub/not-authorized");
 
-        ilk.pool.cage();
-        ilk.tic = block.timestamp;
+        pool.cage();
+        ilks[ilk_].tic = block.timestamp;
         emit Cage(ilk_);
     }
 
@@ -425,17 +427,17 @@ contract DssDirectDepositHub {
     // This function is required to have the collateral back in the vault so it can be taken by End module
     // and eventually be shared to DAI holders (as any other collateral) or maybe even unwinded
     function uncull(bytes32 ilk_) external {
-        Ilk storage ilk = ilks[ilk_];
+        D3MPoolLike pool = ilks[ilk_].pool;
 
-        require(ilk.culled == 1, "DssDirectDepositHub/not-prev-culled");
+        require(ilks[ilk_].culled == 1, "DssDirectDepositHub/not-prev-culled");
         require(vat.live() == 0, "DssDirectDepositHub/no-uncull-normal-operation");
 
-        uint256 wad = vat.gem(ilk_, address(ilk.pool));
+        uint256 wad = vat.gem(ilk_, address(pool));
         require(wad < 2 ** 255, "DssDirectDepositHub/overflow");
         vat.suck(vow, vow, _mul(wad, RAY)); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
-        vat.grab(ilk_, address(ilk.pool), address(ilk.pool), vow, int256(wad), int256(wad));
+        vat.grab(ilk_, address(pool), address(pool), vow, int256(wad), int256(wad));
 
-        ilk.culled = 0;
+        ilks[ilk_].culled = 0;
         emit Uncull(ilk_);
     }
 
@@ -443,22 +445,22 @@ contract DssDirectDepositHub {
     function quit(bytes32 ilk_, address who) external auth {
         require(vat.live() == 1, "DssDirectDepositHub/no-quit-during-shutdown");
 
-        Ilk memory ilk = ilks[ilk_];
+        D3MPoolLike pool = ilks[ilk_].pool;
 
         // Send all gem in the contract to who
-        require(ilk.pool.transferShares(who, ilk.pool.shareBalance()), "DssDirectDepositHub/failed-transfer");
+        require(pool.transferShares(who, pool.shareBalance()), "DssDirectDepositHub/failed-transfer");
 
-        if (ilk.culled == 1) {
+        if (ilks[ilk_].culled == 1) {
             // Culled - just zero out the gems
-            uint256 wad = vat.gem(ilk_, address(ilk.pool));
+            uint256 wad = vat.gem(ilk_, address(pool));
             require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
-            vat.slip(ilk_, address(ilk.pool), -int256(wad));
+            vat.slip(ilk_, address(pool), -int256(wad));
         } else {
             // Regular operation - transfer the debt position (requires who to accept the transfer)
-            (uint256 ink, uint256 art) = vat.urns(ilk_, address(ilk.pool));
+            (uint256 ink, uint256 art) = vat.urns(ilk_, address(pool));
             require(ink < 2 ** 255, "DssDirectDepositHub/overflow");
             require(art < 2 ** 255, "DssDirectDepositHub/overflow");
-            vat.fork(ilk_, address(ilk.pool), who, int256(ink), int256(art));
+            vat.fork(ilk_, address(pool), who, int256(ink), int256(art));
         }
         emit Quit(ilk_, who);
     }

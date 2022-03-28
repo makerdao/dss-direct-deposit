@@ -19,35 +19,17 @@
 // import "ds-test/test.sol";
 // import "../interfaces/interfaces.sol";
 
-// import {D3MAaveDai} from "./D3MAaveDai.sol";
-// import {D3MHub} from "./D3MHub.sol";
-// import {D3MMom} from "./D3MMom.sol";
-// import {ValueStub} from "./test-stubs/ValueStub.sol";
+// import { DssDirectDepositHub } from "../DssDirectDepositHub.sol";
+// import { D3MMom } from "../D3MMom.sol";
+// import { ValueStub } from "../test-stubs/ValueStub.sol";
+
+// import { D3MAaveDaiPlan } from "./D3MAaveDaiPlan.sol";
+// import { D3MAaveDaiPool, LendingPoolLike } from "./D3MAaveDaiPool.sol";
 
 // interface Hevm {
 //     function warp(uint256) external;
 //     function store(address,bytes32,bytes32) external;
 //     function load(address,bytes32) external view returns (bytes32);
-// }
-
-// interface LendingPoolLike {
-//     function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
-//     function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external;
-//     function repay(address asset, uint256 amount, uint256 rateMode, address onBehalfOf) external;
-//     function getReserveData(address asset) external view returns (
-//         uint256,    // Configuration
-//         uint128,    // the liquidity index. Expressed in ray
-//         uint128,    // variable borrow index. Expressed in ray
-//         uint128,    // the current supply rate. Expressed in ray
-//         uint128,    // the current variable borrow rate. Expressed in ray
-//         uint128,    // the current stable borrow rate. Expressed in ray
-//         uint40,
-//         address,    // address of the adai interest bearing token
-//         address,    // address of the stable debt token
-//         address,    // address of the variable debt token
-//         address,    // address of the interest rate strategy
-//         uint8
-//     );
 // }
 
 // interface InterestRateStrategyLike {
@@ -94,7 +76,7 @@
 //     address pauseProxy;
 
 //     bytes32 constant ilk = "DD-DAI-A";
-//     D3MHub directDepositHub;
+//     DssDirectDepositHub directDepositHub;
 //     D3MAaveDai directDepositAave;
 //     D3MMom directDepositMom;
 //     ValueStub pip;
@@ -127,7 +109,7 @@
 //         _giveAuthAccess(address(spot), address(this));
 
 //         directDepositAave = new D3MAaveDai(address(dai), address(pool), address(rewardsClaimer));
-//         directDepositHub = new D3MHub(address(chainlog), ilk, address(adai));
+//         directDepositHub = new DssDirectDepositHub(address(chainlog), ilk, address(adai));
 //         directDepositHub.file("tau", 7 days);
 //         directDepositAave.rely(address(directDepositHub));
 //         directDepositMom = new D3MMom();
