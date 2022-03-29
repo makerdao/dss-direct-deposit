@@ -37,9 +37,7 @@ interface EndLike {
 
 interface D3MPoolLike {
     function king() external view returns (address);
-    function getMaxBar() external view returns (uint256);
     function validTarget() external view returns (bool);
-    function calcSupplies(uint256) external view returns (uint256, uint256);
     function deposit(uint256) external;
     function withdraw(uint256) external;
     function collect(address[] memory, uint256) external returns (uint256);
@@ -49,6 +47,10 @@ interface D3MPoolLike {
     function convertToShares(uint256) external view returns (uint256);
     function maxWithdraw() external view returns (uint256);
     function cage() external;
+}
+
+interface D3MPlanLike {
+    function calcSupplies(uint256) external view returns (uint256, uint256);
 }
 
 interface DaiJoinLike {
@@ -87,10 +89,11 @@ contract DssDirectDepositHub {
     EndLike      public           end;
 
     struct Ilk {
-        D3MPoolLike pool;
-        uint256     tau; // Time until you can write off the debt [sec]
+        D3MPoolLike pool; // Access external pool and holds balances
+        D3MPlanLike plan; // How we calculate target debt
+        uint256     tau;  // Time until you can write off the debt [sec]
         uint256     culled;
-        uint256     tic; // Timestamp when the pool is caged
+        uint256     tic;  // Timestamp when the pool is caged
     }
     mapping (bytes32 => Ilk) public ilks;
     uint256                  public live = 1;
@@ -168,6 +171,7 @@ contract DssDirectDepositHub {
         require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
 
         if (what == "pool") ilks[ilk].pool = D3MPoolLike(data);
+        else if (what == "plan") ilks[ilk].plan = D3MPlanLike(data);
         else revert("DssDirectDepositHub/file-unrecognized-param");
         emit File(ilk, what, data);
     }
@@ -320,7 +324,7 @@ contract DssDirectDepositHub {
             );
         } else {
             // Normal path
-            (uint256 totalAssets, uint256 targetAssets) = pool.calcSupplies(availableAssets);
+            (uint256 totalAssets, uint256 targetAssets) = ilks[ilk_].plan.calcSupplies(availableAssets);
 
             if (targetAssets > totalAssets) {
                 _wind(ilk_, pool, targetAssets - totalAssets);

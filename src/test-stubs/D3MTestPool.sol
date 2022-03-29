@@ -61,10 +61,6 @@ contract D3MTestPool is D3MPoolBase {
         return isValidTarget;
     }
 
-    function calcSupplies(uint256 availableAssets) external view override returns (uint256, uint256) {
-        return D3MPlanLike(plan).calcSupplies(availableAssets);
-    }
-
     function deposit(uint256 amt) external override {
         D3MTestGem(share).mint(address(this), amt);
         TokenLike(asset).transfer(share, amt);

@@ -32,11 +32,6 @@ interface d3mHubLike {
     function vat() external view returns (address);
 }
 
-interface D3MPlanLike {
-    function calcSupplies(uint256) external view returns (uint256, uint256);
-    function maxBar() external view returns (uint256);
-}
-
 abstract contract D3MPoolBase {
     // --- Auth ---
     mapping (address => uint256) public wards;
@@ -58,7 +53,6 @@ abstract contract D3MPoolBase {
     address     public immutable pool;
 
     address     public           share;
-    address     public           plan; // How we calculate target debt
     uint256     public           live = 1;
 
     // --- Events ---
@@ -92,13 +86,10 @@ abstract contract D3MPoolBase {
             if (share != address(0)) TokenLike(share).approve(hub, 0);
             share = data;
             TokenLike(data).approve(hub, type(uint256).max);
-        } else if (what == "plan") plan = data;
-        else revert("D3MPoolBase/file-unrecognized-param");
+        } else revert("D3MPoolBase/file-unrecognized-param");
     }
 
     function validTarget() external view virtual returns (bool);
-
-    function calcSupplies(uint256 availableLiquidity) external view virtual returns (uint256, uint256);
 
     function deposit(uint256 amt) external virtual;
 
