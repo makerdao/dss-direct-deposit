@@ -32,7 +32,7 @@ contract D3MTestPlan is D3MPlanBase {
         emit Rely(msg.sender);
     }
 
-    // --- Testing Admin ---
+    // --- Admin ---
     function file(bytes32 what, uint256 data) public auth {
         if (what == "maxBar_") {
             maxBar_ = data;

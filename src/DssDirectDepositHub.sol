@@ -216,7 +216,7 @@ contract DssDirectDepositHub {
         // That's why it converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
 
-        EndLike end_ = end;
+        EndLike end_;
         uint256 assetBalance = pool.assetBalance();
         uint256 daiDebt;
         if (mode == Mode.NORMAL) {
@@ -230,6 +230,7 @@ contract DssDirectDepositHub {
         } else {
             // MCD caged
             // debt is obtained from free collateral owned by the End module
+            end_ = end;
             end_.skim(ilk, address(pool));
             daiDebt = vat.gem(ilk, address(end_));
         }
