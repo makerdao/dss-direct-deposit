@@ -30,7 +30,7 @@ interface LendingPoolLike {
         uint128,    // the current supply rate. Expressed in ray
         uint128,    // the current variable borrow rate. Expressed in ray
         uint128,    // the current stable borrow rate. Expressed in ray
-        uint40,
+        uint40,     // last updated timestamp
         address,    // address of the adai interest bearing token
         address,    // address of the stable debt token
         address,    // address of the variable debt token
@@ -57,7 +57,7 @@ contract D3MAaveDaiPlan is D3MPlanBase {
     constructor(address dai_, address pool_) public D3MPlanBase(dai_, pool_) {
 
         // Fetch the reserve data from Aave
-        (,,,,,,,, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(address(dai_));
+        (,,,,,,,, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
         require(stableDebt_ != address(0), "D3MAaveDai/invalid-stableDebt");
         require(variableDebt_ != address(0), "D3MAaveDai/invalid-variableDebt");
         require(interestStrategy_ != address(0), "D3MAaveDai/invalid-interestStrategy");

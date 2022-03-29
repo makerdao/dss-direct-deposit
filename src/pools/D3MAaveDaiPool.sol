@@ -38,7 +38,7 @@ interface LendingPoolLike {
         address,    // address of the stable debt token
         address,    // address of the variable debt token
         address,    // address of the interest rate strategy
-        uint8
+        uint8,      // the id of the reserve
     );
 }
 
@@ -78,8 +78,8 @@ contract D3MAaveDaiPool is D3MPoolBase {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
-        ShareTokenLike(adai_).approve(address(pool_), type(uint256).max);
-        TokenLike(dai_).approve(address(pool_), type(uint256).max);
+        ShareTokenLike(adai_).approve(pool_, type(uint256).max);
+        TokenLike(dai_).approve(pool_, type(uint256).max);
 
     }
 
