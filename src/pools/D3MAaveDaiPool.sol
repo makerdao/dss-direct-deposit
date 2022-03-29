@@ -42,28 +42,23 @@ interface LendingPoolLike {
     );
 }
 
-interface InterestRateStrategyLike {
-    function OPTIMAL_UTILIZATION_RATE() external view returns (uint256);
-    function EXCESS_UTILIZATION_RATE() external view returns (uint256);
-    function variableRateSlope1() external view returns (uint256);
-    function variableRateSlope2() external view returns (uint256);
-    function baseVariableBorrowRate() external view returns (uint256);
-    function getMaxVariableBorrowRate() external view returns (uint256);
-}
-
 interface RewardsClaimerLike {
     function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
 }
 
 contract D3MAaveDaiPool is D3MPoolBase {
 
-    InterestRateStrategyLike public immutable interestStrategy;
+    uint256 constant RAY  = 10 ** 27;
+
     RewardsClaimerLike       public immutable rewardsClaimer;
     ShareTokenLike           public immutable stableDebt;
     ShareTokenLike           public immutable variableDebt;
+    address                  public immutable interestStrategy;
 
     address public king;     // Who gets the rewards
     uint256 public bar;      // Target Interest Rate [ray]
+
+    event Collect(address indexed king, address[] assets, uint256 amt);
 
     constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) public D3MPoolBase(hub_, dai_, pool_) {
         // address dai_, address pool_,
@@ -77,7 +72,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
         stableDebt = ShareTokenLike(stableDebt_);
         variableDebt = ShareTokenLike(variableDebt_);
-        interestStrategy = InterestRateStrategyLike(interestStrategy_);
+        interestStrategy = interestStrategy_;
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
 
         wards[msg.sender] = 1;
@@ -98,7 +93,6 @@ contract D3MAaveDaiPool is D3MPoolBase {
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "D3MAaveDaiPool/overflow");
     }
-    uint256 constant RAY  = 10 ** 27;
     function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, y) / RAY;
     }
@@ -119,10 +113,10 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
     function validTarget() external view override returns (bool) {
         (,,,,,,,,,, address strategy,) = LendingPoolLike(pool).getReserveData(address(asset));
-        return strategy == address(interestStrategy);
+        return strategy == interestStrategy;
     }
 
-    function calcSupplies(uint256 availableAssets) external view override returns(uint256, uint256) {
+    function calcSupplies(uint256 availableAssets) external view override returns (uint256, uint256) {
         return D3MPlanLike(plan).calcSupplies(availableAssets);
     }
 
@@ -136,17 +130,18 @@ contract D3MAaveDaiPool is D3MPoolBase {
     // Withdraws Dai from Aave in exchange for adai
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
     function withdraw(uint256 amt) external override auth {
-        LendingPoolLike(pool).withdraw(address(asset), amt, address(this));
+        LendingPoolLike(pool).withdraw(address(asset), amt, address(hub));
     }
 
     // --- Collect any rewards ---
-    function collect(address[] memory assets, uint256 amount) external override auth returns (uint256 amt) {
+    function collect(address[] memory assets, uint256 amount) external auth returns (uint256 amt) {
         require(king != address(0), "D3MAaveDaiPool/king-not-set");
 
         amt = rewardsClaimer.claimRewards(assets, amount, king);
+        emit Collect(king, assets, amt);
     }
 
-    function transferShares(address dst, uint256 amt) external override returns(bool) {
+    function transferShares(address dst, uint256 amt) external override returns (bool) {
         return ShareTokenLike(share).transfer(dst, amt);
     }
 
@@ -170,7 +165,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
         return _rdiv(amt, interestIndex);
     }
 
-    function convertToAssets(uint256 amt) public view override returns(uint256) {
+    function convertToAssets(uint256 shares) public view override returns (uint256) {
         // TODO: return amt;
     }
 }

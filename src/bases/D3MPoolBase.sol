@@ -93,6 +93,7 @@ abstract contract D3MPoolBase {
             share = data;
             TokenLike(data).approve(hub, type(uint256).max);
         } else if (what == "plan") plan = data;
+        else revert("D3MPoolBase/file-unrecognized-param");
     }
 
     function validTarget() external view virtual returns (bool);
@@ -103,19 +104,17 @@ abstract contract D3MPoolBase {
 
     function withdraw(uint256 amt) external virtual;
 
-    function collect(address[] memory assets, uint256 amount) external virtual returns (uint256 amt); // should use auth
+    function transferShares(address dst, uint256 amt) external virtual returns (bool);
 
-    function transferShares(address, uint256) external virtual returns(bool);
+    function assetBalance() external view virtual returns (uint256);
 
-    function assetBalance() external view virtual returns(uint256);
+    function shareBalance() external view virtual returns (uint256);
 
-    function shareBalance() external view virtual returns(uint256);
+    function maxWithdraw() external view virtual returns (uint256);
 
-    function maxWithdraw() external view virtual returns(uint256);
+    function convertToShares(uint256 amt) external view virtual returns (uint256);
 
-    function convertToShares(uint256 amt) external view virtual returns(uint256);
-
-    function convertToAssets(uint256 amt) external view virtual returns(uint256);
+    function convertToAssets(uint256 shares) external view virtual returns (uint256);
 
     function cage() external virtual auth {
         live = 0;

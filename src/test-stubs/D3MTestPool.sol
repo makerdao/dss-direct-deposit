@@ -33,6 +33,8 @@ contract D3MTestPool is D3MPoolBase {
     uint256 targetSupply;
     bool    isValidTarget;
 
+    event Collect(address indexed king, address[] assets, uint256 amt);
+
     constructor(address hub_, address daiJoin_, address pool_, address _rewardsClaimer)
         public
         D3MPoolBase(hub_, daiJoin_, pool_)
@@ -40,13 +42,14 @@ contract D3MTestPool is D3MPoolBase {
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
     }
 
-    // --- Admin ---
+    // --- Testing Admin ---
     function file(bytes32 what, bool data) external auth {
         if (what == "isValidTarget") {
             isValidTarget = data;
         }
     }
 
+    // --- Admin ---
     function file(bytes32 what, address data) public override auth {
         require(live == 1, "D3MTestPool/no-file-not-live");
 
@@ -74,33 +77,34 @@ contract D3MTestPool is D3MPoolBase {
         Withdraw(msg.sender, address(this), address(this), amt, amt);
     }
 
-    function collect(address[] memory assets, uint256 amount) external override auth returns (uint256 amt) {
+    function collect(address[] memory assets, uint256 amount) external auth returns (uint256 amt) {
         require(king != address(0), "D3MPool/king-not-set");
 
         amt = rewardsClaimer.claimRewards(assets, amount, king);
+        emit Collect(king, assets, amt);
     }
 
-    function transferShares(address dst, uint256 amt) external override returns(bool) {
+    function transferShares(address dst, uint256 amt) external override returns (bool) {
         return TokenLike(share).transfer(dst, amt);
     }
 
-    function assetBalance() external view override returns(uint256) {
+    function assetBalance() external view override returns (uint256) {
         return convertToAssets(shareBalance());
     }
 
-    function maxWithdraw() external view override returns(uint256) {
+    function maxWithdraw() external view override returns (uint256) {
         return TokenLike(asset).balanceOf(share);
     }
 
-    function shareBalance() public view override returns(uint256) {
+    function shareBalance() public view override returns (uint256) {
         return TokenLike(share).balanceOf(address(this));
     }
 
-    function convertToShares(uint256 amt) external view override returns(uint256) {
+    function convertToShares(uint256 amt) external view override returns (uint256) {
         return amt;
     }
 
-    function convertToAssets(uint256 amt) public view override returns(uint256) {
-        return amt;
+    function convertToAssets(uint256 shares) public view override returns (uint256) {
+        return shares;
     }
 }

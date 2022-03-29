@@ -361,6 +361,14 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "pool", address(123));
     }
 
+    // TODO: add tests
+    // - pool file hub not live
+    // - vow/end file vat not live
+    // - plan base unrecognized file param
+    // - pool base unrecognized file param
+
+
+
     // TODO: move to Pool tests
     // function testFail_hub_not_live_gem_file() public {
     //     // Cage Pool
@@ -537,31 +545,32 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.reap(ilk);
     }
 
-    function test_collect() public {
-        address rewardToken = address(rewardsClaimer.rewards());
-        d3mTestPool.file("king", address(pauseProxy));
+    // TODO Move to Pool test
+    // function test_collect() public {
+    //     address rewardToken = address(rewardsClaimer.rewards());
+    //     d3mTestPool.file("king", address(pauseProxy));
 
-        assertEq(TokenLike(rewardToken).balanceOf(address(pauseProxy)), 0);
+    //     assertEq(TokenLike(rewardToken).balanceOf(address(pauseProxy)), 0);
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(testGem);
-        directDepositHub.collect(ilk, tokens, 10 * WAD);
+    //     address[] memory tokens = new address[](1);
+    //     tokens[0] = address(testGem);
+    //     directDepositHub.collect(ilk, tokens, 10 * WAD);
 
-        assertEq(
-            TokenLike(rewardToken).balanceOf(address(pauseProxy)),
-            10 * WAD
-        );
-    }
+    //     assertEq(
+    //         TokenLike(rewardToken).balanceOf(address(pauseProxy)),
+    //         10 * WAD
+    //     );
+    // }
 
-    function testFail_collect_no_king() public {
-        address rewardToken = address(rewardsClaimer.rewards());
+    // function testFail_collect_no_king() public {
+    //     address rewardToken = address(rewardsClaimer.rewards());
 
-        assertEq(TokenLike(rewardToken).balanceOf(address(pauseProxy)), 0);
+    //     assertEq(TokenLike(rewardToken).balanceOf(address(pauseProxy)), 0);
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(testGem);
-        directDepositHub.collect(ilk, tokens, 10 * WAD);
-    }
+    //     address[] memory tokens = new address[](1);
+    //     tokens[0] = address(testGem);
+    //     directDepositHub.collect(ilk, tokens, 10 * WAD);
+    // }
 
     function test_exit() public {
         _windSystem();

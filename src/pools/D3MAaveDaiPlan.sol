@@ -109,7 +109,7 @@ contract D3MAaveDaiPlan is D3MPlanBase {
         return _rdiv(_add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
     }
 
-    function calcSupplies(uint256 availableAssets) external override view returns(uint256 totalAssets, uint256 targetAssets) {
+    function calcSupplies(uint256 availableAssets) external override view returns (uint256 totalAssets, uint256 targetAssets) {
         totalAssets = _add(
                           availableAssets,
                             _add(
