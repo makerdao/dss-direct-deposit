@@ -272,23 +272,23 @@ contract DssDirectDepositHub {
         // To save gas you can bring the fees back with the unwind
         uint256 total = _add(amount, fees);
         pool.withdraw(total);
-        daiJoin.join(address(pool), total);
+        daiJoin.join(address(this), total);
 
         // normalized debt == erc20 DAI to pool (Vat rate for this ilk fixed to 1 RAY)
 
         if (mode == Mode.NORMAL) {
-            vat.frob(ilk, address(pool), address(pool), address(pool), -int256(amount), -int256(amount));
+            vat.frob(ilk, address(pool), address(pool), address(this), -int256(amount), -int256(amount));
             vat.slip(ilk, address(pool), -int256(amount));
-            vat.move(address(pool), vow, _mul(fees, RAY));
+            vat.move(address(this), vow, _mul(fees, RAY));
         } else if (mode == Mode.MODULE_CULLED) {
             vat.slip(ilk, address(pool), -int256(amount));
-            vat.move(address(pool), vow, _mul(total, RAY));
+            vat.move(address(this), vow, _mul(total, RAY));
         } else {
             // This can be done with the assumption that the price of 1 aDai equals 1 DAI.
             // That way we know that the prev End.skim call kept its gap[ilk] emptied as the CDP was always collateralized.
             // Otherwise we couldn't just simply take away the collateral from the End module as the next line will be doing.
             vat.slip(ilk, address(end_), -int256(amount));
-            vat.move(address(pool), vow, _mul(total, RAY));
+            vat.move(address(this), vow, _mul(total, RAY));
         }
 
         emit Unwind(ilk, amount);
