@@ -25,13 +25,15 @@ contract D3MTestPlan is D3MPlanBase {
     uint256 targetAssets;
     uint256 currentRate;
 
+    uint256 public bar_;  // Target Interest Rate [ray]
+
     constructor(address dai_, address pool_) public D3MPlanBase(dai_, pool_) {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
 
     // --- Testing Admin ---
-    function file(bytes32 what, uint256 data) public override auth {
+    function file(bytes32 what, uint256 data) public auth {
         if (what == "maxBar_") {
             maxBar_ = data;
         } else if (what == "totalAssets") {
@@ -40,7 +42,15 @@ contract D3MTestPlan is D3MPlanBase {
             targetAssets = data;
         } else if (what == "currentRate") {
             currentRate = data;
-        } else super.file(what, data);
+        } else if (what == "bar_") {
+            require(data <= maxBar(), "D3MTestPlan/above-max-interest");
+
+            bar_ = data;
+        } else revert("D3MTestPlan/file-unrecognized-param");
+    }
+
+    function bar() public override view returns (uint256 _bar) {
+        return bar_;
     }
 
     function maxBar() public override view returns (uint256) {
@@ -50,6 +60,6 @@ contract D3MTestPlan is D3MPlanBase {
     function calcSupplies(uint256 availableAssets) external override view returns (uint256, uint256) {
         availableAssets;
 
-        return (totalAssets, bar > 0 ? targetAssets : 0);
+        return (totalAssets, bar() > 0 ? targetAssets : 0);
     }
 }

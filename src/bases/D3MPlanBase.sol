@@ -36,8 +36,6 @@ abstract contract D3MPlanBase {
     address public immutable pool;
     address public immutable dai;
 
-    uint256 public bar;  // Target Interest Rate [ray]
-
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
@@ -50,16 +48,9 @@ abstract contract D3MPlanBase {
         emit Rely(msg.sender);
     }
 
-        // --- Admin ---
-    function file(bytes32 what, uint256 data) public virtual auth {
-        if (what == "bar") {
-            require(data <= maxBar(), "D3MPlanBase/above-max-interest");
+    function bar() external virtual view returns (uint256 _bar);
 
-            bar = data;
-        } else revert("D3MPlanBase/file-unrecognized-param");
-    }
-
-    function maxBar() public virtual view returns (uint256 maxBar_);
+    function maxBar() public virtual view returns (uint256 _maxBar);
 
     function calcSupplies(uint256 availableLiquidity) external virtual view returns (uint256 supplyAmount, uint256 targetSupply);
 }

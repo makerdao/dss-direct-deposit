@@ -54,6 +54,8 @@ contract D3MAaveDaiPlan is D3MPlanBase {
     TargetTokenLike public immutable stableDebt;
     TargetTokenLike public immutable variableDebt;
 
+    uint256 public bar_;  // Target Interest Rate [ray]
+
     constructor(address dai_, address pool_) public D3MPlanBase(dai_, pool_) {
 
         // Fetch the reserve data from Aave
@@ -83,6 +85,19 @@ contract D3MAaveDaiPlan is D3MPlanBase {
     }
     function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, RAY) / y;
+    }
+
+    // --- Admin ---
+    function file(bytes32 what, uint256 data) public auth {
+        if (what == "bar_") {
+            require(data <= maxBar(), "D3MAaveDaiPlan/above-max-interest");
+
+            bar_ = data;
+        } else revert("D3MAaveDaiPlan/file-unrecognized-param");
+    }
+
+    function bar() public override view returns (uint256 _bar) {
+        return bar_;
     }
 
     function maxBar() public override view returns (uint256) {
@@ -117,6 +132,7 @@ contract D3MAaveDaiPlan is D3MPlanBase {
                                 variableDebt.totalSupply()
                             )
                         );
-        targetAssets = bar > 0 ? calculateTargetSupply(bar) : 0;
+        uint256 targetInterestRate = bar();
+        targetAssets = targetInterestRate > 0 ? calculateTargetSupply(targetInterestRate) : 0;
     }
 }

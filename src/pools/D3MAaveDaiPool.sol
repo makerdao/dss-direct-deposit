@@ -38,7 +38,7 @@ interface LendingPoolLike {
         address,    // address of the stable debt token
         address,    // address of the variable debt token
         address,    // address of the interest rate strategy
-        uint8,      // the id of the reserve
+        uint8       // the id of the reserve
     );
 }
 
@@ -116,10 +116,6 @@ contract D3MAaveDaiPool is D3MPoolBase {
         return strategy == interestStrategy;
     }
 
-    function calcSupplies(uint256 availableAssets) external view override returns (uint256, uint256) {
-        return D3MPlanLike(plan).calcSupplies(availableAssets);
-    }
-
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
     function deposit(uint256 amt) external override auth {
@@ -150,12 +146,12 @@ contract D3MAaveDaiPool is D3MPoolBase {
         return ShareTokenLike(share).scaledBalanceOf(address(this));
     }
 
-    function shareBalance() public view override returns(uint256) {
+    function shareBalance() public view override returns (uint256) {
         return ShareTokenLike(share).balanceOf(address(this));
     }
 
-    function maxWithdraw() external view override returns(uint256) {
-        // TODO: return TokenLike(asset).balanceOf(share);
+    function maxWithdraw() external view override returns (uint256) {
+        return TokenLike(asset).balanceOf(share);
     }
 
     // --- Convert a standard ERC-20 amount to a the normalized amount
