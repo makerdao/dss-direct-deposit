@@ -354,8 +354,7 @@ contract DssDirectDepositHub {
                 fees = availableAssets;
             }
             pool.withdraw(fees);
-            daiJoin.join(address(this), fees);
-            vat.move(address(this), vow, _mul(RAY, fees));
+            daiJoin.join(vow, fees);
             emit Reap(ilk_, fees);
         }
     }
