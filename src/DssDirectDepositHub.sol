@@ -403,17 +403,20 @@ contract DssDirectDepositHub {
     function cull(bytes32 ilk_) external {
         require(vat.live() == 1, "DssDirectDepositHub/no-cull-during-shutdown");
         require(live == 0, "DssDirectDepositHub/live");
-        Ilk storage ilk = ilks[ilk_];
-        require(ilk.tic > 0, "DssDirectDepositHub/join-live");
-        require(_add(ilk.tic, ilk.tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
-        require(ilk.culled == 0, "DssDirectDepositHub/already-culled");
+        uint256 tic = ilks[ilk_].tic;
+        uint256 culled = ilks[ilk_].culled;
+        uint256 tau = ilks[ilk_].tau;
+        D3MPoolLike pool = ilks[ilk_].pool;
+        require(tic > 0, "DssDirectDepositHub/join-live");
+        require(_add(tic, tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
+        require(culled == 0, "DssDirectDepositHub/already-culled");
 
-        (uint256 ink, uint256 art) = vat.urns(ilk_, address(ilk.pool));
+        (uint256 ink, uint256 art) = vat.urns(ilk_, address(pool));
         require(ink <= 2 ** 255, "DssDirectDepositHub/overflow");
         require(art <= 2 ** 255, "DssDirectDepositHub/overflow");
-        vat.grab(ilk_, address(ilk.pool), address(ilk.pool), vow, -int256(ink), -int256(art));
+        vat.grab(ilk_, address(pool), address(pool), vow, -int256(ink), -int256(art));
 
-        ilk.culled = 1;
+        ilks[ilk_].culled = 1;
         emit Cull(ilk_);
     }
 
