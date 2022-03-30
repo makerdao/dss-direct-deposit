@@ -51,8 +51,8 @@ interface InterestRateStrategyLike {
 contract D3MAaveDaiPlan is D3MPlanBase {
 
     InterestRateStrategyLike public immutable interestStrategy;
-    TargetTokenLike public immutable stableDebt;
-    TargetTokenLike public immutable variableDebt;
+    TargetTokenLike          public immutable stableDebt;
+    TargetTokenLike          public immutable variableDebt;
 
     uint256 public bar_;  // Target Interest Rate [ray]
 
@@ -60,9 +60,9 @@ contract D3MAaveDaiPlan is D3MPlanBase {
 
         // Fetch the reserve data from Aave
         (,,,,,,,, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
-        require(stableDebt_ != address(0), "D3MAaveDai/invalid-stableDebt");
-        require(variableDebt_ != address(0), "D3MAaveDai/invalid-variableDebt");
-        require(interestStrategy_ != address(0), "D3MAaveDai/invalid-interestStrategy");
+        require(stableDebt_ != address(0), "D3MAaveDaiPlan/invalid-stableDebt");
+        require(variableDebt_ != address(0), "D3MAaveDaiPlan/invalid-variableDebt");
+        require(interestStrategy_ != address(0), "D3MAaveDaiPlan/invalid-interestStrategy");
 
         stableDebt = TargetTokenLike(stableDebt_);
         variableDebt = TargetTokenLike(variableDebt_);
@@ -71,13 +71,13 @@ contract D3MAaveDaiPlan is D3MPlanBase {
 
     // --- Math ---
     function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "D3MAaveDai/overflow");
+        require((z = x + y) >= x, "D3MAaveDaiPlan/overflow");
     }
     function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "D3MAaveDai/underflow");
+        require((z = x - y) <= x, "D3MAaveDaiPlan/underflow");
     }
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "D3MAaveDai/overflow");
+        require(y == 0 || (z = x * y) / y == x, "D3MAaveDaiPlan/overflow");
     }
     uint256 constant RAY  = 10 ** 27;
     function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
@@ -107,8 +107,8 @@ contract D3MAaveDaiPlan is D3MPlanBase {
     // --- Automated Rate targeting ---
     function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
-        require(targetInterestRate > base, "D3MAaveDai/target-interest-base");
-        require(targetInterestRate <= maxBar(), "D3MAaveDai/above-max-interest");
+        require(targetInterestRate > base, "D3MAaveDaiPlan/target-interest-base");
+        require(targetInterestRate <= maxBar(), "D3MAaveDaiPlan/above-max-interest");
 
         // Do inverse calculation of interestStrategy
         uint256 variableRateSlope1 = interestStrategy.variableRateSlope1();

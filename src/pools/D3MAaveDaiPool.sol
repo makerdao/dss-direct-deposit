@@ -61,7 +61,6 @@ contract D3MAaveDaiPool is D3MPoolBase {
     event Collect(address indexed king, address[] assets, uint256 amt);
 
     constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) public D3MPoolBase(hub_, dai_, pool_) {
-        // address dai_, address pool_,
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
@@ -80,7 +79,6 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
         ShareTokenLike(adai_).approve(pool_, type(uint256).max);
         TokenLike(dai_).approve(pool_, type(uint256).max);
-
     }
 
     // --- Math ---
@@ -105,7 +103,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
     // --- Admin ---
     function file(bytes32 what, address data) public override auth {
-        require(live == 1, "D3MAaveDaiPoolPool/no-file-not-live");
+        require(live == 1, "D3MAaveDaiPool/no-file-not-live");
 
         if (what == "king") king = data;
         else super.file(what, data);
@@ -120,7 +118,6 @@ contract D3MAaveDaiPool is D3MPoolBase {
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
     function deposit(uint256 amt) external override auth {
         LendingPoolLike(pool).deposit(address(asset), amt, address(this), 0);
-
     }
 
     // Withdraws Dai from Aave in exchange for adai
