@@ -116,15 +116,13 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
 
         uint256 targetUtil;
         if (targetInterestRate > normalRate) {
-            // Excess interest rate
             uint256 r = targetInterestRate - normalRate;
             targetUtil = _add(kink, _wdiv(r, interestRateModel.jumpMultiplierPerBlock()));      // (1)
         } else {
-            // Optimal interest rate
             targetUtil = _wdiv(_sub(targetInterestRate, baseRatePerBlock), multiplierPerBlock); // (2)
         }
 
-        return _wdiv(borrows, targetUtil);                                                // (3)
+        return _wdiv(borrows, targetUtil);                                                      // (3)
     }
 
     function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
