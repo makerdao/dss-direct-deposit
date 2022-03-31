@@ -45,10 +45,9 @@ pragma solidity 0.6.12;
 import "../bases/D3MPlanBase.sol";
 
 interface CErc20 {
-    function borrowRatePerBlock() external view returns (uint256);
-    function totalBorrows()       external view returns (uint256);
-    function totalReserves()      external view returns (uint256);
-    function interestRateModel()  external view returns (address);
+    function totalBorrows()           external view returns (uint256);
+    function totalReserves()          external view returns (uint256);
+    function interestRateModel()      external view returns (address);
 }
 
 interface InterestRateModel {
@@ -74,6 +73,8 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
 
         interestRateModel = InterestRateModel(interestRateModel_);
         cDai = CErc20(cDai_);
+
+        // TODO: move auth logic here if removed from base contract (wards, rely/deny, events, modifier, rely in ctr)
     }
 
     // TODO: remove also these once they are removed from D3MPlanBase
