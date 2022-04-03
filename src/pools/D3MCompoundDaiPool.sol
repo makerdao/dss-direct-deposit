@@ -37,7 +37,7 @@ interface Comptroller {
 contract D3MCompoundDaiPool is D3MPoolBase {
 
     Comptroller public immutable comptroller;
-    address     public immutable interestRateModel;
+    address     public immutable rateModel;
 
     address public king; // Who gets the rewards
 
@@ -46,16 +46,16 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     // TODO: remove the address(0) passing once pool is removed from D3MPlanBase
     constructor(address hub_, address dai_, address cDai_) public D3MPoolBase(hub_, dai_, address(0)) {
 
-        address interestRateModel_ = CErc20(cDai_).interestRateModel();
-        address comptroller_       = CErc20(cDai_).comptroller();
+        address rateModel_   = CErc20(cDai_).interestRateModel();
+        address comptroller_ = CErc20(cDai_).comptroller();
 
         require(dai_               == CErc20(cDai_).underlying(), "D3MCompoundDaiPool/cdai-dai-mismatch");
-        require(interestRateModel_ != address(0), "D3MCompoundDaiPool/invalid-interestRateModel");
+        require(rateModel_         != address(0), "D3MCompoundDaiPool/invalid-rateModel");
         require(comptroller_       != address(0), "D3MCompoundDaiPool/invalid-comptroller");
 
-        interestRateModel = interestRateModel_;
-        comptroller       = Comptroller(comptroller_);
-        share             = cDai_;
+        rateModel   = rateModel_;
+        comptroller = Comptroller(comptroller_);
+        share       = cDai_;
 
         TokenLike(dai_).approve(cDai_,  type(uint256).max);
 
@@ -85,7 +85,7 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     }
 
     function validTarget() external view override returns (bool) {
-        return CErc20(share).interestRateModel() == interestRateModel;
+        return CErc20(share).interestRateModel() == rateModel;
     }
 
     function deposit(uint256 amt) external override auth {
