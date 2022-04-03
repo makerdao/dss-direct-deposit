@@ -14,32 +14,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    Methodology for Calculating Target Supply from Target Rate Per Block    //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
-// apy to rate per block off-chain conversion info:
-//         apy = ((1 + (borrowRatePerBlock / WAD) * blocksPerDay) ^ 365 - 1) * 100
-// (0)     borrowRatePerBlock = ((((apy / 100) + 1) ^ (1 / 365) - 1) / blocksPerDay) * WAD
-//
-// https://github.com/compound-finance/compound-protocol/blob/master/contracts/BaseJumpRateModelV2.sol#L95
-//
-// util > kink:
-//         targetInterestRate = normalRate + jumpMultiplierPerBlock * (util - kink) / WAD
-//         util * jumpMultiplierPerBlock = (targetInterestRate - normalRate) * WAD + kink * jumpMultiplierPerBlock
-// (1)     util = kink + (targetInterestRate - normalRate) * WAD / jumpMultiplierPerBlock
-//
-// util <= kink:
-//         targetInterestRate = util * multiplierPerBlock / WAD + baseRatePerBlock
-// (2)     util = (targetInterestRate - baseRatePerBlock) * WAD / multiplierPerBlock
-//
-// https://github.com/compound-finance/compound-protocol/blob/master/contracts/BaseJumpRateModelV2.sol#L79
-//
-//         util = borrows * WAD / (cash + borrows - reserves);
-// (3)     cash + borrows - reserves = borrows * WAD / util
-
 pragma solidity 0.6.12;
 
 import "ds-test/test.sol";
@@ -49,21 +23,38 @@ import {D3MCompoundDaiPlan, CErc20} from "./D3MCompoundDaiPlan.sol";
 
 interface CErc20Like {
     function borrowRatePerBlock() external view returns (uint256);
-    function getCash() external view returns (uint256);
-    function totalBorrows() external view returns (uint256);
-    function totalReserves() external view returns (uint256);
+    function getCash()            external view returns (uint256);
+    function totalBorrows()       external view returns (uint256);
+    function totalReserves()      external view returns (uint256);
+    function interestRateModel()  external view returns (address);
+}
+
+interface InterestRateModelLike {
+    function baseRatePerBlock() external view returns (uint256);
+    function kink() external view returns (uint256);
+    function getBorrowRate(uint256 cash, uint256 borrows, uint256 reserves) external view returns (uint256);
 }
 
 contract DssDirectDepositHubTest is DSTest {
-    uint256 constant WAD = 10**18;
-
     DaiLike dai;
     CErc20Like cDai;
+    InterestRateModelLike model;
 
     D3MCompoundDaiPlan plan;
 
-    function mul(uint256 x, uint256 y) public pure returns (uint256 z) {
+    uint256 constant WAD = 10 ** 18;
+
+    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require((z = x + y) >= x, "overflow");
+    }
+    function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require((z = x - y) <= x, "underflow");
+    }
+    function _mul(uint256 x, uint256 y) public pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
+    }
+    function _wdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = _mul(x, WAD) / y;
     }
 
     function assertEqApproxBPS(uint256 _a, uint256 _b, uint256 _tolerance_bps) internal {
@@ -74,7 +65,7 @@ contract DssDirectDepositHubTest is DSTest {
             a = b;
             b = tmp;
         }
-        if (a - b > mul(_b, _tolerance_bps) / 10 ** 4) {
+        if (a - b > _mul(_b, _tolerance_bps) / 10 ** 4) {
             emit log_bytes32("Error: Wrong `uint' value");
             emit log_named_uint("  Expected", _b);
             emit log_named_uint("    Actual", _a);
@@ -83,20 +74,84 @@ contract DssDirectDepositHubTest is DSTest {
     }
 
     function setUp() public {
-
-        dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
-        cDai = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
+        dai   = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+        cDai  = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
+        model = InterestRateModelLike(cDai.interestRateModel());
 
         plan = new D3MCompoundDaiPlan(address(dai), address(cDai));
     }
 
-    function test_target_supply_for_current_rate() public {
+    function _targetRateForUtil(uint256 util) internal view returns (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) {
+        borrows  = cDai.totalBorrows();
+        reserves = cDai.totalReserves();
+
+        // reverse calculation of https://github.com/compound-finance/compound-protocol/blob/master/contracts/BaseJumpRateModelV2.sol#L79
+        cash = _add(_sub(_wdiv(borrows, util), borrows), reserves);
+        targetRate = model.getBorrowRate(cash, borrows, reserves);
+    }
+
+    function test_calculate_current_rate() public {
         uint256 borrowRatePerBlock = cDai.borrowRatePerBlock();
         uint256 targetSupply = plan.calculateTargetSupply(borrowRatePerBlock);
 
         uint256 cash = cDai.getCash();
         uint256 borrows = cDai.totalBorrows();
         uint256 reserves = cDai.totalReserves();
-        assertEqApproxBPS(targetSupply, cash + borrows - reserves, 1);
+        assertEqApproxBPS(targetSupply, _sub(_add(cash, borrows), reserves), 1);
+    }
+
+    function test_calculate_exactly_normal_rate() public {
+        uint256 util = model.kink(); // example: current kink = 80% => util = 80%
+        (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) = _targetRateForUtil(util);
+
+        uint256 supply = plan.calculateTargetSupply(targetRate);
+        assertEqApproxBPS(supply, _sub(_add(cash, borrows), reserves), 1);
+    }
+
+    function test_calculate_below_normal_rate() public {
+        uint256 util = model.kink() / 2; // example: current kink = 80% => util = 40%
+        (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) = _targetRateForUtil(util);
+
+        uint256 supply = plan.calculateTargetSupply(targetRate);
+        assertEqApproxBPS(supply, _sub(_add(cash, borrows), reserves), 1);
+    }
+
+    function test_calculate_above_normal_rate() public {
+        uint256 util = _add(model.kink(), _sub(WAD, model.kink()) / 2); // example: current kink = 80% => util = 80% + 10%
+        (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) = _targetRateForUtil(util);
+
+        uint256 supply = plan.calculateTargetSupply(targetRate);
+        assertEqApproxBPS(supply, _sub(_add(cash, borrows), reserves), 1);
+    }
+
+    function test_calculate_extremely_low_rate() public {
+        uint256 util = model.kink() / 100; // example: current kink = 80% => util = 0.8%
+        (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) = _targetRateForUtil(util);
+
+        uint256 supply = plan.calculateTargetSupply(targetRate);
+        assertEqApproxBPS(supply, _sub(_add(cash, borrows), reserves), 1);
+    }
+
+    function test_calculate_extremely_high_rate() public {
+        uint256 util = _add(model.kink(), _mul(_sub(WAD, model.kink()), 9) / 10); // example: current kink = 80% => util = 80% + 20% * 9 / 10 = 98%
+        (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) = _targetRateForUtil(util);
+
+        uint256 supply = plan.calculateTargetSupply(targetRate);
+        assertEqApproxBPS(supply, _sub(_add(cash, borrows), reserves), 1);
+    }
+
+    function test_calculate_base_rate() public {
+        uint256 supply = plan.calculateTargetSupply(model.baseRatePerBlock());
+        assertEq(supply, 0);
+    }
+
+    function test_calculate_zero_rate() public {
+        uint256 supply = plan.calculateTargetSupply(model.baseRatePerBlock());
+        assertEq(supply, 0);
+    }
+
+    function test_supplies_current_rate() public {
+        // TODO
     }
 }
+

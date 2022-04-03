@@ -27,6 +27,7 @@
 // https://github.com/compound-finance/compound-protocol/blob/master/contracts/BaseJumpRateModelV2.sol#L95
 //
 // util > kink:
+//         normalRate = kink * multiplierPerBlock / WAD + baseRatePerBlock;
 //         targetInterestRate = normalRate + jumpMultiplierPerBlock * (util - kink) / WAD
 //         util * jumpMultiplierPerBlock = (targetInterestRate - normalRate) * WAD + kink * jumpMultiplierPerBlock
 // (1)     util = kink + (targetInterestRate - normalRate) * WAD / jumpMultiplierPerBlock
@@ -60,7 +61,7 @@ interface InterestRateModel {
 contract D3MCompoundDaiPlan is D3MPlanBase {
 
     CErc20            public immutable cDai;
-    InterestRateModel public immutable interestRateModel;
+    InterestRateModel public immutable rateModel;
 
     // Target Interest Rate Per Block [wad]
     uint256 public barb; // (0)
@@ -68,10 +69,10 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
     // TODO: remove the address(0) passing once pool is removed from D3MPlanBase
     constructor(address dai_, address cDai_) public D3MPlanBase(dai_, address(0)) {
 
-        address interestRateModel_ = CErc20(cDai_).interestRateModel();
-        require(interestRateModel_ != address(0), "D3MCompoundDaiPlan/invalid-interestRateModel");
+        address rateModel_ = CErc20(cDai_).interestRateModel();
+        require(rateModel_ != address(0), "D3MCompoundDaiPlan/invalid-rateModel");
 
-        interestRateModel = InterestRateModel(interestRateModel_);
+        rateModel = InterestRateModel(rateModel_);
         cDai = CErc20(cDai_);
 
         // TODO: move auth logic here if removed from base contract (wards, rely/deny, events, modifier, rely in ctr)
@@ -109,21 +110,22 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
 
     // --- Automated Rate targeting ---
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 borrows) internal view returns (uint256) {
-        uint256 kink = interestRateModel.kink();
-        uint256 multiplierPerBlock = interestRateModel.multiplierPerBlock();
-        uint256 baseRatePerBlock = interestRateModel.baseRatePerBlock();
+        uint256 kink               = rateModel.kink();
+        uint256 multiplierPerBlock = rateModel.multiplierPerBlock();
+        uint256 baseRatePerBlock   = rateModel.baseRatePerBlock();
 
         uint256 normalRate = _add(_wmul(kink, multiplierPerBlock), baseRatePerBlock);
 
         uint256 targetUtil;
         if (targetInterestRate > normalRate) {
-            uint256 r = targetInterestRate - normalRate;
-            targetUtil = _add(kink, _wdiv(r, interestRateModel.jumpMultiplierPerBlock()));      // (1)
+            targetUtil = _add(kink, _wdiv(targetInterestRate - normalRate, rateModel.jumpMultiplierPerBlock())); // (1)
+        } else if (targetInterestRate > baseRatePerBlock) {
+            targetUtil = _wdiv(targetInterestRate - baseRatePerBlock, multiplierPerBlock);                       // (2)
         } else {
-            targetUtil = _wdiv(_sub(targetInterestRate, baseRatePerBlock), multiplierPerBlock); // (2)
+            return 0;
         }
 
-        return _wdiv(borrows, targetUtil);                                                      // (3)
+        return _wdiv(borrows, targetUtil);                                                                       // (3)
     }
 
     function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
@@ -132,6 +134,7 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
 
     function calcSupplies(uint256 availableAssets) external override view returns (uint256 totalAssets, uint256 targetAssets) {
         uint256 borrows = cDai.totalBorrows();
+
         totalAssets = _sub(
             _add(
                 availableAssets, // cash
@@ -140,7 +143,6 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
             cDai.totalReserves()
         );
 
-        uint256 targetInterestRate = barb;
-        targetAssets = targetInterestRate > 0 ? _calculateTargetSupply(targetInterestRate, borrows) : 0;
+        targetAssets = _calculateTargetSupply(barb, borrows);
     }
 }
