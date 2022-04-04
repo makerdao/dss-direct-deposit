@@ -949,7 +949,7 @@ contract D3MAaveDaiTest is DSTest {
 
         // User can exit and get the aDAI
         directDepositHub.exit(ilk, address(this), 100 ether);
-        assertEqApprox(adai.balanceOf(address(this)), d3mAaveDaiPool.convertToShares(100 ether), 1);     // Slight rounding error may occur
+        assertEqApprox(adai.balanceOf(address(this)), 100 ether, 1);     // Slight rounding error may occur
     }
 
     function testFail_shutdown_cant_cage() public {

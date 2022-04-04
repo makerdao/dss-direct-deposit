@@ -367,7 +367,7 @@ contract DssDirectDepositHub {
         require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
         vat.slip(ilk_, msg.sender, -int256(wad));
         D3MPoolLike pool = ilks[ilk_].pool;
-        require(pool.transferShares(usr, pool.convertToShares(wad)), "DssDirectDepositHub/failed-transfer");
+        require(pool.transferShares(usr, wad), "DssDirectDepositHub/failed-transfer");
         emit Exit(ilk_, usr, wad);
     }
 
