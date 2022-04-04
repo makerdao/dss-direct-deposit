@@ -431,6 +431,7 @@ contract D3MAaveDaiTest is DSTest {
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAaveDaiPool));
         directDepositHub.cage();
+        directDepositHub.cage(ilk);
         assertEq(directDepositHub.live(), 0);
         assertEq(d3mAaveDaiPool.live(), 0);
         directDepositHub.exec(ilk);
@@ -767,6 +768,7 @@ contract D3MAaveDaiTest is DSTest {
         aavePool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
         directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
 
@@ -825,7 +827,7 @@ contract D3MAaveDaiTest is DSTest {
 
         // Call skim manually (will be done through deposit anyway)
         // Position is again taken but this time the collateral goes to the End module
-        end.skim(ilk, address(directDepositHub));
+        end.skim(ilk, address(d3mAaveDaiPool));
         VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         (ink, art) = vat.urns(ilk, address(d3mAaveDaiPool));
@@ -933,8 +935,8 @@ contract D3MAaveDaiTest is DSTest {
         // Collect some stake rewards into the pause proxy
         address[] memory tokens = new address[](1);
         tokens[0] = address(adai);
-        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(directDepositHub));
-        assertTrue(amountToClaim > 0);
+        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(d3mAaveDaiPool));
+        assertGt(amountToClaim, 0);
         d3mAaveDaiPool.collect(tokens, uint256(-1));
     }
 
@@ -1085,6 +1087,7 @@ contract D3MAaveDaiTest is DSTest {
         assertEq(tau, 7 days);
 
         directDepositHub.cage();
+        directDepositHub.cage(ilk);
         assertEq(directDepositHub.live(), 0);
         assertEq(d3mAaveDaiPool.live(), 0);
 

@@ -403,11 +403,13 @@ contract DssDirectDepositHub {
     function cull(bytes32 ilk_) external {
         require(vat.live() == 1, "DssDirectDepositHub/no-cull-during-shutdown");
         require(live == 0, "DssDirectDepositHub/live");
-        uint256 tic = ilks[ilk_].tic;
-        uint256 culled = ilks[ilk_].culled;
-        uint256 tau = ilks[ilk_].tau;
-        D3MPoolLike pool = ilks[ilk_].pool;
-        require(tic > 0, "DssDirectDepositHub/join-live");
+
+        uint256     tic     = ilks[ilk_].tic;
+        uint256     culled  = ilks[ilk_].culled;
+        uint256     tau     = ilks[ilk_].tau;
+        D3MPoolLike pool    = ilks[ilk_].pool;
+
+        require(tic > 0, "DssDirectDepositHub/pool-live");
         require(_add(tic, tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
         require(culled == 0, "DssDirectDepositHub/already-culled");
 
