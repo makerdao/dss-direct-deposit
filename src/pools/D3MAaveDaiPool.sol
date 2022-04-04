@@ -131,7 +131,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
     // --- Balance in standard ERC-20 denominations
     function assetBalance() external view override returns (uint256) {
-        return ShareTokenLike(share).scaledBalanceOf(address(this));
+        return ShareTokenLike(share).balanceOf(address(this));
     }
 
     function shareBalance() public view override returns (uint256) {

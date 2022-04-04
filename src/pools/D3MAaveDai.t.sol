@@ -512,8 +512,6 @@ contract D3MAaveDaiTest is DSTest {
 
     function test_collect_interest() public {
         _setRelBorrowTarget(7500);
-        assertEq(address(d3mAaveDaiPool.asset()), address(dai));
-        assertEq(address(d3mAaveDaiPool.share()), address(adai));
 
         hevm.warp(block.timestamp + 1 days);     // Collect one day of interest
 
@@ -522,7 +520,7 @@ contract D3MAaveDaiTest is DSTest {
 
         log_named_decimal_uint("dai", vat.dai(vow) - vowDai, 18);
 
-        assertTrue(vat.dai(vow) - vowDai > 0);
+        assertGt(vat.dai(vow) - vowDai, 0);
     }
 
     function test_insufficient_liquidity_for_unwind_fees() public {
