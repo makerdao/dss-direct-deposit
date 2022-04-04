@@ -1100,7 +1100,7 @@ contract D3MAaveDaiTest is DSTest {
         _giveTokens(dai, 100);
         dai.approve(address(daiJoin), 100);
         daiJoin.join(address(this), 100);
-        vat.frob(ilk, address(address(directDepositHub)), address(this), address(this), 0, -100); // Some small amount of dai repaid
+        vat.frob(ilk, address(address(d3mAaveDaiPool)), address(this), address(this), 0, -100); // Some small amount of dai repaid
 
         // We should be able to close out the vault completely even though ink and art do not match
         _setRelBorrowTarget(0);
