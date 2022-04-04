@@ -100,7 +100,7 @@ contract D3MTestPool is D3MPoolBase {
         return amt;
     }
 
-    function convertToAssets(uint256 shares) public view override returns (uint256) {
+    function convertToAssets(uint256 shares) public pure returns (uint256) {
         return shares;
     }
 }

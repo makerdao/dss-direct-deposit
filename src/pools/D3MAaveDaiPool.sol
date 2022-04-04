@@ -74,12 +74,12 @@ contract D3MAaveDaiPool is D3MPoolBase {
         interestStrategy = interestStrategy_;
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
 
-        wards[msg.sender] = 1;
-        emit Rely(msg.sender);
 
         ShareTokenLike(adai_).approve(pool_, type(uint256).max);
         TokenLike(dai_).approve(pool_, type(uint256).max);
 
+        wards[msg.sender] = 1;
+        emit Rely(msg.sender);
     }
 
     // --- Math ---
@@ -158,9 +158,5 @@ contract D3MAaveDaiPool is D3MPoolBase {
     function convertToShares(uint256 amt) external view override returns (uint256) {
         uint256 interestIndex = LendingPoolLike(pool).getReserveNormalizedIncome(address(asset));
         return _rdiv(amt, interestIndex);
-    }
-
-    function convertToAssets(uint256 shares) public view override returns (uint256) {
-        // TODO: return amt;
     }
 }

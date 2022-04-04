@@ -103,8 +103,6 @@ abstract contract D3MPoolBase {
 
     function convertToShares(uint256 amt) external view virtual returns (uint256);
 
-    function convertToAssets(uint256 shares) external view virtual returns (uint256);
-
     function recoverTokens(address token, address dst, uint256 amt) external auth returns (bool) {
         return TokenLike(token).transfer(dst, amt);
     }
