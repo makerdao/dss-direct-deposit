@@ -73,7 +73,7 @@ contract D3MMom {
 
     // Governance action without delay
     function disable(address who) external auth {
-        FileLike(who).file("bar_", 0);
+        FileLike(who).file("bar", 0);
         emit Disable(who);
     }
 }
