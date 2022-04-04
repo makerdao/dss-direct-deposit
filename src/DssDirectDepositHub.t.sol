@@ -97,10 +97,11 @@ contract DssDirectDepositHubTest is DSTest {
         );
         d3mTestPlan = new D3MTestPlan(address(dai), address(123));
 
+        d3mTestPool.file("share", address(testGem));
+
         // Test Target Setup
         testGem.rely(address(d3mTestPool));
         d3mTestPlan.file("maxBar_", type(uint256).max);
-        d3mTestPool.file("share", address(testGem));
         d3mTestPool.file("isValidTarget", true);
         testGem.giveAllowance(
             address(dai),

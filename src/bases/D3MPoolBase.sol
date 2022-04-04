@@ -83,9 +83,7 @@ abstract contract D3MPoolBase {
         require(live == 1, "D3MPoolBase/no-file-not-live");
 
         if (what == "share") {
-            if (share != address(0)) TokenLike(share).approve(hub, 0);
             share = data;
-            TokenLike(data).approve(hub, type(uint256).max);
         } else revert("D3MPoolBase/file-unrecognized-param");
     }
 

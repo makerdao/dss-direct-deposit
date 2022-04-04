@@ -56,7 +56,6 @@ contract D3MAaveDaiPool is D3MPoolBase {
     address                  public immutable interestStrategy;
 
     address public king;     // Who gets the rewards
-    uint256 public bar;      // Target Interest Rate [ray]
 
     event Collect(address indexed king, address[] assets, uint256 amt);
 
