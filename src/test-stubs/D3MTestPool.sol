@@ -35,9 +35,9 @@ contract D3MTestPool is D3MPoolBase {
 
     event Collect(address indexed king, address[] assets, uint256 amt);
 
-    constructor(address hub_, address daiJoin_, address pool_, address _rewardsClaimer)
+    constructor(address hub_, address daiJoin_, address _rewardsClaimer)
         public
-        D3MPoolBase(hub_, daiJoin_, pool_)
+        D3MPoolBase(hub_, daiJoin_)
     {
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
     }

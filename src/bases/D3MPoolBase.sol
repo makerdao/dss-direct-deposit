@@ -50,7 +50,6 @@ abstract contract D3MPoolBase {
 
     TokenLike   public immutable asset; // Dai
     address     public immutable hub;
-    address     public immutable pool;
 
     address     public           share;
     uint256     public           live = 1;
@@ -63,14 +62,11 @@ abstract contract D3MPoolBase {
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
     event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
 
-    constructor(address hub_, address dai_, address pool_) internal {
-
-        pool = pool_;
+    constructor(address hub_, address dai_) internal {
+        asset = TokenLike(dai_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
-
-        asset = TokenLike(dai_);
 
         hub = hub_;
         wards[hub_] = 1;

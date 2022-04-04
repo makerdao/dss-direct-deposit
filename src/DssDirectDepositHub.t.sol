@@ -92,10 +92,9 @@ contract DssDirectDepositHubTest is DSTest {
         d3mTestPool = new D3MTestPool(
             address(directDepositHub),
             address(dai),
-            address(123),
             address(rewardsClaimer)
         );
-        d3mTestPlan = new D3MTestPlan(address(dai), address(123));
+        d3mTestPlan = new D3MTestPlan(address(dai));
 
         d3mTestPool.file("share", address(testGem));
 
@@ -203,7 +202,7 @@ contract DssDirectDepositHubTest is DSTest {
     }
 
     function _windSystem() internal {
-        d3mTestPlan.file("bar_", 10);
+        d3mTestPlan.file("bar", 10);
         d3mTestPlan.file("totalAssets", 50 * WAD);
         d3mTestPlan.file("targetAssets", 100 * WAD);
         directDepositHub.exec(ilk);
@@ -370,6 +369,7 @@ contract DssDirectDepositHubTest is DSTest {
     // - plan base unrecognized file param
     // - pool base unrecognized file param
     // - bar_ filing for plan
+    // - recover Tokens for Pool Base
 
     // TODO: move to Pool tests
     // function testFail_hub_not_live_gem_file() public {
@@ -397,7 +397,7 @@ contract DssDirectDepositHubTest is DSTest {
     }
 
     function test_wind_amount_less_target() public {
-        d3mTestPlan.file("bar_", 10);
+        d3mTestPlan.file("bar", 10);
         d3mTestPlan.file("totalAssets", 50 * WAD);
         d3mTestPlan.file("targetAssets", 100 * WAD);
 
@@ -419,7 +419,7 @@ contract DssDirectDepositHubTest is DSTest {
         _windSystem();
 
         // Temporarily disable the module
-        d3mTestPlan.file("bar_", 0);
+        d3mTestPlan.file("bar", 0);
         directDepositHub.exec(ilk);
 
         // Ensure we unwound our position

@@ -81,7 +81,7 @@ contract D3MAaveDaiTest is DSTest {
 
     VatLike vat;
     EndLike end;
-    LendingPoolLike pool;
+    LendingPoolLike aavePool;
     InterestRateStrategyLike interestStrategy;
     RewardsClaimerLike rewardsClaimer;
     DaiLike dai;
@@ -109,7 +109,7 @@ contract D3MAaveDaiTest is DSTest {
 
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndLike(0xBB856d1742fD182a90239D7AE85706C2FE4e5922);
-        pool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
+        aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
         adai = TokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
         stkAave = TokenLike(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
@@ -127,8 +127,8 @@ contract D3MAaveDaiTest is DSTest {
         _giveAuthAccess(address(spot), address(this));
 
         directDepositHub = new DssDirectDepositHub(address(vat), address(daiJoin));
-        d3mAaveDaiPool = new D3MAaveDaiPool(address(directDepositHub), address(dai), address(pool), address(rewardsClaimer));
-        d3mAaveDaiPlan = new D3MAaveDaiPlan(address(dai), address(pool));
+        d3mAaveDaiPool = new D3MAaveDaiPool(address(directDepositHub), address(dai), address(aavePool), address(rewardsClaimer));
+        d3mAaveDaiPlan = new D3MAaveDaiPlan(address(dai), address(aavePool));
         d3mAaveDaiPool.file("share", address(adai));
 
         directDepositHub.file(ilk, "pool", address(d3mAaveDaiPool));
@@ -141,7 +141,7 @@ contract D3MAaveDaiTest is DSTest {
         // d3mAaveDaiPool.rely(address(directDepositHub));
 
         d3mMom = new D3MMom();
-        directDepositHub.rely(address(d3mMom));
+        d3mAaveDaiPlan.rely(address(d3mMom));
 
         // Init new collateral
         pip = new ValueStub();
@@ -158,9 +158,9 @@ contract D3MAaveDaiTest is DSTest {
         // Give us a bunch of WETH and deposit into Aave
         uint256 amt = 1_000_000 * WAD;
         _giveTokens(weth, amt);
-        weth.approve(address(pool), uint256(-1));
-        dai.approve(address(pool), uint256(-1));
-        pool.deposit(address(weth), amt, address(this), 0);
+        weth.approve(address(aavePool), uint256(-1));
+        dai.approve(address(aavePool), uint256(-1));
+        aavePool.deposit(address(weth), amt, address(this), 0);
     }
 
     // --- Math ---
@@ -284,13 +284,13 @@ contract D3MAaveDaiTest is DSTest {
     }
 
     function getBorrowRate() public view returns (uint256 borrowRate) {
-        (,,,, borrowRate,,,,,,,) = pool.getReserveData(address(dai));
+        (,,,, borrowRate,,,,,,,) = aavePool.getReserveData(address(dai));
     }
 
     // Set the borrow rate to a relative percent to what it currently is
     function _setRelBorrowTarget(uint256 deltaBPS) internal returns (uint256 targetBorrowRate) {
         targetBorrowRate = getBorrowRate() * deltaBPS / 10000;
-        d3mAaveDaiPlan.file("bar_", targetBorrowRate);
+        d3mAaveDaiPlan.file("bar", targetBorrowRate);
         directDepositHub.exec(ilk);
     }
 
@@ -352,7 +352,7 @@ contract D3MAaveDaiTest is DSTest {
         assertGt(art, 0);
 
         // Temporarily disable the module
-        d3mAaveDaiPlan.file("bar_", 0);
+        d3mAaveDaiPlan.file("bar", 0);
         directDepositHub.exec(ilk);
 
         (ink, art) = vat.urns(ilk, address(d3mAaveDaiPool));
@@ -385,7 +385,7 @@ contract D3MAaveDaiTest is DSTest {
         // Someone else borrows
         uint256 amountSupplied = adai.balanceOf(address(d3mAaveDaiPool));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
-        pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+        aavePool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
         // Cage the system and start unwinding
         currentLiquidity = dai.balanceOf(address(adai));
@@ -405,7 +405,7 @@ contract D3MAaveDaiTest is DSTest {
 
         // Someone else repays some Dai so we can unwind the rest
         hevm.warp(block.timestamp + 1 days);
-        pool.repay(address(dai), amountToBorrow, 2, address(this));
+        aavePool.repay(address(dai), amountToBorrow, 2, address(this));
 
         directDepositHub.exec(ilk);
         assertEq(adai.balanceOf(address(d3mAaveDaiPool)), 0);
@@ -425,7 +425,7 @@ contract D3MAaveDaiTest is DSTest {
         // Someone else borrows
         uint256 amountSupplied = adai.balanceOf(address(d3mAaveDaiPool));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
-        pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+        aavePool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
         // Cage the system and start unwinding
         currentLiquidity = dai.balanceOf(address(adai));
@@ -461,7 +461,7 @@ contract D3MAaveDaiTest is DSTest {
 
         // Some time later the pool gets some liquidity
         hevm.warp(block.timestamp + 180 days);
-        pool.repay(address(dai), amountToBorrow, 2, address(this));
+        aavePool.repay(address(dai), amountToBorrow, 2, address(this));
 
         // Close out the remainder of the position
         uint256 adaiBalance = adai.balanceOf(address(d3mAaveDaiPool));
@@ -536,7 +536,7 @@ contract D3MAaveDaiTest is DSTest {
         // Someone else borrows the exact amount previously available
         (uint256 amountSupplied,) = vat.urns(ilk, address(d3mAaveDaiPool));
         uint256 amountToBorrow = currentLiquidity;
-        pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+        aavePool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
         // Accumulate a bunch of interest
         hevm.warp(block.timestamp + 180 days);
@@ -558,7 +558,7 @@ contract D3MAaveDaiTest is DSTest {
         assertEq(vat.dai(vow), vowDai);
 
         // Someone repays
-        pool.repay(address(dai), amountToBorrow, 2, address(this));
+        aavePool.repay(address(dai), amountToBorrow, 2, address(this));
         directDepositHub.exec(ilk);
 
         (ink, art) = vat.urns(ilk, address(d3mAaveDaiPool));
@@ -577,7 +577,7 @@ contract D3MAaveDaiTest is DSTest {
         hevm.warp(block.timestamp + 180 days);
 
         // Someone else borrows almost all the liquidity
-        pool.borrow(address(dai), dai.balanceOf(address(adai)) - 100 * WAD, 2, 0, address(this));
+        aavePool.borrow(address(dai), dai.balanceOf(address(adai)) - 100 * WAD, 2, 0, address(this));
 
         // Reap the partial fees
         uint256 vowDai = vat.dai(vow);
@@ -599,7 +599,7 @@ contract D3MAaveDaiTest is DSTest {
         // Someone else borrows
         uint256 amountSupplied = adai.balanceOf(address(d3mAaveDaiPool));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
-        pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+        aavePool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
         // MCD shutdowns
         end.cage();
@@ -635,7 +635,7 @@ contract D3MAaveDaiTest is DSTest {
 
         // Some time later the pool gets some liquidity
         hevm.warp(block.timestamp + 180 days);
-        pool.repay(address(dai), amountToBorrow, 2, address(this));
+        aavePool.repay(address(dai), amountToBorrow, 2, address(this));
 
         // Rest of the liquidity can be withdrawn
         directDepositHub.exec(ilk);
@@ -659,7 +659,7 @@ contract D3MAaveDaiTest is DSTest {
         // Someone else borrows
         uint256 amountSupplied = adai.balanceOf(address(d3mAaveDaiPool));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
-        pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+        aavePool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
         // MCD shutdowns
         end.cage();
@@ -707,7 +707,7 @@ contract D3MAaveDaiTest is DSTest {
 
         // Some time later the pool gets some liquidity
         hevm.warp(block.timestamp + 180 days);
-        pool.repay(address(dai), amountToBorrow, 2, address(this));
+        aavePool.repay(address(dai), amountToBorrow, 2, address(this));
 
         // Rest of the liquidity can be withdrawn
         directDepositHub.exec(ilk);
@@ -731,7 +731,7 @@ contract D3MAaveDaiTest is DSTest {
         // Someone else borrows
         uint256 amountSupplied = adai.balanceOf(address(d3mAaveDaiPool));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
-        pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+        aavePool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
         // MCD shutdowns
         end.cage();
@@ -766,7 +766,7 @@ contract D3MAaveDaiTest is DSTest {
         // Someone else borrows
         uint256 amountSupplied = adai.balanceOf(address(d3mAaveDaiPool));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
-        pool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+        aavePool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
         directDepositHub.cage();
 
@@ -860,7 +860,7 @@ contract D3MAaveDaiTest is DSTest {
         }
 
         // Then pool gets some liquidity
-        pool.repay(address(dai), amountToBorrow, 2, address(this));
+        aavePool.repay(address(dai), amountToBorrow, 2, address(this));
 
         // Rest of the liquidity can be withdrawn
         directDepositHub.exec(ilk);
@@ -1063,7 +1063,7 @@ contract D3MAaveDaiTest is DSTest {
         assertGt(d3mAaveDaiPlan.bar(), 0);
 
         // Something bad happens on Aave - we need to bypass gov delay
-        d3mMom.disable(address(directDepositHub));
+        d3mMom.disable(address(d3mAaveDaiPlan));
 
         assertEq(d3mAaveDaiPlan.bar(), 0);
 

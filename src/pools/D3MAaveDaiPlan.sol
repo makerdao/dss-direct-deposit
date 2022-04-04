@@ -54,9 +54,9 @@ contract D3MAaveDaiPlan is D3MPlanBase {
     TargetTokenLike          public immutable stableDebt;
     TargetTokenLike          public immutable variableDebt;
 
-    uint256 public bar_;  // Target Interest Rate [ray]
+    uint256 public bar;  // Target Interest Rate [ray]
 
-    constructor(address dai_, address pool_) public D3MPlanBase(dai_, pool_) {
+    constructor(address dai_, address pool_) public D3MPlanBase(dai_) {
 
         // Fetch the reserve data from Aave
         (,,,,,,,, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
@@ -89,15 +89,11 @@ contract D3MAaveDaiPlan is D3MPlanBase {
 
     // --- Admin ---
     function file(bytes32 what, uint256 data) public auth {
-        if (what == "bar_") {
+        if (what == "bar") {
             require(data <= maxBar(), "D3MAaveDaiPlan/above-max-interest");
 
-            bar_ = data;
+            bar = data;
         } else revert("D3MAaveDaiPlan/file-unrecognized-param");
-    }
-
-    function bar() public override view returns (uint256 _bar) {
-        return bar_;
     }
 
     function maxBar() public override view returns (uint256) {
@@ -106,6 +102,11 @@ contract D3MAaveDaiPlan is D3MPlanBase {
 
     // --- Automated Rate targeting ---
     function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
+        uint256 stableDebtTotal = stableDebt.totalSupply();
+        uint256 variableDebtTotal = variableDebt.totalSupply();
+        return _calculateTargetSupply(targetInterestRate, stableDebtTotal, variableDebtTotal);
+    }
+    function _calculateTargetSupply(uint256 targetInterestRate, uint256 stableDebtTotal, uint256 variableDebtTotal) internal view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
         require(targetInterestRate > base, "D3MAaveDaiPlan/target-interest-base");
         require(targetInterestRate <= maxBar(), "D3MAaveDaiPlan/above-max-interest");
@@ -121,18 +122,21 @@ contract D3MAaveDaiPlan is D3MPlanBase {
             // Optimal interest rate
             targetUtil = _rdiv(_rmul(_sub(targetInterestRate, base), interestStrategy.OPTIMAL_UTILIZATION_RATE()), variableRateSlope1);
         }
-        return _rdiv(_add(stableDebt.totalSupply(), variableDebt.totalSupply()), targetUtil);
+        return _rdiv(_add(stableDebtTotal, variableDebtTotal), targetUtil);
     }
 
     function calcSupplies(uint256 availableAssets) external override view returns (uint256 totalAssets, uint256 targetAssets) {
+        uint256 stableDebtTotal = stableDebt.totalSupply();
+        uint256 variableDebtTotal = variableDebt.totalSupply();
+
         totalAssets = _add(
                           availableAssets,
                             _add(
-                                stableDebt.totalSupply(),
-                                variableDebt.totalSupply()
+                                stableDebtTotal,
+                                variableDebtTotal
                             )
                         );
-        uint256 targetInterestRate = bar();
-        targetAssets = targetInterestRate > 0 ? calculateTargetSupply(targetInterestRate) : 0;
+        uint256 targetInterestRate = bar;
+        targetAssets = targetInterestRate > 0 ? _calculateTargetSupply(targetInterestRate, stableDebtTotal, variableDebtTotal) : 0;
     }
 }

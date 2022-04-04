@@ -33,22 +33,18 @@ abstract contract D3MPlanBase {
         _;
     }
 
-    address public immutable pool;
     address public immutable dai;
 
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(address dai_, address pool_) public {
-        pool = pool_;
+    constructor(address dai_) public {
         dai = dai_;
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
-
-    function bar() external virtual view returns (uint256 _bar);
 
     function maxBar() public virtual view returns (uint256 _maxBar);
 

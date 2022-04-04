@@ -50,6 +50,8 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
     uint256 constant RAY  = 10 ** 27;
 
+
+    address                  public immutable pool;
     RewardsClaimerLike       public immutable rewardsClaimer;
     ShareTokenLike           public immutable stableDebt;
     ShareTokenLike           public immutable variableDebt;
@@ -59,7 +61,8 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
     event Collect(address indexed king, address[] assets, uint256 amt);
 
-    constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) public D3MPoolBase(hub_, dai_, pool_) {
+    constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) public D3MPoolBase(hub_, dai_) {
+        pool = pool_;
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
@@ -82,23 +85,11 @@ contract D3MAaveDaiPool is D3MPoolBase {
     }
 
     // --- Math ---
-    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "D3MAaveDaiPool/overflow");
-    }
-    function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "D3MAaveDaiPool/underflow");
-    }
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "D3MAaveDaiPool/overflow");
     }
-    function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, y) / RAY;
-    }
     function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, RAY) / y;
-    }
-    function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = x <= y ? x : y;
     }
 
     // --- Admin ---
