@@ -151,7 +151,17 @@ contract DssDirectDepositHubTest is DSTest {
     }
 
     function test_supplies_current_rate() public {
-        // TODO
+        uint256 borrowRatePerBlock = cDai.borrowRatePerBlock();
+        plan.file("barb", borrowRatePerBlock);
+
+        uint256 cash = cDai.getCash();
+        (uint256 totalAssets, uint256 targetAssets)  = plan.calcSupplies(cash);
+
+        assertEqApproxBPS(totalAssets, targetAssets, 1);
+
+        uint256 borrows = cDai.totalBorrows();
+        uint256 reserves = cDai.totalReserves();
+        assertEqApproxBPS(totalAssets, _sub(_add(cash, borrows), reserves), 0);
     }
 }
 
