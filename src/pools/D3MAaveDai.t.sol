@@ -945,11 +945,11 @@ contract D3MAaveDaiTest is DSTest {
         vat.cage();
 
         // Simulate DAI holder gets some gems from GS
-        vat.grab(ilk, address(directDepositHub), address(this), address(this), -int256(100 ether), -int256(0));
+        vat.grab(ilk, address(d3mAaveDaiPool), address(this), address(this), -int256(100 ether), -int256(0));
 
         // User can exit and get the aDAI
         directDepositHub.exit(ilk, address(this), 100 ether);
-        assertEqApprox(adai.balanceOf(address(this)), 100 ether, 1);     // Slight rounding error may occur
+        assertEqApprox(adai.balanceOf(address(this)), d3mAaveDaiPool.convertToShares(100 ether), 1);     // Slight rounding error may occur
     }
 
     function testFail_shutdown_cant_cage() public {
