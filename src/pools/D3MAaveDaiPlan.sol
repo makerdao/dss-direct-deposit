@@ -35,7 +35,7 @@ interface LendingPoolLike {
         address,    // address of the stable debt token
         address,    // address of the variable debt token
         address,    // address of the interest rate strategy
-        uint8
+        uint8       // the id of the reserve
     );
 }
 
@@ -102,11 +102,12 @@ contract D3MAaveDaiPlan is D3MPlanBase {
     }
 
     // --- Automated Rate targeting ---
-    function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
+    function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
         uint256 stableDebtTotal = stableDebt.totalSupply();
         uint256 variableDebtTotal = variableDebt.totalSupply();
         return _calculateTargetSupply(targetInterestRate, stableDebtTotal, variableDebtTotal);
     }
+
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 stableDebtTotal, uint256 variableDebtTotal) internal view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
         require(targetInterestRate > base, "D3MAaveDaiPlan/target-interest-base");

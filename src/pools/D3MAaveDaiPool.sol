@@ -33,7 +33,7 @@ interface LendingPoolLike {
         uint128,    // the current supply rate. Expressed in ray
         uint128,    // the current variable borrow rate. Expressed in ray
         uint128,    // the current stable borrow rate. Expressed in ray
-        uint40,
+        uint40,     // last updated timestamp
         address,    // address of the adai interest bearing token
         address,    // address of the stable debt token
         address,    // address of the variable debt token
@@ -49,7 +49,6 @@ interface RewardsClaimerLike {
 contract D3MAaveDaiPool is D3MPoolBase {
 
     uint256 constant RAY  = 10 ** 27;
-
 
     address                  public immutable pool;
     RewardsClaimerLike       public immutable rewardsClaimer;
@@ -75,7 +74,6 @@ contract D3MAaveDaiPool is D3MPoolBase {
         variableDebt = ShareTokenLike(variableDebt_);
         interestStrategy = interestStrategy_;
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
-
 
         ShareTokenLike(adai_).approve(pool_, type(uint256).max);
         TokenLike(dai_).approve(pool_, type(uint256).max);
@@ -134,7 +132,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
         return ShareTokenLike(share).balanceOf(address(this));
     }
 
-    function shareBalance() public view override returns (uint256) {
+    function shareBalance() external view override returns (uint256) {
         return ShareTokenLike(share).balanceOf(address(this));
     }
 
