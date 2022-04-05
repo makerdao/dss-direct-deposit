@@ -49,7 +49,7 @@ contract D3MTestPlan is D3MPlanBase {
         } else revert("D3MTestPlan/file-unrecognized-param");
     }
 
-    function maxBar() public override view returns (uint256) {
+    function maxBar() public view returns (uint256) {
         return maxBar_;
     }
 

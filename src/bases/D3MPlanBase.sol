@@ -46,7 +46,5 @@ abstract contract D3MPlanBase {
         emit Rely(msg.sender);
     }
 
-    function maxBar() public virtual view returns (uint256 _maxBar);
-
     function calcSupplies(uint256 availableLiquidity) external virtual view returns (uint256 supplyAmount, uint256 targetSupply);
 }

@@ -97,7 +97,7 @@ contract D3MAaveDaiPlan is D3MPlanBase {
         } else revert("D3MAaveDaiPlan/file-unrecognized-param");
     }
 
-    function maxBar() public override view returns (uint256) {
+    function maxBar() public view returns (uint256) {
         return interestStrategy.getMaxVariableBorrowRate();
     }
 
