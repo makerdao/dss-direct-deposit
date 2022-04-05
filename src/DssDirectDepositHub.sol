@@ -36,11 +36,9 @@ interface EndLike {
 }
 
 interface D3MPoolLike {
-    function king() external view returns (address);
     function validTarget() external view returns (bool);
     function deposit(uint256) external;
     function withdraw(uint256) external;
-    function collect(address[] memory, uint256) external returns (uint256);
     function transferShares(address, uint256) external returns (bool);
     function assetBalance() external returns (uint256);
     function shareBalance() external returns (uint256);
