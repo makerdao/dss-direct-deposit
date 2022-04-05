@@ -70,6 +70,8 @@ contract D3MAaveDaiPlan is D3MPlanBase {
     }
 
     // --- Math ---
+    uint256 constant RAY  = 10 ** 27;
+
     function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x, "D3MAaveDaiPlan/overflow");
     }
@@ -79,7 +81,6 @@ contract D3MAaveDaiPlan is D3MPlanBase {
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "D3MAaveDaiPlan/overflow");
     }
-    uint256 constant RAY  = 10 ** 27;
     function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, y) / RAY;
     }
