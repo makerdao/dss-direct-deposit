@@ -58,9 +58,6 @@ abstract contract D3MPoolBase {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event Cage();
-    // --- EIP-4626 Events ---
-    event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
-    event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
 
     constructor(address hub_, address dai_) internal {
         asset = TokenLike(dai_);
