@@ -103,9 +103,7 @@ contract D3MAaveDaiPlan is D3MPlanBase {
 
     // --- Automated Rate targeting ---
     function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
-        uint256 stableDebtTotal = stableDebt.totalSupply();
-        uint256 variableDebtTotal = variableDebt.totalSupply();
-        return _calculateTargetSupply(targetInterestRate, stableDebtTotal, variableDebtTotal);
+        return _calculateTargetSupply(targetInterestRate, stableDebt.totalSupply(), variableDebt.totalSupply());
     }
 
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 stableDebtTotal, uint256 variableDebtTotal) internal view returns (uint256) {
