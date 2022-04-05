@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-import "../bases/D3MPlanBase.sol";
+import "../../bases/D3MPlanBase.sol";
 
 contract D3MTestPlan is D3MPlanBase {
     // test helper variables

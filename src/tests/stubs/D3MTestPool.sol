@@ -17,7 +17,7 @@
 pragma solidity 0.6.12;
 
 import { D3MTestGem } from "./D3MTestGem.sol";
-import "../bases/D3MPoolBase.sol";
+import "../../bases/D3MPoolBase.sol";
 
 interface RewardsClaimerLike {
     function claimRewards(address[] memory assets, uint256 amount, address to) external returns (uint256);
