@@ -19,14 +19,15 @@ pragma solidity 0.6.12;
 import "../bases/D3MPoolBase.sol";
 
 interface CErc20 {
-    function interestRateModel()                 external view returns (address);
-    function underlying()                        external view returns (address);
-    function comptroller()                       external view returns (address);
-    function exchangeRateStored()                external view returns (uint256);
-    function getCash()                           external view returns (uint256);
-    function getAccountSnapshot(address account) external view returns (uint256, uint256, uint256, uint256);
+    function interestRateModel()                    external view returns (address);
+    function underlying()                           external view returns (address);
+    function comptroller()                          external view returns (address);
+    function exchangeRateStored()                   external view returns (uint256);
+    function getCash()                              external view returns (uint256);
+    function getAccountSnapshot(address account)    external view returns (uint256, uint256, uint256, uint256);
     function mint(uint256 mintAmount)               external returns (uint256);
     function redeemUnderlying(uint256 redeemAmount) external returns (uint256);
+    function accrueInterest()                       external returns (uint256);
 }
 
 interface Comptroller {
@@ -135,5 +136,10 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     // Note: Does not accrue interest.
     function convertToShares(uint256 amt) external view override returns (uint256) {
         return _wdiv(amt, CErc20(share).exchangeRateStored());
+    }
+
+    // TODO: add override once added to base
+    function accrueIfNeeded() external {
+         require(CErc20(share).accrueInterest() == 0, "D3MCompoundDaiPool/accrueInterest-failure");
     }
 }
