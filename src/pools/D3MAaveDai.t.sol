@@ -23,7 +23,7 @@ import { DssDirectDepositHub } from "../DssDirectDepositHub.sol";
 import { D3MMom } from "../D3MMom.sol";
 import { ValueStub } from "../tests/stubs/ValueStub.sol";
 
-import { D3MAaveDaiPlan } from "./D3MAaveDaiPlan.sol";
+import { D3MAaveDaiPlan } from "../plans/D3MAaveDaiPlan.sol";
 import { D3MAaveDaiPool } from "./D3MAaveDaiPool.sol";
 
 interface Hevm {

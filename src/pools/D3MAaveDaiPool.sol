@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-import "../bases/D3MPoolBase.sol";
+import "./D3MPoolBase.sol";
 
 interface ShareTokenLike is TokenLike {
     function scaledBalanceOf(address) external view returns (uint256);

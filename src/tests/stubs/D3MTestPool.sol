@@ -17,7 +17,7 @@
 pragma solidity 0.6.12;
 
 import { D3MTestGem } from "./D3MTestGem.sol";
-import "../../bases/D3MPoolBase.sol";
+import "../../pools/D3MPoolBase.sol";
 
 interface RewardsClaimerLike {
     function claimRewards(address[] memory assets, uint256 amount, address to) external returns (uint256);
@@ -64,13 +64,11 @@ contract D3MTestPool is D3MPoolBase {
     function deposit(uint256 amt) external override {
         D3MTestGem(share).mint(address(this), amt);
         TokenLike(asset).transfer(share, amt);
-        Deposit(msg.sender, address(this), amt, amt);
     }
 
     function withdraw(uint256 amt) external override {
         D3MTestGem(share).burn(address(this), amt);
         TokenLike(asset).transferFrom(share, address(hub), amt);
-        Withdraw(msg.sender, address(this), address(this), amt, amt);
     }
 
     function collect(address[] memory assets, uint256 amount) external auth returns (uint256 amt) {

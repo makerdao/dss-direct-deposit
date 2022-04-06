@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-import "../bases/D3MPlanBase.sol";
+import "./D3MPlanBase.sol";
 
 interface TargetTokenLike {
     function totalSupply() external view returns (uint256);
