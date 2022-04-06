@@ -43,8 +43,7 @@ contract D3MCompoundDaiPool is D3MPoolBase {
 
     event Collect(address indexed king, address indexed comp);
 
-    // TODO: remove the address(0) passing once pool is removed from D3MPlanBase
-    constructor(address hub_, address dai_, address cDai_) public D3MPoolBase(hub_, dai_, address(0)) {
+    constructor(address hub_, address dai_, address cDai_) public D3MPoolBase(hub_, dai_) {
 
         address rateModel_   = CErc20(cDai_).interestRateModel();
         address comptroller_ = CErc20(cDai_).comptroller();
@@ -137,10 +136,4 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     function convertToShares(uint256 amt) external view override returns (uint256) {
         return _wdiv(amt, CErc20(share).exchangeRateStored());
     }
-
-    function convertToAssets(uint256 shares) public view override returns (uint256) {
-        // TODO: return amt? possibly remove if we remove it from the base
-    }
-
-    // TODO: see if need an authed function to send to pause proxy any token, assuming it will be done in base
 }

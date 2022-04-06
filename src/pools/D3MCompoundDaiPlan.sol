@@ -66,21 +66,14 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
     // Target Interest Rate Per Block [wad]
     uint256 public barb; // (0)
 
-    // TODO: remove the address(0) passing once pool is removed from D3MPlanBase
-    constructor(address dai_, address cDai_) public D3MPlanBase(dai_, address(0)) {
+    constructor(address dai_, address cDai_) public D3MPlanBase(dai_) {
 
         address rateModel_ = CErc20(cDai_).interestRateModel();
         require(rateModel_ != address(0), "D3MCompoundDaiPlan/invalid-rateModel");
 
         rateModel = InterestRateModel(rateModel_);
         cDai = CErc20(cDai_);
-
-        // TODO: move auth logic here if removed from base contract (wards, rely/deny, events, modifier, rely in ctr)
     }
-
-    // TODO: remove also these once they are removed from D3MPlanBase
-    function bar() external override view returns (uint256 _bar) {}
-    function maxBar() public override view returns (uint256 _maxBar) {}
 
     // --- Math ---
     uint256 constant WAD  = 10 ** 18;

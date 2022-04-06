@@ -17,7 +17,7 @@
 pragma solidity 0.6.12;
 
 import "ds-test/test.sol";
-import "../interfaces/interfaces.sol";
+import "../tests/interfaces/interfaces.sol";
 
 import {D3MCompoundDaiPlan, CErc20} from "./D3MCompoundDaiPlan.sol";
 
