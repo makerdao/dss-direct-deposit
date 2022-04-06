@@ -21,7 +21,6 @@ import "../../plans/D3MPlanBase.sol";
 contract D3MTestPlan is D3MPlanBase {
     // test helper variables
     uint256 maxBar_;
-    uint256 totalAssets;
     uint256 targetAssets;
     uint256 currentRate;
 
@@ -36,8 +35,6 @@ contract D3MTestPlan is D3MPlanBase {
     function file(bytes32 what, uint256 data) public auth {
         if (what == "maxBar_") {
             maxBar_ = data;
-        } else if (what == "totalAssets") {
-            totalAssets = data;
         } else if (what == "targetAssets") {
             targetAssets = data;
         } else if (what == "currentRate") {
@@ -53,9 +50,9 @@ contract D3MTestPlan is D3MPlanBase {
         return maxBar_;
     }
 
-    function calcSupplies(uint256 availableAssets) external override view returns (uint256, uint256) {
-        availableAssets;
+    function targetPosition(uint256 currentPosition) external override view returns (uint256) {
+        currentPosition;
 
-        return (totalAssets, bar > 0 ? targetAssets : 0);
+        return bar > 0 ? targetAssets : 0;
     }
 }

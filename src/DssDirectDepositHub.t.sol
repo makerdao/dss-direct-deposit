@@ -203,8 +203,7 @@ contract DssDirectDepositHubTest is DSTest {
 
     function _windSystem() internal {
         d3mTestPlan.file("bar", 10);
-        d3mTestPlan.file("totalAssets", 50 * WAD);
-        d3mTestPlan.file("targetAssets", 100 * WAD);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
         directDepositHub.exec(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
@@ -396,25 +395,6 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "pool", address(123));
     }
 
-    function test_wind_amount_less_target() public {
-        d3mTestPlan.file("bar", 10);
-        d3mTestPlan.file("totalAssets", 50 * WAD);
-        d3mTestPlan.file("targetAssets", 100 * WAD);
-
-        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(pink, 0);
-        assertEq(part, 0);
-        assertEq(dai.balanceOf(address(testGem)), 0);
-
-        directDepositHub.exec(ilk);
-
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 50 * WAD);
-        assertEq(art, 50 * WAD);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
-    }
-
     function test_unwind_bar_zero() public {
         _windSystem();
 
@@ -464,8 +444,7 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(pink, 50 * WAD);
         assertEq(part, 50 * WAD);
 
-        d3mTestPlan.file("targetAssets", 75 * WAD);
-        d3mTestPlan.file("totalAssets", 100 * WAD);
+        d3mTestPlan.file("targetAssets", 25 * WAD);
 
         directDepositHub.exec(ilk);
 
