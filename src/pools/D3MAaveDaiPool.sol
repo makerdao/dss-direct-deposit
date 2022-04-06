@@ -116,7 +116,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
     }
 
     // --- Collect any rewards ---
-    function collect(address[] memory assets, uint256 amount) external auth returns (uint256 amt) {
+    function collect(address[] memory assets, uint256 amount) external returns (uint256 amt) {
         require(king != address(0), "D3MAaveDaiPool/king-not-set");
 
         amt = rewardsClaimer.claimRewards(assets, amount, king);

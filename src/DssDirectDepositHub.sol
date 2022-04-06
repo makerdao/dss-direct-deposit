@@ -389,8 +389,7 @@ contract DssDirectDepositHub {
         emit Cage(ilk_);
     }
 
-    function cage() external {
-        require(wards[msg.sender] == 1 , "DssDirectDepositHub/not-authorized");
+    function cage() external auth {
         require(vat.live() == 1, "DssDirectDepositHub/no-cage-during-shutdown");
 
         live = 0;
