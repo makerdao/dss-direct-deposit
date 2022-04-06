@@ -51,7 +51,6 @@ abstract contract D3MPoolBase {
     TokenLike   public immutable asset; // Dai
     address     public immutable hub;
 
-    address     public           share;
     uint256     public           live = 1;
 
     // --- Events ---
@@ -69,15 +68,6 @@ abstract contract D3MPoolBase {
         wards[hub_] = 1;
         emit Rely(hub_);
         CanLike(d3mHubLike(hub_).vat()).hope(hub_);
-    }
-
-    // --- Admin ---
-    function file(bytes32 what, address data) public virtual auth {
-        require(live == 1, "D3MPoolBase/no-file-not-live");
-
-        if (what == "share") {
-            share = data;
-        } else revert("D3MPoolBase/file-unrecognized-param");
     }
 
     function validTarget() external view virtual returns (bool);

@@ -56,7 +56,8 @@ contract D3MAaveDaiPool is D3MPoolBase {
     ShareTokenLike           public immutable variableDebt;
     address                  public immutable interestStrategy;
 
-    address public king;     // Who gets the rewards
+    address public king;  // Who gets the rewards
+    address public adai; // Token representing a share of the asset pool
 
     event Collect(address indexed king, address[] assets, uint256 amt);
 
@@ -91,11 +92,12 @@ contract D3MAaveDaiPool is D3MPoolBase {
     }
 
     // --- Admin ---
-    function file(bytes32 what, address data) public override auth {
-        require(live == 1, "D3MAaveDaiPool/no-file-not-live");
+    function file(bytes32 what, address data) public auth {
+        require(live == 1, "D3MTestPool/no-file-not-live");
 
         if (what == "king") king = data;
-        else super.file(what, data);
+        else if (what == "adai") adai = data;
+        else revert("D3MPoolBase/file-unrecognized-param");
     }
 
     function validTarget() external view override returns (bool) {
@@ -124,20 +126,20 @@ contract D3MAaveDaiPool is D3MPoolBase {
     }
 
     function transferShares(address dst, uint256 amt) external override returns (bool) {
-        return ShareTokenLike(share).transfer(dst, amt);
+        return ShareTokenLike(adai).transfer(dst, amt);
     }
 
     // --- Balance in standard ERC-20 denominations
     function assetBalance() external view override returns (uint256) {
-        return ShareTokenLike(share).balanceOf(address(this));
+        return ShareTokenLike(adai).balanceOf(address(this));
     }
 
     function shareBalance() external view override returns (uint256) {
-        return ShareTokenLike(share).balanceOf(address(this));
+        return ShareTokenLike(adai).balanceOf(address(this));
     }
 
     function maxWithdraw() external view override returns (uint256) {
-        return TokenLike(asset).balanceOf(share);
+        return TokenLike(asset).balanceOf(adai);
     }
 
     // --- Convert a standard ERC-20 amount to a the normalized amount

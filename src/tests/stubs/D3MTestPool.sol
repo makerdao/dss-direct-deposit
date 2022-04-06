@@ -26,7 +26,8 @@ interface RewardsClaimerLike {
 contract D3MTestPool is D3MPoolBase {
 
     RewardsClaimerLike public immutable rewardsClaimer;
-    address            public           king; // Who gets the rewards
+    address            public           king;  // Who gets the rewards
+    address            public           share; // Token representing a share of the asset pool
 
     // test helper variables
     uint256 supplyAmount;
@@ -50,11 +51,12 @@ contract D3MTestPool is D3MPoolBase {
     }
 
     // --- Admin ---
-    function file(bytes32 what, address data) public override auth {
+    function file(bytes32 what, address data) public auth {
         require(live == 1, "D3MTestPool/no-file-not-live");
 
         if (what == "king") king = data;
-        else super.file(what, data);
+        else if (what == "share") share = data;
+        else revert("D3MPoolBase/file-unrecognized-param");
     }
 
     function validTarget() external view override returns (bool) {
