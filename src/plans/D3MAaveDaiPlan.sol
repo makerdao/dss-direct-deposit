@@ -102,11 +102,9 @@ contract D3MAaveDaiPlan is D3MPlanBase {
     }
 
     // --- Automated Rate targeting ---
-    function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
-        return _calculateTargetSupply(targetInterestRate, stableDebt.totalSupply(), variableDebt.totalSupply());
-    }
+    function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
+        uint256 totalDebt = _add(stableDebt.totalSupply(), variableDebt.totalSupply());
 
-    function _calculateTargetSupply(uint256 targetInterestRate, uint256 stableDebtTotal, uint256 variableDebtTotal) internal view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
         require(targetInterestRate > base, "D3MAaveDaiPlan/target-interest-base");
         require(targetInterestRate <= maxBar(), "D3MAaveDaiPlan/above-max-interest");
@@ -122,36 +120,11 @@ contract D3MAaveDaiPlan is D3MPlanBase {
             // Optimal interest rate
             targetUtil = _rdiv(_rmul(_sub(targetInterestRate, base), interestStrategy.OPTIMAL_UTILIZATION_RATE()), variableRateSlope1);
         }
-        return _rdiv(_add(stableDebtTotal, variableDebtTotal), targetUtil);
+        return _rdiv(totalDebt, targetUtil);
     }
 
-    function calcSupplies(uint256 availableAssets) external view returns (uint256 totalAssets, uint256 targetAssets) {
-        uint256 stableDebtTotal = stableDebt.totalSupply();
-        uint256 variableDebtTotal = variableDebt.totalSupply();
-
-        totalAssets = _add(
-                          availableAssets,
-                            _add(
-                                stableDebtTotal,
-                                variableDebtTotal
-                            )
-                        );
+    function getTargetAssets(uint256 currentAssets) external override view returns (uint256 targetAssets) {
         uint256 targetInterestRate = bar;
-        targetAssets = targetInterestRate > 0 ? _calculateTargetSupply(targetInterestRate, stableDebtTotal, variableDebtTotal) : 0;
-    }
-
-    function targetPosition(uint256 availableAssets) external override view returns (uint256 targetAssets) {
-        uint256 stableDebtTotal = stableDebt.totalSupply();
-        uint256 variableDebtTotal = variableDebt.totalSupply();
-
-        uint256 totalAssets = _add(
-                          availableAssets,
-                            _add(
-                                stableDebtTotal,
-                                variableDebtTotal
-                            )
-                        );
-        uint256 targetInterestRate = bar;
-        targetAssets = targetInterestRate > 0 ? _calculateTargetSupply(targetInterestRate, stableDebtTotal, variableDebtTotal) : 0;
+        targetAssets = targetInterestRate > 0 ? calculateTargetSupply(targetInterestRate) : 0;
     }
 }

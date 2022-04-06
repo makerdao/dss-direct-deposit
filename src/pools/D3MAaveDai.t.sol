@@ -339,7 +339,7 @@ contract D3MAaveDaiTest is DSTest {
         assertEqRoundingAgainst(ink, amountMinted);    // We allow a rounding error of 1 because aTOKENs round against the user
         assertEqRoundingAgainst(art, amountMinted);
         assertEq(vat.gem(ilk, address(d3mAaveDaiPool)), 0);
-        assertEq(vat.dai(address(directDepositHub)), 0);
+        assertEq(vat.dai(address(d3mAaveDaiPool)), 0);
     }
 
     function test_bar_zero() public {

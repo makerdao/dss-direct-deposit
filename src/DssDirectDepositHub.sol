@@ -48,7 +48,7 @@ interface D3MPoolLike {
 }
 
 interface D3MPlanLike {
-    function targetPosition(uint256) external view returns (uint256);
+    function getTargetAssets(uint256) external view returns (uint256);
 }
 
 interface DaiJoinLike {
@@ -324,7 +324,7 @@ contract DssDirectDepositHub {
         } else {
             // Normal path
             uint256 currentAssets = pool.assetBalance();
-            uint256 targetAssets = ilks[ilk_].plan.targetPosition(currentAssets);
+            uint256 targetAssets = ilks[ilk_].plan.getTargetAssets(currentAssets);
 
             if (targetAssets > currentAssets) {
                 _wind(ilk_, pool, targetAssets - currentAssets);
