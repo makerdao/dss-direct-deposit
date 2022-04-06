@@ -49,6 +49,7 @@ contract D3MMapleV1DaiPlan is D3MPlanBase {
     function file(bytes32 what, uint256 data) public auth {
         if (what == "cap") {
             // TODO need to add a check that we are not already in some aspect of the withdraw phase
+            // TODO also need to check that our current DAI position is greater than the new cap
             if (cap < data) {
                 // Need to signal to the pool that we want to withdraw. We may be in the pre-cooldown
                 // phase, so we signal to withdraw at the next available opportunity.
