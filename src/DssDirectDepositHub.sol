@@ -40,6 +40,7 @@ interface D3MPoolLike {
     function deposit(uint256) external;
     function withdraw(uint256) external;
     function transferShares(address, uint256) external returns (bool);
+    function accrueIfNeeded() external;
     function assetBalance() external returns (uint256);
     function shareBalance() external returns (uint256);
     function convertToShares(uint256) external view returns (uint256);
@@ -209,13 +210,12 @@ contract DssDirectDepositHub {
         emit Wind(ilk, amount);
     }
 
-    function _unwind(bytes32 ilk, D3MPoolLike pool, uint256 supplyReduction, uint256 availableLiquidity, Mode mode) internal {
+    function _unwind(bytes32 ilk, D3MPoolLike pool, uint256 supplyReduction, uint256 availableLiquidity, Mode mode, uint256 assetBalance) internal {
         // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
         // That's why it converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
 
         EndLike end_;
-        uint256 assetBalance = pool.assetBalance();
         uint256 daiDebt;
         if (mode == Mode.NORMAL) {
             // Normal mode or module just caged (no culled)
@@ -296,6 +296,8 @@ contract DssDirectDepositHub {
         D3MPoolLike pool = ilks[ilk_].pool;
 
         uint256 availableAssets = pool.maxWithdraw();
+        pool.accrueIfNeeded();
+        uint256 currentAssets = pool.assetBalance();
 
         if (vat.live() == 0) {
             uint256 culled = ilks[ilk_].culled;
@@ -307,7 +309,8 @@ contract DssDirectDepositHub {
                 pool,
                 type(uint256).max,
                 availableAssets,
-                Mode.MCD_CAGED
+                Mode.MCD_CAGED,
+                currentAssets
             );
         } else if (live == 0) {
             uint256 culled = ilks[ilk_].culled;
@@ -319,12 +322,12 @@ contract DssDirectDepositHub {
                 availableAssets,
                 culled == 1
                 ? Mode.MODULE_CULLED
-                : Mode.NORMAL
+                : Mode.NORMAL,
+                currentAssets
             );
         } else {
             // Normal path
-            uint256 currentAssets = pool.assetBalance();
-            uint256 targetAssets = ilks[ilk_].plan.getTargetAssets(currentAssets);
+            uint256 targetAssets = ilks[ilk_].plan.getTargetAssets(availableAssets);
 
             if (targetAssets > currentAssets) {
                 _wind(ilk_, pool, targetAssets - currentAssets);
@@ -334,7 +337,8 @@ contract DssDirectDepositHub {
                     pool,
                     currentAssets - targetAssets,
                     availableAssets,
-                    Mode.NORMAL
+                    Mode.NORMAL,
+                    currentAssets
                 );
             }
         }
@@ -347,6 +351,7 @@ contract DssDirectDepositHub {
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
         require(live == 1, "DssDirectDepositHub/no-reap-during-cage");
 
+        pool.accrueIfNeeded();
         uint256 assetBalance = pool.assetBalance();
         (, uint256 daiDebt) = vat.urns(ilk_, address(pool));
         if (assetBalance > daiDebt) {

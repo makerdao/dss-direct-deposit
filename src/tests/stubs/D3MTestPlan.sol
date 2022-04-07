@@ -50,9 +50,9 @@ contract D3MTestPlan is D3MPlanBase {
         return maxBar_;
     }
 
-    function getTargetAssets(uint256 currentPosition) external override view returns (uint256) {
+    function getTargetAssets(uint256 currentPosition) external override view returns (int256) {
         currentPosition;
 
-        return bar > 0 ? targetAssets : 0;
+        return int(bar > 0 ? targetAssets : 0);
     }
 }

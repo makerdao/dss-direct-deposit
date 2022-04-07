@@ -209,6 +209,8 @@ contract DssDirectDepositHubTest is DSTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 50 * WAD);
         assertEq(art, 50 * WAD);
+        assertTrue(d3mTestPool.accrued());
+        d3mTestPool.file("accrued", false);
     }
 
     function test_approvals() public {
@@ -406,6 +408,9 @@ contract DssDirectDepositHubTest is DSTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 0);
         assertEq(art, 0);
+        // Make sure unwind calls accrued
+        assertTrue(d3mTestPool.accrued());
+        d3mTestPool.file("accrued", false);
     }
 
     function test_unwind_mcd_caged() public {
@@ -421,6 +426,9 @@ contract DssDirectDepositHubTest is DSTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 0);
         assertEq(art, 0);
+        // Make sure unwind calls accrued
+        assertTrue(d3mTestPool.accrued());
+        d3mTestPool.file("accrued", false);
     }
 
     function test_unwind_module_caged() public {
@@ -435,6 +443,9 @@ contract DssDirectDepositHubTest is DSTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 0);
         assertEq(art, 0);
+        // Make sure unwind calls accrued
+        assertTrue(d3mTestPool.accrued());
+        d3mTestPool.file("accrued", false);
     }
 
     function test_unwind_target_less_amount() public {
@@ -452,6 +463,9 @@ contract DssDirectDepositHubTest is DSTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 25 * WAD);
         assertEq(art, 25 * WAD);
+        // Make sure unwind calls accrued
+        assertTrue(d3mTestPool.accrued());
+        d3mTestPool.file("accrued", false);
     }
 
     function test_reap_available_liquidity() public {
@@ -471,6 +485,9 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(art, 50 * WAD);
         uint256 currentDai = vat.dai(vow);
         assertEq(currentDai, prevDai + 10 * RAD); // Interest shows up in vat Dai for the Vow [rad]
+        // Make sure unwind calls accrued
+        assertTrue(d3mTestPool.accrued());
+        d3mTestPool.file("accrued", false);
     }
 
     function test_reap_not_enough_liquidity() public {
@@ -497,6 +514,9 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(art, 50 * WAD);
         uint256 currentDai = vat.dai(vow);
         assertEq(currentDai, prevDai + 5 * RAD); // Interest shows up in vat Dai for the Vow [rad]
+        // Make sure unwind calls accrued
+        assertTrue(d3mTestPool.accrued());
+        d3mTestPool.file("accrued", false);
     }
 
     function testFail_no_reap_mcd_caged() public {

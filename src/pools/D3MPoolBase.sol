@@ -78,6 +78,8 @@ abstract contract D3MPoolBase {
 
     function transferShares(address dst, uint256 amt) external virtual returns (bool);
 
+    function accrueIfNeeded() external virtual;
+
     function assetBalance() external view virtual returns (uint256);
 
     function shareBalance() external view virtual returns (uint256);

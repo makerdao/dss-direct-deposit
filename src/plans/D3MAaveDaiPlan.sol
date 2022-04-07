@@ -120,11 +120,11 @@ contract D3MAaveDaiPlan is D3MPlanBase {
             // Optimal interest rate
             targetUtil = _rdiv(_rmul(_sub(targetInterestRate, base), interestStrategy.OPTIMAL_UTILIZATION_RATE()), variableRateSlope1);
         }
-        return _rdiv(totalDebt, targetUtil);
+        return _sub(_rdiv(totalDebt, targetUtil),totalDebt);
     }
 
-    function getTargetAssets(uint256 currentAssets) external override view returns (uint256 targetAssets) {
+    function getTargetAssets(uint256 availableAssets) external override view returns (int256 targetAssets) {
         uint256 targetInterestRate = bar;
-        targetAssets = targetInterestRate > 0 ? calculateTargetSupply(targetInterestRate) : 0;
+        targetAssets = int256(targetInterestRate > 0 ? calculateTargetSupply(targetInterestRate) - availableAssets : 0);
     }
 }

@@ -30,9 +30,10 @@ contract D3MTestPool is D3MPoolBase {
     address            public           share; // Token representing a share of the asset pool
 
     // test helper variables
-    uint256 supplyAmount;
-    uint256 targetSupply;
-    bool    isValidTarget;
+    uint256        supplyAmount;
+    uint256        targetSupply;
+    bool           isValidTarget;
+    bool    public accrued = false;
 
     event Collect(address indexed king, address[] assets, uint256 amt);
 
@@ -47,7 +48,7 @@ contract D3MTestPool is D3MPoolBase {
     function file(bytes32 what, bool data) external auth {
         if (what == "isValidTarget") {
             isValidTarget = data;
-        }
+        } else if (what == "accrued") accrued = data;
     }
 
     // --- Admin ---
@@ -82,6 +83,10 @@ contract D3MTestPool is D3MPoolBase {
 
     function transferShares(address dst, uint256 amt) external override returns (bool) {
         return TokenLike(share).transfer(dst, amt);
+    }
+
+    function accrueIfNeeded() external override {
+        accrued = true;
     }
 
     function assetBalance() external view override returns (uint256) {
