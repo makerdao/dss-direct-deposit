@@ -102,12 +102,16 @@ contract D3MAaveDaiPlan is D3MPlanBase {
     }
 
     // --- Automated Rate targeting ---
-    function calculateTargetSupply(uint256 targetInterestRate) public view returns (uint256) {
-        uint256 totalDebt = _add(stableDebt.totalSupply(), variableDebt.totalSupply());
+    function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
+        uint256 stableDebtTotal = stableDebt.totalSupply();
+        uint256 variableDebtTotal = variableDebt.totalSupply();
+        return _calculateTargetSupply(targetInterestRate, stableDebtTotal, variableDebtTotal);
+    }
 
+    function _calculateTargetSupply(uint256 targetInterestRate, uint256 stableDebtTotal, uint256 variableDebtTotal) internal view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
-        require(targetInterestRate > base, "D3MAaveDaiPlan/target-interest-base");
-        require(targetInterestRate <= maxBar(), "D3MAaveDaiPlan/above-max-interest");
+        require(targetInterestRate > base, "DssDirectDepositAaveDai/target-interest-base");
+        require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
 
         // Do inverse calculation of interestStrategy
         uint256 variableRateSlope1 = interestStrategy.variableRateSlope1();
@@ -120,11 +124,36 @@ contract D3MAaveDaiPlan is D3MPlanBase {
             // Optimal interest rate
             targetUtil = _rdiv(_rmul(_sub(targetInterestRate, base), interestStrategy.OPTIMAL_UTILIZATION_RATE()), variableRateSlope1);
         }
-        return _sub(_rdiv(totalDebt, targetUtil),totalDebt);
+        return _rdiv(_add(stableDebtTotal, variableDebtTotal), targetUtil);
     }
 
-    function getTargetAssets(uint256 availableAssets) external override view returns (int256 targetAssets) {
+    function getTargetAssets(uint256 availableAssets, uint256 currentAssets) external override view returns (uint256 targetAssets) {
         uint256 targetInterestRate = bar;
-        targetAssets = int256(targetInterestRate > 0 ? calculateTargetSupply(targetInterestRate) - availableAssets : 0);
+        if (targetInterestRate == 0) return 0;     // De-activated
+
+        uint256 totalPoolSize = _add(
+                availableAssets,
+                _add(
+                    stableDebt.totalSupply(),
+                    variableDebt.totalSupply()
+                )
+            );
+
+        uint256 stableDebtTotal = stableDebt.totalSupply();
+        uint256 variableDebtTotal = variableDebt.totalSupply();
+
+        uint256 targetTotalPoolSize = _calculateTargetSupply(targetInterestRate, stableDebtTotal, variableDebtTotal);
+        if (targetTotalPoolSize >= totalPoolSize) {
+            // Increase debt (or same)
+            return _add(currentAssets, _sub(targetTotalPoolSize, totalPoolSize));
+        } else {
+            // Decrease debt
+            uint256 decrease = _sub(totalPoolSize, targetTotalPoolSize);
+            if (currentAssets >= decrease) {
+                return _sub(currentAssets, decrease);
+            } else {
+                return 0;
+            }
+        }
     }
 }
