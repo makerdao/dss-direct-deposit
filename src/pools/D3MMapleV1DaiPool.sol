@@ -75,12 +75,6 @@ contract D3MMapleV1DaiPool is D3MPoolBase {
         // TODO: Emit deposit event if we decide to leave it in base
     }
 
-    function intendToWithdraw() external auth {
-        pool.intendToWithdraw();  // Trigger cooldown for withdrawal
-
-        // TODO: Emit intendToWithdraw event?
-    }
-
     function withdraw(uint256 amt) external override auth {
         // `withdraw` claims interest and recognizes any losses, so use DAI balance change to transfer to hub.
         uint256 preDaiBalance = asset.balanceOf(address(this));
