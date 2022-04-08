@@ -43,7 +43,7 @@
 
 pragma solidity 0.6.12;
 
-import "../bases/D3MPlanBase.sol";
+import "./D3MPlanBase.sol";
 
 interface CErc20 {
     function totalBorrows()           external view returns (uint256);
@@ -121,14 +121,17 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
         return _wdiv(borrows, targetUtil);                                                                       // (3)
     }
 
+    // Note: cash + borrows - resereves
     function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
         return _calculateTargetSupply(targetInterestRate, cDai.totalBorrows());
     }
 
-    function calcSupplies(uint256 availableAssets) external override view returns (uint256 totalAssets, uint256 targetAssets) {
-        uint256 borrows = cDai.totalBorrows();
+    function getTargetAssets(uint256 availableAssets, uint256 currentAssets) external override view returns (uint256 targetAssets) {
+        uint256 targetInterestRate = barb;
+        if (targetInterestRate == 0) return 0; // De-activated
 
-        totalAssets = _sub(
+        uint256 borrows = cDai.totalBorrows();
+        uint256 totalPoolSize = _sub(
             _add(
                 availableAssets, // cash
                 borrows
@@ -136,6 +139,18 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
             cDai.totalReserves()
         );
 
-        targetAssets = _calculateTargetSupply(barb, borrows);
+        uint256 targetTotalPoolSize = _calculateTargetSupply(targetInterestRate, borrows); // cash + borrows - resereves
+        if (targetTotalPoolSize >= totalPoolSize) {
+            // Increase debt (or same)
+            return _add(currentAssets, targetTotalPoolSize - totalPoolSize);
+        } else {
+            // Decrease debt
+            uint256 decrease = totalPoolSize - targetTotalPoolSize;
+            if (currentAssets >= decrease) {
+                return currentAssets - decrease;
+            } else {
+                return 0;
+            }
+        }
     }
 }

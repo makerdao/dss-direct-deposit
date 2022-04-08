@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-import "../bases/D3MPoolBase.sol";
+import "./D3MPoolBase.sol";
 
 interface CErc20 {
     function interestRateModel()                    external view returns (address);
@@ -24,10 +24,12 @@ interface CErc20 {
     function comptroller()                          external view returns (address);
     function exchangeRateStored()                   external view returns (uint256);
     function getCash()                              external view returns (uint256);
+    function balanceOf(address owner)               external view returns (uint256);
     function getAccountSnapshot(address account)    external view returns (uint256, uint256, uint256, uint256);
     function mint(uint256 mintAmount)               external returns (uint256);
     function redeemUnderlying(uint256 redeemAmount) external returns (uint256);
     function accrueInterest()                       external returns (uint256);
+    function transfer(address dst, uint256 amount)  external returns (bool);
 }
 
 interface Comptroller {
@@ -39,6 +41,7 @@ contract D3MCompoundDaiPool is D3MPoolBase {
 
     Comptroller public immutable comptroller;
     address     public immutable rateModel;
+    CErc20      public immutable cDai;
 
     address public king; // Who gets the rewards
 
@@ -55,7 +58,7 @@ contract D3MCompoundDaiPool is D3MPoolBase {
 
         rateModel   = rateModel_;
         comptroller = Comptroller(comptroller_);
-        share       = cDai_;
+        cDai        = CErc20(cDai_);
 
         TokenLike(dai_).approve(cDai_,  type(uint256).max);
 
@@ -77,26 +80,24 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     }
 
     // --- Admin ---
-    function file(bytes32 what, address data) public override auth {
+    function file(bytes32 what, address data) public auth {
         require(live == 1, "D3MCompoundDaiPool/no-file-not-live");
 
         if (what == "king") king = data;
-        else super.file(what, data);
+        else revert("D3MCompoundDaiPool/file-unrecognized-param");
     }
 
     function validTarget() external view override returns (bool) {
-        return CErc20(share).interestRateModel() == rateModel;
+        return cDai.interestRateModel() == rateModel;
     }
 
     function deposit(uint256 amt) external override auth {
-        require(CErc20(share).mint(amt) == 0, "D3MCompoundDaiPool/mint-failure");
-        // TODO: emit deposit event if we decide to leave it in base
+        require(cDai.mint(amt) == 0, "D3MCompoundDaiPool/mint-failure");
     }
 
     function withdraw(uint256 amt) external override auth {
-        require(CErc20(share).redeemUnderlying(amt) == 0, "D3MCompoundDaiPool/redeemUnderlying-failure");
+        require(cDai.redeemUnderlying(amt) == 0, "D3MCompoundDaiPool/redeemUnderlying-failure");
         TokenLike(asset).transfer(hub, amt);
-        // TODO: emit withdraw event if we decide to leave it in base
     }
 
     // --- Collect any rewards ---
@@ -106,7 +107,7 @@ contract D3MCompoundDaiPool is D3MPoolBase {
         address[] memory holders = new address[](1);
         holders[0] = address(this);
         address[] memory cTokens = new address[](1);
-        cTokens[0] = share;
+        cTokens[0] = address(cDai);
 
         comptroller.claimComp(holders, cTokens, false, true);
         TokenLike comp = TokenLike(comptroller.getCompAddress());
@@ -116,30 +117,29 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     }
 
     function transferShares(address dst, uint256 amt) external override returns (bool) {
-        return TokenLike(share).transfer(dst, amt);
+        return cDai.transfer(dst, amt);
     }
 
     // Note: Does not accrue interest (as opposed to cToken's balanceOfUnderlying() which is not a view function).
     function assetBalance() external view override returns (uint256) {
-        (uint256 error, uint256 cTokenBalance,, uint256 exchangeRate) = CErc20(share).getAccountSnapshot(address(this));
+        (uint256 error, uint256 cTokenBalance,, uint256 exchangeRate) = cDai.getAccountSnapshot(address(this));
         return (error == 0) ? _wmul(cTokenBalance, exchangeRate) : 0;
     }
 
     function shareBalance() public view override returns (uint256) {
-        return TokenLike(share).balanceOf(address(this));
+        return cDai.balanceOf(address(this));
     }
 
     function maxWithdraw() external view override returns (uint256) {
-        return CErc20(share).getCash();
+        return cDai.getCash();
     }
 
     // Note: Does not accrue interest.
     function convertToShares(uint256 amt) external view override returns (uint256) {
-        return _wdiv(amt, CErc20(share).exchangeRateStored());
+        return _wdiv(amt, cDai.exchangeRateStored());
     }
 
-    // TODO: add override once added to base
-    function accrueIfNeeded() external {
-         require(CErc20(share).accrueInterest() == 0, "D3MCompoundDaiPool/accrueInterest-failure");
+    function accrueIfNeeded() override external {
+         require(cDai.accrueInterest() == 0, "D3MCompoundDaiPool/accrueInterest-failure");
     }
 }
