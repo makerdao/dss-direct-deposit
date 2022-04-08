@@ -23,7 +23,7 @@ import { DssDirectDepositHub } from "../DssDirectDepositHub.sol";
 import { D3MMom } from "../D3MMom.sol";
 import { ValueStub } from "../tests/stubs/ValueStub.sol";
 
-import { D3MCompoundDaiPlan } from "./D3MCompoundDaiPlan.sol";
+import { D3MCompoundDaiPlan } from "../plans/D3MCompoundDaiPlan.sol";
 import { D3MCompoundDaiPool } from "./D3MCompoundDaiPool.sol";
 
 interface Hevm {
@@ -123,7 +123,6 @@ contract D3MCompoundDaiTest is DSTest {
         directDepositHub = new DssDirectDepositHub(address(vat), address(daiJoin));
         d3mCompoundDaiPool = new D3MCompoundDaiPool(address(directDepositHub), address(dai), address(cDai));
         d3mCompoundDaiPlan = new D3MCompoundDaiPlan(address(dai), address(cDai));
-        d3mCompoundDaiPool.file("share", address(cDai));
 
         directDepositHub.file(ilk, "pool", address(d3mCompoundDaiPool));
         directDepositHub.file(ilk, "plan", address(d3mCompoundDaiPlan));
@@ -153,7 +152,7 @@ contract D3MCompoundDaiTest is DSTest {
         uint256 amt = 10_000_000_000 * WAD;
 
         //weth.withdraw(amt);
-        cEth.mint.value(amt)();
+        cEth.mint{value: amt}();
         dai.approve(address(cDai), uint256(-1));
 
         address[] memory cTokens = new address[](1);

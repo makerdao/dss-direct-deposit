@@ -22,11 +22,12 @@ import "../tests/interfaces/interfaces.sol";
 import {D3MCompoundDaiPlan, CErc20} from "./D3MCompoundDaiPlan.sol";
 
 interface CErc20Like {
-    function borrowRatePerBlock() external view returns (uint256);
-    function getCash()            external view returns (uint256);
-    function totalBorrows()       external view returns (uint256);
-    function totalReserves()      external view returns (uint256);
-    function interestRateModel()  external view returns (address);
+    function borrowRatePerBlock()               external view returns (uint256);
+    function getCash()                          external view returns (uint256);
+    function totalBorrows()                     external view returns (uint256);
+    function totalReserves()                    external view returns (uint256);
+    function interestRateModel()                external view returns (address);
+    function accrueInterest()                   external returns (uint256);
 }
 
 interface InterestRateModelLike {
@@ -66,6 +67,22 @@ contract DssDirectDepositHubTest is DSTest {
             b = tmp;
         }
         if (a - b > _mul(_b, _tolerance_bps) / 10 ** 4) {
+            emit log_bytes32("Error: Wrong `uint' value");
+            emit log_named_uint("  Expected", _b);
+            emit log_named_uint("    Actual", _a);
+            fail();
+        }
+    }
+
+    function assertEqAbsolute(uint256 _a, uint256 _b, uint256 _tolerance) internal {
+        uint256 a = _a;
+        uint256 b = _b;
+        if (a < b) {
+            uint256 tmp = a;
+            a = b;
+            b = tmp;
+        }
+        if (a - b > _tolerance) {
             emit log_bytes32("Error: Wrong `uint' value");
             emit log_named_uint("  Expected", _b);
             emit log_named_uint("    Actual", _a);
@@ -151,17 +168,12 @@ contract DssDirectDepositHubTest is DSTest {
     }
 
     function test_supplies_current_rate() public {
+        cDai.accrueInterest();
         uint256 borrowRatePerBlock = cDai.borrowRatePerBlock();
         plan.file("barb", borrowRatePerBlock);
 
-        uint256 cash = cDai.getCash();
-        (uint256 totalAssets, uint256 targetAssets)  = plan.calcSupplies(cash);
-
-        assertEqApproxBPS(totalAssets, targetAssets, 1);
-
-        uint256 borrows = cDai.totalBorrows();
-        uint256 reserves = cDai.totalReserves();
-        assertEqApproxBPS(totalAssets, _sub(_add(cash, borrows), reserves), 0);
+        uint256 targetAssets = plan.getTargetAssets(cDai.getCash(), 0);
+        assertEqAbsolute(0, targetAssets, WAD);
     }
 }
 
