@@ -101,7 +101,7 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     }
 
     // --- Collect any rewards ---
-    function collect() external auth {
+    function collect() external {
         require(king != address(0), "D3MCompoundDaiPool/king-not-set");
 
         address[] memory holders = new address[](1);
