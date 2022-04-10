@@ -53,9 +53,9 @@ interface CErc20 {
 
 interface InterestRateModel {
     function baseRatePerBlock()       external view returns (uint256);
+    function kink()                   external view returns (uint256);
     function multiplierPerBlock()     external view returns (uint256);
     function jumpMultiplierPerBlock() external view returns (uint256);
-    function kink()                   external view returns (uint256);
 }
 
 contract D3MCompoundDaiPlan is D3MPlanBase {
@@ -103,25 +103,27 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
 
     // --- Automated Rate targeting ---
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 borrows) internal view returns (uint256) {
-        uint256 kink               = rateModel.kink();
-        uint256 multiplierPerBlock = rateModel.multiplierPerBlock();
-        uint256 baseRatePerBlock   = rateModel.baseRatePerBlock();
+        uint256 kink                   = rateModel.kink();
+        uint256 multiplierPerBlock     = rateModel.multiplierPerBlock();
+        uint256 baseRatePerBlock       = rateModel.baseRatePerBlock();
+        uint256 jumpMultiplierPerBlock = rateModel.jumpMultiplierPerBlock();
 
         uint256 normalRate = _add(_wmul(kink, multiplierPerBlock), baseRatePerBlock);
 
         uint256 targetUtil;
         if (targetInterestRate > normalRate) {
-            targetUtil = _add(kink, _wdiv(targetInterestRate - normalRate, rateModel.jumpMultiplierPerBlock())); // (1)
+            if (jumpMultiplierPerBlock == 0) return 0; // illegal rate, max is normal rate for this case
+            targetUtil = _add(kink, _wdiv(targetInterestRate - normalRate, jumpMultiplierPerBlock));             // (1)
         } else if (targetInterestRate > baseRatePerBlock) {
             targetUtil = _wdiv(targetInterestRate - baseRatePerBlock, multiplierPerBlock);                       // (2)
         } else {
-            return 0;
+            return 0; // target <= base, supply should be 0
         }
 
         return _wdiv(borrows, targetUtil);                                                                       // (3)
     }
 
-    // Note: cash + borrows - resereves
+    // targetSupply = cash + borrows - reserves
     function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
         return _calculateTargetSupply(targetInterestRate, cDai.totalBorrows());
     }
@@ -139,7 +141,8 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
             cDai.totalReserves()
         );
 
-        uint256 targetTotalPoolSize = _calculateTargetSupply(targetInterestRate, borrows); // cash + borrows - resereves
+        uint256 targetTotalPoolSize = _calculateTargetSupply(targetInterestRate, borrows);
+
         if (targetTotalPoolSize >= totalPoolSize) {
             // Increase debt (or same)
             return _add(currentAssets, targetTotalPoolSize - totalPoolSize);
