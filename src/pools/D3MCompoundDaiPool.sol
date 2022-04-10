@@ -52,15 +52,15 @@ contract D3MCompoundDaiPool is D3MPoolBase {
         address rateModel_   = CErc20(cDai_).interestRateModel();
         address comptroller_ = CErc20(cDai_).comptroller();
 
-        require(dai_               == CErc20(cDai_).underlying(), "D3MCompoundDaiPool/cdai-dai-mismatch");
-        require(rateModel_         != address(0), "D3MCompoundDaiPool/invalid-rateModel");
-        require(comptroller_       != address(0), "D3MCompoundDaiPool/invalid-comptroller");
+        require(rateModel_   != address(0), "D3MCompoundDaiPool/invalid-rateModel");
+        require(comptroller_ != address(0), "D3MCompoundDaiPool/invalid-comptroller");
+        require(dai_         == CErc20(cDai_).underlying(), "D3MCompoundDaiPool/cdai-dai-mismatch");
 
         rateModel   = rateModel_;
         comptroller = Comptroller(comptroller_);
         cDai        = CErc20(cDai_);
 
-        TokenLike(dai_).approve(cDai_,  type(uint256).max);
+        TokenLike(dai_).approve(cDai_, type(uint256).max);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
