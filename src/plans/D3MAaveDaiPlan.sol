@@ -145,12 +145,12 @@ contract D3MAaveDaiPlan is D3MPlanBase {
         uint256 targetTotalPoolSize = _calculateTargetSupply(targetInterestRate, stableDebtTotal, variableDebtTotal);
         if (targetTotalPoolSize >= totalPoolSize) {
             // Increase debt (or same)
-            return _add(currentAssets, _sub(targetTotalPoolSize, totalPoolSize));
+            return _add(currentAssets, targetTotalPoolSize - totalPoolSize);
         } else {
             // Decrease debt
-            uint256 decrease = _sub(totalPoolSize, targetTotalPoolSize);
+            uint256 decrease = totalPoolSize - targetTotalPoolSize;
             if (currentAssets >= decrease) {
-                return _sub(currentAssets, decrease);
+                return currentAssets - decrease;
             } else {
                 return 0;
             }
