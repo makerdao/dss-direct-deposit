@@ -128,7 +128,7 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
         return _calculateTargetSupply(targetInterestRate, cDai.totalBorrows());
     }
 
-    function getTargetAssets(uint256 availableAssets, uint256 currentAssets) external override view returns (uint256 targetAssets) {
+    function getTargetAssets(uint256 availableAssets, uint256 currentAssets) external override view returns (uint256) {
         uint256 targetInterestRate = barb;
         if (targetInterestRate == 0) return 0; // De-activated
 
