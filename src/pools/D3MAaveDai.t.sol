@@ -129,7 +129,6 @@ contract D3MAaveDaiTest is DSTest {
         directDepositHub = new DssDirectDepositHub(address(vat), address(daiJoin));
         d3mAaveDaiPool = new D3MAaveDaiPool(address(directDepositHub), address(dai), address(aavePool), address(rewardsClaimer));
         d3mAaveDaiPlan = new D3MAaveDaiPlan(address(dai), address(aavePool));
-        d3mAaveDaiPool.file("adai", address(adai));
 
         directDepositHub.file(ilk, "pool", address(d3mAaveDaiPool));
         directDepositHub.file(ilk, "plan", address(d3mAaveDaiPlan));

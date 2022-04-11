@@ -55,9 +55,9 @@ contract D3MAaveDaiPool is D3MPoolBase {
     ShareTokenLike           public immutable stableDebt;
     ShareTokenLike           public immutable variableDebt;
     address                  public immutable interestStrategy;
+    address                  public immutable adai; // Token representing a share of the asset pool
 
     address public king;  // Who gets the rewards
-    address public adai; // Token representing a share of the asset pool
 
     event Collect(address indexed king, address[] assets, uint256 amt);
 
@@ -71,6 +71,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
         require(variableDebt_ != address(0), "D3MAaveDaiPool/invalid-variableDebt");
         require(interestStrategy_ != address(0), "D3MAaveDaiPool/invalid-interestStrategy");
 
+        adai = adai_;
         stableDebt = ShareTokenLike(stableDebt_);
         variableDebt = ShareTokenLike(variableDebt_);
         interestStrategy = interestStrategy_;
@@ -90,13 +91,15 @@ contract D3MAaveDaiPool is D3MPoolBase {
     function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, RAY) / y;
     }
+    function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = x <= y ? x : y;
+    }
 
     // --- Admin ---
     function file(bytes32 what, address data) public auth {
         require(live == 1, "D3MTestPool/no-file-not-live");
 
         if (what == "king") king = data;
-        else if (what == "adai") adai = data;
         else revert("D3MPoolBase/file-unrecognized-param");
     }
 
@@ -132,7 +135,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
     function accrueIfNeeded() external override {}
 
     // --- Balance in standard ERC-20 denominations
-    function assetBalance() external view override returns (uint256) {
+    function assetBalance() public view override returns (uint256) {
         return ShareTokenLike(adai).balanceOf(address(this));
     }
 
@@ -141,7 +144,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
     }
 
     function maxWithdraw() external view override returns (uint256) {
-        return TokenLike(asset).balanceOf(adai);
+        return _min(TokenLike(asset).balanceOf(adai), assetBalance());
     }
 
     // --- Convert a standard ERC-20 amount to a the normalized amount
