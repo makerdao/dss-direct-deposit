@@ -133,12 +133,6 @@ contract DssDirectDepositHub {
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "DssDirectDepositHub/overflow");
     }
-    function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, y) / RAY;
-    }
-    function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, RAY) / y;
-    }
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
     }
