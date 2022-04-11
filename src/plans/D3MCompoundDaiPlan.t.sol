@@ -193,7 +193,7 @@ contract DssDirectDepositHubTest is DSTest {
         uint256 borrowRatePerBlock = cDai.borrowRatePerBlock();
         plan.file("barb", borrowRatePerBlock);
 
-        uint256 targetAssets = plan.getTargetAssets(cDai.getCash(), 0);
+        uint256 targetAssets = plan.getTargetAssets(0);
         assertEqAbsolute(0, targetAssets, WAD);
     }
 }
