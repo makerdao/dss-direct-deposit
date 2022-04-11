@@ -140,6 +140,6 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     }
 
     function accrueIfNeeded() override external {
-         require(cDai.accrueInterest() == 0, "D3MCompoundDaiPool/accrueInterest-failure");
+        require(cDai.accrueInterest() == 0, "D3MCompoundDaiPool/accrueInterest-failure");
     }
 }
