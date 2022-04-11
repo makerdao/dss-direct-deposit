@@ -140,7 +140,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
     }
 
     function shareBalance() external view override returns (uint256) {
-        return ShareTokenLike(adai).balanceOf(address(this));
+        return ShareTokenLike(adai).scaledBalanceOf(address(this));
     }
 
     function maxWithdraw() external view override returns (uint256) {

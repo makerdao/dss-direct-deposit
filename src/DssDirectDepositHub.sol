@@ -443,7 +443,7 @@ contract DssDirectDepositHub {
         D3MPoolLike pool = ilks[ilk_].pool;
 
         // Send all gem in the contract to who
-        require(pool.transferShares(who, pool.shareBalance()), "DssDirectDepositHub/failed-transfer");
+        require(pool.transferShares(who, pool.assetBalance()), "DssDirectDepositHub/failed-transfer");
 
         if (ilks[ilk_].culled == 1) {
             // Culled - just zero out the gems

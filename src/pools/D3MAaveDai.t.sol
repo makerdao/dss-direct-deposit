@@ -68,6 +68,10 @@ interface InterestRateStrategyLike {
     );
 }
 
+interface ATokenLike is TokenLike {
+    function scaledBalanceOf(address) external view returns (uint256);
+}
+
 interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 }
@@ -86,7 +90,7 @@ contract D3MAaveDaiTest is DSTest {
     RewardsClaimerLike rewardsClaimer;
     DaiLike dai;
     DaiJoinLike daiJoin;
-    TokenLike adai;
+    ATokenLike adai;
     TokenLike stkAave;
     SpotLike spot;
     TokenLike weth;
@@ -110,7 +114,7 @@ contract D3MAaveDaiTest is DSTest {
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndLike(0xBB856d1742fD182a90239D7AE85706C2FE4e5922);
         aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
-        adai = TokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
+        adai = ATokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
         stkAave = TokenLike(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         daiJoin = DaiJoinLike(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
