@@ -23,6 +23,7 @@ import { DaiLike, TokenLike } from "../tests/interfaces/interfaces.sol";
 import { D3MAaveDaiPlan, LendingPoolLike } from "./D3MAaveDaiPlan.sol";
 
 interface InterestRateStrategyLike {
+    function baseVariableBorrowRate() external view returns (uint256);
     function getMaxVariableBorrowRate() external view returns (uint256);
     function calculateInterestRates(
         address reserve,
@@ -119,7 +120,9 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         D3MAaveDaiPlan(d3mTestPlan).file("bar", D3MAaveDaiPlan(d3mTestPlan).maxBar() + 1);
     }
 
-    function test_maxBar_is_MaxVarBorrowRate() internal {}
+    function test_maxBar_is_MaxVarBorrowRate() public {
+        assertEq(interestStrategy.getMaxVariableBorrowRate(), D3MAaveDaiPlan(d3mTestPlan).maxBar());
+    }
 
     function test_interest_rate_calc() public {
         // Confirm that the inverse function is correct by comparing all percentages
@@ -137,6 +140,37 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         }
     }
 
-    function test_implements_getTargetAssets() public override {}
+    function test_implements_getTargetAssets() public override {
+        D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 2 * RAY / 100);
 
+        uint256 initialTargetAssets = D3MAaveDaiPlan(d3mTestPlan).getTargetAssets(0);
+        assertGt(initialTargetAssets, 0);
+
+        // Reduce target rate (increase needed number of target Assets)
+        D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
+
+        uint256 newTargetAssets = D3MAaveDaiPlan(d3mTestPlan).getTargetAssets(0);
+        assertGt(newTargetAssets, initialTargetAssets);
+    }
+
+    function test_getTargetAssets_bar_zero() public {
+        assertEq(D3MAaveDaiPlan(d3mTestPlan).bar(), 0);
+        assertEq(D3MAaveDaiPlan(d3mTestPlan).getTargetAssets(0), 0);
+    }
+
+    function test_disable_sets_bar_to_zero() public {
+        D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
+
+        assertTrue(D3MAaveDaiPlan(d3mTestPlan).bar() != 0);
+
+        D3MAaveDaiPlan(d3mTestPlan).disable();
+
+        assertEq(D3MAaveDaiPlan(d3mTestPlan).bar(), 0);
+    }
+
+    function testFail_disable_without_auth() public {
+        D3MAaveDaiPlan(d3mTestPlan).deny(address(this));
+
+        D3MAaveDaiPlan(d3mTestPlan).disable();
+    }
 }
