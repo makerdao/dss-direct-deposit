@@ -160,4 +160,8 @@ contract D3MAaveDaiPlan is D3MPlanBase {
             }
         }
     }
+
+    function disable() external auth {
+        bar = 0;
+    }
 }

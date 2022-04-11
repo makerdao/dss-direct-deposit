@@ -16,8 +16,8 @@
 
 pragma solidity 0.6.12;
 
-interface FileLike {
-    function file(bytes32 what, uint256 data) external;
+interface DisableLike {
+    function disable() external;
 }
 
 interface AuthorityLike {
@@ -73,7 +73,7 @@ contract D3MMom {
 
     // Governance action without delay
     function disable(address who) external auth {
-        FileLike(who).file("bar", 0);
+        DisableLike(who).disable();
         emit Disable(who);
     }
 }

@@ -371,6 +371,7 @@ contract DssDirectDepositHubTest is DSTest {
     // - pool base unrecognized file param
     // - bar_ filing for plan
     // - recover Tokens for Pool Base
+    // - add Mom test file that calls disable on TestPlan - remove Mom from this file
 
     // TODO: move to Pool tests
     // function testFail_hub_not_live_gem_file() public {
