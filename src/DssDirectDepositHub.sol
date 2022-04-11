@@ -153,15 +153,15 @@ contract DssDirectDepositHub {
         emit File(what, data);
     }
 
-    function file(bytes32 ilk_, bytes32 what, uint256 data) external auth {
+    function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
         if (what == "tau" ) {
             require(live == 1, "DssDirectDepositHub/hub-not-live");
-            require(ilks[ilk_].tic == 0, "DssDirectDepositHub/join-not-live");
+            require(ilks[ilk].tic == 0, "DssDirectDepositHub/join-not-live");
 
-            ilks[ilk_].tau = data;
+            ilks[ilk].tau = data;
         } else revert("DssDirectDepositHub/file-unrecognized-param");
 
-        emit File(ilk_, what, data);
+        emit File(ilk, what, data);
     }
 
     function file(bytes32 ilk, bytes32 what, address data) external auth {
