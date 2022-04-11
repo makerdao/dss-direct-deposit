@@ -78,6 +78,9 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     function _wdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, WAD) / y;
     }
+    function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = x <= y ? x : y;
+    }
 
     // --- Admin ---
     function file(bytes32 what, address data) public auth {
@@ -121,7 +124,7 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     }
 
     // Note: Does not accrue interest (as opposed to cToken's balanceOfUnderlying() which is not a view function).
-    function assetBalance() external view override returns (uint256) {
+    function assetBalance() public view override returns (uint256) {
         (uint256 error, uint256 cTokenBalance,, uint256 exchangeRate) = cDai.getAccountSnapshot(address(this));
         return (error == 0) ? _wmul(cTokenBalance, exchangeRate) : 0;
     }
@@ -131,7 +134,7 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     }
 
     function maxWithdraw() external view override returns (uint256) {
-        return cDai.getCash();
+        return _min(cDai.getCash(), assetBalance());
     }
 
     // Note: Does not accrue interest.

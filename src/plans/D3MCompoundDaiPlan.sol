@@ -49,6 +49,7 @@ interface CErc20 {
     function totalBorrows()           external view returns (uint256);
     function totalReserves()          external view returns (uint256);
     function interestRateModel()      external view returns (address);
+    function getCash()                external view returns (uint256);
 }
 
 interface InterestRateModel {
@@ -128,14 +129,14 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
         return _calculateTargetSupply(targetInterestRate, cDai.totalBorrows());
     }
 
-    function getTargetAssets(uint256 availableAssets, uint256 currentAssets) external override view returns (uint256) {
+    function getTargetAssets(uint256 currentAssets) external override view returns (uint256) {
         uint256 targetInterestRate = barb;
         if (targetInterestRate == 0) return 0; // De-activated
 
         uint256 borrows = cDai.totalBorrows();
         uint256 totalPoolSize = _sub(
             _add(
-                availableAssets, // cash
+                cDai.getCash(),
                 borrows
             ),
             cDai.totalReserves()
