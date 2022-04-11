@@ -297,22 +297,6 @@ contract D3MAaveDaiTest is DSTest {
         directDepositHub.exec(ilk);
     }
 
-    function test_interest_rate_calc() public {
-        // Confirm that the inverse function is correct by comparing all percentages
-        for (uint256 i = 1; i <= 100 * interestStrategy.getMaxVariableBorrowRate() / RAY; i++) {
-            uint256 targetSupply = d3mAaveDaiPlan.calculateTargetSupply(i * RAY / 100);
-            (,, uint256 varBorrow) = interestStrategy.calculateInterestRates(
-                address(adai),
-                targetSupply - (adai.totalSupply() - dai.balanceOf(address(adai))),
-                0,
-                adai.totalSupply() - dai.balanceOf(address(adai)),
-                0,
-                0
-            );
-            assertEqInterest(varBorrow, i * RAY / 100);
-        }
-    }
-
     function test_target_decrease() public {
         uint256 targetBorrowRate = _setRelBorrowTarget(7500);
         directDepositHub.reap(ilk);     // Clear out interest to get rid of rounding errors

@@ -220,15 +220,6 @@ contract DssDirectDepositHubTest is DSTest {
         );
     }
 
-    // TODO: move to Plan tests
-    // function test_can_file_bar() public {
-    //     (, , , uint256 bar, , , ) = directDepositHub.ilks(ilk);
-    //     assertEq(bar, 0);
-    //     directDepositHub.file(ilk, "bar", 1);
-    //     (, , , bar, , , ) = directDepositHub.ilks(ilk);
-    //     assertEq(bar, 1);
-    // }
-
     function test_can_file_tau() public {
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
         assertEq(tau, 7 days);
@@ -268,24 +259,6 @@ contract DssDirectDepositHubTest is DSTest {
     function testFail_unknown_uint256_file() public {
         directDepositHub.file(ilk, "unknown", 1);
     }
-
-    // TODO: move to Plan tests
-    // function testFail_unauth_file_bar() public {
-    //     directDepositHub.deny(address(this));
-
-    //     directDepositHub.file(ilk, "bar", 1);
-    // }
-
-    // TODO: move to Plan tests
-    // function testFail_bar_file_too_high() public {
-    //     d3mTestPlan.file("maxBar", 1);
-
-    //     d3mTestPool.file("bar", 1);
-
-    //     assertEq(d3mTestPool.bar(), 1);
-
-    //     d3mTestPool.file("bar", 2);
-    // }
 
     // TODO: move to Pool tests
     // function test_can_file_king() public {
@@ -367,9 +340,7 @@ contract DssDirectDepositHubTest is DSTest {
     // - pool file hub not live
     // - vow/end file vat not live
     // - Plan ilk file on hub
-    // - plan base unrecognized file param
     // - pool base unrecognized file param
-    // - bar_ filing for plan
     // - recover Tokens for Pool Base
     // - add Mom test file that calls disable on TestPlan - remove Mom from this file
 
