@@ -88,11 +88,11 @@ contract DssDirectDepositHub {
     EndLike      public           end;
 
     struct Ilk {
-        D3MPoolLike pool; // Access external pool and holds balances
-        D3MPlanLike plan; // How we calculate target debt
-        uint256     tau;  // Time until you can write off the debt [sec]
-        uint256     culled;
-        uint256     tic;  // Timestamp when the pool is caged
+        D3MPoolLike pool;   // Access external pool and holds balances
+        D3MPlanLike plan;   // How we calculate target debt
+        uint256     tau;    // Time until you can write off the debt [sec]
+        uint256     culled; // Debt write off triggered
+        uint256     tic;    // Timestamp when the pool is caged
     }
     mapping (bytes32 => Ilk) public ilks;
     uint256                  public live = 1;
