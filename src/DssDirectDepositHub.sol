@@ -88,11 +88,11 @@ contract DssDirectDepositHub {
     EndLike      public           end;
 
     struct Ilk {
-        D3MPoolLike pool; // Access external pool and holds balances
-        D3MPlanLike plan; // How we calculate target debt
-        uint256     tau;  // Time until you can write off the debt [sec]
-        uint256     culled;
-        uint256     tic;  // Timestamp when the pool is caged
+        D3MPoolLike pool;   // Access external pool and holds balances
+        D3MPlanLike plan;   // How we calculate target debt
+        uint256     tau;    // Time until you can write off the debt [sec]
+        uint256     culled; // Debt write off triggered
+        uint256     tic;    // Timestamp when the pool is caged
     }
     mapping (bytes32 => Ilk) public ilks;
     uint256                  public live = 1;
@@ -132,12 +132,6 @@ contract DssDirectDepositHub {
     }
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "DssDirectDepositHub/overflow");
-    }
-    function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, y) / RAY;
-    }
-    function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, RAY) / y;
     }
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
@@ -295,8 +289,8 @@ contract DssDirectDepositHub {
     function exec(bytes32 ilk_) external {
         D3MPoolLike pool = ilks[ilk_].pool;
 
-        uint256 availableAssets = pool.maxWithdraw();
         pool.accrueIfNeeded();
+        uint256 availableAssets = pool.maxWithdraw();
         uint256 currentAssets = pool.assetBalance();
 
         if (vat.live() == 0) {
