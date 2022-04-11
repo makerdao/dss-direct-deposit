@@ -32,7 +32,7 @@ contract D3MTestPlan is D3MPlanBase {
     }
 
     // --- Admin ---
-    function file(bytes32 what, uint256 data) public auth {
+    function file(bytes32 what, uint256 data) external auth {
         if (what == "maxBar_") {
             maxBar_ = data;
         } else if (what == "targetAssets") {
@@ -59,5 +59,4 @@ contract D3MTestPlan is D3MPlanBase {
     function disable() external auth {
         bar = 0;
     }
-}
 }

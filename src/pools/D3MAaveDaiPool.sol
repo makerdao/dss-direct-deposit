@@ -96,7 +96,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
     }
 
     // --- Admin ---
-    function file(bytes32 what, address data) public auth {
+    function file(bytes32 what, address data) external auth {
         require(live == 1, "D3MTestPool/no-file-not-live");
 
         if (what == "king") king = data;

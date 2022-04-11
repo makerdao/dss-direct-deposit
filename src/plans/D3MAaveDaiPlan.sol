@@ -93,7 +93,7 @@ contract D3MAaveDaiPlan is D3MPlanBase {
     }
 
     // --- Admin ---
-    function file(bytes32 what, uint256 data) public auth {
+    function file(bytes32 what, uint256 data) external auth {
         if (what == "bar") {
             require(data <= maxBar(), "D3MAaveDaiPlan/above-max-interest");
 
