@@ -36,8 +36,8 @@ interface Hevm {
 contract FakeD3MPlanBase is D3MPlanBase {
     constructor(address dai_) public D3MPlanBase(dai_) {}
 
-    function getTargetAssets(uint256 availableAssets, uint256 currentAssets) external override view returns(uint256) {
-        return availableAssets + currentAssets;
+    function getTargetAssets(uint256 currentAssets) external override view returns(uint256) {
+        return currentAssets;
     }
 }
 
@@ -91,8 +91,8 @@ contract D3MPlanBaseTest is DSTest {
     }
 
     function test_implements_getTargetAssets() public {
-        uint256 result = d3mPlanBase.getTargetAssets(1, 2);
+        uint256 result = d3mPlanBase.getTargetAssets(2);
 
-        assertEq(result, 3);
+        assertEq(result, 2);
     }
 }

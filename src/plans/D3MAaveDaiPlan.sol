@@ -18,8 +18,9 @@ pragma solidity 0.6.12;
 
 import "./D3MPlanBase.sol";
 
-interface TargetTokenLike {
+interface TokenLike {
     function totalSupply() external view returns (uint256);
+    function balanceOf(address) external view returns (uint256);
 }
 
 interface LendingPoolLike {
@@ -51,21 +52,24 @@ interface InterestRateStrategyLike {
 contract D3MAaveDaiPlan is D3MPlanBase {
 
     InterestRateStrategyLike public immutable interestStrategy;
-    TargetTokenLike          public immutable stableDebt;
-    TargetTokenLike          public immutable variableDebt;
+    TokenLike                public immutable stableDebt;
+    TokenLike                public immutable variableDebt;
+    address                  public immutable adai;
 
     uint256 public bar;  // Target Interest Rate [ray]
 
     constructor(address dai_, address pool_) public D3MPlanBase(dai_) {
 
         // Fetch the reserve data from Aave
-        (,,,,,,,, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
+        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
+        require(adai_ != address(0), "D3MAaveDaiPool/invalid-adai");
         require(stableDebt_ != address(0), "D3MAaveDaiPlan/invalid-stableDebt");
         require(variableDebt_ != address(0), "D3MAaveDaiPlan/invalid-variableDebt");
         require(interestStrategy_ != address(0), "D3MAaveDaiPlan/invalid-interestStrategy");
 
-        stableDebt = TargetTokenLike(stableDebt_);
-        variableDebt = TargetTokenLike(variableDebt_);
+        adai = adai_;
+        stableDebt = TokenLike(stableDebt_);
+        variableDebt = TokenLike(variableDebt_);
         interestStrategy = InterestRateStrategyLike(interestStrategy_);
     }
 
@@ -127,12 +131,12 @@ contract D3MAaveDaiPlan is D3MPlanBase {
         return _rdiv(_add(stableDebtTotal, variableDebtTotal), targetUtil);
     }
 
-    function getTargetAssets(uint256 availableAssets, uint256 currentAssets) external override view returns (uint256) {
+    function getTargetAssets(uint256 currentAssets) external override view returns (uint256) {
         uint256 targetInterestRate = bar;
         if (targetInterestRate == 0) return 0;     // De-activated
 
         uint256 totalPoolSize = _add(
-                availableAssets,
+                TokenLike(dai).balanceOf(address(adai)),
                 _add(
                     stableDebt.totalSupply(),
                     variableDebt.totalSupply()

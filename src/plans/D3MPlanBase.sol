@@ -46,5 +46,5 @@ abstract contract D3MPlanBase {
         emit Rely(msg.sender);
     }
 
-    function getTargetAssets(uint256 availableAssets, uint256 currentAssets) external virtual view returns (uint256 targetSupply);
+    function getTargetAssets(uint256 currentAssets) external virtual view returns (uint256 targetSupply);
 }
