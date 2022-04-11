@@ -33,26 +33,26 @@ interface Hevm {
     function load(address,bytes32) external view returns (bytes32);
 }
 
-// TODO: check if all functions are needed
 interface CErc20Like {
-    function borrow(uint256 borrowAmount) external returns (uint256);
     function borrowRatePerBlock()     external view returns (uint256);
     function getCash()                external view returns (uint256);
     function totalBorrows()           external view returns (uint256);
     function totalReserves()          external view returns (uint256);
     function interestRateModel()      external view returns (address);
     function balanceOf(address owner) external view returns (uint256);
+    function comptroller()            external view returns (uint256);
+    function borrow(uint256 borrowAmount)       external returns (uint256);
     function balanceOfUnderlying(address owner) external returns (uint256);
-    function repayBorrow(uint256 repayAmount) external returns (uint256);
+    function repayBorrow(uint256 repayAmount)   external returns (uint256);
 }
 
 interface CEthLike {
     function mint()        external payable;
-    function comptroller() external view returns (uint256);
 }
 
 interface CompltrollerLike {
     function enterMarkets(address[] memory cTokens) external returns (uint256[] memory);
+    function compSupplySpeeds(address cToken) external view returns (uint256);
 }
 
 interface WethLike {
@@ -84,7 +84,6 @@ contract D3MCompoundDaiTest is DSTest {
     DaiJoinLike daiJoin;
     TokenLike comp;
     SpotLike spot;
-    WethLike weth;
     address vow;
     address pauseProxy;
 
@@ -111,7 +110,6 @@ contract D3MCompoundDaiTest is DSTest {
         daiJoin = DaiJoinLike(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
         rateModel = InterestRateModelLike(0xFB564da37B41b2F6B6EDcc3e56FbF523bD9F2012);
         spot = SpotLike(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
-        weth = WethLike(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
         pauseProxy = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
 
@@ -131,8 +129,6 @@ contract D3MCompoundDaiTest is DSTest {
         directDepositHub.file("vow", vow);
         directDepositHub.file("end", address(end));
 
-        // d3mCompoundDaiPool.rely(address(directDepositHub));
-
         d3mMom = new D3MMom();
         d3mCompoundDaiPlan.rely(address(d3mMom));
 
@@ -148,18 +144,15 @@ contract D3MCompoundDaiTest is DSTest {
         vat.file(ilk, "line", 5_000_000_000 * RAD);
         vat.file("Line", vat.Line() + 5_000_000_000 * RAD);
 
-        // Give us a bunch of WETH and deposit into Compound
+        // Deposit ETH into Compound to allow borrowing
         uint256 amt = 10_000_000_000 * WAD;
-
-        //weth.withdraw(amt);
         cEth.mint{value: amt}();
         dai.approve(address(cDai), uint256(-1));
 
         address[] memory cTokens = new address[](1);
         cTokens[0] = address(cEth);
 
-        CompltrollerLike(cEth.comptroller()).enterMarkets(cTokens);
-
+        CompltrollerLike(cDai.comptroller()).enterMarkets(cTokens);
     }
 
     // --- Math ---
@@ -340,61 +333,45 @@ contract D3MCompoundDaiTest is DSTest {
         directDepositHub.exec(ilk);
     }
 
-    /*
-        function test_interest_rate_calc() public {
-            // Confirm that the inverse function is correct by comparing all percentages
-            for (uint256 i = 1; i <= 100 * rateModel.getMaxVariableBorrowRate() / RAY; i++) {
-                uint256 targetSupply = d3mCompoundDaiPlan.calculateTargetSupply(i * RAY / 100);
-                (,, uint256 varBorrow) = rateModel.calculateInterestRates(
-                    address(cDai),
-                    targetSupply - (cDai.totalSupply() - dai.balanceOf(address(cDai))),
-                    0,
-                    cDai.totalSupply() - dai.balanceOf(address(cDai)),
-                    0,
-                    0
-                );
-                assertEqInterest(varBorrow, i * RAY / 100);
-            }
-        }
+    function test_target_decrease() public {
+        uint256 targetBorrowRate = _setRelUtil(7500);
+        directDepositHub.reap(ilk);     // Clear out interest to get rid of rounding errors
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
 
-        function test_target_decrease() public {
-            uint256 targetBorrowRate = _setRelBorrowTarget(7500);
-            directDepositHub.reap(ilk);     // Clear out interest to get rid of rounding errors
-            assertEqInterest(getBorrowRate(), targetBorrowRate);
+        //uint256 amountMinted = cDai.balanceOf(address(d3mCompoundDaiPool));
+        uint256 amountSupplied = cDai.balanceOfUnderlying(address(d3mCompoundDaiPool));
 
-            uint256 amountMinted = cDai.balanceOf(address(d3mCompoundDaiPool));
-            assertTrue(amountMinted > 0);
-            (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mCompoundDaiPool));
-            assertEqRoundingAgainst(ink, amountMinted);    // We allow a rounding error of 1 because aTOKENs round against the user
-            assertEqRoundingAgainst(art, amountMinted);
-            assertEq(vat.gem(ilk, address(d3mCompoundDaiPool)), 0);
-            assertEq(vat.dai(address(directDepositHub)), 0);
-        }
+        assertTrue(amountSupplied > 0);
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mCompoundDaiPool));
+        assertEqAbsolute(ink, amountSupplied, 10 ** 10);
+        assertEqAbsolute(art, amountSupplied, 10 ** 10);
 
-        function test_target_increase() public {
-            // Lower by 50%
-            uint256 targetBorrowRate = _setRelBorrowTarget(5000);
-            assertEqInterest(getBorrowRate(), targetBorrowRate);
+        assertEq(vat.gem(ilk, address(d3mCompoundDaiPool)), 0);
+        assertEq(vat.dai(address(directDepositHub)), 0);
+    }
 
-            // Raise by 25%
-            targetBorrowRate = _setRelBorrowTarget(12500);
-            assertEqInterest(getBorrowRate(), targetBorrowRate);
+    function test_target_increase() public {
+        // Lower by 50%
+        uint256 targetBorrowRate = _setRelUtil(5000);
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
 
-            uint256 amountMinted = cDai.balanceOf(address(d3mCompoundDaiPool));
-            assertTrue(amountMinted > 0);
-            (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mCompoundDaiPool));
-            assertEqRoundingAgainst(ink, amountMinted);    // We allow a rounding error of 1 because aTOKENs round against the user
-            assertEqRoundingAgainst(art, amountMinted);
-            assertEq(vat.gem(ilk, address(d3mCompoundDaiPool)), 0);
-            assertEq(vat.dai(address(directDepositHub)), 0);
-        }
-    */
+        // Raise by 25%
+        targetBorrowRate = _setRelUtil(12500);
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        uint256 amountSupplied = cDai.balanceOfUnderlying(address(d3mCompoundDaiPool));
+        assertTrue(amountSupplied > 0);
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mCompoundDaiPool));
+        assertEqAbsolute(ink, amountSupplied, 10 ** 10);
+        assertEqAbsolute(art, amountSupplied, 10 ** 10);
+
+        assertEq(vat.gem(ilk, address(d3mCompoundDaiPool)), 0);
+        assertEq(vat.dai(address(directDepositHub)), 0);
+    }
+
     function test_bar_zero() public {
 
         uint256 targetBorrowRate = _setRelUtil(7500);
-
-        // TODO: remove this once integrated into the hub
-        d3mCompoundDaiPool.accrueIfNeeded();
 
         directDepositHub.reap(ilk);     // Clear out interest to get rid of rounding errors
         assertEqInterest(getBorrowRate(), targetBorrowRate);
@@ -570,14 +547,9 @@ contract D3MCompoundDaiTest is DSTest {
 
     function test_collect_interest() public {
         _setRelUtil(7500);
-
         hevm.roll(block.number + 5760);     // Collect ~one day of interest
 
         uint256 vowDai = vat.dai(vow);
-
-        // TODO: remove this once integrated into the hub
-        d3mCompoundDaiPool.accrueIfNeeded();
-
         directDepositHub.reap(ilk);
 
         log_named_decimal_uint("dai", vat.dai(vow) - vowDai, 18);
@@ -645,12 +617,12 @@ contract D3MCompoundDaiTest is DSTest {
         directDepositHub.reap(ilk);
         assertEq(vat.dai(vow), vowDai + 100 * RAD);
     }
-/*
+
     function test_unwind_mcd_caged_not_skimmed() public {
         uint256 currentLiquidity = dai.balanceOf(address(cDai));
 
         // Lower by 50%
-        uint256 targetBorrowRate = _setRelBorrowTarget(5000);
+        uint256 targetBorrowRate = _setRelUtil(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mCompoundDaiPool));
@@ -658,9 +630,11 @@ contract D3MCompoundDaiTest is DSTest {
         assertGt(part, 0);
 
         // Someone else borrows
-        uint256 amountSupplied = cDai.balanceOf(address(d3mCompoundDaiPool));
+        //uint256 amountSupplied = cDai.balanceOf(address(d3mCompoundDaiPool));
+        uint256 amountSupplied = cDai.balanceOfUnderlying(address(d3mCompoundDaiPool));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
-        compoundPool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+        //compoundPool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+        assertEq(cDai.borrow(amountToBorrow), 0);
 
         // MCD shutdowns
         end.cage();
@@ -695,8 +669,9 @@ contract D3MCompoundDaiTest is DSTest {
         }
 
         // Some time later the pool gets some liquidity
-        hevm.warp(block.timestamp + 180 days);
-        compoundPool.repay(address(dai), amountToBorrow, 2, address(this));
+        hevm.roll(block.number + 180 * 5760);
+        //compoundPool.repay(address(dai), amountToBorrow, 2, address(this));
+        assertEq(cDai.repayBorrow(amountToBorrow), 0);
 
         // Rest of the liquidity can be withdrawn
         directDepositHub.exec(ilk);
@@ -718,9 +693,11 @@ contract D3MCompoundDaiTest is DSTest {
         assertGt(part, 0);
 
         // Someone else borrows
-        uint256 amountSupplied = cDai.balanceOf(address(d3mCompoundDaiPool));
+        //uint256 amountSupplied = cDai.balanceOf(address(d3mCompoundDaiPool));
+        uint256 amountSupplied = cDai.balanceOfUnderlying(address(d3mCompoundDaiPool));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
-        compoundPool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+        //compoundPool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+        assertEq(cDai.borrow(amountToBorrow), 0);
 
         // MCD shutdowns
         end.cage();
@@ -745,7 +722,7 @@ contract D3MCompoundDaiTest is DSTest {
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(end)), pink);
         if (prevSin + amountSupplied * RAY >= prevDai) {
-            assertEqApprox(vat.sin(vow), prevSin + amountSupplied * RAY - prevDai, RAY);
+            assertEqApprox(vat.sin(vow), prevSin + amountSupplied * RAY - prevDai, 10 ** 10 * RAY); // TODO: IS THIS OK??
             assertEq(vat.dai(vow), 0);
         } else {
             assertEqApprox(vat.dai(vow), prevDai - prevSin - amountSupplied * RAY, RAY);
@@ -767,8 +744,9 @@ contract D3MCompoundDaiTest is DSTest {
         }
 
         // Some time later the pool gets some liquidity
-        hevm.warp(block.timestamp + 180 days);
-        compoundPool.repay(address(dai), amountToBorrow, 2, address(this));
+        hevm.roll(block.number + 180 * 5760);
+        //compoundPool.repay(address(dai), amountToBorrow, 2, address(this));
+        assertEq(cDai.repayBorrow(amountToBorrow), 0);
 
         // Rest of the liquidity can be withdrawn
         directDepositHub.exec(ilk);
@@ -790,9 +768,11 @@ contract D3MCompoundDaiTest is DSTest {
         assertGt(part, 0);
 
         // Someone else borrows
-        uint256 amountSupplied = cDai.balanceOf(address(d3mCompoundDaiPool));
+        //uint256 amountSupplied = cDai.balanceOf(address(d3mCompoundDaiPool));
+        uint256 amountSupplied = cDai.balanceOfUnderlying(address(d3mCompoundDaiPool));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
-        compoundPool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+        //compoundPool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+        assertEq(cDai.borrow(amountToBorrow), 0);
 
         // MCD shutdowns
         end.cage();
@@ -825,9 +805,10 @@ contract D3MCompoundDaiTest is DSTest {
         assertGt(part, 0);
 
         // Someone else borrows
-        uint256 amountSupplied = cDai.balanceOf(address(d3mCompoundDaiPool));
+        // Someone else borrows
+        uint256 amountSupplied = cDai.balanceOfUnderlying(address(d3mCompoundDaiPool));
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
-        compoundPool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
+        assertEq(cDai.borrow(amountToBorrow), 0);
 
         directDepositHub.cage();
         directDepositHub.cage(ilk);
@@ -835,8 +816,10 @@ contract D3MCompoundDaiTest is DSTest {
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
 
         hevm.warp(block.timestamp + tau);
+        hevm.roll(block.number + tau / 15);
 
-        uint256 daiEarned = cDai.balanceOf(address(d3mCompoundDaiPool)) - pink;
+        //assertEqAbsolute(cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)), 0, 10 ** 10);
+        uint256 daiEarned = cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)) - pink;
 
         VowLike(vow).heal(
             _min(
@@ -861,7 +844,7 @@ contract D3MCompoundDaiTest is DSTest {
         assertEq(ink, 0);
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(d3mCompoundDaiPool)), pink);
-        assertGe(cDai.balanceOf(address(d3mCompoundDaiPool)), pink);
+        assertGe(cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)), pink);
 
         // MCD shutdowns
         originalDai = originalDai + vat.dai(VowLike(vow).flapper());
@@ -884,7 +867,7 @@ contract D3MCompoundDaiTest is DSTest {
         assertEq(ink, pink);
         assertEq(art, part);
         assertEq(vat.gem(ilk, address(d3mCompoundDaiPool)), 0);
-        assertGe(cDai.balanceOf(address(d3mCompoundDaiPool)), pink);
+        assertGe(cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)), pink);
         assertEq(vat.sin(vow), 0);
 
         // Call skim manually (will be done through deposit anyway)
@@ -897,7 +880,8 @@ contract D3MCompoundDaiTest is DSTest {
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(d3mCompoundDaiPool)), 0);
         assertEq(vat.gem(ilk, address(end)), pink);
-        assertGe(cDai.balanceOf(address(d3mCompoundDaiPool)), pink);
+        //assertGe(cDai.balanceOf(address(d3mCompoundDaiPool)), pink);
+        assertGe(cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)), pink);
         if (originalSin + part * RAY >= originalDai) {
             assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai, RAY);
             assertEq(vat.dai(vow), 0);
@@ -912,9 +896,9 @@ contract D3MCompoundDaiTest is DSTest {
 
         // A part can't be unwind yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
-        assertGt(cDai.balanceOf(address(d3mCompoundDaiPool)), amountSupplied / 2);
+        assertGt(cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)), amountSupplied / 2);
         if (originalSin + part * RAY >= originalDai + (amountSupplied / 2) * RAY) {
-            assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY, RAY);
+            assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY, 10 ** 10 * RAY); // TODO: is this ok?
             assertEq(vat.dai(vow), 0);
         } else {
             assertEqApprox(vat.dai(vow), originalDai + (amountSupplied / 2) * RAY - originalSin - part * RAY, RAY);
@@ -922,20 +906,20 @@ contract D3MCompoundDaiTest is DSTest {
         }
 
         // Then pool gets some liquidity
-        compoundPool.repay(address(dai), amountToBorrow, 2, address(this));
+        assertEq(cDai.repayBorrow(amountToBorrow), 0);
 
         // Rest of the liquidity can be withdrawn
         directDepositHub.exec(ilk);
         VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
-        assertEq(cDai.balanceOf(address(d3mCompoundDaiPool)), 0);
+        assertEqApprox(cDai.balanceOf(address(d3mCompoundDaiPool)), 0, 1);
         assertEq(vat.sin(vow), 0);
-        assertEqApprox(vat.dai(vow), originalDai - originalSin + daiEarned * RAY, RAY);
+        assertEqApprox(vat.dai(vow), originalDai - originalSin + daiEarned * RAY, 10 ** 10 * RAY); // TODO: is this ok?
     }
 
     function testFail_uncull_not_culled() public {
         // Lower by 50%
-        _setRelBorrowTarget(5000);
+        _setRelUtil(5000);
         directDepositHub.cage();
 
         // MCD shutdowns
@@ -960,64 +944,55 @@ contract D3MCompoundDaiTest is DSTest {
         directDepositHub.uncull(ilk);
     }
 
-    function test_collect_stkcompound() public {
-        _setRelBorrowTarget(7500);
-
-        hevm.warp(block.timestamp + 1 days);
+    function test_collect_comp() public {
+        _setRelUtil(7500);
+        hevm.roll(block.number + 5760);
 
         // Set the king
         d3mCompoundDaiPool.file("king", address(pauseProxy));
 
-        // Collect some stake rewards into the pause proxy
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(cDai);
-        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(directDepositHub));
-        if (amountToClaim == 0) return;     // Rewards are turned off - this is still an acceptable state
-        uint256 amountClaimed = d3mCompoundDaiPool.collect(tokens, uint256(-1));
-        assertEq(amountClaimed, amountToClaim);
-        assertEq(comp.balanceOf(address(pauseProxy)), amountClaimed);
-        assertEq(rewardsClaimer.getRewardsBalance(tokens, address(directDepositHub)), 0);
+        if (CompltrollerLike(cDai.comptroller()).compSupplySpeeds(address(cDai)) == 0) return; // Rewards are turned off - this is still an acceptable state
 
-        hevm.warp(block.timestamp + 1 days);
+        uint256 compBefore = comp.balanceOf(address(pauseProxy));
+        d3mCompoundDaiPool.collect();
+        assertGt(comp.balanceOf(address(pauseProxy)), compBefore);
+
+        hevm.roll(block.number + 5760);
 
         // Collect some more rewards
-        uint256 amountToClaim2 = rewardsClaimer.getRewardsBalance(tokens, address(directDepositHub));
-        assertGt(amountToClaim2, 0);
-        uint256 amountClaimed2 = d3mCompoundDaiPool.collect(tokens, uint256(-1));
-        assertEq(amountClaimed2, amountToClaim2);
-        assertEq(comp.balanceOf(address(pauseProxy)), amountClaimed + amountClaimed2);
-        assertEq(rewardsClaimer.getRewardsBalance(tokens, address(directDepositHub)), 0);
+        compBefore = comp.balanceOf(address(pauseProxy));
+        d3mCompoundDaiPool.collect();
+        assertGt(comp.balanceOf(address(pauseProxy)), compBefore);
     }
 
-    function testFail_collect_stkcompound_king_not_set() public {
-        _setRelBorrowTarget(7500);
+    function testFail_collect_comp_king_not_set() public {
+        _setRelUtil(7500);
 
-        hevm.warp(block.timestamp + 1 days);
+        hevm.roll(block.number + 5760);
+        if (CompltrollerLike(cDai.comptroller()).compSupplySpeeds(address(cDai)) == 0) return; // Rewards are turned off
 
         // Collect some stake rewards into the pause proxy
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(cDai);
-        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(d3mCompoundDaiPool));
-        assertGt(amountToClaim, 0);
-        d3mCompoundDaiPool.collect(tokens, uint256(-1));
+        d3mCompoundDaiPool.collect();
     }
 
     function test_cage_exit() public {
-        _setRelBorrowTarget(7500);
+        _setRelUtil(7500);
+
+        cDai.balanceOf(address(d3mCompoundDaiPool));
 
         // Vat is caged for global settlement
         vat.cage();
 
         // Simulate DAI holder gets some gems from GS
-        vat.grab(ilk, address(d3mCompoundDaiPool), address(this), address(this), -int256(100 ether), -int256(0));
+        vat.grab(ilk, address(d3mCompoundDaiPool), address(this), address(this), -int256(100 * 1e8), -int256(0));
 
-        // User can exit and get the aDAI
-        directDepositHub.exit(ilk, address(this), 100 ether);
-        assertEqApprox(cDai.balanceOf(address(this)), 100 ether, 1);     // Slight rounding error may occur
+        // User can exit and get the cDAI
+        directDepositHub.exit(ilk, address(this), 100 * 1e8);
+        assertEqApprox(cDai.balanceOf(address(this)), 100 * 1e8, 1);     // Slight rounding error may occur
     }
 
     function testFail_shutdown_cant_cage() public {
-        _setRelBorrowTarget(7500);
+        _setRelUtil(7500);
 
         // Vat is caged for global settlement
         vat.cage();
@@ -1025,7 +1000,7 @@ contract D3MCompoundDaiTest is DSTest {
     }
 
     function testFail_shutdown_cant_cull() public {
-        _setRelBorrowTarget(7500);
+        _setRelUtil(7500);
 
         directDepositHub.cage();
 
@@ -1039,12 +1014,12 @@ contract D3MCompoundDaiTest is DSTest {
     }
 
     function test_quit_no_cull() public {
-        _setRelBorrowTarget(7500);
+        _setRelUtil(7500);
 
         directDepositHub.cage();
 
         // Test that we can extract the whole position in emergency situations
-        // aDAI should be sitting in the deposit contract, urn should be owned by deposit contract
+        // cDAI should be sitting in the deposit contract, urn should be owned by deposit contract
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mCompoundDaiPool));
         uint256 pbal = cDai.balanceOf(address(d3mCompoundDaiPool));
         assertGt(pink, 0);
@@ -1117,17 +1092,18 @@ contract D3MCompoundDaiTest is DSTest {
         directDepositHub.reap(ilk);
     }
 
+    // TODO: handle this as currently the MOM only knows to file "bar"
     function test_direct_deposit_mom() public {
         _setRelBorrowTarget(7500);
 
         (uint256 ink, ) = vat.urns(ilk, address(d3mCompoundDaiPool));
         assertGt(ink, 0);
-        assertGt(d3mCompoundDaiPlan.bar(), 0);
+        assertGt(d3mCompoundDaiPlan.barb(), 0);
 
         // Something bad happens on Compound - we need to bypass gov delay
         d3mMom.disable(address(d3mCompoundDaiPlan));
 
-        assertEq(d3mCompoundDaiPlan.bar(), 0);
+        assertEq(d3mCompoundDaiPlan.barb(), 0);
 
         // Close out our position
         directDepositHub.exec(ilk);
@@ -1170,5 +1146,4 @@ contract D3MCompoundDaiTest is DSTest {
         // We should be able to close out the vault completely even though ink and art do not match
         _setRelBorrowTarget(0);
     }
-    */
 }
