@@ -127,7 +127,7 @@ contract D3MAaveDaiPlan is D3MPlanBase {
         return _rdiv(_add(stableDebtTotal, variableDebtTotal), targetUtil);
     }
 
-    function getTargetAssets(uint256 availableAssets, uint256 currentAssets) external override view returns (uint256 targetAssets) {
+    function getTargetAssets(uint256 availableAssets, uint256 currentAssets) external override view returns (uint256) {
         uint256 targetInterestRate = bar;
         if (targetInterestRate == 0) return 0;     // De-activated
 
