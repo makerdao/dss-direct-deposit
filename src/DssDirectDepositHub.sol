@@ -294,10 +294,9 @@ contract DssDirectDepositHub {
         uint256 currentAssets = pool.assetBalance();
 
         if (vat.live() == 0) {
-            uint256 culled = ilks[ilk_].culled;
             // MCD caged
             require(end.debt() == 0, "DssDirectDepositHub/end-debt-already-set");
-            require(culled == 0, "DssDirectDepositHub/module-has-to-be-unculled-first");
+            require(ilks[ilk_].culled == 0, "DssDirectDepositHub/module-has-to-be-unculled-first");
             _unwind(
                 ilk_,
                 pool,
@@ -307,14 +306,13 @@ contract DssDirectDepositHub {
                 currentAssets
             );
         } else if (live == 0) {
-            uint256 culled = ilks[ilk_].culled;
             // This module caged
             _unwind(
                 ilk_,
                 pool,
                 type(uint256).max,
                 availableAssets,
-                culled == 1
+                ilks[ilk_].culled == 1
                 ? Mode.MODULE_CULLED
                 : Mode.NORMAL,
                 currentAssets
