@@ -34,6 +34,7 @@ interface InterestRateModelLike {
     function baseRatePerBlock() external view returns (uint256);
     function kink() external view returns (uint256);
     function getBorrowRate(uint256 cash, uint256 borrows, uint256 reserves) external view returns (uint256);
+    function utilizationRate(uint256 cash, uint256 borrows, uint256 reserves) external pure returns (uint256);
 }
 
 contract DssDirectDepositHubTest is DSTest {
@@ -107,6 +108,16 @@ contract DssDirectDepositHubTest is DSTest {
         targetRate = model.getBorrowRate(cash, borrows, reserves);
     }
 
+    function _targetRateForRelativeUtil(uint256 deltaBPS) internal returns (uint256 targetRate, uint256 newCash, uint256 borrows, uint256 reserves) {
+        uint256 cash = cDai.getCash();
+        borrows = cDai.totalBorrows();
+        reserves = cDai.totalReserves();
+        uint256 util = model.utilizationRate(cash, borrows, reserves);
+
+        uint256 newUtil = util * deltaBPS / 10000;
+        (targetRate, newCash, borrows, reserves) = _targetRateForUtil(newUtil);
+    }
+
     function test_calculate_current_rate() public {
         uint256 borrowRatePerBlock = cDai.borrowRatePerBlock();
         uint256 targetSupply = plan.calculateTargetSupply(borrowRatePerBlock);
@@ -155,6 +166,16 @@ contract DssDirectDepositHubTest is DSTest {
 
         uint256 supply = plan.calculateTargetSupply(targetRate);
         assertEqApproxBPS(supply, _sub(_add(cash, borrows), reserves), 1);
+    }
+
+    function test_interest_rate_calc() public {
+        // Confirm that the inverse function is correct by comparing all percentages
+        for (uint256 i = 1; i <= 100 ; i++) {
+            (uint256 targetRate, uint256 newCash, uint256 borrows, uint256 reserves) = _targetRateForRelativeUtil(i * 100);
+
+            uint256 supply = plan.calculateTargetSupply(targetRate);
+            assertEqApproxBPS(supply, _sub(_add(newCash, borrows), reserves), 1);
+        }
     }
 
     function test_calculate_base_rate() public {
