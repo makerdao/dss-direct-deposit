@@ -295,8 +295,8 @@ contract DssDirectDepositHub {
     function exec(bytes32 ilk_) external {
         D3MPoolLike pool = ilks[ilk_].pool;
 
-        uint256 availableAssets = pool.maxWithdraw();
         pool.accrueIfNeeded();
+        uint256 availableAssets = pool.maxWithdraw();
         uint256 currentAssets = pool.assetBalance();
 
         if (vat.live() == 0) {
