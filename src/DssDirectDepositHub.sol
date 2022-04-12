@@ -189,7 +189,7 @@ contract DssDirectDepositHub {
 
         require(int256(amount) >= 0, "DssDirectDepositHub/overflow");
 
-        uint256 sharesPrev = pool.shareBalance();
+        uint256 prevBalance = pool.assetBalance();
 
         vat.slip(ilk, address(pool), int256(amount));
         vat.frob(ilk, address(pool), address(pool), address(this), int256(amount), int256(amount));
@@ -197,9 +197,8 @@ contract DssDirectDepositHub {
         daiJoin.exit(address(pool), amount);
         pool.deposit(amount);
 
-        // Verify the correct amount of gem shows up
-        uint256 newShares = pool.convertToShares(amount);
-        require(pool.shareBalance() >= _add(sharesPrev, newShares), "DssDirectDepositHub/no-receive-shares");
+        // Verify the correct amount of assets shows up
+        require(pool.assetBalance() >= _add(prevBalance, amount), "DssDirectDepositHub/no-receive-shares");
 
         emit Wind(ilk, amount);
     }
