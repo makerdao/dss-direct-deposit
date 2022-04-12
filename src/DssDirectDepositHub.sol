@@ -40,10 +40,9 @@ interface D3MPoolLike {
     function deposit(uint256) external;
     function withdraw(uint256) external;
     function transferShares(address, uint256) external returns (bool);
+    function transferAllShares(address) external returns (bool);
     function accrueIfNeeded() external;
     function assetBalance() external returns (uint256);
-    function shareBalance() external returns (uint256);
-    function convertToShares(uint256) external view returns (uint256);
     function maxWithdraw() external view returns (uint256);
     function cage() external;
 }
@@ -358,6 +357,7 @@ contract DssDirectDepositHub {
     }
 
     // --- Allow DAI holders to exit during global settlement ---
+    // wad: should be amount of gems, this could be different than the share tokens
     function exit(bytes32 ilk_, address usr, uint256 wad) external {
         require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
         vat.slip(ilk_, msg.sender, -int256(wad));
@@ -442,7 +442,7 @@ contract DssDirectDepositHub {
         D3MPoolLike pool = ilks[ilk_].pool;
 
         // Send all gem in the contract to who
-        require(pool.transferShares(who, pool.assetBalance()), "DssDirectDepositHub/failed-transfer");
+        require(pool.transferAllShares(who), "DssDirectDepositHub/failed-transfer");
 
         if (ilks[ilk_].culled == 1) {
             // Culled - just zero out the gems
