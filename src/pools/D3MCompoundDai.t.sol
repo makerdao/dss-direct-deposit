@@ -1109,7 +1109,7 @@ contract D3MCompoundDaiTest is DSTest {
         directDepositHub.exec(ilk);
 
         (ink, ) = vat.urns(ilk, address(d3mCompoundDaiPool));
-        assertEq(ink, 0);
+        assertEqAbsolute(ink, 0, 10 ** 10);
     }
 
     function test_set_tau_not_caged() public {

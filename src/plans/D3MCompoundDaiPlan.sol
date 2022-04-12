@@ -157,4 +157,9 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
             }
         }
     }
+
+    // TODO: make override once added to base
+    function disable() external auth {
+        barb = 0;
+    }
 }
