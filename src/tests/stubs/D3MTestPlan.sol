@@ -56,7 +56,7 @@ contract D3MTestPlan is D3MPlanBase {
         return bar > 0 ? targetAssets : 0;
     }
 
-    function disable() external auth {
+    function disable() external override auth {
         bar = 0;
     }
 }
