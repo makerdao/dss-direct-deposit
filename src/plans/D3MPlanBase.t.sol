@@ -39,6 +39,10 @@ contract FakeD3MPlanBase is D3MPlanBase {
     function getTargetAssets(uint256 currentAssets) external override view returns(uint256) {
         return currentAssets;
     }
+
+    function disable() external override {
+
+    }
 }
 
 contract D3MPlanBaseTest is DSTest {
@@ -94,5 +98,9 @@ contract D3MPlanBaseTest is DSTest {
         uint256 result = FakeD3MPlanBase(d3mTestPlan).getTargetAssets(2);
 
         assertEq(result, 2);
+    }
+
+    function test_implements_disable() public virtual {
+        FakeD3MPlanBase(d3mTestPlan).disable();
     }
 }

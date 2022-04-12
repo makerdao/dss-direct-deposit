@@ -161,7 +161,7 @@ contract D3MAaveDaiPlan is D3MPlanBase {
         }
     }
 
-    function disable() external auth {
+    function disable() external override auth {
         bar = 0;
     }
 }

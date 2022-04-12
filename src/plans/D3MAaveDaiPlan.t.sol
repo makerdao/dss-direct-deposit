@@ -158,7 +158,8 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         assertEq(D3MAaveDaiPlan(d3mTestPlan).getTargetAssets(0), 0);
     }
 
-    function test_disable_sets_bar_to_zero() public {
+    function test_implements_disable() public override {
+        // disable_sets_bar_to_zero
         D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
 
         assertTrue(D3MAaveDaiPlan(d3mTestPlan).bar() != 0);

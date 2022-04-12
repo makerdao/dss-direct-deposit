@@ -47,4 +47,6 @@ abstract contract D3MPlanBase {
     }
 
     function getTargetAssets(uint256 currentAssets) external virtual view returns (uint256 targetAssets);
+
+    function disable() external virtual;
 }
