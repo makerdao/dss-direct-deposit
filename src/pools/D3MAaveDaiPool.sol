@@ -85,6 +85,9 @@ contract D3MAaveDaiPool is D3MPoolBase {
     }
 
     // --- Math ---
+    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require((z = x + y) >= x, "DssDirectDepositHub/overflow");
+    }
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "D3MAaveDaiPool/overflow");
     }
@@ -111,7 +114,12 @@ contract D3MAaveDaiPool is D3MPoolBase {
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
     function deposit(uint256 amt) external override auth {
+        uint256 prevBalance = shareBalance();
+
         LendingPoolLike(pool).deposit(address(asset), amt, address(this), 0);
+
+        // Verify the correct amount of shares shows up
+        require(shareBalance() == _add(prevBalance, amt), "D3MAaveDaiPool/incorrect-share-credit");
     }
 
     // Withdraws Dai from Aave in exchange for adai
@@ -143,8 +151,8 @@ contract D3MAaveDaiPool is D3MPoolBase {
         return ShareTokenLike(adai).balanceOf(address(this));
     }
 
-    function shareBalance() external view override returns (uint256) {
-        return ShareTokenLike(adai).scaledBalanceOf(address(this));
+    function shareBalance() public view override returns (uint256) {
+        return ShareTokenLike(adai).balanceOf(address(this));
     }
 
     function maxWithdraw() external view override returns (uint256) {

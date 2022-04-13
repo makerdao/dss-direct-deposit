@@ -118,6 +118,7 @@ contract FakeLendingPool {
             forWhom,
             code
         );
+        D3MTestGem(adai).mint(forWhom, amt);
     }
 
     function withdraw(address asset, uint256 amt, address dst) external {
@@ -193,6 +194,7 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
     }
 
     function test_deposit_calls_lending_pool_deposit() public {
+        D3MTestGem(address(adai)).rely(address(aavePool));
         D3MAaveDaiPool(d3mTestPool).deposit(1);
         (address asset, uint256 amt, address dst, uint256 code) = FakeLendingPool(address(aavePool)).lastDeposit();
         assertEq(asset, address(dai));

@@ -135,11 +135,6 @@ contract DssDirectDepositHub {
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
     }
-    function approxEq(uint256 x, uint256 y, uint256 delta) internal pure returns (bool) {
-        uint256 lower = (y - delta > 0) ? y - delta : y;
-        uint256 upper = y + delta < uint256(-1) ? y + delta : y;
-        return x >= lower && x <= upper;
-    }
 
     // --- Administration ---
     function file(bytes32 what, address data) external auth {
@@ -193,17 +188,11 @@ contract DssDirectDepositHub {
 
         require(int256(amount) >= 0, "DssDirectDepositHub/overflow");
 
-        uint256 prevBalance = pool.assetBalance();
-
         vat.slip(ilk, address(pool), int256(amount));
         vat.frob(ilk, address(pool), address(pool), address(this), int256(amount), int256(amount));
         // normalized debt == erc20 DAI (Vat rate for this ilk fixed to 1 RAY)
         daiJoin.exit(address(pool), amount);
         pool.deposit(amount);
-
-        // Verify the correct amount of assets shows up
-        // Could be a rounding error depending on how the pool handles deposits so allow 1 wei either way
-        require(approxEq(pool.assetBalance(), _add(prevBalance, amount), 1), "DssDirectDepositHub/incorrect-dai-credit");
 
         emit Wind(ilk, amount);
     }
