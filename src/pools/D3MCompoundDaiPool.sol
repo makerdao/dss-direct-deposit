@@ -70,6 +70,9 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     // --- Math ---
     uint256 constant WAD = 10 ** 18;
 
+    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require((z = x + y) >= x, "D3MCompoundDaiPool/overflow");
+    }
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "D3MCompoundDaiPool/overflow");
     }
@@ -96,7 +99,9 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     }
 
     function deposit(uint256 amt) external override auth {
+        uint256 prev = cDai.balanceOf(address(this));
         require(cDai.mint(amt) == 0, "D3MCompoundDaiPool/mint-failure");
+        require(cDai.balanceOf(address(this)) == _add(prev, _wdiv(amt, cDai.exchangeRateStored())), "D3MCompoundDaiPool/incorrect-cdai-credit");
     }
 
     function withdraw(uint256 amt) external override auth {
@@ -126,6 +131,7 @@ contract D3MCompoundDaiPool is D3MPoolBase {
         return (error == 0) ? _wmul(cTokenBalance, exchangeRate) : 0;
     }
 
+    // TODO: remove once removed from base
     function shareBalance() public view override returns (uint256) {
         return cDai.balanceOf(address(this));
     }

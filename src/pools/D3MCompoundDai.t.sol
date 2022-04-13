@@ -256,7 +256,7 @@ contract D3MCompoundDaiTest is DSTest {
         }
     }
 
-    function assertEqAbsolute(uint256 _a, uint256 _b, uint256 _tolerance) internal {
+    function assertEqApprox(uint256 _a, uint256 _b, uint256 _tolerance) internal {
         uint256 a = _a;
         uint256 b = _b;
         if (a < b) {
