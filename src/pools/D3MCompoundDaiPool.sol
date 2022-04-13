@@ -29,6 +29,7 @@ interface CErc20 {
     function mint(uint256 mintAmount)               external returns (uint256);
     function redeemUnderlying(uint256 redeemAmount) external returns (uint256);
     function accrueInterest()                       external returns (uint256);
+    function exchangeRateCurrent()                  external returns (uint256);
     function transfer(address dst, uint256 amount)  external returns (bool);
 }
 
@@ -119,10 +120,6 @@ contract D3MCompoundDaiPool is D3MPoolBase {
         emit Collect(king, address(comp));
     }
 
-    function transferShares(address dst, uint256 amt) external override returns (bool) {
-        return cDai.transfer(dst, amt);
-    }
-
     // Note: Does not accrue interest (as opposed to cToken's balanceOfUnderlying() which is not a view function).
     function assetBalance() public view override returns (uint256) {
         (uint256 error, uint256 cTokenBalance,, uint256 exchangeRate) = cDai.getAccountSnapshot(address(this));
@@ -137,9 +134,20 @@ contract D3MCompoundDaiPool is D3MPoolBase {
         return _min(cDai.getCash(), assetBalance());
     }
 
+    // TODO: unused now, remove once removed from base
     // Note: Does not accrue interest.
     function convertToShares(uint256 amt) external view override returns (uint256) {
         return _wdiv(amt, cDai.exchangeRateStored());
+    }
+
+    // Note: amt is in wad and represents underlying balance (dai)
+    function transferShares(address dst, uint256 amt) external override returns (bool) {
+        return cDai.transfer(dst, _wdiv(amt, cDai.exchangeRateCurrent()));
+    }
+
+    // TODO: make override if/once supported in base
+    function transferAllShares(address dst) external returns (bool) {
+        return cDai.transfer(dst, cDai.balanceOf(address(this)));
     }
 
     function accrueIfNeeded() override external {

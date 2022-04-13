@@ -44,6 +44,7 @@ interface CErc20Like {
     function borrow(uint256 borrowAmount)       external returns (uint256);
     function balanceOfUnderlying(address owner) external returns (uint256);
     function repayBorrow(uint256 repayAmount)   external returns (uint256);
+    function exchangeRateCurrent()              external returns (uint256);
 }
 
 interface CEthLike {
@@ -238,7 +239,8 @@ contract D3MCompoundDaiTest is DSTest {
         assertTrue(false);
     }
 
-    function assertEqApprox(uint256 _a, uint256 _b, uint256 _tolerance) internal {
+    // TODO: same as below, remove one of them!
+    function assertEqAbsolute(uint256 _a, uint256 _b, uint256 _tolerance) internal {
         uint256 a = _a;
         uint256 b = _b;
         if (a < b) {
@@ -984,11 +986,14 @@ contract D3MCompoundDaiTest is DSTest {
         vat.cage();
 
         // Simulate DAI holder gets some gems from GS
-        vat.grab(ilk, address(d3mCompoundDaiPool), address(this), address(this), -int256(100 * 1e8), -int256(0));
+        vat.grab(ilk, address(d3mCompoundDaiPool), address(this), address(this), -int256(100 * 1e18), -int256(0));
 
         // User can exit and get the cDAI
-        directDepositHub.exit(ilk, address(this), 100 * 1e8);
-        assertEqApprox(cDai.balanceOf(address(this)), 100 * 1e8, 1);     // Slight rounding error may occur
+        directDepositHub.exit(ilk, address(this), 100 * 1e18);
+
+        uint256 expectedCdai = _wdiv(100 * 1e18, cDai.exchangeRateCurrent());
+        assertEq(cDai.balanceOf(address(this)), expectedCdai);
+        assertEqApprox(100 * 1e18, cDai.balanceOfUnderlying(address(this)), 10 ** 10);
     }
 
     function testFail_shutdown_cant_cage() public {
