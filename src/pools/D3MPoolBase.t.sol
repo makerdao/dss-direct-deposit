@@ -52,16 +52,9 @@ contract FakeD3MPoolBase is D3MPoolBase {
 
     function assetBalance() external view override returns (uint256) {}
 
-    function shareBalance() external view override returns (uint256) {}
+    function transferAllShares(address dst) external override returns (bool) {}
 
     function maxWithdraw() external view override returns (uint256) {}
-
-    function convertToShares(uint256 amt)
-        external
-        view
-        override
-        returns (uint256)
-    {}
 }
 
 contract FakeVat {

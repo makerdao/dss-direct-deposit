@@ -78,15 +78,13 @@ abstract contract D3MPoolBase {
 
     function transferShares(address dst, uint256 amt) external virtual returns (bool);
 
+    function transferAllShares(address dst) external virtual returns (bool);
+
     function accrueIfNeeded() external virtual;
 
     function assetBalance() external view virtual returns (uint256);
 
-    function shareBalance() external view virtual returns (uint256);
-
     function maxWithdraw() external view virtual returns (uint256);
-
-    function convertToShares(uint256 amt) external view virtual returns (uint256);
 
     function recoverTokens(address token, address dst, uint256 amt) external auth returns (bool) {
         return TokenLike(token).transfer(dst, amt);

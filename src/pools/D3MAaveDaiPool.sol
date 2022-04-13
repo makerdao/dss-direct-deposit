@@ -119,7 +119,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
         LendingPoolLike(pool).deposit(address(asset), amt, address(this), 0);
 
         // Verify the correct amount of shares shows up
-        require(shareBalance() == _add(prevBalance, amt), "D3MAaveDaiPool/incorrect-share-credit");
+        require(shareBalance() >= _add(prevBalance, amt), "D3MAaveDaiPool/incorrect-share-credit");
     }
 
     // Withdraws Dai from Aave in exchange for adai
@@ -140,7 +140,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
         return ShareTokenLike(adai).transfer(dst, amt);
     }
 
-    function transferAllShares(address dst) external returns (bool) {
+    function transferAllShares(address dst) external override returns (bool) {
         return transferShares(dst, ShareTokenLike(adai).balanceOf(address(this)));
     }
 
@@ -151,18 +151,11 @@ contract D3MAaveDaiPool is D3MPoolBase {
         return ShareTokenLike(adai).balanceOf(address(this));
     }
 
-    function shareBalance() public view override returns (uint256) {
+    function shareBalance() public view returns (uint256) {
         return ShareTokenLike(adai).balanceOf(address(this));
     }
 
     function maxWithdraw() external view override returns (uint256) {
         return _min(TokenLike(asset).balanceOf(adai), assetBalance());
-    }
-
-    // --- Convert a standard ERC-20 amount to a the normalized amount
-    //     when added to the balance
-    function convertToShares(uint256 amt) external view override returns (uint256) {
-        uint256 interestIndex = LendingPoolLike(pool).getReserveNormalizedIncome(address(asset));
-        return _rdiv(amt, interestIndex);
     }
 }

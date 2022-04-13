@@ -85,7 +85,7 @@ contract D3MTestPool is D3MPoolBase {
         return TokenLike(share).transfer(dst, amt);
     }
 
-    function transferAllShares(address dst) external returns (bool) {
+    function transferAllShares(address dst) external override returns (bool) {
         return TokenLike(share).transfer(dst, shareBalance());
     }
 
@@ -101,12 +101,8 @@ contract D3MTestPool is D3MPoolBase {
         return TokenLike(asset).balanceOf(share);
     }
 
-    function shareBalance() public view override returns (uint256) {
+    function shareBalance() public view returns (uint256) {
         return TokenLike(share).balanceOf(address(this));
-    }
-
-    function convertToShares(uint256 amt) external view override returns (uint256) {
-        return amt;
     }
 
     function convertToAssets(uint256 shares) public pure returns (uint256) {
