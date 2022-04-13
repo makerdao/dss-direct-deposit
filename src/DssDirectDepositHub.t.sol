@@ -19,8 +19,7 @@ pragma solidity 0.6.12;
 import "ds-test/test.sol";
 import "./tests/interfaces/interfaces.sol";
 
-import {DssDirectDepositHub, D3MPoolLike} from "./DssDirectDepositHub.sol";
-import {D3MMom} from "./D3MMom.sol";
+import {DssDirectDepositHub, D3MPoolLike, D3MPlanLike} from "./DssDirectDepositHub.sol";
 
 import {D3MTestPool} from "./tests/stubs/D3MTestPool.sol";
 import {D3MTestPlan} from "./tests/stubs/D3MTestPlan.sol";
@@ -63,7 +62,6 @@ contract DssDirectDepositHubTest is DSTest {
     DssDirectDepositHub directDepositHub;
     D3MTestPool d3mTestPool;
     D3MTestPlan d3mTestPlan;
-    D3MMom d3mMom;
     ValueStub pip;
 
     function setUp() public {
@@ -114,8 +112,6 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "pool", address(d3mTestPool));
         directDepositHub.file(ilk, "plan", address(d3mTestPlan));
         directDepositHub.file(ilk, "tau", 7 days);
-        d3mMom = new D3MMom();
-        directDepositHub.rely(address(d3mMom));
 
         // Init new collateral
         pip = new ValueStub();
@@ -260,16 +256,9 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "unknown", 1);
     }
 
-    // TODO: move to Pool tests
-    // function test_can_file_king() public {
-    //     (, , , , , address king, ) = directDepositHub.ilks(ilk);
-    //     assertEq(king, address(0));
-
-    //     directDepositHub.file(ilk, "king", address(this));
-
-    //     (, , , , , king, ) = directDepositHub.ilks(ilk);
-    //     assertEq(king, address(this));
-    // }
+    function testFail_unknown_address_file() public {
+        directDepositHub.file("unknown", address(this));
+    }
 
     function test_can_file_pool() public {
         (D3MPoolLike pool, , , , ) = directDepositHub.ilks(ilk);
@@ -280,6 +269,17 @@ contract DssDirectDepositHubTest is DSTest {
 
         (pool, , , , ) = directDepositHub.ilks(ilk);
         assertEq(address(pool), address(this));
+    }
+
+    function test_can_file_plan() public {
+        (, D3MPlanLike plan, , , ) = directDepositHub.ilks(ilk);
+
+        assertEq(address(plan), address(d3mTestPlan));
+
+        directDepositHub.file(ilk, "plan", address(this));
+
+        (, plan, , , ) = directDepositHub.ilks(ilk);
+        assertEq(address(plan), address(this));
     }
 
     function test_can_file_vow() public {
@@ -304,24 +304,18 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(setEnd, address(this));
     }
 
-    // TODO: move to Pool tests
-    // function testFail_unauth_file_king() public {
-    //     directDepositHub.deny(address(this));
+    function testFail_vat_not_live_address_file() public {
+        directDepositHub.file("end", address(this));
+        address hubEnd = address(directDepositHub.end());
 
-    //     directDepositHub.file(ilk, "king", address(this));
-    // }
+        assertEq(hubEnd, address(this));
 
-    // TODO: move to Pool tests
-    // function testFail_pool_not_live_king_file() public {
-    //     directDepositHub.file(ilk, "king", address(this));
-    //     (, , , , , address king, ) = directDepositHub.ilks(ilk);
-    //     assertEq(king, address(this));
+        // MCD shutdowns
+        end.cage();
+        end.cage(ilk);
 
-    //     // Cage Join
-    //     directDepositHub.cage(ilk);
-
-    //     directDepositHub.file(ilk, "king", address(123));
-    // }
+        directDepositHub.file("end", address(123));
+    }
 
     function testFail_unauth_file_pool() public {
         directDepositHub.deny(address(this));
@@ -336,27 +330,11 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "pool", address(123));
     }
 
-    // TODO: add tests
-    // - pool file hub not live
-    // - vow/end file vat not live
-    // - Plan ilk file on hub
-    // - pool base unrecognized file param
-    // - recover Tokens for Pool Base
-    // - add Mom test file that calls disable on TestPlan - remove Mom from this file
-
-    // TODO: move to Pool tests
-    // function testFail_hub_not_live_gem_file() public {
-    //     // Cage Pool
-    //     directDepositHub.cage(ilk);
-
-    //     directDepositHub.file(ilk, "gem", address(123));
-    // }
-
-    function testFail_unknown_address_file() public {
+    function testFail_unknown_ilk_address_file() public {
         directDepositHub.file(ilk, "unknown", address(123));
     }
 
-    function testFail_vat_not_live_address_file() public {
+    function testFail_vat_not_live_ilk_address_file() public {
         directDepositHub.file(ilk, "pool", address(this));
         (D3MPoolLike pool, , , , ) = directDepositHub.ilks(ilk);
 
@@ -517,33 +495,6 @@ contract DssDirectDepositHubTest is DSTest {
 
         directDepositHub.reap(ilk);
     }
-
-    // TODO Move to Pool test
-    // function test_collect() public {
-    //     address rewardToken = address(rewardsClaimer.rewards());
-    //     d3mTestPool.file("king", address(pauseProxy));
-
-    //     assertEq(TokenLike(rewardToken).balanceOf(address(pauseProxy)), 0);
-
-    //     address[] memory tokens = new address[](1);
-    //     tokens[0] = address(testGem);
-    //     directDepositHub.collect(ilk, tokens, 10 * WAD);
-
-    //     assertEq(
-    //         TokenLike(rewardToken).balanceOf(address(pauseProxy)),
-    //         10 * WAD
-    //     );
-    // }
-
-    // function testFail_collect_no_king() public {
-    //     address rewardToken = address(rewardsClaimer.rewards());
-
-    //     assertEq(TokenLike(rewardToken).balanceOf(address(pauseProxy)), 0);
-
-    //     address[] memory tokens = new address[](1);
-    //     tokens[0] = address(testGem);
-    //     directDepositHub.collect(ilk, tokens, 10 * WAD);
-    // }
 
     function test_exit() public {
         _windSystem();
