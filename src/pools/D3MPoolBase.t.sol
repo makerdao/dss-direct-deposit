@@ -86,16 +86,16 @@ contract D3MPoolBaseTest is DSTest {
 
     DaiLike dai;
 
-    FakeD3MPoolBase d3mPoolBase;
+    address d3mTestPool;
 
-    function setUp() public {
+    function setUp() public virtual {
         hevm = Hevm(
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );
 
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
 
-        d3mPoolBase = new FakeD3MPoolBase(address(new FakeHub()), address(dai));
+        d3mTestPool = address(new FakeD3MPoolBase(address(new FakeHub()), address(dai)));
     }
 
     function _giveTokens(DaiLike token, uint256 amount) internal {
@@ -131,80 +131,84 @@ contract D3MPoolBaseTest is DSTest {
     }
 
     function test_sets_dai_value() public {
-        assertEq(address(d3mPoolBase.asset()), address(dai));
+        assertEq(address(FakeD3MPoolBase(d3mTestPool).asset()), address(dai));
     }
 
     function test_sets_creator_as_ward() public {
-        assertEq(d3mPoolBase.wards(address(this)), 1);
+        assertEq(FakeD3MPoolBase(d3mTestPool).wards(address(this)), 1);
     }
 
     function test_sets_hub_as_ward() public {
-        assertEq(d3mPoolBase.wards(address(this)), 1);
+        assertEq(FakeD3MPoolBase(d3mTestPool).wards(address(this)), 1);
     }
 
     function test_can_rely() public {
-        assertEq(d3mPoolBase.wards(address(123)), 0);
+        assertEq(FakeD3MPoolBase(d3mTestPool).wards(address(123)), 0);
 
-        d3mPoolBase.rely(address(123));
+        FakeD3MPoolBase(d3mTestPool).rely(address(123));
 
-        assertEq(d3mPoolBase.wards(address(123)), 1);
+        assertEq(FakeD3MPoolBase(d3mTestPool).wards(address(123)), 1);
     }
 
     function test_can_deny() public {
-        assertEq(d3mPoolBase.wards(address(this)), 1);
+        assertEq(FakeD3MPoolBase(d3mTestPool).wards(address(this)), 1);
 
-        d3mPoolBase.deny(address(this));
+        FakeD3MPoolBase(d3mTestPool).deny(address(this));
 
-        assertEq(d3mPoolBase.wards(address(this)), 0);
+        assertEq(FakeD3MPoolBase(d3mTestPool).wards(address(this)), 0);
     }
 
     function testFail_cannot_rely_without_auth() public {
-        assertEq(d3mPoolBase.wards(address(this)), 1);
+        assertEq(FakeD3MPoolBase(d3mTestPool).wards(address(this)), 1);
 
-        d3mPoolBase.deny(address(this));
-        d3mPoolBase.rely(address(this));
+        FakeD3MPoolBase(d3mTestPool).deny(address(this));
+        FakeD3MPoolBase(d3mTestPool).rely(address(this));
     }
 
     function test_recoverTokens() public {
         _giveTokens(dai, 10 * WAD);
         assertEq(dai.balanceOf(address(this)), 10 * WAD);
 
-        dai.transfer(address(d3mPoolBase), 10 * WAD);
-        assertEq(dai.balanceOf(address(d3mPoolBase)), 10 * WAD);
+        dai.transfer(d3mTestPool, 10 * WAD);
+        assertEq(dai.balanceOf(d3mTestPool), 10 * WAD);
         assertEq(dai.balanceOf(address(this)), 0);
 
-        bool result = d3mPoolBase.recoverTokens(address(dai), address(this), 10 * WAD);
+        bool result = FakeD3MPoolBase(d3mTestPool).recoverTokens(address(dai), address(this), 10 * WAD);
 
         assertTrue(result);
 
-        assertEq(dai.balanceOf(address(d3mPoolBase)), 0);
+        assertEq(dai.balanceOf(d3mTestPool), 0);
         assertEq(dai.balanceOf(address(this)), 10 * WAD);
     }
 
     function testFail_no_auth_cannot_recoverTokens() public {
         _giveTokens(dai, 10 * WAD);
-        dai.transfer(address(d3mPoolBase), 10 * WAD);
-        assertEq(dai.balanceOf(address(d3mPoolBase)), 10 * WAD);
+        dai.transfer(d3mTestPool, 10 * WAD);
+        assertEq(dai.balanceOf(d3mTestPool), 10 * WAD);
         assertEq(dai.balanceOf(address(this)), 0);
 
-        d3mPoolBase.deny(address(this));
+        FakeD3MPoolBase(d3mTestPool).deny(address(this));
 
-        d3mPoolBase.recoverTokens(address(dai), address(this), 10 * WAD);
+        FakeD3MPoolBase(d3mTestPool).recoverTokens(address(dai), address(this), 10 * WAD);
     }
 
     function test_auth_can_cage() public {
-        assertEq(d3mPoolBase.live(), 1);
+        assertEq(FakeD3MPoolBase(d3mTestPool).live(), 1);
 
-        d3mPoolBase.cage();
+        FakeD3MPoolBase(d3mTestPool).cage();
 
-        assertEq(d3mPoolBase.live(), 0);
+        assertEq(FakeD3MPoolBase(d3mTestPool).live(), 0);
     }
 
     function testFail_no_auth_cannot_cage() public {
-        assertEq(d3mPoolBase.live(), 1);
+        assertEq(FakeD3MPoolBase(d3mTestPool).live(), 1);
 
-        d3mPoolBase.deny(address(this));
+        FakeD3MPoolBase(d3mTestPool).deny(address(this));
 
-        d3mPoolBase.cage();
+        FakeD3MPoolBase(d3mTestPool).cage();
+    }
+
+    function test_implements_accrueIfNeeded() public {
+        FakeD3MPoolBase(d3mTestPool).accrueIfNeeded();
     }
 }
