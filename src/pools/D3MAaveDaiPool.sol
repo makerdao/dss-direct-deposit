@@ -111,15 +111,20 @@ contract D3MAaveDaiPool is D3MPoolBase {
         return strategy == interestStrategy;
     }
 
+    event Test(uint256);
+
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
     function deposit(uint256 amt) external override auth {
-        uint256 prevBalance = shareBalance();
+        uint256 scaledPrev = ShareTokenLike(adai).scaledBalanceOf(address(this));
 
         LendingPoolLike(pool).deposit(address(asset), amt, address(this), 0);
 
-        // Verify the correct amount of shares shows up
-        require(shareBalance() >= _add(prevBalance, amt), "D3MAaveDaiPool/incorrect-share-credit");
+        // Verify the correct amount of adai shows up
+        uint256 interestIndex = LendingPoolLike(pool).getReserveNormalizedIncome(address(asset));
+        uint256 scaledAmount = _rdiv(amt, interestIndex);
+        emit Test(scaledAmount);
+        require(ShareTokenLike(adai).scaledBalanceOf(address(this)) == _add(scaledPrev, scaledAmount), "D3MAaveDaiPool/incorrect-share-credit");
     }
 
     // Withdraws Dai from Aave in exchange for adai

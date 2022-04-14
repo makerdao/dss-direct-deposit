@@ -26,8 +26,13 @@ interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 }
 
-interface ATokenLike is TokenLike {
-    function scaledBalanceOf(address) external view returns (uint256);
+contract AToken is D3MTestGem {
+
+    constructor(uint256 decimals_) public D3MTestGem(decimals_) {}
+
+    function scaledBalanceOf(address who) external view returns (uint256) {
+        return balanceOf[who];
+    }
 }
 
 contract FakeRewardsClaimer {
@@ -130,12 +135,15 @@ contract FakeLendingPool {
     }
 
     // TODO possibly remove
-    function getReserveNormalizedIncome(address asset) external {}
+    function getReserveNormalizedIncome(address asset) external pure returns (uint256) {
+        asset;
+        return 10 ** 27;
+    }
 }
 
 contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
 
-    ATokenLike adai;
+    AToken adai;
     LendingPoolLike aavePool;
     address rewardsClaimer;
 
@@ -145,7 +153,7 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         );
 
         dai = DaiLike(address(new D3MTestGem(18)));
-        adai = ATokenLike(address(new D3MTestGem(18)));
+        adai = new AToken(18);
         aavePool = LendingPoolLike(address(new FakeLendingPool(address(adai), address(123))));
         rewardsClaimer = address(new FakeRewardsClaimer());
 
@@ -273,7 +281,14 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
     }
 
     function test_assetBalance_gets_adai_balanceOf_pool() public {
+        uint256 tokens = adai.totalSupply();
+        assertEq(D3MAaveDaiPool(d3mTestPool).assetBalance(), 0);
+        assertEq(adai.balanceOf(d3mTestPool), 0);
 
+        adai.transfer(d3mTestPool, tokens);
+
+        assertEq(D3MAaveDaiPool(d3mTestPool).assetBalance(), tokens);
+        assertEq(adai.balanceOf(d3mTestPool), tokens);
     }
 
     // TODO to be completed once we determine shareBalance
