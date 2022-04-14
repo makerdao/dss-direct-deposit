@@ -131,19 +131,8 @@ contract D3MCompoundDaiPool is D3MPoolBase {
         return (error == 0) ? _wmul(cTokenBalance, exchangeRate) : 0;
     }
 
-    // TODO: remove once removed from base
-    function shareBalance() public view override returns (uint256) {
-        return cDai.balanceOf(address(this));
-    }
-
     function maxWithdraw() external view override returns (uint256) {
         return _min(cDai.getCash(), assetBalance());
-    }
-
-    // TODO: unused now, remove once removed from base
-    // Note: Does not accrue interest.
-    function convertToShares(uint256 amt) external view override returns (uint256) {
-        return _wdiv(amt, cDai.exchangeRateStored());
     }
 
     // Note: amt is in wad and represents underlying balance (dai)
@@ -151,8 +140,7 @@ contract D3MCompoundDaiPool is D3MPoolBase {
         return cDai.transfer(dst, _wdiv(amt, cDai.exchangeRateCurrent()));
     }
 
-    // TODO: make override if/once supported in base
-    function transferAllShares(address dst) external returns (bool) {
+    function transferAllShares(address dst) external override returns (bool) {
         return cDai.transfer(dst, cDai.balanceOf(address(this)));
     }
 
