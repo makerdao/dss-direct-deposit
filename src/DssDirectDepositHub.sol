@@ -147,10 +147,10 @@ contract DssDirectDepositHub {
     }
 
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
-        if (what == "tau" ) {
-            require(live == 1, "DssDirectDepositHub/hub-not-live");
-            require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
+        require(live == 1, "DssDirectDepositHub/hub-not-live");
+        require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
 
+        if (what == "tau" ) {
             ilks[ilk].tau = data;
         } else revert("DssDirectDepositHub/file-unrecognized-param");
 
@@ -173,14 +173,6 @@ contract DssDirectDepositHub {
         // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
         // That's why this module converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
-
-        // Wind amount is limited by the debt ceiling
-        (uint256 Art,,, uint256 line,) = vat.ilks(ilk);
-        uint256 lineWad = line / RAY; // Round down to always be under the actual limit
-        if (_add(Art, amount) > lineWad) {
-            amount = _sub(lineWad, Art);
-        }
-
         if (amount == 0) {
             emit Wind(ilk, 0);
             return;
@@ -315,7 +307,26 @@ contract DssDirectDepositHub {
             uint256 targetAssets = ilks[ilk_].plan.getTargetAssets(currentAssets);
 
             if (targetAssets > currentAssets) {
-                _wind(ilk_, pool, targetAssets - currentAssets);
+                // Amount is limited by the debt ceiling
+                (uint256 Art,,, uint256 line,) = vat.ilks(ilk_);
+                uint256 lineWad = line / RAY; // Round down to always be under the actual limit
+
+                if(Art > lineWad) { // Our debt is greater than our debt ceiling, we need to unwind
+                    _unwind(
+                        ilk_,
+                        pool,
+                        Art - lineWad,
+                        availableAssets,
+                        Mode.NORMAL,
+                        currentAssets
+                    );
+                } else {
+                    uint256 amount = targetAssets - currentAssets;
+                    if (_add(Art, amount) > lineWad) { // we do not have enough room in the debt ceiling to fully wind
+                        amount = lineWad - Art;
+                    }
+                    _wind(ilk_, pool, amount);
+                }
             } else if (targetAssets < currentAssets) {
                 _unwind(
                     ilk_,
