@@ -235,7 +235,7 @@ contract DssDirectDepositHubTest is DSTest {
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
         assertEq(tau, 1 days);
 
-        // Cage Join
+        // Cage Hub
         directDepositHub.cage();
 
         directDepositHub.file(ilk, "tau", 7 days);
@@ -246,7 +246,7 @@ contract DssDirectDepositHubTest is DSTest {
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
         assertEq(tau, 1 days);
 
-        // Cage Join
+        // Cage Pool
         directDepositHub.cage(ilk);
 
         directDepositHub.file(ilk, "tau", 7 days);

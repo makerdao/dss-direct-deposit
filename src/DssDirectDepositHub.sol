@@ -149,7 +149,7 @@ contract DssDirectDepositHub {
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
         if (what == "tau" ) {
             require(live == 1, "DssDirectDepositHub/hub-not-live");
-            require(ilks[ilk].tic == 0, "DssDirectDepositHub/join-not-live");
+            require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
 
             ilks[ilk].tau = data;
         } else revert("DssDirectDepositHub/file-unrecognized-param");
@@ -367,7 +367,7 @@ contract DssDirectDepositHub {
 
         D3MPoolLike pool = ilks[ilk_].pool;
 
-        // Can shut joins down if we are authed
+        // Can shut pools down if we are authed
         // or if the interest rate strategy changes
         // or if the main module is caged
         require(
