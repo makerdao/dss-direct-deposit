@@ -121,7 +121,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
         // Verify the correct amount of adai shows up
         uint256 interestIndex = LendingPoolLike(pool).getReserveNormalizedIncome(address(asset));
         uint256 scaledAmount = _rdiv(amt, interestIndex);
-        require(ShareTokenLike(adai).scaledBalanceOf(address(this)) == _add(scaledPrev, scaledAmount), "D3MAaveDaiPool/incorrect-share-credit");
+        require(ShareTokenLike(adai).scaledBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount), "D3MAaveDaiPool/incorrect-share-credit");
     }
 
     // Withdraws Dai from Aave in exchange for adai
