@@ -134,7 +134,6 @@ contract FakeLendingPool {
         );
     }
 
-    // TODO possibly remove
     function getReserveNormalizedIncome(address asset) external pure returns (uint256) {
         asset;
         return 10 ** 27;
@@ -256,25 +255,25 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         D3MAaveDaiPool(d3mTestPool).collect(tokens, 1);
     }
 
-    function test_transferShares_tranfer_adai() public {
+    function test_transfer_tranfer_adai() public {
         uint256 tokens = adai.totalSupply();
         adai.transfer(d3mTestPool, tokens);
         assertEq(adai.balanceOf(address(this)), 0);
         assertEq(adai.balanceOf(d3mTestPool), tokens);
 
-        D3MAaveDaiPool(d3mTestPool).transferShares(address(this), tokens);
+        D3MAaveDaiPool(d3mTestPool).transfer(address(this), tokens);
 
         assertEq(adai.balanceOf(address(this)), tokens);
         assertEq(adai.balanceOf(d3mTestPool), 0);
     }
 
-    function test_transferAllShares_moves_balance() public {
+    function test_transferAll_moves_balance() public {
         uint256 tokens = adai.totalSupply();
         adai.transfer(d3mTestPool, tokens);
         assertEq(adai.balanceOf(address(this)), 0);
         assertEq(adai.balanceOf(d3mTestPool), tokens);
 
-        D3MAaveDaiPool(d3mTestPool).transferAllShares(address(this));
+        D3MAaveDaiPool(d3mTestPool).transferAll(address(this));
 
         assertEq(adai.balanceOf(address(this)), tokens);
         assertEq(adai.balanceOf(d3mTestPool), 0);
@@ -290,9 +289,6 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         assertEq(D3MAaveDaiPool(d3mTestPool).assetBalance(), tokens);
         assertEq(adai.balanceOf(d3mTestPool), tokens);
     }
-
-    // TODO to be completed once we determine shareBalance
-    function test_shareBalance_gets_adai_balanceOf_pool() internal {}
 
     function test_maxWithdraw_gets_available_assets_assetBal() public {
         uint256 tokens = dai.totalSupply();
@@ -311,7 +307,4 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
 
         assertEq(D3MAaveDaiPool(d3mTestPool).maxWithdraw(), 0);
     }
-
-    // TODO to be completed once we determine shareBalance
-    function test_convertShares() internal {}
 }

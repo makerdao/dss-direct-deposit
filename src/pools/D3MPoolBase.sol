@@ -76,9 +76,9 @@ abstract contract D3MPoolBase {
 
     function withdraw(uint256 amt) external virtual;
 
-    function transferShares(address dst, uint256 amt) external virtual returns (bool);
+    function transfer(address dst, uint256 amt) external virtual returns (bool);
 
-    function transferAllShares(address dst) external virtual returns (bool);
+    function transferAll(address dst) external virtual returns (bool);
 
     function accrueIfNeeded() external virtual;
 

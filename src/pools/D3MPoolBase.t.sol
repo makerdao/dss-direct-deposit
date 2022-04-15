@@ -42,7 +42,7 @@ contract FakeD3MPoolBase is D3MPoolBase {
 
     function withdraw(uint256 amt) external override {}
 
-    function transferShares(address dst, uint256 amt)
+    function transfer(address dst, uint256 amt)
         external
         override
         returns (bool)
@@ -52,7 +52,7 @@ contract FakeD3MPoolBase is D3MPoolBase {
 
     function assetBalance() external view override returns (uint256) {}
 
-    function transferAllShares(address dst) external override returns (bool) {}
+    function transferAll(address dst) external override returns (bool) {}
 
     function maxWithdraw() external view override returns (uint256) {}
 }

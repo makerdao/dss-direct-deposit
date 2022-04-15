@@ -138,22 +138,18 @@ contract D3MAaveDaiPool is D3MPoolBase {
         emit Collect(king, assets, amt);
     }
 
-    function transferShares(address dst, uint256 amt) public override returns (bool) {
+    function transfer(address dst, uint256 amt) public override returns (bool) {
         return ShareTokenLike(adai).transfer(dst, amt);
     }
 
-    function transferAllShares(address dst) external override returns (bool) {
-        return transferShares(dst, ShareTokenLike(adai).balanceOf(address(this)));
+    function transferAll(address dst) external override returns (bool) {
+        return transfer(dst, ShareTokenLike(adai).balanceOf(address(this)));
     }
 
     function accrueIfNeeded() external override {}
 
     // --- Balance in of underlying asset (Dai)
     function assetBalance() public view override returns (uint256) {
-        return ShareTokenLike(adai).balanceOf(address(this));
-    }
-
-    function shareBalance() public view returns (uint256) {
         return ShareTokenLike(adai).balanceOf(address(this));
     }
 

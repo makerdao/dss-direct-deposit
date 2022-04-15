@@ -39,8 +39,8 @@ interface D3MPoolLike {
     function validTarget() external view returns (bool);
     function deposit(uint256) external;
     function withdraw(uint256) external;
-    function transferShares(address, uint256) external returns (bool);
-    function transferAllShares(address) external returns (bool);
+    function transfer(address, uint256) external returns (bool);
+    function transferAll(address) external returns (bool);
     function accrueIfNeeded() external;
     function assetBalance() external returns (uint256);
     function maxWithdraw() external view returns (uint256);
@@ -189,7 +189,7 @@ contract DssDirectDepositHub {
         emit Wind(ilk, amount);
     }
 
-    function _unwind(bytes32 ilk, D3MPoolLike pool, uint256 supplyReduction, uint256 availableLiquidity, Mode mode, uint256 assetBalance) internal {
+    function _unwind(bytes32 ilk, D3MPoolLike pool, uint256 supplyReduction, uint256 availableAssets, Mode mode, uint256 assetBalance) internal {
         // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
         // That's why it converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
@@ -219,11 +219,8 @@ contract DssDirectDepositHub {
         // - dai debt tracked in vat (CDP or free)
         uint256 amount = _min(
                             _min(
-                                _min(
-                                    supplyReduction,
-                                    availableLiquidity
-                                ),
-                                assetBalance
+                                supplyReduction,
+                                availableAssets
                             ),
                             daiDebt
                         );
@@ -233,9 +230,9 @@ contract DssDirectDepositHub {
         if (assetBalance > daiDebt) {
             fees = assetBalance - daiDebt;
 
-            if (_add(amount, fees) > availableLiquidity) {
+            if (_add(amount, fees) > availableAssets) {
                 // Don't need safe-math because this is constrained above
-                fees = availableLiquidity - amount;
+                fees = availableAssets - amount;
             }
         }
 
@@ -290,8 +287,8 @@ contract DssDirectDepositHub {
                 Mode.MCD_CAGED,
                 currentAssets
             );
-        } else if (live == 0) {
-            // This module caged
+        } else if (live == 0 || ilks[ilk_].tic != 0) {
+            // This module or pool caged
             _unwind(
                 ilk_,
                 pool,
@@ -346,6 +343,7 @@ contract DssDirectDepositHub {
 
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
         require(live == 1, "DssDirectDepositHub/no-reap-during-cage");
+        require(ilks[ilk_].tic == 0, "DssDirectDepositHub/pool-not-live");
 
         pool.accrueIfNeeded();
         uint256 assetBalance = pool.assetBalance();
@@ -368,7 +366,7 @@ contract DssDirectDepositHub {
         require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
         vat.slip(ilk_, msg.sender, -int256(wad));
         D3MPoolLike pool = ilks[ilk_].pool;
-        require(pool.transferShares(usr, wad), "DssDirectDepositHub/failed-transfer");
+        require(pool.transfer(usr, wad), "DssDirectDepositHub/failed-transfer");
         emit Exit(ilk_, usr, wad);
     }
 
@@ -448,7 +446,7 @@ contract DssDirectDepositHub {
         D3MPoolLike pool = ilks[ilk_].pool;
 
         // Send all gem in the contract to who
-        require(pool.transferAllShares(who), "DssDirectDepositHub/failed-transfer");
+        require(pool.transferAll(who), "DssDirectDepositHub/failed-transfer");
 
         if (ilks[ilk_].culled == 1) {
             // Culled - just zero out the gems

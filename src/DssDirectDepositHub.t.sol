@@ -381,11 +381,28 @@ contract DssDirectDepositHubTest is DSTest {
         d3mTestPool.file("accrued", false);
     }
 
-    function test_unwind_module_caged() public {
+    function test_unwind_hub_caged() public {
         _windSystem();
 
         // Module caged
         directDepositHub.cage();
+
+        directDepositHub.exec(ilk);
+
+        // Ensure we unwound our position
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        // Make sure unwind calls accrued
+        assertTrue(d3mTestPool.accrued());
+        d3mTestPool.file("accrued", false);
+    }
+
+    function test_unwind_pool_caged() public {
+        _windSystem();
+
+        // Module caged
+        directDepositHub.cage(ilk);
 
         directDepositHub.exec(ilk);
 
@@ -483,7 +500,7 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.reap(ilk);
     }
 
-    function testFail_no_reap_module_caged() public {
+    function testFail_no_reap_hub_caged() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
@@ -492,6 +509,19 @@ contract DssDirectDepositHubTest is DSTest {
 
         // module caged
         directDepositHub.cage();
+
+        directDepositHub.reap(ilk);
+    }
+
+    function testFail_no_reap_pool_caged() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD);
+
+        // module caged
+        directDepositHub.cage(ilk);
 
         directDepositHub.reap(ilk);
     }
