@@ -64,7 +64,7 @@ contract D3MAaveDaiPlan is D3MPlanBase {
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
-        require(adai_ != address(0), "D3MAaveDaiPool/invalid-adai");
+        require(adai_ != address(0), "D3MAaveDaiPlan/invalid-adai");
         require(stableDebt_ != address(0), "D3MAaveDaiPlan/invalid-stableDebt");
         require(variableDebt_ != address(0), "D3MAaveDaiPlan/invalid-variableDebt");
         require(interestStrategy_ != address(0), "D3MAaveDaiPlan/invalid-interestStrategy");
@@ -117,8 +117,8 @@ contract D3MAaveDaiPlan is D3MPlanBase {
 
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 stableDebtTotal, uint256 variableDebtTotal) internal view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
-        require(targetInterestRate > base, "DssDirectDepositAaveDai/target-interest-base");
-        require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "DssDirectDepositAaveDai/above-max-interest");
+        require(targetInterestRate > base, "D3MAaveDaiPlan/target-interest-base");
+        require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "D3MAaveDaiPlan/above-max-interest");
 
         // Do inverse calculation of interestStrategy
         uint256 variableRateSlope1 = interestStrategy.variableRateSlope1();
@@ -166,5 +166,6 @@ contract D3MAaveDaiPlan is D3MPlanBase {
 
     function disable() external override auth {
         bar = 0;
+        emit Disable();
     }
 }

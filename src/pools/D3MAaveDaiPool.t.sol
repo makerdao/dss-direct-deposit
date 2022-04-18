@@ -255,7 +255,7 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         D3MAaveDaiPool(d3mTestPool).collect(tokens, 1);
     }
 
-    function test_transfer_tranfer_adai() public {
+    function test_transfer_adai() public {
         uint256 tokens = adai.totalSupply();
         adai.transfer(d3mTestPool, tokens);
         assertEq(adai.balanceOf(address(this)), 0);
