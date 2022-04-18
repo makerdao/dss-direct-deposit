@@ -215,7 +215,6 @@ contract DssDirectDepositHub {
         // Unwind amount is limited by how much:
         // - max reduction desired
         // - liquidity available
-        // - gem we have to withdraw
         // - dai debt tracked in vat (CDP or free)
         uint256 amount = _min(
                             _min(
