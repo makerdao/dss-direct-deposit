@@ -60,6 +60,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
     address public king;  // Who gets the rewards
 
     event Collect(address indexed king, address[] assets, uint256 amt);
+    event File(bytes32 indexed what, address data);
 
     constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) public D3MPoolBase(hub_, dai_) {
         pool = pool_;
@@ -104,6 +105,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
         if (what == "king") king = data;
         else revert("D3MPoolBase/file-unrecognized-param");
+        emit File(what, data);
     }
 
     function validTarget() external view override returns (bool) {

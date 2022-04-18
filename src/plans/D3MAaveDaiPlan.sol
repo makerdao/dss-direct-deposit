@@ -58,6 +58,8 @@ contract D3MAaveDaiPlan is D3MPlanBase {
 
     uint256 public bar;  // Target Interest Rate [ray]
 
+    event File(bytes32 indexed what, uint256 data);
+
     constructor(address dai_, address pool_) public D3MPlanBase(dai_) {
 
         // Fetch the reserve data from Aave
@@ -99,6 +101,7 @@ contract D3MAaveDaiPlan is D3MPlanBase {
 
             bar = data;
         } else revert("D3MAaveDaiPlan/file-unrecognized-param");
+        emit File(what, data);
     }
 
     function maxBar() public view returns (uint256) {
