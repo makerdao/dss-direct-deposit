@@ -150,7 +150,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
     function accrueIfNeeded() external override {}
 
-    // --- Balance in of underlying asset (Dai)
+    // --- Balance of the underlying asset (Dai)
     function assetBalance() public view override returns (uint256) {
         return ShareTokenLike(adai).balanceOf(address(this));
     }
