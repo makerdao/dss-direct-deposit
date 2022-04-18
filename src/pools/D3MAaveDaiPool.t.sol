@@ -267,6 +267,17 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         assertEq(adai.balanceOf(d3mTestPool), 0);
     }
 
+    function testFail_transfer_no_auth() public {
+        uint256 tokens = adai.totalSupply();
+        adai.transfer(d3mTestPool, tokens);
+        assertEq(adai.balanceOf(address(this)), 0);
+        assertEq(adai.balanceOf(d3mTestPool), tokens);
+
+        D3MAaveDaiPool(d3mTestPool).deny(address(this));
+
+        D3MAaveDaiPool(d3mTestPool).transfer(address(this), tokens);
+    }
+
     function test_transferAll_moves_balance() public {
         uint256 tokens = adai.totalSupply();
         adai.transfer(d3mTestPool, tokens);
@@ -277,6 +288,17 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
 
         assertEq(adai.balanceOf(address(this)), tokens);
         assertEq(adai.balanceOf(d3mTestPool), 0);
+    }
+
+    function testFail_transferAll_no_auth() public {
+        uint256 tokens = adai.totalSupply();
+        adai.transfer(d3mTestPool, tokens);
+        assertEq(adai.balanceOf(address(this)), 0);
+        assertEq(adai.balanceOf(d3mTestPool), tokens);
+
+        D3MAaveDaiPool(d3mTestPool).deny(address(this));
+
+        D3MAaveDaiPool(d3mTestPool).transferAll(address(this));
     }
 
     function test_assetBalance_gets_adai_balanceOf_pool() public {

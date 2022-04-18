@@ -81,11 +81,11 @@ contract D3MTestPool is D3MPoolBase {
         emit Collect(king, assets, amt);
     }
 
-    function transfer(address dst, uint256 amt) public override returns (bool) {
+    function transfer(address dst, uint256 amt) public override auth returns (bool) {
         return TokenLike(share).transfer(dst, amt);
     }
 
-    function transferAll(address dst) external override returns (bool) {
+    function transferAll(address dst) external override auth returns (bool) {
         return TokenLike(share).transfer(dst, shareBalance());
     }
 
