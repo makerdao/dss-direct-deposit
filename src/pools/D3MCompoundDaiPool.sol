@@ -109,7 +109,6 @@ contract D3MCompoundDaiPool is D3MPoolBase {
         TokenLike(asset).transfer(hub, amt);
     }
 
-    // --- Collect any rewards ---
     function collect() external {
         require(king != address(0), "D3MCompoundDaiPool/king-not-set");
 
@@ -136,11 +135,11 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     }
 
     // Note: amt is in wad and represents underlying balance (dai)
-    function transferShares(address dst, uint256 amt) external override returns (bool) {
+    function transfer(address dst, uint256 amt) external override returns (bool) { // TODO: add auth once added to base
         return cDai.transfer(dst, _wdiv(amt, cDai.exchangeRateCurrent()));
     }
 
-    function transferAllShares(address dst) external override returns (bool) {
+    function transferAll(address dst) external override returns (bool) { // TODO: add auth once added to base
         return cDai.transfer(dst, cDai.balanceOf(address(this)));
     }
 
