@@ -46,6 +46,7 @@ contract D3MCompoundDaiPool is D3MPoolBase {
 
     address public king; // Who gets the rewards
 
+    event File(bytes32 indexed what, address data);
     event Collect(address indexed king, address indexed comp);
 
     constructor(address hub_, address dai_, address cDai_) public D3MPoolBase(hub_, dai_) {
@@ -92,6 +93,7 @@ contract D3MCompoundDaiPool is D3MPoolBase {
 
         if (what == "king") king = data;
         else revert("D3MCompoundDaiPool/file-unrecognized-param");
+        emit File(what, data);
     }
 
     function validTarget() external view override returns (bool) {
@@ -135,11 +137,11 @@ contract D3MCompoundDaiPool is D3MPoolBase {
     }
 
     // Note: amt is in wad and represents underlying balance (dai)
-    function transfer(address dst, uint256 amt) external override returns (bool) { // TODO: add auth once added to base
+    function transfer(address dst, uint256 amt) external override auth returns (bool) {
         return cDai.transfer(dst, _wdiv(amt, cDai.exchangeRateCurrent()));
     }
 
-    function transferAll(address dst) external override returns (bool) { // TODO: add auth once added to base
+    function transferAll(address dst) external override auth returns (bool) {
         return cDai.transfer(dst, cDai.balanceOf(address(this)));
     }
 
