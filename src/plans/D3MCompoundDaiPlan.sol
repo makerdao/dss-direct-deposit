@@ -68,6 +68,9 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
     // Target Interest Rate Per Block [wad]
     uint256 public barb; // (0)
 
+    event File(bytes32 indexed what, uint256 data);
+    event Disable();
+
     constructor(address dai_, address cDai_) public D3MPlanBase(dai_) {
 
         address rateModel_ = CErc20(cDai_).interestRateModel();
@@ -102,6 +105,7 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
         if (what == "barb") {
             barb = data;
         } else revert("D3MCompoundDaiPlan/file-unrecognized-param");
+        emit File(what, data);
     }
 
     // --- Automated Rate targeting ---
@@ -162,5 +166,6 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
 
     function disable() external override auth {
         barb = 0;
+        emit Disable();
     }
 }
