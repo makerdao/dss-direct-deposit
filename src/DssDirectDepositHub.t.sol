@@ -230,17 +230,6 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "tau", 1 days);
     }
 
-    function testFail_hub_not_live_tau_file() public {
-        directDepositHub.file(ilk, "tau", 1 days);
-        (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
-        assertEq(tau, 1 days);
-
-        // Cage Hub
-        directDepositHub.cage();
-
-        directDepositHub.file(ilk, "tau", 7 days);
-    }
-
     function testFail_pool_not_live_tau_file() public {
         directDepositHub.file(ilk, "tau", 1 days);
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
@@ -381,23 +370,6 @@ contract DssDirectDepositHubTest is DSTest {
         d3mTestPool.file("accrued", false);
     }
 
-    function test_unwind_hub_caged() public {
-        _windSystem();
-
-        // Module caged
-        directDepositHub.cage();
-
-        directDepositHub.exec(ilk);
-
-        // Ensure we unwound our position
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 0);
-        assertEq(art, 0);
-        // Make sure unwind calls accrued
-        assertTrue(d3mTestPool.accrued());
-        d3mTestPool.file("accrued", false);
-    }
-
     function test_unwind_pool_caged() public {
         _windSystem();
 
@@ -500,19 +472,6 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.reap(ilk);
     }
 
-    function testFail_no_reap_hub_caged() public {
-        _windSystem();
-        // interest is determined by the difference in gem balance to dai debt
-        // by giving extra gems to the Join we simulate interest
-        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
-        testGem.transfer(address(d3mTestPool), 10 * WAD);
-
-        // module caged
-        directDepositHub.cage();
-
-        directDepositHub.reap(ilk);
-    }
-
     function testFail_no_reap_pool_caged() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
@@ -546,19 +505,6 @@ contract DssDirectDepositHubTest is DSTest {
         // User can exit and get the aDAI
         directDepositHub.exit(ilk, address(this), 50 * WAD);
         assertEq(testGem.balanceOf(address(this)), prevBalance + 50 * WAD);
-    }
-
-    function test_cage_hub() public {
-        assertEq(directDepositHub.live(), 1);
-
-        directDepositHub.cage();
-
-        assertEq(directDepositHub.live(), 0);
-    }
-
-    function testFail_cage_no_auth() public {
-        directDepositHub.deny(address(this));
-        directDepositHub.cage();
     }
 
     function test_cage_pool() public {
@@ -595,25 +541,8 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(d3mTestPool.live(), 0);
     }
 
-    function test_cage_pool_hub_caged() public {
-        (, , , , uint256 tic) = directDepositHub.ilks(ilk);
-        assertEq(tic, 0);
-        assertEq(d3mTestPool.live(), 1);
-
-        directDepositHub.cage();
-        // We should not need permission for this
-        directDepositHub.deny(address(this));
-
-        directDepositHub.cage(ilk);
-
-        (, , , , tic) = directDepositHub.ilks(ilk);
-        assertEq(tic, block.timestamp);
-        assertEq(d3mTestPool.live(), 0);
-    }
-
     function test_cull() public {
         _windSystem();
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
@@ -637,7 +566,6 @@ contract DssDirectDepositHubTest is DSTest {
 
     function test_cull_no_auth_time_passed() public {
         _windSystem();
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
         // with auth we can cull anytime
         directDepositHub.deny(address(this));
@@ -665,30 +593,20 @@ contract DssDirectDepositHubTest is DSTest {
 
     function testFail_no_cull_mcd_caged() public {
         _windSystem();
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
         vat.cage();
 
         directDepositHub.cull(ilk);
     }
 
-    function testFail_no_cull_hub_live() public {
+    function testFail_no_cull_pool_live() public {
         _windSystem();
-        directDepositHub.cage(ilk);
-
-        directDepositHub.cull(ilk);
-    }
-
-    function testFail_no_cull_module_live() public {
-        _windSystem();
-        directDepositHub.cage();
 
         directDepositHub.cull(ilk);
     }
 
     function testFail_no_cull_unauth_too_soon() public {
         _windSystem();
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
         directDepositHub.deny(address(this));
         hevm.warp(block.timestamp + 6 days);
@@ -698,7 +616,6 @@ contract DssDirectDepositHubTest is DSTest {
 
     function testFail_no_cull_already_culled() public {
         _windSystem();
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
 
         directDepositHub.cull(ilk);
@@ -707,7 +624,6 @@ contract DssDirectDepositHubTest is DSTest {
 
     function test_uncull() public {
         _windSystem();
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
 
         directDepositHub.cull(ilk);
@@ -736,7 +652,6 @@ contract DssDirectDepositHubTest is DSTest {
 
     function testFail_no_uncull_not_culled() public {
         _windSystem();
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
 
         vat.cage();
@@ -745,7 +660,6 @@ contract DssDirectDepositHubTest is DSTest {
 
     function testFail_no_uncull_mcd_live() public {
         _windSystem();
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
 
         directDepositHub.cull(ilk);
@@ -755,7 +669,6 @@ contract DssDirectDepositHubTest is DSTest {
 
     function test_quit_culled() public {
         _windSystem();
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
 
         directDepositHub.cull(ilk);
