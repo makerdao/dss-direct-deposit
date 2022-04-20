@@ -17,6 +17,7 @@
 pragma solidity 0.6.12;
 
 interface VatLike {
+    function Line() external returns (uint256);
     function hope(address) external;
     function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
     function urns(bytes32, address) external view returns (uint256, uint256);
@@ -301,8 +302,9 @@ contract DssDirectDepositHub {
 
             if (targetAssets > currentAssets) {
                 // Amount is limited by the debt ceiling
+                uint256 Line = vat.Line();
                 (uint256 Art,,, uint256 line,) = vat.ilks(ilk_);
-                uint256 lineWad = line / RAY; // Round down to always be under the actual limit
+                uint256 lineWad = _min(line, Line) / RAY; // Take min of ilk line and global like, the round down to always be under the actual limit
 
                 if(Art > lineWad) { // Our debt is greater than our debt ceiling, we need to unwind
                     _unwind(
