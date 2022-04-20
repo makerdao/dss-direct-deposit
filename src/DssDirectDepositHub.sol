@@ -17,8 +17,10 @@
 pragma solidity 0.6.12;
 
 interface VatLike {
+    function debt() external view returns (uint256);
     function hope(address) external;
     function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
+    function Line() external view returns (uint256);
     function urns(bytes32, address) external view returns (uint256, uint256);
     function gem(bytes32, address) external view returns (uint256);
     function live() external view returns (uint256);
@@ -134,6 +136,12 @@ contract DssDirectDepositHub {
     }
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
+    }
+    function _max(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = x >= y ? x : y;
+    }
+    function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = _add(x, _sub(y, 1)) / y;
     }
 
     // --- Administration ---
@@ -300,38 +308,40 @@ contract DssDirectDepositHub {
             );
         } else {
             // Normal path
+
+            // Determine if it needs to unwind due debt ceilings
+            (uint256 Art,,, uint256 line,) = vat.ilks(ilk_);
+            uint256 lineWad = line / RAY; // Round down to always be under the actual limit
+            uint256 Line = vat.Line();
+            uint256 debt = vat.debt();
+            uint256 toUnwind;
+            if (Art > lineWad) {
+                toUnwind = Art - lineWad;
+            }
+            if (debt > Line) {
+                toUnwind = _max(toUnwind, _divup(debt - Line, RAY));
+            }
+            // Determine if it needs to unwind due plan
             uint256 targetAssets = ilks[ilk_].plan.getTargetAssets(currentAssets);
+            if (targetAssets < currentAssets) {
+                toUnwind = _max(toUnwind, currentAssets - targetAssets);
+            }
 
-            if (targetAssets > currentAssets) {
-                // Amount is limited by the debt ceiling
-                (uint256 Art,,, uint256 line,) = vat.ilks(ilk_);
-                uint256 lineWad = line / RAY; // Round down to always be under the actual limit
-
-                if(Art > lineWad) { // Our debt is greater than our debt ceiling, we need to unwind
-                    _unwind(
-                        ilk_,
-                        pool,
-                        Art - lineWad,
-                        availableAssets,
-                        Mode.NORMAL,
-                        currentAssets
-                    );
-                } else {
-                    uint256 amount = targetAssets - currentAssets;
-                    if (_add(Art, amount) > lineWad) { // we do not have enough room in the debt ceiling to fully wind
-                        amount = lineWad - Art;
-                    }
-                    _wind(ilk_, pool, amount);
-                }
-            } else if (targetAssets < currentAssets) {
+            if (toUnwind > 0) { // Our debt is greater than our debt ceiling, we need to unwind
                 _unwind(
                     ilk_,
                     pool,
-                    currentAssets - targetAssets,
+                    toUnwind,
                     availableAssets,
                     Mode.NORMAL,
                     currentAssets
                 );
+            } else {
+                // All the substractions are safe as otherwise toUnwind is > 0
+                uint256 toWind = targetAssets - currentAssets;
+                toWind = _min(toWind, lineWad - Art);
+                toWind = _min(toWind, (Line - debt) / RAY);
+                _wind(ilk_, pool, toWind);
             }
         }
     }
