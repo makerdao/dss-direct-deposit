@@ -96,7 +96,6 @@ contract DssDirectDepositHub {
         uint256     tic;    // Timestamp when the pool is caged
     }
     mapping (bytes32 => Ilk) public ilks;
-    uint256                  public live = 1;
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -155,7 +154,6 @@ contract DssDirectDepositHub {
     }
 
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
-        require(live == 1, "DssDirectDepositHub/hub-not-live");
         require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
 
         if (what == "tau" ) {
@@ -166,7 +164,6 @@ contract DssDirectDepositHub {
     }
 
     function file(bytes32 ilk, bytes32 what, address data) external auth {
-        require(live == 1, "DssDirectDepositHub/hub-not-live");
         require(vat.live() == 1, "DssDirectDepositHub/no-file-during-shutdown");
         require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
 
@@ -294,8 +291,8 @@ contract DssDirectDepositHub {
                 Mode.MCD_CAGED,
                 currentAssets
             );
-        } else if (live == 0 || ilks[ilk_].tic != 0) {
-            // This module or pool caged
+        } else if (ilks[ilk_].tic != 0) {
+            // pool caged
             _unwind(
                 ilk_,
                 pool,
@@ -321,6 +318,7 @@ contract DssDirectDepositHub {
             if (debt > Line) {
                 toUnwind = _max(toUnwind, _divup(debt - Line, RAY));
             }
+
             // Determine if it needs to unwind due plan
             uint256 targetAssets = ilks[ilk_].plan.getTargetAssets(currentAssets);
             if (targetAssets < currentAssets) {
@@ -351,7 +349,6 @@ contract DssDirectDepositHub {
         D3MPoolLike pool = ilks[ilk_].pool;
 
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
-        require(live == 1, "DssDirectDepositHub/no-reap-during-cage");
         require(ilks[ilk_].tic == 0, "DssDirectDepositHub/pool-not-live");
 
         pool.accrueIfNeeded();
@@ -390,7 +387,6 @@ contract DssDirectDepositHub {
         // or if the main module is caged
         require(
             wards[msg.sender] == 1 ||
-            live == 0 ||
             !pool.validTarget()
         , "DssDirectDepositHub/not-authorized");
 
@@ -399,26 +395,20 @@ contract DssDirectDepositHub {
         emit Cage(ilk_);
     }
 
-    function cage() external auth {
-        require(vat.live() == 1, "DssDirectDepositHub/no-cage-during-shutdown");
-
-        live = 0;
-        emit Cage();
-    }
-
     // --- Write-off ---
     function cull(bytes32 ilk_) external {
         require(vat.live() == 1, "DssDirectDepositHub/no-cull-during-shutdown");
-        require(live == 0, "DssDirectDepositHub/live");
 
         uint256     tic     = ilks[ilk_].tic;
-        uint256     culled  = ilks[ilk_].culled;
-        uint256     tau     = ilks[ilk_].tau;
-        D3MPoolLike pool    = ilks[ilk_].pool;
-
         require(tic > 0, "DssDirectDepositHub/pool-live");
+
+        uint256     tau     = ilks[ilk_].tau;
         require(_add(tic, tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
+
+        uint256     culled  = ilks[ilk_].culled;
         require(culled == 0, "DssDirectDepositHub/already-culled");
+
+        D3MPoolLike pool    = ilks[ilk_].pool;
 
         (uint256 ink, uint256 art) = vat.urns(ilk_, address(pool));
         require(ink <= 2 ** 255, "DssDirectDepositHub/overflow");

@@ -377,8 +377,8 @@ contract D3MAaveDaiTest is DSTest {
         // Cage the system and start unwinding
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAaveDaiPool));
-        directDepositHub.cage();
-        assertEq(directDepositHub.live(), 0);
+        directDepositHub.cage(ilk);
+        assertEq(d3mAaveDaiPool.live(), 0);
         directDepositHub.exec(ilk);
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
@@ -417,9 +417,7 @@ contract D3MAaveDaiTest is DSTest {
         // Cage the system and start unwinding
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAaveDaiPool));
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
-        assertEq(directDepositHub.live(), 0);
         assertEq(d3mAaveDaiPool.live(), 0);
         directDepositHub.exec(ilk);
 
@@ -533,7 +531,7 @@ contract D3MAaveDaiTest is DSTest {
         assertGt(amountSupplied + feesAccrued, currentLiquidity);
 
         // Cage the system to trigger only unwinds
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
         directDepositHub.exec(ilk);
 
         // The full debt should be paid off, but we are still owed fees
@@ -754,7 +752,6 @@ contract D3MAaveDaiTest is DSTest {
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
         aavePool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
 
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
@@ -861,7 +858,7 @@ contract D3MAaveDaiTest is DSTest {
     function testFail_uncull_not_culled() public {
         // Lower by 50%
         _setRelBorrowTarget(5000);
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         // MCD shutdowns
         end.cage();
@@ -874,7 +871,7 @@ contract D3MAaveDaiTest is DSTest {
     function testFail_uncull_not_shutdown() public {
         // Lower by 50%
         _setRelBorrowTarget(5000);
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
         hevm.warp(block.timestamp + tau);
@@ -941,18 +938,11 @@ contract D3MAaveDaiTest is DSTest {
         assertEqApprox(adai.balanceOf(address(this)), 100 ether, 1);     // Slight rounding error may occur
     }
 
-    function testFail_shutdown_cant_cage() public {
-        _setRelBorrowTarget(7500);
-
-        // Vat is caged for global settlement
-        vat.cage();
-        directDepositHub.cage();
-    }
 
     function testFail_shutdown_cant_cull() public {
         _setRelBorrowTarget(7500);
 
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         // Vat is caged for global settlement
         vat.cage();
@@ -966,7 +956,7 @@ contract D3MAaveDaiTest is DSTest {
     function test_quit_no_cull() public {
         _setRelBorrowTarget(7500);
 
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         // Test that we can extract the whole position in emergency situations
         // aDAI should be sitting in the deposit contract, urn should be owned by deposit contract
@@ -995,7 +985,6 @@ contract D3MAaveDaiTest is DSTest {
     function test_quit_cull() public {
         _setRelBorrowTarget(7500);
 
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
 
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
@@ -1034,7 +1023,7 @@ contract D3MAaveDaiTest is DSTest {
     function testFail_reap_caged() public {
         _setRelBorrowTarget(7500);
 
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         hevm.warp(block.timestamp + 1 days);    // Accrue some interest
 
@@ -1073,9 +1062,7 @@ contract D3MAaveDaiTest is DSTest {
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
         assertEq(tau, 7 days);
 
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
-        assertEq(directDepositHub.live(), 0);
         assertEq(d3mAaveDaiPool.live(), 0);
 
         // file should fail with error "D3MAaveDai/live"
