@@ -103,7 +103,7 @@ contract DssDirectDepositHub {
     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
     event Wind(bytes32 indexed ilk, uint256 amount);
-    event Unwind(bytes32 indexed ilk, uint256 amount);
+    event Unwind(bytes32 indexed ilk, uint256 amount, uint256 fees);
     event Reap(bytes32 indexed ilk, uint256 amt);
     event Cage();
     event Cage(bytes32 indexed ilk);
@@ -234,7 +234,7 @@ contract DssDirectDepositHub {
         }
 
         if (amount == 0 && fees == 0) {
-            emit Unwind(ilk, 0);
+            emit Unwind(ilk, 0, 0);
             return;
         }
 
@@ -262,7 +262,7 @@ contract DssDirectDepositHub {
             vat.move(address(this), vow, _mul(total, RAY));
         }
 
-        emit Unwind(ilk, amount);
+        emit Unwind(ilk, amount, fees);
     }
 
     function exec(bytes32 ilk_) external {
