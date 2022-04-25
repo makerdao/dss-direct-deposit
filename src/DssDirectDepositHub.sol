@@ -325,7 +325,7 @@ contract DssDirectDepositHub {
                 toUnwind = _max(toUnwind, currentAssets - targetAssets);
             }
 
-            if (toUnwind > 0) { // Our debt is greater than our debt ceiling, we need to unwind
+            if (toUnwind > 0) {
                 _unwind(
                     ilk_,
                     pool,
