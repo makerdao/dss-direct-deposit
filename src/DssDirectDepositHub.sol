@@ -255,7 +255,7 @@ contract DssDirectDepositHub {
             vat.slip(ilk, address(pool), -int256(amount));
             vat.move(address(this), vow, _mul(total, RAY));
         } else {
-            // This can be done with the assumption that the price of 1 aDai equals 1 DAI.
+            // This can be done with the assumption that the price of 1 collateral unit equals 1 DAI.
             // That way we know that the prev End.skim call kept its gap[ilk] emptied as the CDP was always collateralized.
             // Otherwise we couldn't just simply take away the collateral from the End module as the next line will be doing.
             vat.slip(ilk, address(end_), -int256(amount));
@@ -347,10 +347,7 @@ contract DssDirectDepositHub {
         (, uint256 daiDebt) = vat.urns(ilk_, address(pool));
         if (assetBalance > daiDebt) {
             uint256 fees = assetBalance - daiDebt;
-            uint256 availableAssets = pool.maxWithdraw();
-            if (fees > availableAssets) {
-                fees = availableAssets;
-            }
+            fees = _min(fees, pool.maxWithdraw());
             pool.withdraw(fees);
             daiJoin.join(vow, fees);
             emit Reap(ilk_, fees);
