@@ -306,7 +306,7 @@ contract DssDirectDepositHub {
         } else {
             // Normal path
 
-            // Determine if it needs to unwind due debt ceilings
+            // Determine if it needs to unwind due to debt ceilings
             (uint256 Art,,, uint256 line,) = vat.ilks(ilk_);
             uint256 lineWad = line / RAY; // Round down to always be under the actual limit
             uint256 Line = vat.Line();
