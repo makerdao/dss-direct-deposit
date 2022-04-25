@@ -335,6 +335,30 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "pool", address(123));
     }
 
+    function test_wind_limited_ilk_line() public {
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        vat.file(ilk, "line", 40 * RAD);
+        directDepositHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 40 * WAD);
+        assertEq(art, 40 * WAD);
+        assertTrue(d3mTestPool.accrued());
+    }
+
+    function test_wind_limited_Line() public {
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        vat.file("Line", vat.debt() + 40 * RAD);
+        directDepositHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 40 * WAD);
+        assertEq(art, 40 * WAD);
+        assertTrue(d3mTestPool.accrued());
+    }
+
     function test_unwind_bar_zero() public {
         _windSystem();
 
