@@ -335,6 +335,30 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "pool", address(123));
     }
 
+    function test_wind_limited_ilk_line() public {
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        vat.file(ilk, "line", 40 * RAD);
+        directDepositHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 40 * WAD);
+        assertEq(art, 40 * WAD);
+        assertTrue(d3mTestPool.accrued());
+    }
+
+    function test_wind_limited_Line() public {
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        vat.file("Line", vat.debt() + 40 * RAD);
+        directDepositHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 40 * WAD);
+        assertEq(art, 40 * WAD);
+        assertTrue(d3mTestPool.accrued());
+    }
+
     function test_unwind_bar_zero() public {
         _windSystem();
 
@@ -354,13 +378,13 @@ contract DssDirectDepositHubTest is DSTest {
         _windSystem();
 
         // Set ilk line below current debt
-        d3mTestPlan.file("targetAssets", 55 * WAD);
+        d3mTestPlan.file("targetAssets", 55 * WAD); // Increasing target in 5 WAD
         vat.file(ilk, "line", 45 * RAD);
         directDepositHub.exec(ilk);
 
         // Ensure we unwound our position to debt ceiling
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 45 * WAD);
+        assertEq(ink, 45 * WAD); // Instead of 5 WAD more results in 5 WAD less due debt ceiling
         assertEq(art, 45 * WAD);
         // Make sure unwind calls accrued
         assertTrue(d3mTestPool.accrued());
@@ -370,13 +394,13 @@ contract DssDirectDepositHubTest is DSTest {
         _windSystem();
 
         // Set ilk line below current debt
-        d3mTestPlan.file("targetAssets", 55 * WAD);
-        vat.file("Line", 45 * RAD);
+        d3mTestPlan.file("targetAssets", 55 * WAD); // Increasing target in 5 WAD
+        vat.file("Line", vat.debt() - 5 * RAD);
         directDepositHub.exec(ilk);
 
         // Ensure we unwound our position to debt ceiling
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 45 * WAD);
+        assertEq(ink, 45 * WAD); // Instead of 5 WAD more results in 5 WAD less due debt ceiling
         assertEq(art, 45 * WAD);
         // Make sure unwind calls accrued
         assertTrue(d3mTestPool.accrued());

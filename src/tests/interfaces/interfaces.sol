@@ -51,6 +51,7 @@ interface SpotLike {
 }
 
 interface VatLike {
+    function debt() external view returns (uint256);
     function rely(address) external;
     function hope(address) external;
     function urns(bytes32, address) external view returns (uint256, uint256);
