@@ -359,6 +359,11 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(d3mTestPool.accrued());
     }
 
+    function testFail_exec_invalid_traget() public {
+        d3mTestPool.file("isValidTarget", false);
+        _windSystem();
+    }
+
     function test_unwind_bar_zero() public {
         _windSystem();
 
