@@ -50,6 +50,7 @@ interface CErc20 {
     function totalReserves()          external view returns (uint256);
     function interestRateModel()      external view returns (address);
     function getCash()                external view returns (uint256);
+    function underlying()             external view returns (address);
 }
 
 interface InterestRateModel {
@@ -74,6 +75,7 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
 
         address rateModel_ = CErc20(cDai_).interestRateModel();
         require(rateModel_ != address(0), "D3MCompoundDaiPlan/invalid-rateModel");
+        require(dai_       == CErc20(cDai_).underlying(), "D3MCompoundDaiPool/cdai-dai-mismatch");
 
         rateModel = InterestRateModel(rateModel_);
         cDai = CErc20(cDai_);
