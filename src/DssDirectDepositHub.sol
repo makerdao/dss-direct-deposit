@@ -305,6 +305,7 @@ contract DssDirectDepositHub {
             );
         } else {
             // Normal path
+            require(pool.validTarget(), "DssDirectDepositHub/invalid-target");
 
             // Determine if it needs to unwind due to debt ceilings
             (uint256 Art,,, uint256 line,) = vat.ilks(ilk_);
