@@ -31,8 +31,10 @@ interface CErc20Like {
 }
 
 interface InterestRateModelLike {
-    function baseRatePerBlock() external view returns (uint256);
-    function kink() external view returns (uint256);
+    function baseRatePerBlock()       external view returns (uint256);
+    function kink()                   external view returns (uint256);
+    function multiplierPerBlock()     external view returns (uint256);
+    function jumpMultiplierPerBlock() external view returns (uint256);
     function getBorrowRate(uint256 cash, uint256 borrows, uint256 reserves) external view returns (uint256);
     function utilizationRate(uint256 cash, uint256 borrows, uint256 reserves) external pure returns (uint256);
 }
@@ -54,6 +56,9 @@ contract DssDirectDepositHubTest is DSTest {
     }
     function _mul(uint256 x, uint256 y) public pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
+    }
+    function _wmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = _mul(x, y) / WAD;
     }
     function _wdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, WAD) / y;
@@ -186,6 +191,17 @@ contract DssDirectDepositHubTest is DSTest {
     function test_calculate_zero_rate() public {
         uint256 supply = plan.calculateTargetSupply(model.baseRatePerBlock());
         assertEq(supply, 0);
+    }
+
+    function test_top_utilization() public {
+        uint256 topUtil = WAD;
+        uint256 normalRate = _add(_wmul(model.kink(), model.multiplierPerBlock()), model.baseRatePerBlock());
+
+        uint256 topRate = normalRate + model.jumpMultiplierPerBlock() * (topUtil - model.kink()) / WAD;
+        assertGt(plan.calculateTargetSupply(topRate), 0);
+
+        uint256 overTopRate = topRate * 101 / 100;
+        assertEq(plan.calculateTargetSupply(overTopRate), 0);
     }
 
     function test_supplies_current_rate() public {
