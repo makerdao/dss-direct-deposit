@@ -38,6 +38,7 @@ abstract contract D3MPlanBase {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
+    event Disable();
 
     constructor(address dai_) public {
         dai = dai_;
