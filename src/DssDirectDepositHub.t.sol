@@ -618,6 +618,49 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(culled, 1);
     }
 
+    function test_cull_debt_paid_back() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(TokenLike(address(dai)), 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(ilk, address(d3mTestPool), address(d3mTestPool), address(this), 0, -int256(10 * WAD));
+
+        directDepositHub.cage(ilk);
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(pink, 50 * WAD);
+        assertEq(part, 40 * WAD);
+        uint256 gemBefore = vat.gem(ilk, address(d3mTestPool));
+        assertEq(gemBefore, 0);
+        uint256 sinBefore = vat.sin(vow);
+        uint256 vowDaiBefore = vat.dai(vow);
+
+        directDepositHub.cull(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        uint256 gemAfter = vat.gem(ilk, address(d3mTestPool));
+        assertEq(gemAfter, 40 * WAD);
+        uint256 daiAfter = vat.dai(address(directDepositHub));
+        assertEq(daiAfter, 0);
+        // Sin only increases by 40 WAD since 10 was covered previously
+        assertEq(sinBefore + 40 * RAD, vat.sin(vow));
+        assertEq(vowDaiBefore, vat.dai(vow));
+        (, , , uint256 culled, ) = directDepositHub.ilks(ilk);
+        assertEq(culled, 1);
+
+        directDepositHub.exec(ilk);
+
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        assertEq(vat.dai(address(directDepositHub)), 0);
+        // Still 50 WAD because the extra 10 WAD from repayment are not
+        // accounted for in the fees from unwind
+        assertEq(vowDaiBefore + 50 * RAD, vat.dai(vow));
+    }
+
     function test_cull_no_auth_time_passed() public {
         _windSystem();
         directDepositHub.cage(ilk);

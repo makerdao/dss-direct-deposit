@@ -208,6 +208,8 @@ contract DssDirectDepositHub {
         } else if (mode == Mode.MODULE_CULLED) {
             // Module shutdown and culled
             // debt is obtained from free collateral owned by this contract
+            // We rebalance the CDP after grabbing in `cull` so the gems represents
+            // the debt at time of cull
             daiDebt = vat.gem(ilk, address(pool));
         } else {
             // MCD caged
@@ -412,6 +414,13 @@ contract DssDirectDepositHub {
         require(ink <= 2 ** 255, "DssDirectDepositHub/overflow");
         require(art <= 2 ** 255, "DssDirectDepositHub/overflow");
         vat.grab(ilk_, address(pool), address(pool), vow, -int256(ink), -int256(art));
+
+        if (ink > art) {
+            // We have more collateral than debt, so need to rebalance.
+            // After cull the gems we grab above represent the debt to
+            // unwind.
+            vat.slip(ilk_, address(pool), -int256(ink - art));
+        }
 
         ilks[ilk_].culled = 1;
         emit Cull(ilk_);
