@@ -20,10 +20,13 @@ import "./D3MPoolBase.sol";
 
 interface PoolLike is TokenLike {
     function deposit(uint256 amount) external;
+    function depositDate(address) external view returns (uint256);
     function intendToWithdraw() external;
     function liquidityCap() external view returns (uint256);
     function liquidityLocker() external view returns (address);
+    function lockupPeriod() external view returns (uint256);
     function principalOut() external view returns (uint256);
+    function recognizableLossesOf(address) external view returns (uint256);
     function superFactory() external view returns (address);
     function withdraw(uint256) external;
     function withdrawCooldown(address) external view returns (uint256);
@@ -31,11 +34,19 @@ interface PoolLike is TokenLike {
     function withdrawableFundsOf(address) external view returns (uint256);
 }
 
+interface PoolFactoryLike {
+    function globals() external view returns (address);
+}
+
+interface MapleGlobalsLike {
+    function getLpCooldownParams() external view returns (uint256, uint256);
+}
+
 contract D3MMapleV1DaiPool is D3MPoolBase {
 
     PoolLike public immutable pool;
 
-    address public king;    // Who gets the rewards
+    address public king;  // Who gets the rewards
 
     constructor(address hub_, address dai_, address pool_) public D3MPoolBase(hub_, dai_) {
         pool = PoolLike(pool_);
@@ -57,16 +68,18 @@ contract D3MMapleV1DaiPool is D3MPoolBase {
     }
 
     function deposit(uint256 amt) external override auth {
-        // TODO confirm deposit is in units of DAI
-        pool.deposit(amt);
-        // TODO: emit deposit event if we decide to leave it in base
+        pool.deposit(amt);  // Deposit DAI, recieve LP tokens 1-to-1
+
+        // TODO: Emit deposit event if we decide to leave it in base
     }
 
     function withdraw(uint256 amt) external override auth {
-        // TODO confirm withdraw is in units of DAI
+        // `withdraw` claims interest and recognizes any losses, so use DAI balance change to transfer to hub.
+        uint256 preDaiBalance = asset.balanceOf(address(this));
         pool.withdraw(amt);
-        asset.transfer(hub, amt);
-        // TODO: emit withdraw event if we decide to leave it in base
+        asset.transfer(hub, asset.balanceOf(address(this)) - preDaiBalance);
+
+        // TODO: Emit withdraw event if we decide to leave it in base
     }
 
     // --- Collect any rewards ---
@@ -78,8 +91,8 @@ contract D3MMapleV1DaiPool is D3MPoolBase {
         return pool.transfer(dst, amt);
     }
 
-    function assetBalance() external view override returns (uint256) {
-        // TODO return the total position size in units of underlying asset (DAI)
+    function assetBalance() public view override returns (uint256) {
+        return shareBalance() + pool.withdrawableFundsOf(address(this)) + pool.recognizableLossesOf(address(this));
     }
 
     function shareBalance() public view override returns (uint256) {
@@ -87,8 +100,16 @@ contract D3MMapleV1DaiPool is D3MPoolBase {
     }
 
     function maxWithdraw() external view override returns (uint256) {
-        // TODO what is the maximum available for withdraw in underlying asset (DAI)
-        // Should take into account anything that blocks this from happening (cooldowns, liquidity, etc)
+        ( uint256 cooldown, uint256 withdrawWindow ) = MapleGlobalsLike(PoolFactoryLike(pool.superFactory()).globals()).getLpCooldownParams();
+
+        bool pastLockup           = pool.depositDate(address(this)) + pool.lockupPeriod() <= block.timestamp;
+        bool withinWithdrawWindow = block.timestamp - (pool.withdrawCooldown(address(this)) + cooldown) <= withdrawWindow;  // This condition relies on overflows, so must keep 0.6 or use unchecked
+
+        if (!pastLockup || !withinWithdrawWindow) return uint256(0);
+
+        uint256 totalLiquidity = asset.balanceOf(pool.liquidityLocker());
+
+        return totalLiquidity > assetBalance() ? assetBalance() : totalLiquidity;
     }
 
     function convertToShares(uint256 amt) external view override returns (uint256) {

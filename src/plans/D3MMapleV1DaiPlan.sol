@@ -25,14 +25,6 @@ interface PoolLike {
     function balanceOf(address) external view returns (uint256);
     function deposit(uint256 amount) external;
     function intendToWithdraw() external;
-    function liquidityCap() external view returns (uint256);
-    function liquidityLocker() external view returns (address);
-    function principalOut() external view returns (uint256);
-    function superFactory() external view returns (address);
-    function withdraw(uint256) external;
-    function withdrawCooldown(address) external view returns (uint256);
-    function withdrawFunds() external;
-    function withdrawableFundsOf(address) external view returns (uint256);
 }
 
 interface MapleGlobalsLike {
@@ -47,6 +39,7 @@ contract D3MMapleV1DaiPlan is D3MPlanBase {
     bool    public cue; // If true then we intend to initiate a withdraw
 
     constructor(address dai_, address pool_) public D3MPlanBase(dai_) {
+        pool = PoolLike(pool_);
     }
 
     // --- Admin ---
@@ -70,9 +63,16 @@ contract D3MMapleV1DaiPlan is D3MPlanBase {
         pool.intendToWithdraw();
         cue = false;
     }
-    
+
     // TODO Add override when available in base
     function getTargetAssets(uint256 curr) external view returns (uint256) {
         return cap;
+    }
+
+    function calcSupplies(uint256 availableLiquidity) external override view returns (uint256 supplyAmount, uint256 targetSupply) {
+        // Allow for compile
+        // TODO: Implement
+        supplyAmount = 0;
+        targetSupply = 0;
     }
 }
