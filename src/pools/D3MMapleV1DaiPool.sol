@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-import "../bases/D3MPoolBase.sol";
+import "./D3MPoolBase.sol";
 
 interface PoolLike is TokenLike {
     function deposit(uint256 amount) external;
@@ -41,17 +41,15 @@ contract D3MMapleV1DaiPool is D3MPoolBase {
         pool = PoolLike(pool_);
 
         TokenLike(dai_).approve(pool_, type(uint256).max);
-
-        wards[msg.sender] = 1;
-        emit Rely(msg.sender);
     }
 
     // --- Admin ---
-    function file(bytes32 what, address data) public override auth {
+    function file(bytes32 what, address data) external auth {
         require(live == 1, "D3MMapleV1DaiPool/no-file-not-live");
 
         if (what == "king") king = data;
-        else super.file(what, data);
+        else revert("D3MMapleV1DaiPool/file-unrecognized-param");
+        emit File(what, data);
     }
 
     function validTarget() external view override returns (bool) {
@@ -72,11 +70,11 @@ contract D3MMapleV1DaiPool is D3MPoolBase {
     }
 
     // --- Collect any rewards ---
-    function collect() external auth {
+    function collect() external {
         // TODO pull MPL rewards and hand them to the king
     }
 
-    function transferShares(address dst, uint256 amt) external override returns (bool) {
+    function transfer(address dst, uint256 amt) external override returns (bool) {
         return pool.transfer(dst, amt);
     }
 

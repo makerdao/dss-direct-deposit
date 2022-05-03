@@ -16,9 +16,13 @@
 
 pragma solidity 0.6.12;
 
-import "../bases/D3MPlanBase.sol";
+import "./D3MPlanBase.sol";
 
-interface PoolLike is TokenLike {
+interface PoolLike {
+    function approve(address, uint256) external returns (bool);
+    function transfer(address, uint256) external returns (bool);
+    function transferFrom(address, address, uint256) external returns (bool);
+    function balanceOf(address) external view returns (uint256);
     function deposit(uint256 amount) external;
     function intendToWithdraw() external;
     function liquidityCap() external view returns (uint256);
