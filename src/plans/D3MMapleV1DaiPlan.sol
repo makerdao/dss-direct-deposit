@@ -65,14 +65,12 @@ contract D3MMapleV1DaiPlan is D3MPlanBase {
     }
 
     // TODO Add override when available in base
-    function getTargetAssets(uint256 curr) external view returns (uint256) {
+    function getTargetAssets(uint256) external override view returns (uint256) {
         return cap;
     }
 
-    function calcSupplies(uint256 availableLiquidity) external override view returns (uint256 supplyAmount, uint256 targetSupply) {
-        // Allow for compile
-        // TODO: Implement
-        supplyAmount = 0;
-        targetSupply = 0;
+    function disable() external override auth {
+        cap = 0;
+        emit Disable();
     }
 }

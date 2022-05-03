@@ -48,6 +48,9 @@ contract D3MMapleV1DaiPool is D3MPoolBase {
 
     address public king;  // Who gets the rewards
 
+    event Collect();
+    event File(bytes32 indexed what, address data);
+
     constructor(address hub_, address dai_, address pool_) public D3MPoolBase(hub_, dai_) {
         pool = PoolLike(pool_);
 
@@ -85,18 +88,22 @@ contract D3MMapleV1DaiPool is D3MPoolBase {
     // --- Collect any rewards ---
     function collect() external {
         // TODO pull MPL rewards and hand them to the king
+
+        emit Collect();
     }
 
     function transfer(address dst, uint256 amt) external override returns (bool) {
         return pool.transfer(dst, amt);
     }
 
-    function assetBalance() public view override returns (uint256) {
-        return shareBalance() + pool.withdrawableFundsOf(address(this)) + pool.recognizableLossesOf(address(this));
+    function transferAll(address dst) external override returns (bool) {
+        return pool.transfer(dst, assetBalance());
     }
 
-    function shareBalance() public view override returns (uint256) {
-        return pool.balanceOf(address(this));
+    function accrueIfNeeded() external override {}
+
+    function assetBalance() public view override returns (uint256) {
+        return pool.balanceOf(address(this)) + pool.withdrawableFundsOf(address(this)) - pool.recognizableLossesOf(address(this));
     }
 
     function maxWithdraw() external view override returns (uint256) {
@@ -110,9 +117,5 @@ contract D3MMapleV1DaiPool is D3MPoolBase {
         uint256 totalLiquidity = asset.balanceOf(pool.liquidityLocker());
 
         return totalLiquidity > assetBalance() ? assetBalance() : totalLiquidity;
-    }
-
-    function convertToShares(uint256 amt) external view override returns (uint256) {
-        // TODO convert amt in units of DAI to the shares in the pool
     }
 }
