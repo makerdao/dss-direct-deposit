@@ -127,6 +127,8 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
             return 0; // target <= base, supply should be 0
         }
 
+        if (targetUtil > WAD) return 0; // illegal rate (unacheivable utilization)
+
         return _wdiv(borrows, targetUtil);                                                                       // (3)
     }
 
