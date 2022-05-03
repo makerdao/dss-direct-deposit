@@ -18,7 +18,7 @@ pragma solidity 0.6.12;
 
 abstract contract D3MPlanBase {
 
-        // --- Auth ---
+    // --- Auth ---
     mapping (address => uint256) public wards;
     function rely(address usr) external auth {
         wards[usr] = 1;
@@ -38,6 +38,7 @@ abstract contract D3MPlanBase {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
+    event Disable();
 
     constructor(address dai_) public {
         dai = dai_;
@@ -46,5 +47,7 @@ abstract contract D3MPlanBase {
         emit Rely(msg.sender);
     }
 
-    function calcSupplies(uint256 availableLiquidity) external virtual view returns (uint256 supplyAmount, uint256 targetSupply);
+    function getTargetAssets(uint256 currentAssets) external virtual view returns (uint256);
+
+    function disable() external virtual;
 }

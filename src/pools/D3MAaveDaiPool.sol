@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-import "../bases/D3MPoolBase.sol";
+import "./D3MPoolBase.sol";
 
 interface ShareTokenLike is TokenLike {
     function scaledBalanceOf(address) external view returns (uint256);
@@ -55,10 +55,12 @@ contract D3MAaveDaiPool is D3MPoolBase {
     ShareTokenLike           public immutable stableDebt;
     ShareTokenLike           public immutable variableDebt;
     address                  public immutable interestStrategy;
+    address                  public immutable adai; // Token representing a share of the asset pool
 
-    address public king;     // Who gets the rewards
+    address public king;  // Who gets the rewards
 
     event Collect(address indexed king, address[] assets, uint256 amt);
+    event File(bytes32 indexed what, address data);
 
     constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) public D3MPoolBase(hub_, dai_) {
         pool = pool_;
@@ -70,6 +72,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
         require(variableDebt_ != address(0), "D3MAaveDaiPool/invalid-variableDebt");
         require(interestStrategy_ != address(0), "D3MAaveDaiPool/invalid-interestStrategy");
 
+        adai = adai_;
         stableDebt = ShareTokenLike(stableDebt_);
         variableDebt = ShareTokenLike(variableDebt_);
         interestStrategy = interestStrategy_;
@@ -83,19 +86,26 @@ contract D3MAaveDaiPool is D3MPoolBase {
     }
 
     // --- Math ---
+    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require((z = x + y) >= x, "DssDirectDepositHub/overflow");
+    }
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "D3MAaveDaiPool/overflow");
     }
     function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = _mul(x, RAY) / y;
     }
+    function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = x <= y ? x : y;
+    }
 
     // --- Admin ---
-    function file(bytes32 what, address data) public override auth {
-        require(live == 1, "D3MAaveDaiPool/no-file-not-live");
+    function file(bytes32 what, address data) external auth {
+        require(live == 1, "D3MTestPool/no-file-not-live");
 
         if (what == "king") king = data;
-        else super.file(what, data);
+        else revert("D3MPoolBase/file-unrecognized-param");
+        emit File(what, data);
     }
 
     function validTarget() external view override returns (bool) {
@@ -106,7 +116,14 @@ contract D3MAaveDaiPool is D3MPoolBase {
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
     function deposit(uint256 amt) external override auth {
+        uint256 scaledPrev = ShareTokenLike(adai).scaledBalanceOf(address(this));
+
         LendingPoolLike(pool).deposit(address(asset), amt, address(this), 0);
+
+        // Verify the correct amount of adai shows up
+        uint256 interestIndex = LendingPoolLike(pool).getReserveNormalizedIncome(address(asset));
+        uint256 scaledAmount = _rdiv(amt, interestIndex);
+        require(ShareTokenLike(adai).scaledBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount), "D3MAaveDaiPool/incorrect-share-credit");
     }
 
     // Withdraws Dai from Aave in exchange for adai
@@ -116,34 +133,29 @@ contract D3MAaveDaiPool is D3MPoolBase {
     }
 
     // --- Collect any rewards ---
-    function collect(address[] memory assets, uint256 amount) external auth returns (uint256 amt) {
+    function collect(address[] memory assets, uint256 amount) external returns (uint256 amt) {
         require(king != address(0), "D3MAaveDaiPool/king-not-set");
 
         amt = rewardsClaimer.claimRewards(assets, amount, king);
         emit Collect(king, assets, amt);
     }
 
-    function transferShares(address dst, uint256 amt) external override returns (bool) {
-        return ShareTokenLike(share).transfer(dst, amt);
+    function transfer(address dst, uint256 amt) public override auth returns (bool) {
+        return ShareTokenLike(adai).transfer(dst, amt);
     }
 
-    // --- Balance in standard ERC-20 denominations
-    function assetBalance() external view override returns (uint256) {
-        return ShareTokenLike(share).balanceOf(address(this));
+    function transferAll(address dst) external override auth returns (bool) {
+        return transfer(dst, ShareTokenLike(adai).balanceOf(address(this)));
     }
 
-    function shareBalance() external view override returns (uint256) {
-        return ShareTokenLike(share).balanceOf(address(this));
+    function accrueIfNeeded() external override {}
+
+    // --- Balance of the underlying asset (Dai)
+    function assetBalance() public view override returns (uint256) {
+        return ShareTokenLike(adai).balanceOf(address(this));
     }
 
     function maxWithdraw() external view override returns (uint256) {
-        return TokenLike(asset).balanceOf(share);
-    }
-
-    // --- Convert a standard ERC-20 amount to a the normalized amount
-    //     when added to the balance
-    function convertToShares(uint256 amt) external view override returns (uint256) {
-        uint256 interestIndex = LendingPoolLike(pool).getReserveNormalizedIncome(address(asset));
-        return _rdiv(amt, interestIndex);
+        return _min(TokenLike(asset).balanceOf(adai), assetBalance());
     }
 }

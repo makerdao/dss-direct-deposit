@@ -51,16 +51,12 @@ abstract contract D3MPoolBase {
     TokenLike   public immutable asset; // Dai
     address     public immutable hub;
 
-    address     public           share;
     uint256     public           live = 1;
 
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event Cage();
-    // --- EIP-4626 Events ---
-    event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
-    event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
 
     constructor(address hub_, address dai_) internal {
         asset = TokenLike(dai_);
@@ -74,30 +70,21 @@ abstract contract D3MPoolBase {
         CanLike(d3mHubLike(hub_).vat()).hope(hub_);
     }
 
-    // --- Admin ---
-    function file(bytes32 what, address data) public virtual auth {
-        require(live == 1, "D3MPoolBase/no-file-not-live");
-
-        if (what == "share") {
-            share = data;
-        } else revert("D3MPoolBase/file-unrecognized-param");
-    }
-
     function validTarget() external view virtual returns (bool);
 
     function deposit(uint256 amt) external virtual;
 
     function withdraw(uint256 amt) external virtual;
 
-    function transferShares(address dst, uint256 amt) external virtual returns (bool);
+    function transfer(address dst, uint256 amt) external virtual returns (bool);
+
+    function transferAll(address dst) external virtual returns (bool);
+
+    function accrueIfNeeded() external virtual;
 
     function assetBalance() external view virtual returns (uint256);
 
-    function shareBalance() external view virtual returns (uint256);
-
     function maxWithdraw() external view virtual returns (uint256);
-
-    function convertToShares(uint256 amt) external view virtual returns (uint256);
 
     function recoverTokens(address token, address dst, uint256 amt) external auth returns (bool) {
         return TokenLike(token).transfer(dst, amt);

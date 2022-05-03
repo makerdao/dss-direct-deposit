@@ -24,6 +24,7 @@ interface TokenLike {
     function totalSupply() external view returns (uint256);
     function balanceOf(address) external view returns (uint256);
     function approve(address, uint256) external returns (bool);
+    function transfer(address, uint256) external returns (bool);
     function transferFrom(address, address, uint256) external returns (bool);
 }
 
@@ -50,6 +51,7 @@ interface SpotLike {
 }
 
 interface VatLike {
+    function debt() external view returns (uint256);
     function rely(address) external;
     function hope(address) external;
     function urns(bytes32, address) external view returns (uint256, uint256);

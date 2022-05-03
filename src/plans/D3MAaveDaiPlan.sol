@@ -16,10 +16,11 @@
 
 pragma solidity 0.6.12;
 
-import "../bases/D3MPlanBase.sol";
+import "./D3MPlanBase.sol";
 
-interface TargetTokenLike {
+interface TokenLike {
     function totalSupply() external view returns (uint256);
+    function balanceOf(address) external view returns (uint256);
 }
 
 interface LendingPoolLike {
@@ -51,21 +52,26 @@ interface InterestRateStrategyLike {
 contract D3MAaveDaiPlan is D3MPlanBase {
 
     InterestRateStrategyLike public immutable interestStrategy;
-    TargetTokenLike          public immutable stableDebt;
-    TargetTokenLike          public immutable variableDebt;
+    TokenLike                public immutable stableDebt;
+    TokenLike                public immutable variableDebt;
+    address                  public immutable adai;
 
     uint256 public bar;  // Target Interest Rate [ray]
+
+    event File(bytes32 indexed what, uint256 data);
 
     constructor(address dai_, address pool_) public D3MPlanBase(dai_) {
 
         // Fetch the reserve data from Aave
-        (,,,,,,,, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
+        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
+        require(adai_ != address(0), "D3MAaveDaiPlan/invalid-adai");
         require(stableDebt_ != address(0), "D3MAaveDaiPlan/invalid-stableDebt");
         require(variableDebt_ != address(0), "D3MAaveDaiPlan/invalid-variableDebt");
         require(interestStrategy_ != address(0), "D3MAaveDaiPlan/invalid-interestStrategy");
 
-        stableDebt = TargetTokenLike(stableDebt_);
-        variableDebt = TargetTokenLike(variableDebt_);
+        adai = adai_;
+        stableDebt = TokenLike(stableDebt_);
+        variableDebt = TokenLike(variableDebt_);
         interestStrategy = InterestRateStrategyLike(interestStrategy_);
     }
 
@@ -89,12 +95,13 @@ contract D3MAaveDaiPlan is D3MPlanBase {
     }
 
     // --- Admin ---
-    function file(bytes32 what, uint256 data) public auth {
+    function file(bytes32 what, uint256 data) external auth {
         if (what == "bar") {
             require(data <= maxBar(), "D3MAaveDaiPlan/above-max-interest");
 
             bar = data;
         } else revert("D3MAaveDaiPlan/file-unrecognized-param");
+        emit File(what, data);
     }
 
     function maxBar() public view returns (uint256) {
@@ -103,13 +110,14 @@ contract D3MAaveDaiPlan is D3MPlanBase {
 
     // --- Automated Rate targeting ---
     function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
-        return _calculateTargetSupply(targetInterestRate, stableDebt.totalSupply(), variableDebt.totalSupply());
+        uint256 totalDebt = _add(stableDebt.totalSupply(), variableDebt.totalSupply());
+        return _calculateTargetSupply(targetInterestRate, totalDebt);
     }
 
-    function _calculateTargetSupply(uint256 targetInterestRate, uint256 stableDebtTotal, uint256 variableDebtTotal) internal view returns (uint256) {
+    function _calculateTargetSupply(uint256 targetInterestRate, uint256 totalDebt) internal view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
         require(targetInterestRate > base, "D3MAaveDaiPlan/target-interest-base");
-        require(targetInterestRate <= maxBar(), "D3MAaveDaiPlan/above-max-interest");
+        require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "D3MAaveDaiPlan/above-max-interest");
 
         // Do inverse calculation of interestStrategy
         uint256 variableRateSlope1 = interestStrategy.variableRateSlope1();
@@ -117,26 +125,48 @@ contract D3MAaveDaiPlan is D3MPlanBase {
         if (targetInterestRate > _add(base, variableRateSlope1)) {
             // Excess interest rate
             uint256 r = targetInterestRate - base - variableRateSlope1;
-            targetUtil = _add(_rdiv(_rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r), interestStrategy.variableRateSlope2()), interestStrategy.OPTIMAL_UTILIZATION_RATE());
+            targetUtil = _add(
+                            _rdiv(
+                                _rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r),
+                                interestStrategy.variableRateSlope2()
+                            ),
+                            interestStrategy.OPTIMAL_UTILIZATION_RATE()
+                        );
         } else {
             // Optimal interest rate
             targetUtil = _rdiv(_rmul(_sub(targetInterestRate, base), interestStrategy.OPTIMAL_UTILIZATION_RATE()), variableRateSlope1);
         }
-        return _rdiv(_add(stableDebtTotal, variableDebtTotal), targetUtil);
+        return _rdiv(totalDebt, targetUtil);
     }
 
-    function calcSupplies(uint256 availableAssets) external override view returns (uint256 totalAssets, uint256 targetAssets) {
-        uint256 stableDebtTotal = stableDebt.totalSupply();
-        uint256 variableDebtTotal = variableDebt.totalSupply();
-
-        totalAssets = _add(
-                          availableAssets,
-                            _add(
-                                stableDebtTotal,
-                                variableDebtTotal
-                            )
-                        );
+    function getTargetAssets(uint256 currentAssets) external override view returns (uint256) {
         uint256 targetInterestRate = bar;
-        targetAssets = targetInterestRate > 0 ? _calculateTargetSupply(targetInterestRate, stableDebtTotal, variableDebtTotal) : 0;
+        if (targetInterestRate == 0) return 0;     // De-activated
+
+        uint256 totalDebt = _add(stableDebt.totalSupply(), variableDebt.totalSupply());
+
+        uint256 totalPoolSize = _add(
+                TokenLike(dai).balanceOf(address(adai)),
+                totalDebt
+            );
+
+        uint256 targetTotalPoolSize = _calculateTargetSupply(targetInterestRate, totalDebt);
+        if (targetTotalPoolSize >= totalPoolSize) {
+            // Increase debt (or same)
+            return _add(currentAssets, targetTotalPoolSize - totalPoolSize);
+        } else {
+            // Decrease debt
+            uint256 decrease = totalPoolSize - targetTotalPoolSize;
+            if (currentAssets >= decrease) {
+                return currentAssets - decrease;
+            } else {
+                return 0;
+            }
+        }
+    }
+
+    function disable() external override auth {
+        bar = 0;
+        emit Disable();
     }
 }

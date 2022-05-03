@@ -23,7 +23,7 @@ import { DssDirectDepositHub } from "../DssDirectDepositHub.sol";
 import { D3MMom } from "../D3MMom.sol";
 import { ValueStub } from "../tests/stubs/ValueStub.sol";
 
-import { D3MAaveDaiPlan } from "./D3MAaveDaiPlan.sol";
+import { D3MAaveDaiPlan } from "../plans/D3MAaveDaiPlan.sol";
 import { D3MAaveDaiPool } from "./D3MAaveDaiPool.sol";
 
 interface Hevm {
@@ -68,6 +68,10 @@ interface InterestRateStrategyLike {
     );
 }
 
+interface ATokenLike is TokenLike {
+    function scaledBalanceOf(address) external view returns (uint256);
+}
+
 interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 }
@@ -86,7 +90,7 @@ contract D3MAaveDaiTest is DSTest {
     RewardsClaimerLike rewardsClaimer;
     DaiLike dai;
     DaiJoinLike daiJoin;
-    TokenLike adai;
+    ATokenLike adai;
     TokenLike stkAave;
     SpotLike spot;
     TokenLike weth;
@@ -110,7 +114,7 @@ contract D3MAaveDaiTest is DSTest {
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndLike(0xBB856d1742fD182a90239D7AE85706C2FE4e5922);
         aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
-        adai = TokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
+        adai = ATokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
         stkAave = TokenLike(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         daiJoin = DaiJoinLike(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
@@ -129,7 +133,6 @@ contract D3MAaveDaiTest is DSTest {
         directDepositHub = new DssDirectDepositHub(address(vat), address(daiJoin));
         d3mAaveDaiPool = new D3MAaveDaiPool(address(directDepositHub), address(dai), address(aavePool), address(rewardsClaimer));
         d3mAaveDaiPlan = new D3MAaveDaiPlan(address(dai), address(aavePool));
-        d3mAaveDaiPool.file("share", address(adai));
 
         directDepositHub.file(ilk, "pool", address(d3mAaveDaiPool));
         directDepositHub.file(ilk, "plan", address(d3mAaveDaiPlan));
@@ -294,22 +297,6 @@ contract D3MAaveDaiTest is DSTest {
         directDepositHub.exec(ilk);
     }
 
-    function test_interest_rate_calc() public {
-        // Confirm that the inverse function is correct by comparing all percentages
-        for (uint256 i = 1; i <= 100 * interestStrategy.getMaxVariableBorrowRate() / RAY; i++) {
-            uint256 targetSupply = d3mAaveDaiPlan.calculateTargetSupply(i * RAY / 100);
-            (,, uint256 varBorrow) = interestStrategy.calculateInterestRates(
-                address(adai),
-                targetSupply - (adai.totalSupply() - dai.balanceOf(address(adai))),
-                0,
-                adai.totalSupply() - dai.balanceOf(address(adai)),
-                0,
-                0
-            );
-            assertEqInterest(varBorrow, i * RAY / 100);
-        }
-    }
-
     function test_target_decrease() public {
         uint256 targetBorrowRate = _setRelBorrowTarget(7500);
         directDepositHub.reap(ilk);     // Clear out interest to get rid of rounding errors
@@ -339,7 +326,7 @@ contract D3MAaveDaiTest is DSTest {
         assertEqRoundingAgainst(ink, amountMinted);    // We allow a rounding error of 1 because aTOKENs round against the user
         assertEqRoundingAgainst(art, amountMinted);
         assertEq(vat.gem(ilk, address(d3mAaveDaiPool)), 0);
-        assertEq(vat.dai(address(directDepositHub)), 0);
+        assertEq(vat.dai(address(d3mAaveDaiPool)), 0);
     }
 
     function test_bar_zero() public {
@@ -390,8 +377,8 @@ contract D3MAaveDaiTest is DSTest {
         // Cage the system and start unwinding
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAaveDaiPool));
-        directDepositHub.cage();
-        assertEq(directDepositHub.live(), 0);
+        directDepositHub.cage(ilk);
+        assertEq(d3mAaveDaiPool.live(), 0);
         directDepositHub.exec(ilk);
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
@@ -430,9 +417,7 @@ contract D3MAaveDaiTest is DSTest {
         // Cage the system and start unwinding
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAaveDaiPool));
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
-        assertEq(directDepositHub.live(), 0);
         assertEq(d3mAaveDaiPool.live(), 0);
         directDepositHub.exec(ilk);
 
@@ -546,7 +531,7 @@ contract D3MAaveDaiTest is DSTest {
         assertGt(amountSupplied + feesAccrued, currentLiquidity);
 
         // Cage the system to trigger only unwinds
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
         directDepositHub.exec(ilk);
 
         // The full debt should be paid off, but we are still owed fees
@@ -767,7 +752,6 @@ contract D3MAaveDaiTest is DSTest {
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
         aavePool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
 
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
@@ -874,7 +858,7 @@ contract D3MAaveDaiTest is DSTest {
     function testFail_uncull_not_culled() public {
         // Lower by 50%
         _setRelBorrowTarget(5000);
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         // MCD shutdowns
         end.cage();
@@ -887,7 +871,7 @@ contract D3MAaveDaiTest is DSTest {
     function testFail_uncull_not_shutdown() public {
         // Lower by 50%
         _setRelBorrowTarget(5000);
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
         hevm.warp(block.timestamp + tau);
@@ -954,18 +938,11 @@ contract D3MAaveDaiTest is DSTest {
         assertEqApprox(adai.balanceOf(address(this)), 100 ether, 1);     // Slight rounding error may occur
     }
 
-    function testFail_shutdown_cant_cage() public {
-        _setRelBorrowTarget(7500);
-
-        // Vat is caged for global settlement
-        vat.cage();
-        directDepositHub.cage();
-    }
 
     function testFail_shutdown_cant_cull() public {
         _setRelBorrowTarget(7500);
 
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         // Vat is caged for global settlement
         vat.cage();
@@ -979,7 +956,7 @@ contract D3MAaveDaiTest is DSTest {
     function test_quit_no_cull() public {
         _setRelBorrowTarget(7500);
 
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         // Test that we can extract the whole position in emergency situations
         // aDAI should be sitting in the deposit contract, urn should be owned by deposit contract
@@ -1008,7 +985,6 @@ contract D3MAaveDaiTest is DSTest {
     function test_quit_cull() public {
         _setRelBorrowTarget(7500);
 
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
 
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
@@ -1047,7 +1023,7 @@ contract D3MAaveDaiTest is DSTest {
     function testFail_reap_caged() public {
         _setRelBorrowTarget(7500);
 
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         hevm.warp(block.timestamp + 1 days);    // Accrue some interest
 
@@ -1086,9 +1062,7 @@ contract D3MAaveDaiTest is DSTest {
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
         assertEq(tau, 7 days);
 
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
-        assertEq(directDepositHub.live(), 0);
         assertEq(d3mAaveDaiPool.live(), 0);
 
         // file should fail with error "D3MAaveDai/live"

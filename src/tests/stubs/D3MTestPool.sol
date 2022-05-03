@@ -17,7 +17,7 @@
 pragma solidity 0.6.12;
 
 import { D3MTestGem } from "./D3MTestGem.sol";
-import "../../bases/D3MPoolBase.sol";
+import "../../pools/D3MPoolBase.sol";
 
 interface RewardsClaimerLike {
     function claimRewards(address[] memory assets, uint256 amount, address to) external returns (uint256);
@@ -26,12 +26,14 @@ interface RewardsClaimerLike {
 contract D3MTestPool is D3MPoolBase {
 
     RewardsClaimerLike public immutable rewardsClaimer;
-    address            public           king; // Who gets the rewards
+    address            public           king;  // Who gets the rewards
+    address            public           share; // Token representing a share of the asset pool
 
     // test helper variables
-    uint256 supplyAmount;
-    uint256 targetSupply;
-    bool    isValidTarget;
+    uint256        supplyAmount;
+    uint256        targetSupply;
+    bool           isValidTarget;
+    bool    public accrued = false;
 
     event Collect(address indexed king, address[] assets, uint256 amt);
 
@@ -46,15 +48,16 @@ contract D3MTestPool is D3MPoolBase {
     function file(bytes32 what, bool data) external auth {
         if (what == "isValidTarget") {
             isValidTarget = data;
-        }
+        } else if (what == "accrued") accrued = data;
     }
 
     // --- Admin ---
-    function file(bytes32 what, address data) public override auth {
+    function file(bytes32 what, address data) external auth {
         require(live == 1, "D3MTestPool/no-file-not-live");
 
         if (what == "king") king = data;
-        else super.file(what, data);
+        else if (what == "share") share = data;
+        else revert("D3MPoolBase/file-unrecognized-param");
     }
 
     function validTarget() external view override returns (bool) {
@@ -64,13 +67,11 @@ contract D3MTestPool is D3MPoolBase {
     function deposit(uint256 amt) external override {
         D3MTestGem(share).mint(address(this), amt);
         TokenLike(asset).transfer(share, amt);
-        Deposit(msg.sender, address(this), amt, amt);
     }
 
     function withdraw(uint256 amt) external override {
         D3MTestGem(share).burn(address(this), amt);
         TokenLike(asset).transferFrom(share, address(hub), amt);
-        Withdraw(msg.sender, address(this), address(this), amt, amt);
     }
 
     function collect(address[] memory assets, uint256 amount) external auth returns (uint256 amt) {
@@ -80,8 +81,16 @@ contract D3MTestPool is D3MPoolBase {
         emit Collect(king, assets, amt);
     }
 
-    function transferShares(address dst, uint256 amt) external override returns (bool) {
+    function transfer(address dst, uint256 amt) public override auth returns (bool) {
         return TokenLike(share).transfer(dst, amt);
+    }
+
+    function transferAll(address dst) external override auth returns (bool) {
+        return TokenLike(share).transfer(dst, shareBalance());
+    }
+
+    function accrueIfNeeded() external override {
+        accrued = true;
     }
 
     function assetBalance() external view override returns (uint256) {
@@ -92,12 +101,8 @@ contract D3MTestPool is D3MPoolBase {
         return TokenLike(asset).balanceOf(share);
     }
 
-    function shareBalance() public view override returns (uint256) {
+    function shareBalance() public view returns (uint256) {
         return TokenLike(share).balanceOf(address(this));
-    }
-
-    function convertToShares(uint256 amt) external view override returns (uint256) {
-        return amt;
     }
 
     function convertToAssets(uint256 shares) public pure returns (uint256) {

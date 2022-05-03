@@ -16,12 +16,11 @@
 
 pragma solidity 0.6.12;
 
-import "../../bases/D3MPlanBase.sol";
+import "../../plans/D3MPlanBase.sol";
 
 contract D3MTestPlan is D3MPlanBase {
     // test helper variables
     uint256 maxBar_;
-    uint256 totalAssets;
     uint256 targetAssets;
     uint256 currentRate;
 
@@ -33,11 +32,9 @@ contract D3MTestPlan is D3MPlanBase {
     }
 
     // --- Admin ---
-    function file(bytes32 what, uint256 data) public auth {
+    function file(bytes32 what, uint256 data) external auth {
         if (what == "maxBar_") {
             maxBar_ = data;
-        } else if (what == "totalAssets") {
-            totalAssets = data;
         } else if (what == "targetAssets") {
             targetAssets = data;
         } else if (what == "currentRate") {
@@ -53,9 +50,14 @@ contract D3MTestPlan is D3MPlanBase {
         return maxBar_;
     }
 
-    function calcSupplies(uint256 availableAssets) external override view returns (uint256, uint256) {
-        availableAssets;
+    function getTargetAssets(uint256 currentAssets) external override view returns (uint256) {
+        currentAssets;
 
-        return (totalAssets, bar > 0 ? targetAssets : 0);
+        return bar > 0 ? targetAssets : 0;
+    }
+
+    function disable() external override auth {
+        bar = 0;
+        emit Disable();
     }
 }
