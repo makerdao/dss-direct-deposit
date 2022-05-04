@@ -128,8 +128,13 @@ contract D3MAaveDaiPool is D3MPoolBase {
     }
 
     // --- Collect any rewards ---
-    function collect(address[] memory assets, uint256 amount) external returns (uint256 amt) {
+    function collect() external returns (uint256 amt) {
         require(king != address(0), "D3MAaveDaiPool/king-not-set");
+
+        address[] memory assets = new address[](1);
+        assets[0] = address(adai);
+
+        uint256 amount = type(uint256).max;
 
         amt = rewardsClaimer.claimRewards(assets, amount, king);
         emit Collect(king, assets, amt);

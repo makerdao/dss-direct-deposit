@@ -72,8 +72,13 @@ contract D3MTestPool is D3MPoolBase {
         TokenLike(asset).transferFrom(share, address(msg.sender), amt);
     }
 
-    function collect(address[] memory assets, uint256 amount) external auth returns (uint256 amt) {
+    function collect() external auth returns (uint256 amt) {
         require(king != address(0), "D3MPool/king-not-set");
+
+        address[] memory assets = new address[](1);
+        assets[0] = address(share);
+
+        uint256 amount = type(uint256).max;
 
         amt = rewardsClaimer.claimRewards(assets, amount, king);
         emit Collect(king, assets, amt);

@@ -894,7 +894,7 @@ contract D3MAaveDaiTest is DSTest {
         tokens[0] = address(adai);
         uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(directDepositHub));
         if (amountToClaim == 0) return;     // Rewards are turned off - this is still an acceptable state
-        uint256 amountClaimed = d3mAaveDaiPool.collect(tokens, uint256(-1));
+        uint256 amountClaimed = d3mAaveDaiPool.collect();
         assertEq(amountClaimed, amountToClaim);
         assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed);
         assertEq(rewardsClaimer.getRewardsBalance(tokens, address(directDepositHub)), 0);
@@ -904,7 +904,7 @@ contract D3MAaveDaiTest is DSTest {
         // Collect some more rewards
         uint256 amountToClaim2 = rewardsClaimer.getRewardsBalance(tokens, address(directDepositHub));
         assertGt(amountToClaim2, 0);
-        uint256 amountClaimed2 = d3mAaveDaiPool.collect(tokens, uint256(-1));
+        uint256 amountClaimed2 = d3mAaveDaiPool.collect();
         assertEq(amountClaimed2, amountToClaim2);
         assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed + amountClaimed2);
         assertEq(rewardsClaimer.getRewardsBalance(tokens, address(directDepositHub)), 0);
@@ -920,7 +920,7 @@ contract D3MAaveDaiTest is DSTest {
         tokens[0] = address(adai);
         uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(d3mAaveDaiPool));
         assertGt(amountToClaim, 0);
-        d3mAaveDaiPool.collect(tokens, uint256(-1));
+        d3mAaveDaiPool.collect();
     }
 
     function test_cage_exit() public {

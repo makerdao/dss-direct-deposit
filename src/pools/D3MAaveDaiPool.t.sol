@@ -229,25 +229,20 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         address king = address(123);
         D3MAaveDaiPool(d3mTestPool).file("king", king);
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(adai);
-
-        D3MAaveDaiPool(d3mTestPool).collect(tokens, 1);
+        D3MAaveDaiPool(d3mTestPool).collect();
 
         (uint256 amt, address dst) = FakeRewardsClaimer(rewardsClaimer).lastClaim();
         address[] memory assets = FakeRewardsClaimer(rewardsClaimer).getAssetsFromClaim();
 
-        assertEq(tokens[0], assets[0]);
-        assertEq(amt, 1);
+        assertEq(address(adai), assets[0]);
+        assertEq(amt, type(uint256).max);
         assertEq(dst, king);
     }
 
     function testFail_collect_no_king() public {
         assertEq(D3MAaveDaiPool(d3mTestPool).king(), address(0));
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(adai);
 
-        D3MAaveDaiPool(d3mTestPool).collect(tokens, 1);
+        D3MAaveDaiPool(d3mTestPool).collect();
     }
 
     function test_transfer_adai() public {
