@@ -390,7 +390,6 @@ contract DssDirectDepositHub {
             !pool.validTarget()
         , "DssDirectDepositHub/not-authorized");
 
-        pool.cage();
         ilks[ilk_].tic = block.timestamp;
         emit Cage(ilk_);
     }

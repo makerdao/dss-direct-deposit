@@ -379,7 +379,6 @@ contract D3MAaveDaiTest is DSTest {
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAaveDaiPool));
         directDepositHub.cage(ilk);
-        assertEq(d3mAaveDaiPool.live(), 0);
         directDepositHub.exec(ilk);
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
@@ -419,7 +418,6 @@ contract D3MAaveDaiTest is DSTest {
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAaveDaiPool));
         directDepositHub.cage(ilk);
-        assertEq(d3mAaveDaiPool.live(), 0);
         directDepositHub.exec(ilk);
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
@@ -1064,7 +1062,6 @@ contract D3MAaveDaiTest is DSTest {
         assertEq(tau, 7 days);
 
         directDepositHub.cage(ilk);
-        assertEq(d3mAaveDaiPool.live(), 0);
 
         // file should fail with error "D3MAaveDai/live"
         directDepositHub.file(ilk, "tau", 1 days);

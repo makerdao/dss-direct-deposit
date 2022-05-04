@@ -53,8 +53,6 @@ contract D3MTestPool is D3MPoolBase {
 
     // --- Admin ---
     function file(bytes32 what, address data) external auth {
-        require(live == 1, "D3MTestPool/no-file-not-live");
-
         if (what == "king") king = data;
         else if (what == "share") share = data;
         else revert("D3MPoolBase/file-unrecognized-param");

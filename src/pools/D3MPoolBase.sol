@@ -51,12 +51,9 @@ abstract contract D3MPoolBase {
     TokenLike   public immutable asset; // Dai
     address     public immutable hub;
 
-    uint256     public           live = 1;
-
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
-    event Cage();
 
     constructor(address hub_, address dai_) internal {
         asset = TokenLike(dai_);
@@ -86,10 +83,5 @@ abstract contract D3MPoolBase {
 
     function recoverTokens(address token, address dst, uint256 amt) external auth returns (bool) {
         return TokenLike(token).transfer(dst, amt);
-    }
-
-    function cage() external virtual auth {
-        live = 0;
-        emit Cage();
     }
 }

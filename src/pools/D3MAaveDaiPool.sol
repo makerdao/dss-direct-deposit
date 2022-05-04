@@ -84,7 +84,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
     // --- Math ---
     function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "DssDirectDepositHub/overflow");
+        require((z = x + y) >= x, "D3MAaveDaiPool/overflow");
     }
     function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "D3MAaveDaiPool/overflow");
@@ -98,10 +98,8 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
     // --- Admin ---
     function file(bytes32 what, address data) external auth {
-        require(live == 1, "D3MTestPool/no-file-not-live");
-
         if (what == "king") king = data;
-        else revert("D3MPoolBase/file-unrecognized-param");
+        else revert("D3MAaveDaiPool/file-unrecognized-param");
         emit File(what, data);
     }
 

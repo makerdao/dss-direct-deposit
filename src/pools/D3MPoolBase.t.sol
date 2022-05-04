@@ -188,22 +188,6 @@ contract D3MPoolBaseTest is DSTest {
         FakeD3MPoolBase(d3mTestPool).recoverTokens(address(dai), address(this), 10 * WAD);
     }
 
-    function test_auth_can_cage() public {
-        assertEq(FakeD3MPoolBase(d3mTestPool).live(), 1);
-
-        FakeD3MPoolBase(d3mTestPool).cage();
-
-        assertEq(FakeD3MPoolBase(d3mTestPool).live(), 0);
-    }
-
-    function testFail_no_auth_cannot_cage() public {
-        assertEq(FakeD3MPoolBase(d3mTestPool).live(), 1);
-
-        FakeD3MPoolBase(d3mTestPool).deny(address(this));
-
-        FakeD3MPoolBase(d3mTestPool).cage();
-    }
-
     function test_implements_accrueIfNeeded() public {
         FakeD3MPoolBase(d3mTestPool).accrueIfNeeded();
     }

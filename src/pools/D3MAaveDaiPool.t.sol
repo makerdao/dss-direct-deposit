@@ -170,14 +170,6 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         assertEq(D3MAaveDaiPool(d3mTestPool).king(), address(123));
     }
 
-    function testFail_cannot_file_king_not_live() public {
-        assertEq(D3MAaveDaiPool(d3mTestPool).king(), address(0));
-
-        D3MAaveDaiPool(d3mTestPool).cage();
-
-        D3MAaveDaiPool(d3mTestPool).file("king", address(123));
-    }
-
     function testFail_cannot_file_king_no_auth() public {
         assertEq(D3MAaveDaiPool(d3mTestPool).king(), address(0));
 

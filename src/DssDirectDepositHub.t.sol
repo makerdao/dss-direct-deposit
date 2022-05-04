@@ -565,13 +565,11 @@ contract DssDirectDepositHubTest is DSTest {
     function test_cage_pool() public {
         (, , , , uint256 tic) = directDepositHub.ilks(ilk);
         assertEq(tic, 0);
-        assertEq(d3mTestPool.live(), 1);
 
         directDepositHub.cage(ilk);
 
         (, , , , tic) = directDepositHub.ilks(ilk);
         assertEq(tic, block.timestamp);
-        assertEq(d3mTestPool.live(), 0);
     }
 
     function testFail_cage_pool_no_auth() public {
@@ -582,7 +580,6 @@ contract DssDirectDepositHubTest is DSTest {
     function test_cage_pool_invalid_target() public {
         (, , , , uint256 tic) = directDepositHub.ilks(ilk);
         assertEq(tic, 0);
-        assertEq(d3mTestPool.live(), 1);
 
         // We should not need permission for this
         directDepositHub.deny(address(this));
@@ -593,7 +590,6 @@ contract DssDirectDepositHubTest is DSTest {
 
         (, , , , tic) = directDepositHub.ilks(ilk);
         assertEq(tic, block.timestamp);
-        assertEq(d3mTestPool.live(), 0);
     }
 
     function test_cull() public {
