@@ -31,8 +31,7 @@ contract D3MTestPool is D3MPoolInterface {
     address            public           king;  // Who gets the rewards
 
     // test helper variables
-    uint256        supplyAmount;
-    uint256        targetSupply;
+    uint256        maxDepositAmount = type(uint256).max;
     bool           isValidTarget;
     bool    public accrued = false;
 
@@ -70,6 +69,11 @@ contract D3MTestPool is D3MPoolInterface {
         if (what == "isValidTarget") {
             isValidTarget = data;
         } else if (what == "accrued") accrued = data;
+    }
+    function file(bytes32 what, uint256 data) external auth {
+        if (what == "maxDepositAmount") {
+            maxDepositAmount = data;
+        } else revert("D3MTestPool/file-unrecognized-param");
     }
 
     // --- Admin ---
@@ -121,7 +125,7 @@ contract D3MTestPool is D3MPoolInterface {
     }
 
     function maxDeposit() external view override returns (uint256) {
-        return type(uint256).max;
+        return maxDepositAmount;
     }
 
     function maxWithdraw() external view override returns (uint256) {

@@ -359,6 +359,19 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(d3mTestPool.accrued());
     }
 
+    function test_wind_limited_maxDeposit() public {
+        _windSystem(); // winds to 50 * WAD
+        d3mTestPlan.file("targetAssets", 75 * WAD);
+        d3mTestPool.file("maxDepositAmount", 55 * WAD);
+
+        directDepositHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 55 * WAD);
+        assertEq(art, 55 * WAD);
+        assertTrue(d3mTestPool.accrued());
+    }
+
     function testFail_exec_invalid_traget() public {
         d3mTestPool.file("isValidTarget", false);
         _windSystem();
@@ -452,6 +465,25 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(part, 50 * WAD);
 
         d3mTestPlan.file("targetAssets", 25 * WAD);
+
+        directDepositHub.exec(ilk);
+
+        // Ensure we unwound our position
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 25 * WAD);
+        assertEq(art, 25 * WAD);
+        // Make sure unwind calls accrued
+        assertTrue(d3mTestPool.accrued());
+    }
+
+    function test_unwind_target_less_maxDeposit() public {
+        _windSystem();
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(pink, 50 * WAD);
+        assertEq(part, 50 * WAD);
+
+        d3mTestPool.file("maxDepositAmount", 25 * WAD);
 
         directDepositHub.exec(ilk);
 
