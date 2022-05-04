@@ -16,9 +16,12 @@
 
 pragma solidity 0.6.12;
 
-import "../../plans/D3MPlanBase.sol";
+import "../../plans/D3MPlanInterface.sol";
 
-contract D3MTestPlan is D3MPlanBase {
+contract D3MTestPlan is D3MPlanInterface {
+
+    address public immutable dai;
+
     // test helper variables
     uint256 maxBar_;
     uint256 targetAssets;
@@ -26,7 +29,24 @@ contract D3MTestPlan is D3MPlanBase {
 
     uint256 public bar;  // Target Interest Rate [ray]
 
-    constructor(address dai_) public D3MPlanBase(dai_) {
+    // --- Auth ---
+    mapping (address => uint256) public wards;
+    function rely(address usr) external override auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external override auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MPlanBase/not-authorized");
+        _;
+    }
+
+    constructor(address dai_) public {
+        dai = dai_;
+
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }

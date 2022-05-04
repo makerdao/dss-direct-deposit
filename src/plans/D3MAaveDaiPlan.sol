@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-import "./D3MPlanBase.sol";
+import "./D3MPlanInterface.sol";
 
 interface TokenLike {
     function totalSupply() external view returns (uint256);
@@ -49,18 +49,35 @@ interface InterestRateStrategyLike {
     function getMaxVariableBorrowRate() external view returns (uint256);
 }
 
-contract D3MAaveDaiPlan is D3MPlanBase {
+contract D3MAaveDaiPlan is D3MPlanInterface {
 
     InterestRateStrategyLike public immutable interestStrategy;
     TokenLike                public immutable stableDebt;
     TokenLike                public immutable variableDebt;
     address                  public immutable adai;
+    address                  public immutable dai;
 
     uint256 public bar;  // Target Interest Rate [ray]
 
+    // --- Auth ---
+    mapping (address => uint256) public wards;
+    function rely(address usr) external override auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external override auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MPlanBase/not-authorized");
+        _;
+    }
+
     event File(bytes32 indexed what, uint256 data);
 
-    constructor(address dai_, address pool_) public D3MPlanBase(dai_) {
+    constructor(address dai_, address pool_) public {
+        dai = dai_;
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
@@ -73,6 +90,9 @@ contract D3MAaveDaiPlan is D3MPlanBase {
         stableDebt = TokenLike(stableDebt_);
         variableDebt = TokenLike(variableDebt_);
         interestStrategy = InterestRateStrategyLike(interestStrategy_);
+
+        wards[msg.sender] = 1;
+        emit Rely(msg.sender);
     }
 
     // --- Math ---

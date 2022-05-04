@@ -16,38 +16,17 @@
 
 pragma solidity 0.6.12;
 
-abstract contract D3MPlanBase {
-
+interface D3MPlanInterface {
     // --- Auth ---
-    mapping (address => uint256) public wards;
-    function rely(address usr) external auth {
-        wards[usr] = 1;
-        emit Rely(usr);
-    }
-    function deny(address usr) external auth {
-        wards[usr] = 0;
-        emit Deny(usr);
-    }
-    modifier auth {
-        require(wards[msg.sender] == 1, "D3MPlanBase/not-authorized");
-        _;
-    }
-
-    address public immutable dai;
+    function rely(address usr) external;
+    function deny(address usr) external;
 
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event Disable();
 
-    constructor(address dai_) public {
-        dai = dai_;
-
-        wards[msg.sender] = 1;
-        emit Rely(msg.sender);
-    }
-
-    function getTargetAssets(uint256 currentAssets) external virtual view returns (uint256);
-
-    function disable() external virtual;
+    // --- Plan Functions ---
+    function getTargetAssets(uint256 currentAssets) external view returns (uint256);
+    function disable() external;
 }
