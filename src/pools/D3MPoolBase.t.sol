@@ -88,7 +88,10 @@ contract D3MPoolBaseTest is DSTest {
 
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
 
-        d3mTestPool = address(new FakeD3MPoolBase(address(new FakeHub()), address(dai)));
+        address hub = address(new FakeHub());
+
+        d3mTestPool = address(new FakeD3MPoolBase(hub, address(dai)));
+        FakeD3MPoolBase(d3mTestPool).rely(hub);
     }
 
     function _giveTokens(DaiLike token, uint256 amount) internal {

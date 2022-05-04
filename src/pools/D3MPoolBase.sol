@@ -65,8 +65,6 @@ abstract contract D3MPoolBase {
         emit Rely(msg.sender);
 
         hub = hub_;
-        wards[hub_] = 1;
-        emit Rely(hub_);
         CanLike(d3mHubLike(hub_).vat()).hope(hub_);
     }
 
