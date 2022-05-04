@@ -49,6 +49,7 @@ interface D3MPoolInterface {
     function transferAll(address dst) external returns (bool);
     function accrueIfNeeded() external;
     function assetBalance() external view returns (uint256);
+    function maxDeposit() external view returns (uint256);
     function maxWithdraw() external view returns (uint256);
     function recoverTokens(address token, address dst, uint256 amt) external returns (bool);
 }

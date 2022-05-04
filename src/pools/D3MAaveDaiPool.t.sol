@@ -319,4 +319,8 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
 
         assertEq(D3MAaveDaiPool(d3mTestPool).maxWithdraw(), 0);
     }
+
+    function test_maxDeposit_returns_max_uint() public {
+        assertEq(D3MAaveDaiPool(d3mTestPool).maxDeposit(), type(uint256).max);
+    }
 }

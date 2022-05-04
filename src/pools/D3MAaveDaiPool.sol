@@ -176,6 +176,10 @@ contract D3MAaveDaiPool is D3MPoolInterface {
         return adai.balanceOf(address(this));
     }
 
+    function maxDeposit() external view override returns (uint256) {
+        return type(uint256).max;
+    }
+
     function maxWithdraw() external view override returns (uint256) {
         return _min(TokenLike(asset).balanceOf(address(adai)), assetBalance());
     }

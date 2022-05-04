@@ -40,7 +40,7 @@ contract D3MTestPlan is D3MPlanInterface {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MPlanBase/not-authorized");
+        require(wards[msg.sender] == 1, "D3MTestPlan/not-authorized");
         _;
     }
 

@@ -80,6 +80,8 @@ contract D3MPoolBase is D3MPoolInterface {
 
     function transferAll(address dst) external override returns (bool) {}
 
+    function maxDeposit() external view override returns (uint256) {}
+
     function maxWithdraw() external view override returns (uint256) {}
 
     function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {}

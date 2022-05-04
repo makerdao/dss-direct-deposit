@@ -120,6 +120,10 @@ contract D3MTestPool is D3MPoolInterface {
         return convertToAssets(shareBalance());
     }
 
+    function maxDeposit() external view override returns (uint256) {
+        return type(uint256).max;
+    }
+
     function maxWithdraw() external view override returns (uint256) {
         return TokenLike(asset).balanceOf(share);
     }
