@@ -49,7 +49,6 @@ abstract contract D3MPoolBase {
     }
 
     TokenLike   public immutable asset; // Dai
-    address     public immutable hub;
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -61,7 +60,6 @@ abstract contract D3MPoolBase {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
-        hub = hub_;
         CanLike(d3mHubLike(hub_).vat()).hope(hub_);
     }
 

@@ -216,7 +216,7 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
         assertEq(asset, address(dai));
         assertEq(amt, 1);
-        assertEq(dst, D3MAaveDaiPool(d3mTestPool).hub());
+        assertEq(dst, address(this));
     }
 
     function testFail_withdraw_requires_auth() public {

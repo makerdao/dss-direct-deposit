@@ -69,7 +69,7 @@ contract D3MTestPool is D3MPoolBase {
 
     function withdraw(uint256 amt) external override {
         D3MTestGem(share).burn(address(this), amt);
-        TokenLike(asset).transferFrom(share, address(hub), amt);
+        TokenLike(asset).transferFrom(share, address(msg.sender), amt);
     }
 
     function collect(address[] memory assets, uint256 amount) external auth returns (uint256 amt) {

@@ -124,7 +124,7 @@ contract D3MAaveDaiPool is D3MPoolBase {
     // Withdraws Dai from Aave in exchange for adai
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
     function withdraw(uint256 amt) external override auth {
-        pool.withdraw(address(asset), amt, address(hub));
+        pool.withdraw(address(asset), amt, address(msg.sender));
     }
 
     // --- Collect any rewards ---
