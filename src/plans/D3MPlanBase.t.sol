@@ -33,7 +33,7 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
-contract FakeD3MPlanBase is D3MPlanInterface {
+contract D3MPlanBase is D3MPlanInterface {
 
     address public immutable dai;
 
@@ -82,47 +82,47 @@ contract D3MPlanBaseTest is DSTest {
 
         dai = DaiLike(123);
 
-        d3mTestPlan = address(new FakeD3MPlanBase(address(dai)));
+        d3mTestPlan = address(new D3MPlanBase(address(dai)));
     }
 
     function test_sets_dai_value() public {
-        assertEq(FakeD3MPlanBase(d3mTestPlan).dai(), address(dai));
+        assertEq(D3MPlanBase(d3mTestPlan).dai(), address(dai));
     }
 
     function test_sets_creator_as_ward() public {
-        assertEq(FakeD3MPlanBase(d3mTestPlan).wards(address(this)), 1);
+        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
     }
 
     function test_can_rely() public {
-        assertEq(FakeD3MPlanBase(d3mTestPlan).wards(address(123)), 0);
+        assertEq(D3MPlanBase(d3mTestPlan).wards(address(123)), 0);
 
-        FakeD3MPlanBase(d3mTestPlan).rely(address(123));
+        D3MPlanBase(d3mTestPlan).rely(address(123));
 
-        assertEq(FakeD3MPlanBase(d3mTestPlan).wards(address(123)), 1);
+        assertEq(D3MPlanBase(d3mTestPlan).wards(address(123)), 1);
     }
 
     function test_can_deny() public {
-        assertEq(FakeD3MPlanBase(d3mTestPlan).wards(address(this)), 1);
+        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
 
-        FakeD3MPlanBase(d3mTestPlan).deny(address(this));
+        D3MPlanBase(d3mTestPlan).deny(address(this));
 
-        assertEq(FakeD3MPlanBase(d3mTestPlan).wards(address(this)), 0);
+        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 0);
     }
 
     function testFail_cannot_rely_without_auth() public {
-        assertEq(FakeD3MPlanBase(d3mTestPlan).wards(address(this)), 1);
+        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
 
-        FakeD3MPlanBase(d3mTestPlan).deny(address(this));
-        FakeD3MPlanBase(d3mTestPlan).rely(address(this));
+        D3MPlanBase(d3mTestPlan).deny(address(this));
+        D3MPlanBase(d3mTestPlan).rely(address(this));
     }
 
     function test_implements_getTargetAssets() public virtual {
-        uint256 result = FakeD3MPlanBase(d3mTestPlan).getTargetAssets(2);
+        uint256 result = D3MPlanBase(d3mTestPlan).getTargetAssets(2);
 
         assertEq(result, 2);
     }
 
     function test_implements_disable() public virtual {
-        FakeD3MPlanBase(d3mTestPlan).disable();
+        D3MPlanBase(d3mTestPlan).disable();
     }
 }

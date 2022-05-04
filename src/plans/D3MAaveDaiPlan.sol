@@ -70,7 +70,7 @@ contract D3MAaveDaiPlan is D3MPlanInterface {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MPlanBase/not-authorized");
+        require(wards[msg.sender] == 1, "D3MAaveDaiPlan/not-authorized");
         _;
     }
 
