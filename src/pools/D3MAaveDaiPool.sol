@@ -80,9 +80,6 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
         ShareTokenLike(adai_).approve(pool_, type(uint256).max);
         TokenLike(dai_).approve(pool_, type(uint256).max);
-
-        wards[msg.sender] = 1;
-        emit Rely(msg.sender);
     }
 
     // --- Math ---
