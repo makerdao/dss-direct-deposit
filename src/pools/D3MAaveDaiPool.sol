@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-import "./D3MPoolBase.sol";
+import "./D3MPoolInterface.sol";
 
 interface ATokenLike is TokenLike {
     function scaledBalanceOf(address) external view returns (uint256);
@@ -46,7 +46,7 @@ interface RewardsClaimerLike {
     function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
 }
 
-contract D3MAaveDaiPool is D3MPoolBase {
+contract D3MAaveDaiPool is D3MPoolInterface {
 
     uint256 constant RAY  = 10 ** 27;
 
@@ -56,14 +56,30 @@ contract D3MAaveDaiPool is D3MPoolBase {
     ATokenLike               public immutable variableDebt;
     address                  public immutable interestStrategy;
     ATokenLike               public immutable adai;
+    TokenLike                public immutable asset; // Dai
+    address                  public           king;  // Who gets the rewards
 
-    address public king;  // Who gets the rewards
+    // --- Auth ---
+    mapping (address => uint256) public wards;
+    function rely(address usr) external override auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external override auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MAaveDaiPool/not-authorized");
+        _;
+    }
 
     event Collect(address indexed king, address[] assets, uint256 amt);
     event File(bytes32 indexed what, address data);
 
-    constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) public D3MPoolBase(hub_, dai_) {
+    constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) public {
         pool = LendingPoolLike(pool_);
+        asset = TokenLike(dai_);
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
@@ -80,6 +96,11 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
         ATokenLike(adai_).approve(pool_, type(uint256).max);
         TokenLike(dai_).approve(pool_, type(uint256).max);
+
+        CanLike(d3mHubLike(hub_).vat()).hope(hub_);
+
+        wards[msg.sender] = 1;
+        emit Rely(msg.sender);
     }
 
     // --- Math ---
@@ -157,5 +178,9 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
     function maxWithdraw() external view override returns (uint256) {
         return _min(TokenLike(asset).balanceOf(address(adai)), assetBalance());
+    }
+
+    function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {
+        return TokenLike(token).transfer(dst, amt);
     }
 }

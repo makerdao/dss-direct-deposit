@@ -32,54 +32,23 @@ interface d3mHubLike {
     function vat() external view returns (address);
 }
 
-abstract contract D3MPoolBase {
+interface D3MPoolInterface {
     // --- Auth ---
-    mapping (address => uint256) public wards;
-    function rely(address usr) external auth {
-        wards[usr] = 1;
-        emit Rely(usr);
-    }
-    function deny(address usr) external auth {
-        wards[usr] = 0;
-        emit Deny(usr);
-    }
-    modifier auth {
-        require(wards[msg.sender] == 1, "D3MPoolBase/not-authorized");
-        _;
-    }
-
-    TokenLike   public immutable asset; // Dai
+    function rely(address usr) external;
+    function deny(address usr) external;
 
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(address hub_, address dai_) internal {
-        asset = TokenLike(dai_);
-
-        wards[msg.sender] = 1;
-        emit Rely(msg.sender);
-
-        CanLike(d3mHubLike(hub_).vat()).hope(hub_);
-    }
-
-    function validTarget() external view virtual returns (bool);
-
-    function deposit(uint256 amt) external virtual;
-
-    function withdraw(uint256 amt) external virtual;
-
-    function transfer(address dst, uint256 amt) external virtual returns (bool);
-
-    function transferAll(address dst) external virtual returns (bool);
-
-    function accrueIfNeeded() external virtual;
-
-    function assetBalance() external view virtual returns (uint256);
-
-    function maxWithdraw() external view virtual returns (uint256);
-
-    function recoverTokens(address token, address dst, uint256 amt) external auth returns (bool) {
-        return TokenLike(token).transfer(dst, amt);
-    }
+    // --- Pool Functions ---
+    function validTarget() external view returns (bool);
+    function deposit(uint256 amt) external;
+    function withdraw(uint256 amt) external;
+    function transfer(address dst, uint256 amt) external returns (bool);
+    function transferAll(address dst) external returns (bool);
+    function accrueIfNeeded() external;
+    function assetBalance() external view returns (uint256);
+    function maxWithdraw() external view returns (uint256);
+    function recoverTokens(address token, address dst, uint256 amt) external returns (bool);
 }

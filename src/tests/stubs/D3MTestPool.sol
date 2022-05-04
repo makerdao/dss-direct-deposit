@@ -17,17 +17,18 @@
 pragma solidity 0.6.12;
 
 import { D3MTestGem } from "./D3MTestGem.sol";
-import "../../pools/D3MPoolBase.sol";
+import "../../pools/D3MPoolInterface.sol";
 
 interface RewardsClaimerLike {
     function claimRewards(address[] memory assets, uint256 amount, address to) external returns (uint256);
 }
 
-contract D3MTestPool is D3MPoolBase {
+contract D3MTestPool is D3MPoolInterface {
 
     RewardsClaimerLike public immutable rewardsClaimer;
+    address            public immutable share; // Token representing a share of the asset pool
+    TokenLike          public immutable asset; // Dai
     address            public           king;  // Who gets the rewards
-    address            public           share; // Token representing a share of the asset pool
 
     // test helper variables
     uint256        supplyAmount;
@@ -35,13 +36,33 @@ contract D3MTestPool is D3MPoolBase {
     bool           isValidTarget;
     bool    public accrued = false;
 
+    // --- Auth ---
+    mapping (address => uint256) public wards;
+    function rely(address usr) external override auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external override auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MTestPool/not-authorized");
+        _;
+    }
+
     event Collect(address indexed king, address[] assets, uint256 amt);
 
-    constructor(address hub_, address daiJoin_, address _rewardsClaimer)
-        public
-        D3MPoolBase(hub_, daiJoin_)
-    {
+    constructor(address hub_, address dai_, address share_, address _rewardsClaimer) public {
+        asset = TokenLike(dai_);
+        share = share_;
+
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
+
+        CanLike(d3mHubLike(hub_).vat()).hope(hub_);
+
+        wards[msg.sender] = 1;
+        emit Rely(msg.sender);
     }
 
     // --- Testing Admin ---
@@ -54,8 +75,7 @@ contract D3MTestPool is D3MPoolBase {
     // --- Admin ---
     function file(bytes32 what, address data) external auth {
         if (what == "king") king = data;
-        else if (what == "share") share = data;
-        else revert("D3MPoolBase/file-unrecognized-param");
+        else revert("D3MTestPool/file-unrecognized-param");
     }
 
     function validTarget() external view override returns (bool) {
@@ -73,7 +93,7 @@ contract D3MTestPool is D3MPoolBase {
     }
 
     function collect() external auth returns (uint256 amt) {
-        require(king != address(0), "D3MPool/king-not-set");
+        require(king != address(0), "D3MTestPool/king-not-set");
 
         address[] memory assets = new address[](1);
         assets[0] = address(share);
@@ -110,5 +130,9 @@ contract D3MTestPool is D3MPoolBase {
 
     function convertToAssets(uint256 shares) public pure returns (uint256) {
         return shares;
+    }
+
+    function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {
+        return TokenLike(token).transfer(dst, amt);
     }
 }

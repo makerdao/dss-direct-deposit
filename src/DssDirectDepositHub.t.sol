@@ -90,12 +90,11 @@ contract DssDirectDepositHubTest is DSTest {
         d3mTestPool = new D3MTestPool(
             address(directDepositHub),
             address(dai),
+            address(testGem),
             address(rewardsClaimer)
         );
         d3mTestPool.rely(address(directDepositHub));
         d3mTestPlan = new D3MTestPlan(address(dai));
-
-        d3mTestPool.file("share", address(testGem));
 
         // Test Target Setup
         testGem.rely(address(d3mTestPool));
