@@ -16,11 +16,22 @@
 
 pragma solidity 0.6.12;
 
-import { D3MPoolInterface } from "./pools/D3MPoolInterface.sol";
-import { D3MPlanInterface } from "./plans/D3MPlanInterface.sol";
+interface D3MPoolLike {
+    function validTarget() external view returns (bool);
+    function deposit(uint256) external;
+    function withdraw(uint256) external;
+    function transfer(address, uint256) external returns (bool);
+    function transferAll(address) external returns (bool);
+    function accrueIfNeeded() external;
+    function assetBalance() external returns (uint256);
+    function maxDeposit() external view returns (uint256);
+    function maxWithdraw() external view returns (uint256);
+    function cage() external;
+}
 
-interface D3MPoolLike is D3MPoolInterface {}
-interface D3MPlanLike is D3MPlanInterface {}
+interface D3MPlanLike {
+    function getTargetAssets(uint256) external view returns (uint256);
+}
 
 interface VatLike {
     function debt() external view returns (uint256);
