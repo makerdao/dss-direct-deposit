@@ -135,12 +135,12 @@ contract D3MAaveDaiPool is D3MPoolBase {
         emit Collect(king, assets, amt);
     }
 
-    function transfer(address dst, uint256 amt) public override auth returns (bool) {
+    function transfer(address dst, uint256 amt) external override auth returns (bool) {
         return ATokenLike(adai).transfer(dst, amt);
     }
 
     function transferAll(address dst) external override auth returns (bool) {
-        return transfer(dst, ATokenLike(adai).balanceOf(address(this)));
+        return ATokenLike(adai).transfer(dst, ATokenLike(adai).balanceOf(address(this)));
     }
 
     function accrueIfNeeded() external override {}
