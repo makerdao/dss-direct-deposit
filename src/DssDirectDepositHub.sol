@@ -334,7 +334,6 @@ contract DssDirectDepositHub {
                 uint256 toWind = targetAssets - currentAssets;
                 toWind = _min(toWind, lineWad - Art);
                 toWind = _min(toWind, (Line - debt) / RAY);
-
                 _wind(ilk_, pool, toWind);
             }
         }
