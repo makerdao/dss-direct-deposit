@@ -18,7 +18,7 @@ pragma solidity 0.6.12;
 
 import "./D3MPoolBase.sol";
 
-interface ShareTokenLike is TokenLike {
+interface ATokenLike is TokenLike {
     function scaledBalanceOf(address) external view returns (uint256);
 }
 
@@ -52,8 +52,8 @@ contract D3MAaveDaiPool is D3MPoolBase {
 
     address                  public immutable pool;
     RewardsClaimerLike       public immutable rewardsClaimer;
-    ShareTokenLike           public immutable stableDebt;
-    ShareTokenLike           public immutable variableDebt;
+    ATokenLike           public immutable stableDebt;
+    ATokenLike           public immutable variableDebt;
     address                  public immutable interestStrategy;
     address                  public immutable adai; // Token representing a share of the asset pool
 
@@ -73,12 +73,12 @@ contract D3MAaveDaiPool is D3MPoolBase {
         require(interestStrategy_ != address(0), "D3MAaveDaiPool/invalid-interestStrategy");
 
         adai = adai_;
-        stableDebt = ShareTokenLike(stableDebt_);
-        variableDebt = ShareTokenLike(variableDebt_);
+        stableDebt = ATokenLike(stableDebt_);
+        variableDebt = ATokenLike(variableDebt_);
         interestStrategy = interestStrategy_;
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
 
-        ShareTokenLike(adai_).approve(pool_, type(uint256).max);
+        ATokenLike(adai_).approve(pool_, type(uint256).max);
         TokenLike(dai_).approve(pool_, type(uint256).max);
     }
 
@@ -111,14 +111,14 @@ contract D3MAaveDaiPool is D3MPoolBase {
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
     function deposit(uint256 amt) external override auth {
-        uint256 scaledPrev = ShareTokenLike(adai).scaledBalanceOf(address(this));
+        uint256 scaledPrev = ATokenLike(adai).scaledBalanceOf(address(this));
 
         LendingPoolLike(pool).deposit(address(asset), amt, address(this), 0);
 
         // Verify the correct amount of adai shows up
         uint256 interestIndex = LendingPoolLike(pool).getReserveNormalizedIncome(address(asset));
         uint256 scaledAmount = _rdiv(amt, interestIndex);
-        require(ShareTokenLike(adai).scaledBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount), "D3MAaveDaiPool/incorrect-share-credit");
+        require(ATokenLike(adai).scaledBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount), "D3MAaveDaiPool/incorrect-share-credit");
     }
 
     // Withdraws Dai from Aave in exchange for adai
@@ -136,18 +136,18 @@ contract D3MAaveDaiPool is D3MPoolBase {
     }
 
     function transfer(address dst, uint256 amt) public override auth returns (bool) {
-        return ShareTokenLike(adai).transfer(dst, amt);
+        return ATokenLike(adai).transfer(dst, amt);
     }
 
     function transferAll(address dst) external override auth returns (bool) {
-        return transfer(dst, ShareTokenLike(adai).balanceOf(address(this)));
+        return transfer(dst, ATokenLike(adai).balanceOf(address(this)));
     }
 
     function accrueIfNeeded() external override {}
 
     // --- Balance of the underlying asset (Dai)
     function assetBalance() public view override returns (uint256) {
-        return ShareTokenLike(adai).balanceOf(address(this));
+        return ATokenLike(adai).balanceOf(address(this));
     }
 
     function maxWithdraw() external view override returns (uint256) {
