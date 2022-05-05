@@ -17,7 +17,6 @@
 pragma solidity 0.6.12;
 
 interface D3MPoolLike {
-    function validTarget() external view returns (bool);
     function deposit(uint256) external;
     function withdraw(uint256) external;
     function transfer(address, uint256) external returns (bool);
@@ -307,9 +306,6 @@ contract DssDirectDepositHub {
                 currentAssets
             );
         } else {
-            // Normal path
-            require(pool.validTarget(), "DssDirectDepositHub/invalid-target");
-
             // Determine if it needs to unwind due to debt ceilings
             (uint256 Art,,, uint256 line,) = vat.ilks(ilk_);
             uint256 lineWad = line / RAY; // Round down to always be under the actual limit
@@ -380,18 +376,8 @@ contract DssDirectDepositHub {
     }
 
     // --- Shutdown ---
-    function cage(bytes32 ilk_) external {
+    function cage(bytes32 ilk_) external auth {
         require(vat.live() == 1, "DssDirectDepositHub/no-cage-during-shutdown");
-
-        D3MPoolLike pool = ilks[ilk_].pool;
-
-        // Can shut pools down if we are authed
-        // or if the interest rate strategy changes
-        // or if the main module is caged
-        require(
-            wards[msg.sender] == 1 ||
-            !pool.validTarget()
-        , "DssDirectDepositHub/not-authorized");
 
         ilks[ilk_].tic = block.timestamp;
         emit Cage(ilk_);

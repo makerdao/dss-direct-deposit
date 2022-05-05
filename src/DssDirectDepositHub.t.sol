@@ -99,7 +99,6 @@ contract DssDirectDepositHubTest is DSTest {
         // Test Target Setup
         testGem.rely(address(d3mTestPool));
         d3mTestPlan.file("maxBar_", type(uint256).max);
-        d3mTestPool.file("isValidTarget", true);
         testGem.giveAllowance(
             address(dai),
             address(d3mTestPool),
@@ -372,11 +371,6 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(d3mTestPool.accrued());
     }
 
-    function testFail_exec_invalid_traget() public {
-        d3mTestPool.file("isValidTarget", false);
-        _windSystem();
-    }
-
     function test_unwind_bar_zero() public {
         _windSystem();
 
@@ -587,21 +581,6 @@ contract DssDirectDepositHubTest is DSTest {
     function testFail_cage_pool_no_auth() public {
         directDepositHub.deny(address(this));
         directDepositHub.cage(ilk);
-    }
-
-    function test_cage_pool_invalid_target() public {
-        (, , , , uint256 tic) = directDepositHub.ilks(ilk);
-        assertEq(tic, 0);
-
-        // We should not need permission for this
-        directDepositHub.deny(address(this));
-        // Simulate some condition on the target that makes it invalid
-        d3mTestPool.file("isValidTarget", false);
-
-        directDepositHub.cage(ilk);
-
-        (, , , , tic) = directDepositHub.ilks(ilk);
-        assertEq(tic, block.timestamp);
     }
 
     function test_cull() public {

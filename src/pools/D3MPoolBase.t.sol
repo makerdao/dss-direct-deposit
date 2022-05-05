@@ -62,8 +62,6 @@ contract D3MPoolBase is D3MPoolInterface {
         emit Rely(msg.sender);
     }
 
-    function validTarget() external view override returns (bool) {}
-
     function deposit(uint256 amt) external override {}
 
     function withdraw(uint256 amt) external override {}

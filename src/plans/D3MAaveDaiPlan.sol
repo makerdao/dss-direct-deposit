@@ -51,6 +51,7 @@ interface InterestRateStrategyLike {
 
 contract D3MAaveDaiPlan is D3MPlanInterface {
 
+    LendingPoolLike          public immutable pool;
     InterestRateStrategyLike public immutable interestStrategy;
     TokenLike                public immutable stableDebt;
     TokenLike                public immutable variableDebt;
@@ -78,6 +79,7 @@ contract D3MAaveDaiPlan is D3MPlanInterface {
 
     constructor(address dai_, address pool_) public {
         dai = dai_;
+        pool = LendingPoolLike(pool_);
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
@@ -185,7 +187,12 @@ contract D3MAaveDaiPlan is D3MPlanInterface {
         }
     }
 
-    function disable() external override auth {
+    function disable() external override {
+        (,,,,,,,,,, address strategy,) = pool.getReserveData(address(dai));
+        require(
+            wards[msg.sender] == 1 ||
+            strategy != address(interestStrategy)
+        , "D3MAaveDaiPlan/not-authorized");
         bar = 0;
         emit Disable();
     }

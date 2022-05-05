@@ -38,6 +38,38 @@ interface InterestRateStrategyLike {
     );
 }
 
+contract LendingPoolWrapper is LendingPoolLike {
+    address constant AAVEPOOL = 0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9;
+    address constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address          fakeStrategy;
+
+    function file(address strategy) external {
+        fakeStrategy = strategy;
+    }
+
+    function getReserveData(address asset) external view override returns (
+        uint256,    // Configuration
+        uint128,    // the liquidity index. Expressed in ray
+        uint128,    // variable borrow index. Expressed in ray
+        uint128,    // the current supply rate. Expressed in ray
+        uint128,    // the current variable borrow rate. Expressed in ray
+        uint128,    // the current stable borrow rate. Expressed in ray
+        uint40,     // last updated timestamp
+        address,    // address of the adai interest bearing token
+        address,    // address of the stable debt token
+        address,    // address of the variable debt token
+        address,    // address of the interest rate strategy
+        uint8       // the id of the reserve
+    ) {
+        asset;
+        (,,,,,,, address adai, address stableDebt, address variableDebt, address interestStrategy,) = LendingPoolLike(AAVEPOOL).getReserveData(DAI);
+        if (fakeStrategy != address(0)) {
+            interestStrategy = fakeStrategy;
+        }
+        return (0,0,0,0,0,0,0, adai, stableDebt, variableDebt, interestStrategy,0);
+    }
+}
+
 contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
     uint256 constant RAY = 10 ** 27;
 
@@ -54,7 +86,7 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         );
 
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
-        aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
+        aavePool = LendingPoolLike(new LendingPoolWrapper());
         adai = TokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
         interestStrategy = InterestRateStrategyLike(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
 
@@ -168,9 +200,28 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         assertEq(D3MAaveDaiPlan(d3mTestPlan).bar(), 0);
     }
 
-    function testFail_disable_without_auth() public {
+    function testFail_disable_without_auth_when_interestStrategy_same() public {
+        (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), poolStrategy);
         D3MAaveDaiPlan(d3mTestPlan).deny(address(this));
 
         D3MAaveDaiPlan(d3mTestPlan).disable();
     }
+
+    function test_disables_when_interestStrategy_changed() public {
+        D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
+
+        // Simulate AAVE changing the strategy in the pool
+        LendingPoolWrapper(address(aavePool)).file(address(456));
+        (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
+
+        assertTrue(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()) != poolStrategy);
+        assertGt(D3MAaveDaiPlan(d3mTestPlan).bar(), 0);
+
+        D3MAaveDaiPlan(d3mTestPlan).deny(address(this));
+        D3MAaveDaiPlan(d3mTestPlan).disable();
+
+        assertEq(D3MAaveDaiPlan(d3mTestPlan).bar(), 0);
+    }
+
 }

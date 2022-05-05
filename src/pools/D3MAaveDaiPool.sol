@@ -54,7 +54,6 @@ contract D3MAaveDaiPool is D3MPoolInterface {
     RewardsClaimerLike       public immutable rewardsClaimer;
     ATokenLike               public immutable stableDebt;
     ATokenLike               public immutable variableDebt;
-    address                  public immutable interestStrategy;
     ATokenLike               public immutable adai;
     TokenLike                public immutable asset; // Dai
     address                  public           king;  // Who gets the rewards
@@ -82,16 +81,14 @@ contract D3MAaveDaiPool is D3MPoolInterface {
         asset = TokenLike(dai_);
 
         // Fetch the reserve data from Aave
-        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
+        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, ,) = LendingPoolLike(pool_).getReserveData(dai_);
         require(adai_ != address(0), "D3MAaveDaiPool/invalid-adai");
         require(stableDebt_ != address(0), "D3MAaveDaiPool/invalid-stableDebt");
         require(variableDebt_ != address(0), "D3MAaveDaiPool/invalid-variableDebt");
-        require(interestStrategy_ != address(0), "D3MAaveDaiPool/invalid-interestStrategy");
 
         adai = ATokenLike(adai_);
         stableDebt = ATokenLike(stableDebt_);
         variableDebt = ATokenLike(variableDebt_);
-        interestStrategy = interestStrategy_;
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
 
         ATokenLike(adai_).approve(pool_, type(uint256).max);
@@ -122,11 +119,6 @@ contract D3MAaveDaiPool is D3MPoolInterface {
         if (what == "king") king = data;
         else revert("D3MAaveDaiPool/file-unrecognized-param");
         emit File(what, data);
-    }
-
-    function validTarget() external view override returns (bool) {
-        (,,,,,,,,,, address strategy,) = pool.getReserveData(address(asset));
-        return strategy == interestStrategy;
     }
 
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender

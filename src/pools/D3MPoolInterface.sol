@@ -42,7 +42,6 @@ interface D3MPoolInterface {
     event Deny(address indexed usr);
 
     // --- Pool Functions ---
-    function validTarget() external view returns (bool);
     function deposit(uint256 amt) external;
     function withdraw(uint256 amt) external;
     function transfer(address dst, uint256 amt) external returns (bool);
