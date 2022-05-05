@@ -16,7 +16,23 @@
 
 pragma solidity 0.6.12;
 
-import "./D3MPoolInterface.sol";
+import "./ID3MPool.sol";
+
+interface TokenLike {
+    function approve(address, uint256) external returns (bool);
+    function transfer(address, uint256) external returns (bool);
+    function transferFrom(address, address, uint256) external returns (bool);
+    function balanceOf(address) external view returns (uint256);
+}
+
+interface CanLike {
+    function hope(address) external;
+    function nope(address) external;
+}
+
+interface d3mHubLike {
+    function vat() external view returns (address);
+}
 
 interface ATokenLike is TokenLike {
     function scaledBalanceOf(address) external view returns (uint256);
@@ -46,7 +62,7 @@ interface RewardsClaimerLike {
     function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
 }
 
-contract D3MAaveDaiPool is D3MPoolInterface {
+contract D3MAaveDaiPool is ID3MPool {
 
     uint256 constant RAY  = 10 ** 27;
 
@@ -60,11 +76,11 @@ contract D3MAaveDaiPool is D3MPoolInterface {
 
     // --- Auth ---
     mapping (address => uint256) public wards;
-    function rely(address usr) external override auth {
+    function rely(address usr) external auth {
         wards[usr] = 1;
         emit Rely(usr);
     }
-    function deny(address usr) external override auth {
+    function deny(address usr) external auth {
         wards[usr] = 0;
         emit Deny(usr);
     }
@@ -73,6 +89,9 @@ contract D3MAaveDaiPool is D3MPoolInterface {
         _;
     }
 
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
     event Collect(address indexed king, address[] assets, uint256 amt);
     event File(bytes32 indexed what, address data);
 

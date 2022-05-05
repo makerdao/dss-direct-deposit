@@ -17,9 +17,9 @@
 pragma solidity 0.6.12;
 
 import "ds-test/test.sol";
-import {DaiLike} from "../tests/interfaces/interfaces.sol";
+import {DaiLike, CanLike, d3mHubLike} from "../tests/interfaces/interfaces.sol";
 
-import "./D3MPoolInterface.sol";
+import "./ID3MPool.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -33,18 +33,17 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
-contract D3MPoolBase is D3MPoolInterface {
+contract D3MPoolBase is ID3MPool {
 
-
-    TokenLike public immutable asset; // Dai
+    DaiLike public immutable asset; // Dai
 
     // --- Auth ---
     mapping (address => uint256) public wards;
-    function rely(address usr) external override auth {
+    function rely(address usr) external auth {
         wards[usr] = 1;
         emit Rely(usr);
     }
-    function deny(address usr) external override auth {
+    function deny(address usr) external auth {
         wards[usr] = 0;
         emit Deny(usr);
     }
@@ -53,8 +52,12 @@ contract D3MPoolBase is D3MPoolInterface {
         _;
     }
 
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
+
     constructor(address hub_, address dai_) public {
-        asset = TokenLike(dai_);
+        asset = DaiLike(dai_);
 
         CanLike(d3mHubLike(hub_).vat()).hope(hub_);
 

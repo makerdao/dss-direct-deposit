@@ -16,32 +16,7 @@
 
 pragma solidity 0.6.12;
 
-interface TokenLike {
-    function approve(address, uint256) external returns (bool);
-    function transfer(address, uint256) external returns (bool);
-    function transferFrom(address, address, uint256) external returns (bool);
-    function balanceOf(address) external view returns (uint256);
-}
-
-interface CanLike {
-    function hope(address) external;
-    function nope(address) external;
-}
-
-interface d3mHubLike {
-    function vat() external view returns (address);
-}
-
-interface D3MPoolInterface {
-    // --- Auth ---
-    function rely(address usr) external;
-    function deny(address usr) external;
-
-    // --- Events ---
-    event Rely(address indexed usr);
-    event Deny(address indexed usr);
-
-    // --- Pool Functions ---
+interface ID3MPool {
     function deposit(uint256 amt) external;
     function withdraw(uint256 amt) external;
     function transfer(address dst, uint256 amt) external returns (bool);

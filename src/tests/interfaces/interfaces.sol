@@ -73,3 +73,12 @@ interface VowLike {
     function Ash() external view returns (uint256);
     function heal(uint256) external;
 }
+
+interface CanLike {
+    function hope(address) external;
+    function nope(address) external;
+}
+
+interface d3mHubLike {
+    function vat() external view returns (address);
+}

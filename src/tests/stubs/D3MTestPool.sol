@@ -17,13 +17,14 @@
 pragma solidity 0.6.12;
 
 import { D3MTestGem } from "./D3MTestGem.sol";
-import "../../pools/D3MPoolInterface.sol";
+import "../../pools/ID3MPool.sol";
+import { TokenLike, CanLike, d3mHubLike } from "../interfaces/interfaces.sol";
 
 interface RewardsClaimerLike {
     function claimRewards(address[] memory assets, uint256 amount, address to) external returns (uint256);
 }
 
-contract D3MTestPool is D3MPoolInterface {
+contract D3MTestPool is ID3MPool {
 
     RewardsClaimerLike public immutable rewardsClaimer;
     address            public immutable share; // Token representing a share of the asset pool
@@ -36,11 +37,11 @@ contract D3MTestPool is D3MPoolInterface {
 
     // --- Auth ---
     mapping (address => uint256) public wards;
-    function rely(address usr) external override auth {
+    function rely(address usr) external auth {
         wards[usr] = 1;
         emit Rely(usr);
     }
-    function deny(address usr) external override auth {
+    function deny(address usr) external auth {
         wards[usr] = 0;
         emit Deny(usr);
     }
@@ -49,6 +50,9 @@ contract D3MTestPool is D3MPoolInterface {
         _;
     }
 
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
     event Collect(address indexed king, address[] assets, uint256 amt);
 
     constructor(address hub_, address dai_, address share_, address _rewardsClaimer) public {
