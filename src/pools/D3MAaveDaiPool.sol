@@ -192,7 +192,7 @@ contract D3MAaveDaiPool is ID3MPool {
     }
 
     function maxWithdraw() external view override returns (uint256) {
-        return _min(TokenLike(asset).balanceOf(address(adai)), assetBalance());
+        return _min(asset.balanceOf(address(adai)), assetBalance());
     }
 
     function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {
