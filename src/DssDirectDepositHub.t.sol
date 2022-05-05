@@ -358,7 +358,20 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(d3mTestPool.accrued());
     }
 
-    function test_wind_limited_maxDeposit() public {
+    function test_wind_limited_by_maxDeposit() public {
+        _windSystem(); // winds to 50 * WAD
+        d3mTestPlan.file("targetAssets", 75 * WAD);
+        d3mTestPool.file("maxDepositAmount", 5 * WAD);
+
+        directDepositHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 55 * WAD);
+        assertEq(art, 55 * WAD);
+        assertTrue(d3mTestPool.accrued());
+    }
+
+    function test_wind_limited_to_zero_by_maxDeposit() public {
         _windSystem(); // winds to 50 * WAD
         d3mTestPlan.file("targetAssets", 75 * WAD);
         d3mTestPool.file("maxDepositAmount", 0);
