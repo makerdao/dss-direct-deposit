@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-import "./D3MPlanInterface.sol";
+import "./ID3MPlan.sol";
 
 interface TokenLike {
     function totalSupply() external view returns (uint256);
@@ -49,7 +49,7 @@ interface InterestRateStrategyLike {
     function getMaxVariableBorrowRate() external view returns (uint256);
 }
 
-contract D3MAaveDaiPlan is D3MPlanInterface {
+contract D3MAaveDaiPlan is ID3MPlan {
 
     LendingPoolLike          public immutable pool;
     InterestRateStrategyLike public immutable interestStrategy;
@@ -62,11 +62,11 @@ contract D3MAaveDaiPlan is D3MPlanInterface {
 
     // --- Auth ---
     mapping (address => uint256) public wards;
-    function rely(address usr) external override auth {
+    function rely(address usr) external auth {
         wards[usr] = 1;
         emit Rely(usr);
     }
-    function deny(address usr) external override auth {
+    function deny(address usr) external auth {
         wards[usr] = 0;
         emit Deny(usr);
     }
@@ -75,6 +75,9 @@ contract D3MAaveDaiPlan is D3MPlanInterface {
         _;
     }
 
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
 
     constructor(address dai_, address pool_) public {

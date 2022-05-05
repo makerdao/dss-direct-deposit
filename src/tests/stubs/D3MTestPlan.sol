@@ -16,9 +16,9 @@
 
 pragma solidity 0.6.12;
 
-import "../../plans/D3MPlanInterface.sol";
+import "../../plans/ID3MPlan.sol";
 
-contract D3MTestPlan is D3MPlanInterface {
+contract D3MTestPlan is ID3MPlan {
 
     address public immutable dai;
 
@@ -31,11 +31,11 @@ contract D3MTestPlan is D3MPlanInterface {
 
     // --- Auth ---
     mapping (address => uint256) public wards;
-    function rely(address usr) external override auth {
+    function rely(address usr) external auth {
         wards[usr] = 1;
         emit Rely(usr);
     }
-    function deny(address usr) external override auth {
+    function deny(address usr) external auth {
         wards[usr] = 0;
         emit Deny(usr);
     }
@@ -43,6 +43,10 @@ contract D3MTestPlan is D3MPlanInterface {
         require(wards[msg.sender] == 1, "D3MTestPlan/not-authorized");
         _;
     }
+
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
 
     constructor(address dai_) public {
         dai = dai_;

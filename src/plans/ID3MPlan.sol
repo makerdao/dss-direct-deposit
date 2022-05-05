@@ -16,14 +16,7 @@
 
 pragma solidity 0.6.12;
 
-interface D3MPlanInterface {
-    // --- Auth ---
-    function rely(address usr) external;
-    function deny(address usr) external;
-
-    // --- Events ---
-    event Rely(address indexed usr);
-    event Deny(address indexed usr);
+interface ID3MPlan {
     event Disable();
 
     // --- Plan Functions ---

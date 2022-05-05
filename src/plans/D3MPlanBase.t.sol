@@ -19,7 +19,7 @@ pragma solidity 0.6.12;
 import "ds-test/test.sol";
 import "../tests/interfaces/interfaces.sol";
 
-import "./D3MPlanInterface.sol";
+import "./ID3MPlan.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -33,16 +33,16 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
-contract D3MPlanBase is D3MPlanInterface {
+contract D3MPlanBase is ID3MPlan {
 
     address public immutable dai;
 
     mapping (address => uint256) public wards;
-    function rely(address usr) external override auth {
+    function rely(address usr) external auth {
         wards[usr] = 1;
         emit Rely(usr);
     }
-    function deny(address usr) external override auth {
+    function deny(address usr) external auth {
         wards[usr] = 0;
         emit Deny(usr);
     }
@@ -50,6 +50,10 @@ contract D3MPlanBase is D3MPlanInterface {
         require(wards[msg.sender] == 1, "D3MPlanBase/not-authorized");
         _;
     }
+
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
 
     constructor(address dai_) public {
         dai = dai_;
