@@ -75,7 +75,7 @@ contract DssDirectDepositHub {
     /**
         @notice Maps address that have permission in the Pool
         @dev 1 = allowed, 0 = no permission
-        @return authorization, 1 or 0
+        @return authorization 1 or 0
     */
     mapping (address => uint256) public wards;
 
@@ -150,8 +150,6 @@ contract DssDirectDepositHub {
 
     /**
         @dev sets msg.sender as authed.
-        Gives infinite approval for Dai on the DaiJoin contract.
-        Hopes the DaiJoin in the Vat.
         @param vat_     address of the DSS vat contract
         @param daiJoin_ address of the DSS Dai Join contract
     */
@@ -338,11 +336,11 @@ contract DssDirectDepositHub {
 
     /**
         @notice Main function for updating a D3M position.
-        Determines the current state and either winds or unwinds as necessary
+        Determines the current state and either winds or unwinds as necessary.
         @dev Winding the target position will be constrained by the Ilk debt ceiling,
         the overall DSS debt ceiling and the maximum deposit by the pool.
         Unwinding the target position will be constrained by the number of assets available
-        to be withdrawn from the pool
+        to be withdrawn from the pool.
         @param ilk bytes32 of the D3M ilk name
     */
     function exec(bytes32 ilk) external {
@@ -442,10 +440,10 @@ contract DssDirectDepositHub {
 
     /**
         @notice Allow Users to return vat gem for Pool Shares.
-        This will only occur during Global Settlement when users receive collateral for their Dai
+        This will only occur during Global Settlement when users receive collateral for their Dai.
         @param ilk bytes32 of the D3M ilk name
-        @param usr  address that should receive the shares from the pool
-        @param wad  amount of gems that the msg.sender is returning. Note: this could be different than the number of shares usr will receive
+        @param usr address that should receive the shares from the pool
+        @param wad amount of gems that the msg.sender is returning. Note: this could be different than the number of shares usr will receive
     */
     function exit(bytes32 ilk, address usr, uint256 wad) external {
         require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
@@ -511,8 +509,8 @@ contract DssDirectDepositHub {
     /**
         @notice Rollback Write-off (cull) if General Shutdown happened.
         This function is required to have the collateral back in the vault so it can be taken by End module
-        and eventually be shared to DAI holders (as any other collateral) or maybe even unwinded
-        @dev This pulls gems from the pool and reopens the urn with the gem amount of ink/art
+        and eventually be shared to DAI holders (as any other collateral) or maybe even unwinded.
+        @dev This pulls gems from the pool and reopens the urn with the gem amount of ink/art.
         @param ilk bytes32 of the D3M ilk name
     */
     function uncull(bytes32 ilk) external {
@@ -537,7 +535,7 @@ contract DssDirectDepositHub {
         the urn to the recipient.
         @dev If called while not culled, it will require who to hope on the Hub contract in the Vat
         @param ilk bytes32 of the D3M ilk name
-        @param who  address of who will receive the shares and possibly the urn
+        @param who address of who will receive the shares and possibly the urn
     */
     function quit(bytes32 ilk, address who) external auth {
         require(vat.live() == 1, "DssDirectDepositHub/no-quit-during-shutdown");

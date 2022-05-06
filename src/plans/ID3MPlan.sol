@@ -25,7 +25,7 @@ interface ID3MPlan {
 
     /**
         @notice Determines what the position should be based on current assets and the
-        custom plan rules
+        custom plan rules.
         @param currentAssets asset balance from a specific pool in Dai [wad] denomination
         @return uint256 target assets the Hub should wind or unwind to. Dai [wad] denomination
     */
@@ -35,9 +35,9 @@ interface ID3MPlan {
     function active() external view returns (bool);
 
     /**
-        @notice Disables the plan so that it would instruct the Hub to unwind its entire position
+        @notice Disables the plan so that it would instruct the Hub to unwind its entire position.
         @dev It is up to the specific implentation exactly what this means and if it is reversible
-        base implementation is permissionless
+        base implementation is permissionless.
     */
     function disable() external;
 }
