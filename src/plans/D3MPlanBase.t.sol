@@ -130,7 +130,7 @@ contract D3MPlanBaseTest is DSTest {
         assertEq(result, 2);
     }
 
-    function test_implements_active() public {
+    function test_implements_active() public view {
         D3MPlanBase(d3mTestPlan).active();
     }
 

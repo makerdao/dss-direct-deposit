@@ -23,9 +23,10 @@ contract D3MTestPlan is ID3MPlan {
     address public immutable dai;
 
     // test helper variables
-    uint256 maxBar_;
-    uint256 targetAssets;
-    uint256 currentRate;
+    uint256        maxBar_;
+    uint256        targetAssets;
+    uint256        currentRate;
+    bool    public active_ = true;
 
     uint256 public bar;  // Target Interest Rate [ray]
 
@@ -70,6 +71,12 @@ contract D3MTestPlan is ID3MPlan {
         } else revert("D3MTestPlan/file-unrecognized-param");
     }
 
+    function file(bytes32 what, bool data) external auth {
+        if (what == "active_") {
+            active_ = data;
+        } else revert("D3MTestPlan/file-unrecognized-param");
+    }
+
     function maxBar() public view returns (uint256) {
         return maxBar_;
     }
@@ -81,7 +88,7 @@ contract D3MTestPlan is ID3MPlan {
     }
 
     function active() external view override returns (bool) {
-        return true;
+        return active_;
     }
 
     function disable() external override auth {

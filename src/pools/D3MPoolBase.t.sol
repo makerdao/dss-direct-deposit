@@ -201,7 +201,7 @@ contract D3MPoolBaseTest is DSTest {
         D3MPoolBase(d3mTestPool).accrueIfNeeded();
     }
 
-    function test_implements_active() public {
+    function test_implements_active() public view {
         D3MPoolBase(d3mTestPool).active();
     }
 }

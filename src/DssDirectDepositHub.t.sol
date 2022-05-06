@@ -384,6 +384,36 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(d3mTestPool.accrued());
     }
 
+    function test_unwind_pool_not_active() public {
+        _windSystem();
+
+        // Temporarily disable the module
+        d3mTestPool.file("active_", false);
+        directDepositHub.exec(ilk);
+
+        // Ensure we unwound our position
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        // Make sure unwind calls accrued
+        assertTrue(d3mTestPool.accrued());
+    }
+
+    function test_unwind_plan_not_active() public {
+        _windSystem();
+
+        // Temporarily disable the module
+        d3mTestPlan.file("active_", false);
+        directDepositHub.exec(ilk);
+
+        // Ensure we unwound our position
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        // Make sure unwind calls accrued
+        assertTrue(d3mTestPool.accrued());
+    }
+
     function test_unwind_bar_zero() public {
         _windSystem();
 

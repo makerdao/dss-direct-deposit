@@ -34,6 +34,7 @@ contract D3MTestPool is ID3MPool {
     // test helper variables
     uint256        maxDepositAmount = type(uint256).max;
     bool    public accrued = false;
+    bool    public active_ = true;
 
     // --- Auth ---
     mapping (address => uint256) public wards;
@@ -70,6 +71,7 @@ contract D3MTestPool is ID3MPool {
     // --- Testing Admin ---
     function file(bytes32 what, bool data) external auth {
         if (what == "accrued") accrued = data;
+        else if (what == "active_") active_ = data;
         else revert("D3MTestPool/file-unrecognized-param");
     }
     function file(bytes32 what, uint256 data) external auth {
@@ -130,7 +132,7 @@ contract D3MTestPool is ID3MPool {
     }
 
     function active() external view override returns (bool) {
-        return true;
+        return active_;
     }
 
     function collect() external auth returns (uint256 amt) {

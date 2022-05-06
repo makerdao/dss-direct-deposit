@@ -25,11 +25,12 @@ interface D3MPoolLike {
     function assetBalance() external returns (uint256);
     function maxDeposit() external view returns (uint256);
     function maxWithdraw() external view returns (uint256);
-    function cage() external;
+    function active() external view returns (bool);
 }
 
 interface D3MPlanLike {
     function getTargetAssets(uint256) external view returns (uint256);
+    function active() external view returns (bool);
 }
 
 interface VatLike {
@@ -293,7 +294,7 @@ contract DssDirectDepositHub {
                 Mode.MCD_CAGED,
                 currentAssets
             );
-        } else if (ilks[ilk_].tic != 0) {
+        } else if (ilks[ilk_].tic != 0 || !pool.active() || !ilks[ilk_].plan.active()) {
             // pool caged
             _unwind(
                 ilk_,
