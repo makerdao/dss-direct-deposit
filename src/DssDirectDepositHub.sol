@@ -336,7 +336,7 @@ contract DssDirectDepositHub {
                     currentAssets
                 );
             } else {
-                // All the substractions are safe as otherwise toUnwind is > 0
+                // All the subtractions are safe as otherwise toUnwind is > 0
                 uint256 toWind = targetAssets - currentAssets;
                 toWind = _min(toWind, lineWad - Art);
                 toWind = _min(toWind, (Line - debt) / RAY);

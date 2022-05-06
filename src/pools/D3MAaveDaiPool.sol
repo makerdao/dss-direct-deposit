@@ -43,7 +43,7 @@ interface LendingPoolLike {
     function withdraw(address asset, uint256 amount, address to) external;
     function getReserveNormalizedIncome(address asset) external view returns (uint256);
     function getReserveData(address asset) external view returns (
-        uint256,    // Configuration
+        uint256,    // configuration
         uint128,    // the liquidity index. Expressed in ray
         uint128,    // variable borrow index. Expressed in ray
         uint128,    // the current supply rate. Expressed in ray

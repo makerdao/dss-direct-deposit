@@ -25,7 +25,7 @@ interface TokenLike {
 
 interface LendingPoolLike {
     function getReserveData(address asset) external view returns (
-        uint256,    // Configuration
+        uint256,    // configuration
         uint128,    // the liquidity index. Expressed in ray
         uint128,    // variable borrow index. Expressed in ray
         uint128,    // the current supply rate. Expressed in ray
@@ -166,12 +166,12 @@ contract D3MAaveDaiPlan is ID3MPlan {
 
     function getTargetAssets(uint256 currentAssets) external override view returns (uint256) {
         uint256 targetInterestRate = bar;
-        if (targetInterestRate == 0) return 0;     // De-activated
+        if (targetInterestRate == 0) return 0;  // De-activated
 
         uint256 totalDebt = _add(stableDebt.totalSupply(), variableDebt.totalSupply());
 
         uint256 totalPoolSize = _add(
-                TokenLike(dai).balanceOf(address(adai)),
+                TokenLike(dai).balanceOf(adai),
                 totalDebt
             );
 
