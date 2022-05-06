@@ -30,7 +30,7 @@ interface CanLike {
     function nope(address) external;
 }
 
-interface d3mHubLike {
+interface D3mHubLike {
     function vat() external view returns (address);
 }
 
@@ -92,8 +92,8 @@ contract D3MAaveDaiPool is ID3MPool {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
-    event Collect(address indexed king, address[] assets, uint256 amt);
     event File(bytes32 indexed what, address data);
+    event Collect(address indexed king, address[] assets, uint256 amt);
 
     constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) public {
         pool = LendingPoolLike(pool_);
@@ -113,7 +113,7 @@ contract D3MAaveDaiPool is ID3MPool {
         ATokenLike(adai_).approve(pool_, type(uint256).max);
         TokenLike(dai_).approve(pool_, type(uint256).max);
 
-        CanLike(d3mHubLike(hub_).vat()).hope(hub_);
+        CanLike(D3mHubLike(hub_).vat()).hope(hub_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -159,19 +159,6 @@ contract D3MAaveDaiPool is ID3MPool {
         pool.withdraw(address(asset), amt, address(msg.sender));
     }
 
-    // --- Collect any rewards ---
-    function collect() external returns (uint256 amt) {
-        require(king != address(0), "D3MAaveDaiPool/king-not-set");
-
-        address[] memory assets = new address[](1);
-        assets[0] = address(adai);
-
-        uint256 amount = type(uint256).max;
-
-        amt = rewardsClaimer.claimRewards(assets, amount, king);
-        emit Collect(king, assets, amt);
-    }
-
     function transfer(address dst, uint256 amt) external override auth returns (bool) {
         return adai.transfer(dst, amt);
     }
@@ -197,5 +184,18 @@ contract D3MAaveDaiPool is ID3MPool {
 
     function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {
         return TokenLike(token).transfer(dst, amt);
+    }
+
+    // --- Collect any rewards ---
+    function collect() external returns (uint256 amt) {
+        require(king != address(0), "D3MAaveDaiPool/king-not-set");
+
+        address[] memory assets = new address[](1);
+        assets[0] = address(adai);
+
+        uint256 amount = type(uint256).max;
+
+        amt = rewardsClaimer.claimRewards(assets, amount, king);
+        emit Collect(king, assets, amt);
     }
 }

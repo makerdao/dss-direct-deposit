@@ -55,8 +55,8 @@ contract D3MAaveDaiPlan is ID3MPlan {
     InterestRateStrategyLike public immutable interestStrategy;
     TokenLike                public immutable stableDebt;
     TokenLike                public immutable variableDebt;
+    TokenLike                public immutable dai;
     address                  public immutable adai;
-    address                  public immutable dai;
 
     uint256 public bar;  // Target Interest Rate [ray]
 
@@ -81,7 +81,7 @@ contract D3MAaveDaiPlan is ID3MPlan {
     event File(bytes32 indexed what, uint256 data);
 
     constructor(address dai_, address pool_) public {
-        dai = dai_;
+        dai = TokenLike(dai_);
         pool = LendingPoolLike(pool_);
 
         // Fetch the reserve data from Aave

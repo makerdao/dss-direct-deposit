@@ -321,7 +321,6 @@ contract DssDirectDepositHub {
 
             // Determine if it needs to unwind due plan
             uint256 targetAssets = ilks[ilk_].plan.getTargetAssets(currentAssets);
-            // Determine if the pool limits our total assets
             if (targetAssets < currentAssets) {
                 toUnwind = _max(toUnwind, currentAssets - targetAssets);
             }
@@ -340,6 +339,7 @@ contract DssDirectDepositHub {
                 uint256 toWind = targetAssets - currentAssets;
                 toWind = _min(toWind, lineWad - Art);
                 toWind = _min(toWind, (Line - debt) / RAY);
+                // Determine if the pool limits our total deposits
                 toWind = _min(toWind, pool.maxDeposit());
                 _wind(ilk_, pool, toWind);
             }
