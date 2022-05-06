@@ -459,7 +459,7 @@ contract DssDirectDepositHub {
         @notice Shutdown a pool.
         This starts the countdown to when the debt can be written off (cull).
         Once called, subsequent calls to `exec` will unwind as much of the position as possible.
-        @dev As long as the pool returns true for `validTarget()` this requires msg.sender be auth'ed
+        @dev msg.sender must be authorized
         @param ilk bytes32 of the D3M ilk name
     */
     function cage(bytes32 ilk) external auth {
