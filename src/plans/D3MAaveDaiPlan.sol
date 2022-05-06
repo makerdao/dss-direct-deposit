@@ -122,14 +122,14 @@ contract D3MAaveDaiPlan is ID3MPlan {
     // --- Admin ---
     function file(bytes32 what, uint256 data) external auth {
         if (what == "bar") {
-            require(data <= maxBar(), "D3MAaveDaiPlan/above-max-interest");
+            require(data <= _maxBar(), "D3MAaveDaiPlan/above-max-interest");
 
             bar = data;
         } else revert("D3MAaveDaiPlan/file-unrecognized-param");
         emit File(what, data);
     }
 
-    function maxBar() public view returns (uint256) {
+    function _maxBar() internal view returns (uint256) {
         return interestStrategy.getMaxVariableBorrowRate();
     }
 
@@ -142,7 +142,7 @@ contract D3MAaveDaiPlan is ID3MPlan {
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 totalDebt) internal view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
         require(targetInterestRate > base, "D3MAaveDaiPlan/target-interest-base");
-        require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "D3MAaveDaiPlan/above-max-interest");
+        require(targetInterestRate <= _maxBar(), "D3MAaveDaiPlan/above-max-interest");
 
         // Do inverse calculation of interestStrategy
         uint256 variableRateSlope1 = interestStrategy.variableRateSlope1();
