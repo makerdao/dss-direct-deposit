@@ -86,6 +86,10 @@ contract D3MPoolBase is ID3MPool {
     function maxWithdraw() external view override returns (uint256) {}
 
     function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {}
+
+    function active() external override view returns(bool) {
+        return true;
+    }
 }
 
 contract FakeVat {
@@ -195,5 +199,9 @@ contract D3MPoolBaseTest is DSTest {
 
     function test_implements_accrueIfNeeded() public {
         D3MPoolBase(d3mTestPool).accrueIfNeeded();
+    }
+
+    function test_implements_active() public {
+        D3MPoolBase(d3mTestPool).active();
     }
 }

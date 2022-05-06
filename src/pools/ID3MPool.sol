@@ -26,4 +26,5 @@ interface ID3MPool {
     function maxDeposit() external view returns (uint256);
     function maxWithdraw() external view returns (uint256);
     function recoverTokens(address token, address dst, uint256 amt) external returns (bool);
+    function active() external view returns (bool);
 }

@@ -186,6 +186,10 @@ contract D3MAaveDaiPool is ID3MPool {
         return TokenLike(token).transfer(dst, amt);
     }
 
+    function active() external view override returns (bool) {
+        return true;
+    }
+
     // --- Collect any rewards ---
     function collect() external returns (uint256 amt) {
         require(king != address(0), "D3MAaveDaiPool/king-not-set");
