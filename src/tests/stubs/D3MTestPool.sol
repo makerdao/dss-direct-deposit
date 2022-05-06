@@ -93,18 +93,6 @@ contract D3MTestPool is ID3MPool {
         TokenLike(asset).transferFrom(share, address(msg.sender), amt);
     }
 
-    function collect() external auth returns (uint256 amt) {
-        require(king != address(0), "D3MTestPool/king-not-set");
-
-        address[] memory assets = new address[](1);
-        assets[0] = address(share);
-
-        uint256 amount = type(uint256).max;
-
-        amt = rewardsClaimer.claimRewards(assets, amount, king);
-        emit Collect(king, assets, amt);
-    }
-
     function transfer(address dst, uint256 amt) public override auth returns (bool) {
         return TokenLike(share).transfer(dst, amt);
     }
@@ -139,5 +127,15 @@ contract D3MTestPool is ID3MPool {
 
     function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {
         return TokenLike(token).transfer(dst, amt);
+    }
+
+    function collect() external auth returns (uint256 amt) {
+        require(king != address(0), "D3MTestPool/king-not-set");
+
+        address[] memory assets = new address[](1);
+        assets[0] = address(share);
+
+        amt = rewardsClaimer.claimRewards(assets, type(uint256).max, king);
+        emit Collect(king, assets, amt);
     }
 }
