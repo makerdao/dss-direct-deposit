@@ -66,6 +66,10 @@ contract D3MPlanBase is ID3MPlan {
         return currentAssets;
     }
 
+    function active() external override view returns(bool) {
+        return true;
+    }
+
     function disable() external override {
 
     }

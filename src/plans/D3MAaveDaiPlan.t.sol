@@ -185,6 +185,17 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         assertEq(D3MAaveDaiPlan(d3mTestPlan).getTargetAssets(0), 0);
     }
 
+    function test_bar_zero_not_active() public {
+        assertEq(D3MAaveDaiPlan(d3mTestPlan).bar(), 0);
+        assertTrue(D3MAaveDaiPlan(d3mTestPlan).active() == false);
+    }
+
+    function test_bar_not_zero_active() public {
+        D3MAaveDaiPlan(d3mTestPlan).file("bar", 1);
+        assertGt(D3MAaveDaiPlan(d3mTestPlan).bar(), 0);
+        assertTrue(D3MAaveDaiPlan(d3mTestPlan).active());
+    }
+
     function test_implements_disable() public override {
         // disable_sets_bar_to_zero
         D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);

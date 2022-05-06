@@ -190,6 +190,10 @@ contract D3MAaveDaiPlan is ID3MPlan {
         }
     }
 
+    function active() external view override returns (bool) {
+        return bar != 0;
+    }
+
     function disable() external override {
         (,,,,,,,,,, address strategy,) = pool.getReserveData(address(dai));
         require(

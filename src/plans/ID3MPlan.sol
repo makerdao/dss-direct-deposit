@@ -21,5 +21,6 @@ interface ID3MPlan {
 
     // --- Plan Functions ---
     function getTargetAssets(uint256 currentAssets) external view returns (uint256);
+    function active() external view returns (bool);
     function disable() external;
 }

@@ -80,6 +80,10 @@ contract D3MTestPlan is ID3MPlan {
         return bar > 0 ? targetAssets : 0;
     }
 
+    function active() external view override returns (bool) {
+        return true;
+    }
+
     function disable() external override auth {
         bar = 0;
         emit Disable();
