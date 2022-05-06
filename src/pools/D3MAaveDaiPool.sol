@@ -193,9 +193,7 @@ contract D3MAaveDaiPool is ID3MPool {
         address[] memory assets = new address[](1);
         assets[0] = address(adai);
 
-        uint256 amount = type(uint256).max;
-
-        amt = rewardsClaimer.claimRewards(assets, amount, king);
+        amt = rewardsClaimer.claimRewards(assets, type(uint256).max, king);
         emit Collect(king, assets, amt);
     }
 }
