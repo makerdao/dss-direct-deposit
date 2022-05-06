@@ -52,11 +52,11 @@ interface InterestRateStrategyLike {
 contract D3MAaveDaiPlan is ID3MPlan {
 
     LendingPoolLike          public immutable pool;
-    InterestRateStrategyLike public immutable interestStrategy;
     TokenLike                public immutable stableDebt;
     TokenLike                public immutable variableDebt;
     TokenLike                public immutable dai;
     address                  public immutable adai;
+    InterestRateStrategyLike public           interestStrategy;
 
     uint256 public bar;  // Target Interest Rate [ray]
 
@@ -79,6 +79,7 @@ contract D3MAaveDaiPlan is ID3MPlan {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
+    event File(bytes32 indexed what, address data);
 
     constructor(address dai_, address pool_) public {
         dai = TokenLike(dai_);
@@ -126,6 +127,12 @@ contract D3MAaveDaiPlan is ID3MPlan {
 
             bar = data;
         } else revert("D3MAaveDaiPlan/file-unrecognized-param");
+        emit File(what, data);
+    }
+
+    function file(bytes32 what, address data) external auth {
+        if (what == "interestStrategy") interestStrategy = InterestRateStrategyLike(data);
+        else revert("D3MAaveDaiPlan/file-unrecognized-param");
         emit File(what, data);
     }
 
@@ -190,15 +197,15 @@ contract D3MAaveDaiPlan is ID3MPlan {
         }
     }
 
-    function active() external view override returns (bool) {
-        return bar != 0;
+    function active() public view override returns (bool) {
+        (,,,,,,,,,, address strategy,) = pool.getReserveData(address(dai));
+        return strategy == address(interestStrategy);
     }
 
     function disable() external override {
-        (,,,,,,,,,, address strategy,) = pool.getReserveData(address(dai));
         require(
             wards[msg.sender] == 1 ||
-            strategy != address(interestStrategy)
+            !active()
         , "D3MAaveDaiPlan/not-authorized");
         bar = 0;
         emit Disable();
