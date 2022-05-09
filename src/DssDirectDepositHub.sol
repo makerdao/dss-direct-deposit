@@ -82,7 +82,6 @@ contract DssDirectDepositHub {
     }
 
     enum Mode { NORMAL, MODULE_CULLED, MCD_CAGED }
-    uint256             constant  RAY  = 10 ** 27;
 
     VatLike      public immutable vat;
     DaiJoinLike  public immutable daiJoin;
@@ -125,6 +124,8 @@ contract DssDirectDepositHub {
     }
 
     // --- Math ---
+    uint256 internal constant RAY = 10 ** 27;
+
     function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x, "DssDirectDepositHub/overflow");
     }
