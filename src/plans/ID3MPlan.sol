@@ -18,16 +18,18 @@ pragma solidity 0.6.12;
 
 /**
     @title D3M Plan Interface
-    @notice Plan contracts are contracts that the Hub uses to determine how much to change its position
+    @notice Plan contracts are contracts that the Hub uses to determine how
+    much to change its position.
 */
 interface ID3MPlan {
     event Disable();
 
     /**
-        @notice Determines what the position should be based on current assets and the
-        custom plan rules.
-        @param currentAssets asset balance from a specific pool in Dai [wad] denomination
-        @return uint256 target assets the Hub should wind or unwind to. Dai [wad] denomination
+        @notice Determines what the position should be based on current assets
+        and the custom plan rules.
+        @param currentAssets asset balance from a specific pool in Dai [wad]
+        denomination
+        @return uint256 target assets the Hub should wind or unwind to in Dai
     */
     function getTargetAssets(uint256 currentAssets) external view returns (uint256);
 
@@ -35,9 +37,12 @@ interface ID3MPlan {
     function active() external view returns (bool);
 
     /**
-        @notice Disables the plan so that it would instruct the Hub to unwind its entire position.
-        @dev It is up to the specific implementation exactly what this means and if it is reversible
-        base implementation is permissionless.
+
+        @notice Disables the plan so that it would instruct the Hub to unwind
+        its entire position.
+        @dev It is up to the specific implentation exactly what this means and
+        if it is reversible base implementation is permissionless.
+>>>>>>> 5a6cc5b (unify wrapping point and punctuation)
     */
     function disable() external;
 }

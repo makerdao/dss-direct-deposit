@@ -66,22 +66,23 @@ interface TokenLike {
 
 /**
     @title D3M Hub
-    @notice This is the main D3M contract and is responsible for winding/unwinding pools,
-    interacting with DSS and tracking the plans and pools and their states.
+    @notice This is the main D3M contract and is responsible for winding and
+    unwinding pools, interacting with DSS and tracking the plans and pools and
+    their states.
 */
 contract DssDirectDepositHub {
 
     // --- Auth ---
     /**
-        @notice Maps address that have permission in the Pool
+        @notice Maps address that have permission in the Pool.
         @dev 1 = allowed, 0 = no permission
         @return authorization 1 or 0
     */
     mapping (address => uint256) public wards;
 
     /**
-        @notice Makes an address authorized to perform auth'ed functions
-        @dev msg.sender must be authorized
+        @notice Makes an address authorized to perform auth'ed functions.
+        @dev msg.sender must be authorized.
         @param usr address to be authorized
     */
     function rely(address usr) external auth {
@@ -90,8 +91,8 @@ contract DssDirectDepositHub {
     }
 
     /**
-        @notice De-authorizes an address from performing auth'ed functions
-        @dev msg.sender must be authorized
+        @notice De-authorizes an address from performing auth'ed functions.
+        @dev msg.sender must be authorized.
         @param usr address to be de-authorized
     */
     function deny(address usr) external auth {
@@ -99,7 +100,7 @@ contract DssDirectDepositHub {
         emit Deny(usr);
     }
 
-    /// @notice Modifier will revoke if msg.sender is not authorized
+    /// @notice Modifier will revoke if msg.sender is not authorized.
     modifier auth {
         require(wards[msg.sender] == 1, "DssDirectDepositHub/not-authorized");
         _;
@@ -114,7 +115,7 @@ contract DssDirectDepositHub {
     EndLike      public           end;
 
     /**
-        @notice Tracking struct for each of the D3M ilks
+        @notice Tracking struct for each of the D3M ilks.
         @param pool   Contract to access external pool and hold balances
         @param plan   Contract used to calculate target debt
         @param tau    Time until you can write off the debt [sec]
@@ -129,7 +130,7 @@ contract DssDirectDepositHub {
         uint256     tic;    // Timestamp when the pool is caged
     }
 
-    /// @notice maps ilk bytes32 to the D3M tracking struct
+    /// @notice maps ilk bytes32 to the D3M tracking struct.
     mapping (bytes32 => Ilk) public ilks;
 
     // --- Events ---
@@ -185,8 +186,8 @@ contract DssDirectDepositHub {
 
     // --- Administration ---
     /**
-        @notice update vow or end addresses
-        @dev msg.sender must be authorized
+        @notice update vow or end addresses.
+        @dev msg.sender must be authorized.
         @param what name of what we are updating bytes32("vow"|"end")
         @param data address we are setting it to
     */
@@ -200,8 +201,8 @@ contract DssDirectDepositHub {
     }
 
     /**
-        @notice update tau value for D3M ilk
-        @dev msg.sender must be authorized
+        @notice update tau value for D3M ilk.
+        @dev msg.sender must be authorized.
         @param ilk  bytes32 of the D3M ilk to be updated
         @param what bytes32("tau") or it will revert
         @param data number of second to wait after caging a pool to write of debt
@@ -217,8 +218,8 @@ contract DssDirectDepositHub {
     }
 
     /**
-        @notice update plan or pool addresses for D3M ilk
-        @dev msg.sender must be authorized
+        @notice update plan or pool addresses for D3M ilk.
+        @dev msg.sender must be authorized.
         @param ilk  bytes32 of the D3M ilk to be updated
         @param what bytes32("pool"|"plan") or it will revert
         @param data address we are setting it to
@@ -337,10 +338,10 @@ contract DssDirectDepositHub {
     /**
         @notice Main function for updating a D3M position.
         Determines the current state and either winds or unwinds as necessary.
-        @dev Winding the target position will be constrained by the Ilk debt ceiling,
-        the overall DSS debt ceiling and the maximum deposit by the pool.
-        Unwinding the target position will be constrained by the number of assets available
-        to be withdrawn from the pool.
+        @dev Winding the target position will be constrained by the Ilk debt
+        ceiling, the overall DSS debt ceiling and the maximum deposit by the
+        pool. Unwinding the target position will be constrained by the number
+        of assets available to be withdrawn from the pool.
         @param ilk bytes32 of the D3M ilk name
     */
     function exec(bytes32 ilk) external {
@@ -417,7 +418,8 @@ contract DssDirectDepositHub {
 
     /**
         @notice Collect interest and send to vow.
-        Total collected will be constrained by the number of assets available to be withdrawn from the pool.
+        Total collected will be constrained by the number of assets available to
+        be withdrawn from the pool.
         @param ilk bytes32 of the D3M ilk name
     */
     function reap(bytes32 ilk) external {
@@ -440,10 +442,11 @@ contract DssDirectDepositHub {
 
     /**
         @notice Allow Users to return vat gem for Pool Shares.
-        This will only occur during Global Settlement when users receive collateral for their Dai.
+        This will only occur during Global Settlement when users receive
+        collateral for their Dai.
         @param ilk bytes32 of the D3M ilk name
         @param usr address that should receive the shares from the pool
-        @param wad amount of gems that the msg.sender is returning. Note: this could be different than the number of shares usr will receive
+        @param wad amount of gems that the msg.sender is returning
     */
     function exit(bytes32 ilk, address usr, uint256 wad) external {
         require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
@@ -456,8 +459,9 @@ contract DssDirectDepositHub {
     /**
         @notice Shutdown a pool.
         This starts the countdown to when the debt can be written off (cull).
-        Once called, subsequent calls to `exec` will unwind as much of the position as possible.
-        @dev msg.sender must be authorized
+        Once called, subsequent calls to `exec` will unwind as much of the
+        position as possible.
+        @dev msg.sender must be authorized.
         @param ilk bytes32 of the D3M ilk name
     */
     function cage(bytes32 ilk) external auth {
@@ -469,11 +473,12 @@ contract DssDirectDepositHub {
 
     /**
         @notice Write off the debt for a caged pool.
-        This must occur while vat is live and after tau number of seconds has passed since the
-        pool was caged.
-        @dev This will send the pool's debt to the vow as sin and convert its collateral to gems.
-        There is a situation where another user has paid back some of the Pool's debt where ink != art
-        in this case we rebalance so that vat.gems(pool) will represent the amount of debt sent to the vow.
+        This must occur while vat is live and after tau number of seconds has
+        passed since the pool was caged.
+        @dev This will send the pool's debt to the vow as sin and convert its
+        collateral to gems.  There is a situation where another user has paid
+        back some of the Pool's debt where ink != art in this case we rebalance
+        so that vat.gems(pool) will represent the amount of debt sent to the vow.
         @param ilk bytes32 of the D3M ilk name
     */
     function cull(bytes32 ilk) external {
@@ -508,9 +513,11 @@ contract DssDirectDepositHub {
 
     /**
         @notice Rollback Write-off (cull) if General Shutdown happened.
-        This function is required to have the collateral back in the vault so it can be taken by End module
-        and eventually be shared to DAI holders (as any other collateral) or maybe even unwinded.
-        @dev This pulls gems from the pool and reopens the urn with the gem amount of ink/art.
+        This function is required to have the collateral back in the vault so it
+        can be taken by End module and eventually be shared to DAI holders (as
+        any other collateral) or maybe even unwinded.
+        @dev This pulls gems from the pool and reopens the urn with the gem
+        amount of ink/art.
         @param ilk bytes32 of the D3M ilk name
     */
     function uncull(bytes32 ilk) external {
@@ -531,9 +538,10 @@ contract DssDirectDepositHub {
 
     /**
         @notice Emergency Quit Everything.
-        Transfer all the shares and either wipe out the gems (culled situation) or fork
-        the urn to the recipient.
-        @dev If called while not culled, it will require who to hope on the Hub contract in the Vat
+        Transfer all the shares and either wipe out the gems (culled situation)
+        or fork the urn to the recipient.
+        @dev If called while not culled, it will require who to hope on the Hub
+        contract in the Vat.
         @param ilk bytes32 of the D3M ilk name
         @param who address of who will receive the shares and possibly the urn
     */

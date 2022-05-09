@@ -18,8 +18,10 @@ pragma solidity 0.6.12;
 
 /**
     @title D3M Pool Interface
-    @notice Pool contracts are the contract that the Hub uses to standardize interactions with external Pools
-    @dev This contract will hold any balance provided by the external pool as well as the balance in the Vat.
+    @notice Pool contracts are the contract that the Hub uses to standardize
+    interactions with external Pools.
+    @dev This contract will hold any balance provided by the external pool as
+    well as the balance in the Vat.
     This contract aims to use EIP-4626 guidelines for assets/shares/maxWithdraw etc.
 */
 interface ID3MPool {
@@ -33,16 +35,17 @@ interface ID3MPool {
 
     /**
         @notice Function that will withdraw assets (Dai) from the external pool.
-        @dev If the external pool requires a different amount to be passed in the
-        conversion should occur here as the Hub passes Dai [wad] amounts.
+        @dev If the external pool requires a different amount to be passed in
+        the conversion should occur here as the Hub passes Dai [wad] amounts.
         @param amt amount in asset (Dai) terms that we want to withdraw
     */
     function withdraw(uint256 amt) external;
 
      /**
         @notice Function that will transfer shares.
-        @dev If the external pool/shares contract requires a different amount be passed in the
-        conversion should occur here as the Hub passes Gem [wad] amounts.
+        @dev If the external pool/shares contract requires a different amount be
+        passed in the conversion should occur here as the Hub passes Gem [wad]
+        amounts.
         @param dst address that should receive the shares
         @param amt amount in Gem terms that we want to withdraw
         @return bool whether the transfer was successful per ERC-20 standard
@@ -50,8 +53,8 @@ interface ID3MPool {
     function transfer(address dst, uint256 amt) external returns (bool);
 
     /**
-        @notice Function that will transfer all shares from this pool
-        @param dst address that should receive the shares
+        @notice Function that will transfer all shares from this pool.
+        @param dst address that should receive the shares.
         @return bool whether the transfer was successful per ERC-20 standard
     */
     function transferAll(address dst) external returns (bool);
@@ -61,7 +64,8 @@ interface ID3MPool {
 
     /**
         @notice Balance of assets this pool "owns".
-        @dev This could be greater than the amount the pool can withdraw due to lack of liquidity
+        @dev This could be greater than the amount the pool can withdraw due to
+        lack of liquidity.
         @return uint256 number of assets in Dai [wad]
     */
     function assetBalance() external view returns (uint256);
@@ -80,11 +84,11 @@ interface ID3MPool {
 
     /**
         @notice Function used to recover any ERC-20 accidentally sent to the pool.
-        YOU SHOULD NOT SEND ERC-20 DIRECTLY TO THIS CONTRACT.
+        --- YOU SHOULD NOT SEND ERC-20 DIRECTLY TO THIS CONTRACT ---
         The presence of this function does not convey any right to recover tokens
-        sent to this contract. Maker Governance must evaluate and perform this action at
-        its sole discretion.
-        @dev msg.sender must be authorized
+        sent to this contract. Maker Governance must evaluate and perform this
+        action at its sole discretion.
+        @dev msg.sender must be authorized.
         @param token address of the ERC-20 token that will be transferred
         @param dst address that should receive the shares
         @param amt amount in Gem terms that we want to withdraw
