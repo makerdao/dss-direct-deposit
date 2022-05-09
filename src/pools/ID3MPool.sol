@@ -21,7 +21,7 @@ pragma solidity 0.6.12;
     @notice Pool contracts are contracts that the Hub uses to standardize
     interactions with external Pools.
     @dev Implementing contracts will hold any balance provided by the external
-    pool as well as the balance in the Vat. This contract aims to use EIP-4626
+    pool as well as the balance in the Vat. This interface aims to use EIP-4626
     guidelines for assets/shares/maxWithdraw etc.
 */
 interface ID3MPool {
