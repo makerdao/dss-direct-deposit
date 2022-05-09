@@ -18,7 +18,7 @@ pragma solidity 0.6.12;
 
 /**
     @title D3M Plan Interface
-    @notice Plan contracts are the contract that the Hub uses to determine how much to change its position
+    @notice Plan contracts are contracts that the Hub uses to determine how much to change its position
 */
 interface ID3MPlan {
     event Disable();
