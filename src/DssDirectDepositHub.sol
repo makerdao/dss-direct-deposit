@@ -81,7 +81,7 @@ contract DssDirectDepositHub {
         _;
     }
 
-    enum Mode{ NORMAL, MODULE_CULLED, MCD_CAGED }
+    enum Mode { NORMAL, MODULE_CULLED, MCD_CAGED }
     uint256             constant  RAY  = 10 ** 27;
 
     VatLike      public immutable vat;
