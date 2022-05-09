@@ -40,9 +40,7 @@ interface ID3MPlan {
 
         @notice Disables the plan so that it would instruct the Hub to unwind
         its entire position.
-        @dev It is up to the specific implentation exactly what this means and
-        if it is reversible base implementation is permissionless.
->>>>>>> 5a6cc5b (unify wrapping point and punctuation)
+        @dev Implementation should be permissioned.
     */
     function disable() external;
 }
