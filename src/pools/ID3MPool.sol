@@ -27,7 +27,7 @@ pragma solidity 0.6.12;
 interface ID3MPool {
     /**
         @notice Deposit assets (Dai) in the external pool.
-        @dev If the external pool requires a different amount be passed in the
+        @dev If the external pool requires a different amount to be passed in, the
         conversion should occur here as the Hub passes Dai [wad] amounts.
         msg.sender must be authorized.
         @param amt amount in asset (Dai) terms that we want to deposit
@@ -74,13 +74,13 @@ interface ID3MPool {
     function assetBalance() external view returns (uint256);
 
     /**
-        @notice Maximum number of assets the pool could withdraw at present.
+        @notice Maximum number of assets the pool could deposit at present.
         @return uint256 number of assets in Dai [wad]
     */
     function maxDeposit() external view returns (uint256);
 
     /**
-        @notice Maximum number of assets the pool could deposit at present.
+        @notice Maximum number of assets the pool could withdraw at present.
         @return uint256 number of assets in Dai [wad]
     */
     function maxWithdraw() external view returns (uint256);
