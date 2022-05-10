@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity >=0.8.13;
 
 import "ds-test/test.sol";
 import "../tests/interfaces/interfaces.sol";
@@ -162,8 +162,8 @@ contract D3MAaveDaiTest is DSTest {
         // Give us a bunch of WETH and deposit into Aave
         uint256 amt = 1_000_000 * WAD;
         _giveTokens(weth, amt);
-        weth.approve(address(aavePool), uint256(-1));
-        dai.approve(address(aavePool), uint256(-1));
+        weth.approve(address(aavePool), type(uint256).max);
+        dai.approve(address(aavePool), type(uint256).max);
         aavePool.deposit(address(weth), amt, address(this), 0);
     }
 
@@ -503,7 +503,7 @@ contract D3MAaveDaiTest is DSTest {
         uint256 vowDai = vat.dai(vow);
         directDepositHub.reap(ilk);
 
-        log_named_decimal_uint("dai", vat.dai(vow) - vowDai, 18);
+        emit log_named_decimal_uint("dai", vat.dai(vow) - vowDai, 18);
 
         assertGt(vat.dai(vow) - vowDai, 0);
     }

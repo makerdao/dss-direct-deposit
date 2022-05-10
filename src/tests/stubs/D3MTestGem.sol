@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity >=0.8.13;
 
 interface TokenLike {
     function approve(address, uint256) external returns (bool);
@@ -75,7 +75,7 @@ contract D3MTestGem {
 
     function transferFrom(address src, address dst, uint256 amt) public returns (bool) {
         require(balanceOf[src] >= amt, "TestGem/insufficient-balance");
-        if (src != msg.sender && allowance[src][msg.sender] != uint(-1)) {
+        if (src != msg.sender && allowance[src][msg.sender] != type(uint256).max) {
             require(allowance[src][msg.sender] >= amt, "TestGem/insufficient-allowance");
             allowance[src][msg.sender] = sub(allowance[src][msg.sender], amt);
         }
@@ -91,7 +91,7 @@ contract D3MTestGem {
 
     function burn(address usr, uint wad) external {
         require(balanceOf[usr] >= wad, "TestGem/insufficient-balance");
-        if (usr != msg.sender && allowance[usr][msg.sender] != uint(-1)) {
+        if (usr != msg.sender && allowance[usr][msg.sender] != type(uint256).max) {
             require(allowance[usr][msg.sender] >= wad, "TestGem/insufficient-allowance");
             allowance[usr][msg.sender] = sub(allowance[usr][msg.sender], wad);
         }
