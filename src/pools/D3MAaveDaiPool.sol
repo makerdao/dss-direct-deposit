@@ -120,14 +120,8 @@ contract D3MAaveDaiPool is ID3MPool {
     }
 
     // --- Math ---
-    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "D3MAaveDaiPool/overflow");
-    }
-    function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "D3MAaveDaiPool/overflow");
-    }
     function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, RAY) / y;
+        z = (x * RAY) / y;
     }
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
@@ -150,7 +144,7 @@ contract D3MAaveDaiPool is ID3MPool {
         // Verify the correct amount of adai shows up
         uint256 interestIndex = pool.getReserveNormalizedIncome(address(asset));
         uint256 scaledAmount = _rdiv(amt, interestIndex);
-        require(adai.scaledBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount), "D3MAaveDaiPool/incorrect-share-credit");
+        require(adai.scaledBalanceOf(address(this)) >= scaledPrev + scaledAmount, "D3MAaveDaiPool/incorrect-share-credit");
     }
 
     // Withdraws Dai from Aave in exchange for adai
