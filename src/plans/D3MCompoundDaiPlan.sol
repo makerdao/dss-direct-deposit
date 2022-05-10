@@ -43,7 +43,7 @@
 
 pragma solidity 0.6.12;
 
-import "./D3MPlanBase.sol";
+import "./ID3MPlan.sol";
 
 interface CErc20 {
     function totalBorrows()           external view returns (uint256);
@@ -60,18 +60,36 @@ interface InterestRateModel {
     function jumpMultiplierPerBlock() external view returns (uint256);
 }
 
-contract D3MCompoundDaiPlan is D3MPlanBase {
+contract D3MCompoundDaiPlan is ID3MPlan {
 
-    CErc20            public immutable cDai;
-    InterestRateModel public immutable rateModel;
+    CErc20 public immutable cDai;
 
-    // Target Interest Rate Per Block [wad]
-    uint256 public barb; // (0)
+    uint256           public barb;  // Target Interest Rate Per Block [wad] (0)
+    InterestRateModel public rateModel;
 
+    // --- Auth ---
+    mapping (address => uint256) public wards;
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MCompoundDaiPlan/not-authorized");
+        _;
+    }
+
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
+    event File(bytes32 indexed what, address data);
     event Disable();
 
-    constructor(address dai_, address cDai_) public D3MPlanBase(dai_) {
+    // TODO: remove dai_ as it is unused
+    constructor(address dai_, address cDai_) public {
 
         address rateModel_ = CErc20(cDai_).interestRateModel();
         require(rateModel_ != address(0), "D3MCompoundDaiPlan/invalid-rateModel");
@@ -79,10 +97,13 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
 
         rateModel = InterestRateModel(rateModel_);
         cDai = CErc20(cDai_);
+
+        wards[msg.sender] = 1;
+        emit Rely(msg.sender);
     }
 
     // --- Math ---
-    uint256 constant WAD  = 10 ** 18;
+    uint256 constant WAD  = 10 ** 18; // TODO: why 2 spaces?
 
     function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x, "D3MCompoundDaiPlan/overflow");
@@ -105,6 +126,12 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
         if (what == "barb") {
             barb = data;
         } else revert("D3MCompoundDaiPlan/file-unrecognized-param");
+        emit File(what, data);
+    }
+
+    function file(bytes32 what, address data) external auth {
+        if (what == "rateModel") InterestRateModel(data);
+        else revert("D3MCompoundDaiPlan/file-unrecognized-param");
         emit File(what, data);
     }
 
@@ -166,7 +193,13 @@ contract D3MCompoundDaiPlan is D3MPlanBase {
         }
     }
 
-    function disable() external override auth {
+    function active() public view override returns (bool) {
+        return CErc20(cDai).interestRateModel() == address(rateModel);
+    }
+
+    // TODO: align to aave's plan disable() once finalized
+    function disable() external override {
+        require(wards[msg.sender] == 1 || !active(), "D3MCompoundDaiPlan/not-authorized");
         barb = 0;
         emit Disable();
     }

@@ -121,6 +121,7 @@ contract D3MCompoundDaiTest is DSTest {
 
         directDepositHub = new DssDirectDepositHub(address(vat), address(daiJoin));
         d3mCompoundDaiPool = new D3MCompoundDaiPool(address(directDepositHub), address(dai), address(cDai));
+        d3mCompoundDaiPool.rely(address(directDepositHub));
         d3mCompoundDaiPlan = new D3MCompoundDaiPlan(address(dai), address(cDai));
 
         directDepositHub.file(ilk, "pool", address(d3mCompoundDaiPool));
@@ -424,8 +425,7 @@ contract D3MCompoundDaiTest is DSTest {
         // Cage the system and start unwinding
         currentLiquidity = dai.balanceOf(address(cDai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mCompoundDaiPool));
-        directDepositHub.cage();
-        assertEq(directDepositHub.live(), 0);
+        directDepositHub.cage(ilk);
         directDepositHub.exec(ilk);
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
@@ -463,10 +463,7 @@ contract D3MCompoundDaiTest is DSTest {
         // Cage the system and start unwinding
         currentLiquidity = dai.balanceOf(address(cDai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mCompoundDaiPool));
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
-        assertEq(directDepositHub.live(), 0);
-        assertEq(d3mCompoundDaiPool.live(), 0);
         directDepositHub.exec(ilk);
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
@@ -582,7 +579,7 @@ contract D3MCompoundDaiTest is DSTest {
         assertGt(amountSupplied + feesAccrued, currentLiquidity);
 
         // Cage the system to trigger only unwinds
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
         directDepositHub.exec(ilk);
 
         // The full debt should be paid off, but we are still owed fees
@@ -812,7 +809,6 @@ contract D3MCompoundDaiTest is DSTest {
         uint256 amountToBorrow = currentLiquidity + amountSupplied / 2;
         assertEq(cDai.borrow(amountToBorrow), 0);
 
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
 
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
@@ -922,7 +918,7 @@ contract D3MCompoundDaiTest is DSTest {
     function testFail_uncull_not_culled() public {
         // Lower by 50%
         _setRelUtil(5000);
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         // MCD shutdowns
         end.cage();
@@ -935,7 +931,7 @@ contract D3MCompoundDaiTest is DSTest {
     function testFail_uncull_not_shutdown() public {
         // Lower by 50%
         _setRelBorrowTarget(5000);
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
         hevm.warp(block.timestamp + tau);
@@ -996,18 +992,10 @@ contract D3MCompoundDaiTest is DSTest {
         assertEqApprox(100 * 1e18, cDai.balanceOfUnderlying(address(this)), 10 ** 10);
     }
 
-    function testFail_shutdown_cant_cage() public {
-        _setRelUtil(7500);
-
-        // Vat is caged for global settlement
-        vat.cage();
-        directDepositHub.cage();
-    }
-
     function testFail_shutdown_cant_cull() public {
         _setRelUtil(7500);
 
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         // Vat is caged for global settlement
         vat.cage();
@@ -1021,7 +1009,7 @@ contract D3MCompoundDaiTest is DSTest {
     function test_quit_no_cull() public {
         _setRelUtil(7500);
 
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         // Test that we can extract the whole position in emergency situations
         // cDAI should be sitting in the deposit contract, urn should be owned by deposit contract
@@ -1050,7 +1038,6 @@ contract D3MCompoundDaiTest is DSTest {
     function test_quit_cull() public {
         _setRelBorrowTarget(7500);
 
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
 
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
@@ -1089,7 +1076,7 @@ contract D3MCompoundDaiTest is DSTest {
     function testFail_reap_caged() public {
         _setRelBorrowTarget(7500);
 
-        directDepositHub.cage();
+        directDepositHub.cage(ilk);
 
         hevm.warp(block.timestamp + 1 days);    // Accrue some interest
 
@@ -1129,10 +1116,7 @@ contract D3MCompoundDaiTest is DSTest {
         (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
         assertEq(tau, 7 days);
 
-        directDepositHub.cage();
         directDepositHub.cage(ilk);
-        assertEq(directDepositHub.live(), 0);
-        assertEq(d3mCompoundDaiPool.live(), 0);
 
         // file should fail with error "D3MCompoundDai/live"
         directDepositHub.file(ilk, "tau", 1 days);

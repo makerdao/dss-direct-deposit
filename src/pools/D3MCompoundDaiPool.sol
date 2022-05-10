@@ -16,7 +16,22 @@
 
 pragma solidity 0.6.12;
 
-import "./D3MPoolBase.sol";
+import "./ID3MPool.sol";
+
+interface TokenLike {
+    function approve(address, uint256) external returns (bool);
+    function transfer(address, uint256) external returns (bool);
+    function transferFrom(address, address, uint256) external returns (bool);
+    function balanceOf(address) external view returns (uint256);
+}
+
+interface CanLike {
+    function hope(address) external;
+}
+
+interface D3mHubLike {
+    function vat() external view returns (address);
+}
 
 interface CErc20 {
     function interestRateModel()                    external view returns (address);
@@ -38,31 +53,49 @@ interface Comptroller {
     function claimComp(address[] memory holders, address[] memory cTokens, bool borrowers, bool suppliers) external;
 }
 
-contract D3MCompoundDaiPool is D3MPoolBase {
+contract D3MCompoundDaiPool is ID3MPool {
 
     Comptroller public immutable comptroller;
-    address     public immutable rateModel;
     CErc20      public immutable cDai;
+    TokenLike   public immutable asset; // Dai
 
-    address public king; // Who gets the rewards
+    address     public king; // Who gets the rewards
 
+    // --- Auth ---
+    mapping (address => uint256) public wards;
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MCompoundDaiPool/not-authorized");
+        _;
+    }
+
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
     event File(bytes32 indexed what, address data);
     event Collect(address indexed king, address indexed comp);
 
-    constructor(address hub_, address dai_, address cDai_) public D3MPoolBase(hub_, dai_) {
+    constructor(address hub_, address dai_, address cDai_) public {
 
-        address rateModel_   = CErc20(cDai_).interestRateModel();
         address comptroller_ = CErc20(cDai_).comptroller();
+        asset = TokenLike(dai_);
 
-        require(rateModel_   != address(0), "D3MCompoundDaiPool/invalid-rateModel");
         require(comptroller_ != address(0), "D3MCompoundDaiPool/invalid-comptroller");
         require(dai_         == CErc20(cDai_).underlying(), "D3MCompoundDaiPool/cdai-dai-mismatch");
 
-        rateModel   = rateModel_;
         comptroller = Comptroller(comptroller_);
         cDai        = CErc20(cDai_);
 
         TokenLike(dai_).approve(cDai_, type(uint256).max);
+
+        CanLike(D3mHubLike(hub_).vat()).hope(hub_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -89,15 +122,9 @@ contract D3MCompoundDaiPool is D3MPoolBase {
 
     // --- Admin ---
     function file(bytes32 what, address data) public auth {
-        require(live == 1, "D3MCompoundDaiPool/no-file-not-live");
-
         if (what == "king") king = data;
         else revert("D3MCompoundDaiPool/file-unrecognized-param");
         emit File(what, data);
-    }
-
-    function validTarget() external view override returns (bool) {
-        return cDai.interestRateModel() == rateModel;
     }
 
     function deposit(uint256 amt) external override auth {
@@ -108,28 +135,17 @@ contract D3MCompoundDaiPool is D3MPoolBase {
 
     function withdraw(uint256 amt) external override auth {
         require(cDai.redeemUnderlying(amt) == 0, "D3MCompoundDaiPool/redeemUnderlying-failure");
-        TokenLike(asset).transfer(hub, amt);
-    }
-
-    function collect() external {
-        require(king != address(0), "D3MCompoundDaiPool/king-not-set");
-
-        address[] memory holders = new address[](1);
-        holders[0] = address(this);
-        address[] memory cTokens = new address[](1);
-        cTokens[0] = address(cDai);
-
-        comptroller.claimComp(holders, cTokens, false, true);
-        TokenLike comp = TokenLike(comptroller.getCompAddress());
-        comp.transfer(king, comp.balanceOf(address(this)));
-
-        emit Collect(king, address(comp));
+        TokenLike(asset).transfer(msg.sender, amt);
     }
 
     // Note: Does not accrue interest (as opposed to cToken's balanceOfUnderlying() which is not a view function).
     function assetBalance() public view override returns (uint256) {
         (uint256 error, uint256 cTokenBalance,, uint256 exchangeRate) = cDai.getAccountSnapshot(address(this));
         return (error == 0) ? _wmul(cTokenBalance, exchangeRate) : 0;
+    }
+
+    function maxDeposit() external view override returns (uint256) {
+        return type(uint256).max;
     }
 
     function maxWithdraw() external view override returns (uint256) {
@@ -147,5 +163,28 @@ contract D3MCompoundDaiPool is D3MPoolBase {
 
     function accrueIfNeeded() override external {
         require(cDai.accrueInterest() == 0, "D3MCompoundDaiPool/accrueInterest-failure");
+    }
+
+    function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {
+        return TokenLike(token).transfer(dst, amt);
+    }
+
+    function active() external view override returns (bool) {
+        return true;
+    }
+
+    function collect() external {
+        require(king != address(0), "D3MCompoundDaiPool/king-not-set");
+
+        address[] memory holders = new address[](1);
+        holders[0] = address(this);
+        address[] memory cTokens = new address[](1);
+        cTokens[0] = address(cDai);
+
+        comptroller.claimComp(holders, cTokens, false, true);
+        TokenLike comp = TokenLike(comptroller.getCompAddress());
+        comp.transfer(king, comp.balanceOf(address(this)));
+
+        emit Collect(king, address(comp));
     }
 }
