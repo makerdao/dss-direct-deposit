@@ -104,20 +104,11 @@ contract D3MAaveDaiPlan is ID3MPlan {
     // --- Math ---
     uint256 constant RAY  = 10 ** 27;
 
-    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "D3MAaveDaiPlan/overflow");
-    }
-    function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "D3MAaveDaiPlan/underflow");
-    }
-    function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "D3MAaveDaiPlan/overflow");
-    }
     function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, y) / RAY;
+        z = (x * y) / RAY;
     }
     function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, RAY) / y;
+        z = (x * RAY) / y;
     }
 
     // --- Admin ---
@@ -142,7 +133,7 @@ contract D3MAaveDaiPlan is ID3MPlan {
 
     // --- Automated Rate targeting ---
     function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
-        uint256 totalDebt = _add(stableDebt.totalSupply(), variableDebt.totalSupply());
+        uint256 totalDebt = stableDebt.totalSupply() + variableDebt.totalSupply();
         return _calculateTargetSupply(targetInterestRate, totalDebt);
     }
 
@@ -154,19 +145,16 @@ contract D3MAaveDaiPlan is ID3MPlan {
         // Do inverse calculation of interestStrategy
         uint256 variableRateSlope1 = interestStrategy.variableRateSlope1();
         uint256 targetUtil;
-        if (targetInterestRate > _add(base, variableRateSlope1)) {
+        if (targetInterestRate > base + variableRateSlope1) {
             // Excess interest rate
             uint256 r = targetInterestRate - base - variableRateSlope1;
-            targetUtil = _add(
-                            _rdiv(
-                                _rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r),
-                                interestStrategy.variableRateSlope2()
-                            ),
-                            interestStrategy.OPTIMAL_UTILIZATION_RATE()
-                        );
+            targetUtil = _rdiv(
+                            _rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r),
+                            interestStrategy.variableRateSlope2()
+                        ) + interestStrategy.OPTIMAL_UTILIZATION_RATE();
         } else {
             // Optimal interest rate
-            targetUtil = _rdiv(_rmul(_sub(targetInterestRate, base), interestStrategy.OPTIMAL_UTILIZATION_RATE()), variableRateSlope1);
+            targetUtil = _rdiv(_rmul((targetInterestRate - base), interestStrategy.OPTIMAL_UTILIZATION_RATE()), variableRateSlope1);
         }
         return _rdiv(totalDebt, targetUtil);
     }
@@ -175,17 +163,14 @@ contract D3MAaveDaiPlan is ID3MPlan {
         uint256 targetInterestRate = bar;
         if (targetInterestRate == 0) return 0;  // De-activated
 
-        uint256 totalDebt = _add(stableDebt.totalSupply(), variableDebt.totalSupply());
+        uint256 totalDebt = stableDebt.totalSupply() + variableDebt.totalSupply();
 
-        uint256 totalPoolSize = _add(
-                TokenLike(dai).balanceOf(adai),
-                totalDebt
-            );
+        uint256 totalPoolSize = TokenLike(dai).balanceOf(adai) + totalDebt;
 
         uint256 targetTotalPoolSize = _calculateTargetSupply(targetInterestRate, totalDebt);
         if (targetTotalPoolSize >= totalPoolSize) {
             // Increase debt (or same)
-            return _add(currentAssets, targetTotalPoolSize - totalPoolSize);
+            return currentAssets + (targetTotalPoolSize - totalPoolSize);
         } else {
             // Decrease debt
             uint256 decrease = totalPoolSize - targetTotalPoolSize;
