@@ -165,16 +165,6 @@ contract DssDirectDepositHub {
 
     // --- Math ---
     uint256 internal constant RAY = 10 ** 27;
-
-    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "DssDirectDepositHub/overflow");
-    }
-    function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "DssDirectDepositHub/underflow");
-    }
-    function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "DssDirectDepositHub/overflow");
-    }
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
     }
@@ -182,7 +172,7 @@ contract DssDirectDepositHub {
         z = x >= y ? x : y;
     }
     function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _add(x, _sub(y, 1)) / y;
+        z = (x + (y - 1)) / y;
     }
 
     // --- Administration ---
@@ -298,7 +288,7 @@ contract DssDirectDepositHub {
         if (assetBalance > daiDebt) {
             fees = assetBalance - daiDebt;
 
-            if (_add(amount, fees) > availableAssets) {
+            if (amount + fees > availableAssets) {
                 // Don't need safe-math because this is constrained above
                 fees = availableAssets - amount;
             }
@@ -312,7 +302,7 @@ contract DssDirectDepositHub {
         require(amount <= 2 ** 255, "DssDirectDepositHub/overflow");
 
         // To save gas you can bring the fees back with the unwind
-        uint256 total = _add(amount, fees);
+        uint256 total = amount + fees;
         pool.withdraw(total);
         daiJoin.join(address(this), total);
 
@@ -321,16 +311,16 @@ contract DssDirectDepositHub {
         if (mode == Mode.NORMAL) {
             vat.frob(ilk, address(pool), address(pool), address(this), -int256(amount), -int256(amount));
             vat.slip(ilk, address(pool), -int256(amount));
-            vat.move(address(this), vow, _mul(fees, RAY));
+            vat.move(address(this), vow, fees * RAY);
         } else if (mode == Mode.MODULE_CULLED) {
             vat.slip(ilk, address(pool), -int256(amount));
-            vat.move(address(this), vow, _mul(total, RAY));
+            vat.move(address(this), vow, total * RAY);
         } else {
             // This can be done with the assumption that the price of 1 collateral unit equals 1 DAI.
             // That way we know that the prev End.skim call kept its gap[ilk] emptied as the CDP was always collateralized.
             // Otherwise we couldn't just simply take away the collateral from the End module as the next line will be doing.
             vat.slip(ilk, address(end_), -int256(amount));
-            vat.move(address(this), vow, _mul(total, RAY));
+            vat.move(address(this), vow, total * RAY);
         }
 
         emit Unwind(ilk, amount, fees);
@@ -406,7 +396,6 @@ contract DssDirectDepositHub {
                     currentAssets
                 );
             } else {
-                // All the subtractions are safe as otherwise toUnwind is > 0
                 uint256 toWind = targetAssets - currentAssets;
                 toWind = _min(toWind, lineWad - Art);
                 toWind = _min(toWind, (Line - debt) / RAY);
@@ -489,7 +478,7 @@ contract DssDirectDepositHub {
         require(tic > 0, "DssDirectDepositHub/pool-live");
 
         uint256 tau = ilks[ilk].tau;
-        require(_add(tic, tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
+        require(tic + tau <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
 
         uint256 culled = ilks[ilk].culled;
         require(culled == 0, "DssDirectDepositHub/already-culled");
@@ -530,7 +519,7 @@ contract DssDirectDepositHub {
         address vow_ = vow;
         uint256 wad = vat.gem(ilk, address(pool));
         require(wad < 2 ** 255, "DssDirectDepositHub/overflow");
-        vat.suck(vow_, vow_, _mul(wad, RAY)); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+        vat.suck(vow_, vow_, (wad * RAY)); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
         vat.grab(ilk, address(pool), address(pool), vow_, int256(wad), int256(wad));
 
         ilks[ilk].culled = 0;
