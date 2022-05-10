@@ -57,7 +57,7 @@ contract D3MTestGem {
         require((z = x - y) <= x);
     }
 
-    constructor(uint256 decimals_) public {
+    constructor(uint256 decimals_) {
         balanceOf[msg.sender] = totalSupply;
         decimals = decimals_;
 

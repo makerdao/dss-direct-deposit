@@ -153,7 +153,7 @@ contract DssDirectDepositHub {
         @param vat_     address of the DSS vat contract
         @param daiJoin_ address of the DSS Dai Join contract
     */
-    constructor(address vat_, address daiJoin_) public {
+    constructor(address vat_, address daiJoin_) {
         vat = VatLike(vat_);
         daiJoin = DaiJoinLike(daiJoin_);
         TokenLike(DaiJoinLike(daiJoin_).dai()).approve(daiJoin_, type(uint256).max);

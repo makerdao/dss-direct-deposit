@@ -43,7 +43,7 @@ contract D3MMom {
         _;
     }
 
-    constructor() public {
+    constructor() {
         owner = msg.sender;
         emit SetOwner(address(0), msg.sender);
     }

@@ -81,7 +81,7 @@ contract D3MAaveDaiPlan is ID3MPlan {
     event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
 
-    constructor(address dai_, address pool_) public {
+    constructor(address dai_, address pool_) {
         dai = TokenLike(dai_);
         pool = LendingPoolLike(pool_);
 

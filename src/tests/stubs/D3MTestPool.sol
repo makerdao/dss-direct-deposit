@@ -56,7 +56,7 @@ contract D3MTestPool is ID3MPool {
     event Deny(address indexed usr);
     event Collect(address indexed king, address[] assets, uint256 amt);
 
-    constructor(address hub_, address dai_, address share_, address _rewardsClaimer) public {
+    constructor(address hub_, address dai_, address share_, address _rewardsClaimer) {
         asset = TokenLike(dai_);
         share = share_;
 

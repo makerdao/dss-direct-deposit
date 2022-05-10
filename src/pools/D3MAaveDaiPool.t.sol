@@ -28,7 +28,7 @@ interface RewardsClaimerLike {
 
 contract AToken is D3MTestGem {
 
-    constructor(uint256 decimals_) public D3MTestGem(decimals_) {}
+    constructor(uint256 decimals_) D3MTestGem(decimals_) {}
 
     function scaledBalanceOf(address who) external view returns (uint256) {
         return balanceOf[who];
@@ -75,7 +75,7 @@ contract FakeLendingPool {
     }
     WithdrawCall public lastWithdraw;
 
-    constructor(address adai_) public {
+    constructor(address adai_) {
         adai = adai_;
     }
 

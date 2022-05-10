@@ -49,7 +49,7 @@ contract D3MTestPlan is ID3MPlan {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(address dai_) public {
+    constructor(address dai_) {
         dai = dai_;
 
         wards[msg.sender] = 1;

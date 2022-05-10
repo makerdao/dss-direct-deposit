@@ -56,7 +56,7 @@ contract D3MPoolBase is ID3MPool {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(address hub_, address dai_) public {
+    constructor(address hub_, address dai_) {
         asset = DaiLike(dai_);
 
         CanLike(d3mHubLike(hub_).vat()).hope(hub_);
@@ -87,7 +87,7 @@ contract D3MPoolBase is ID3MPool {
 
     function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {}
 
-    function active() external override view returns(bool) {
+    function active() external override pure returns(bool) {
         return true;
     }
 }
@@ -102,7 +102,7 @@ contract FakeVat {
 contract FakeHub {
     address public immutable vat;
 
-    constructor() public {
+    constructor() {
         vat = address(new FakeVat());
     }
 }

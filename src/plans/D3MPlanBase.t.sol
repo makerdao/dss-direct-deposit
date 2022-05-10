@@ -55,18 +55,18 @@ contract D3MPlanBase is ID3MPlan {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(address dai_) public {
+    constructor(address dai_) {
         dai = dai_;
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
 
-    function getTargetAssets(uint256 currentAssets) external override view returns(uint256) {
+    function getTargetAssets(uint256 currentAssets) external override pure returns(uint256) {
         return currentAssets;
     }
 
-    function active() external override view returns(bool) {
+    function active() external override pure returns(bool) {
         return true;
     }
 

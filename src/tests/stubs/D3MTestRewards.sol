@@ -23,7 +23,7 @@ contract D3MTestRewards {
     D3MTestGem public immutable rewards;
     address public immutable testGem;
 
-    constructor(address testGem_) public {
+    constructor(address testGem_) {
         rewards = new D3MTestGem(18);
         testGem = testGem_;
     }

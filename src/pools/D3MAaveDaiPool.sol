@@ -95,7 +95,7 @@ contract D3MAaveDaiPool is ID3MPool {
     event File(bytes32 indexed what, address data);
     event Collect(address indexed king, address[] assets, uint256 amt);
 
-    constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) public {
+    constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) {
         pool = LendingPoolLike(pool_);
         asset = TokenLike(dai_);
 
@@ -174,7 +174,7 @@ contract D3MAaveDaiPool is ID3MPool {
         return adai.balanceOf(address(this));
     }
 
-    function maxDeposit() external view override returns (uint256) {
+    function maxDeposit() external pure override returns (uint256) {
         return type(uint256).max;
     }
 
@@ -186,7 +186,7 @@ contract D3MAaveDaiPool is ID3MPool {
         return TokenLike(token).transfer(dst, amt);
     }
 
-    function active() external view override returns (bool) {
+    function active() external pure override returns (bool) {
         return true;
     }
 
