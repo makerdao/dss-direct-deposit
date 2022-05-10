@@ -19,7 +19,7 @@ pragma solidity 0.6.12;
 import "ds-test/test.sol";
 import "../tests/interfaces/interfaces.sol";
 
-import "./D3MPlanBase.sol";
+import "./ID3MPlan.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -33,11 +33,41 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
-contract FakeD3MPlanBase is D3MPlanBase {
-    constructor(address dai_) public D3MPlanBase(dai_) {}
+contract D3MPlanBase is ID3MPlan {
+
+    address public immutable dai;
+
+    mapping (address => uint256) public wards;
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MPlanBase/not-authorized");
+        _;
+    }
+
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
+
+    constructor(address dai_) public {
+        dai = dai_;
+
+        wards[msg.sender] = 1;
+        emit Rely(msg.sender);
+    }
 
     function getTargetAssets(uint256 currentAssets) external override view returns(uint256) {
         return currentAssets;
+    }
+
+    function active() external override view returns(bool) {
+        return true;
     }
 
     function disable() external override {
@@ -60,47 +90,51 @@ contract D3MPlanBaseTest is DSTest {
 
         dai = DaiLike(123);
 
-        d3mTestPlan = address(new FakeD3MPlanBase(address(dai)));
+        d3mTestPlan = address(new D3MPlanBase(address(dai)));
     }
 
     function test_sets_dai_value() public {
-        assertEq(FakeD3MPlanBase(d3mTestPlan).dai(), address(dai));
+        assertEq(D3MPlanBase(d3mTestPlan).dai(), address(dai));
     }
 
     function test_sets_creator_as_ward() public {
-        assertEq(FakeD3MPlanBase(d3mTestPlan).wards(address(this)), 1);
+        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
     }
 
     function test_can_rely() public {
-        assertEq(FakeD3MPlanBase(d3mTestPlan).wards(address(123)), 0);
+        assertEq(D3MPlanBase(d3mTestPlan).wards(address(123)), 0);
 
-        FakeD3MPlanBase(d3mTestPlan).rely(address(123));
+        D3MPlanBase(d3mTestPlan).rely(address(123));
 
-        assertEq(FakeD3MPlanBase(d3mTestPlan).wards(address(123)), 1);
+        assertEq(D3MPlanBase(d3mTestPlan).wards(address(123)), 1);
     }
 
     function test_can_deny() public {
-        assertEq(FakeD3MPlanBase(d3mTestPlan).wards(address(this)), 1);
+        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
 
-        FakeD3MPlanBase(d3mTestPlan).deny(address(this));
+        D3MPlanBase(d3mTestPlan).deny(address(this));
 
-        assertEq(FakeD3MPlanBase(d3mTestPlan).wards(address(this)), 0);
+        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 0);
     }
 
     function testFail_cannot_rely_without_auth() public {
-        assertEq(FakeD3MPlanBase(d3mTestPlan).wards(address(this)), 1);
+        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
 
-        FakeD3MPlanBase(d3mTestPlan).deny(address(this));
-        FakeD3MPlanBase(d3mTestPlan).rely(address(this));
+        D3MPlanBase(d3mTestPlan).deny(address(this));
+        D3MPlanBase(d3mTestPlan).rely(address(this));
     }
 
     function test_implements_getTargetAssets() public virtual {
-        uint256 result = FakeD3MPlanBase(d3mTestPlan).getTargetAssets(2);
+        uint256 result = D3MPlanBase(d3mTestPlan).getTargetAssets(2);
 
         assertEq(result, 2);
     }
 
+    function test_implements_active() public view {
+        D3MPlanBase(d3mTestPlan).active();
+    }
+
     function test_implements_disable() public virtual {
-        FakeD3MPlanBase(d3mTestPlan).disable();
+        D3MPlanBase(d3mTestPlan).disable();
     }
 }

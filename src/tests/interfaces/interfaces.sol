@@ -51,6 +51,7 @@ interface SpotLike {
 }
 
 interface VatLike {
+    function debt() external view returns (uint256);
     function rely(address) external;
     function hope(address) external;
     function urns(bytes32, address) external view returns (uint256, uint256);
@@ -71,4 +72,13 @@ interface VowLike {
     function Sin() external view returns (uint256);
     function Ash() external view returns (uint256);
     function heal(uint256) external;
+}
+
+interface CanLike {
+    function hope(address) external;
+    function nope(address) external;
+}
+
+interface d3mHubLike {
+    function vat() external view returns (address);
 }

@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-import "./D3MPlanBase.sol";
+import "./ID3MPlan.sol";
 
 interface TokenLike {
     function totalSupply() external view returns (uint256);
@@ -25,7 +25,7 @@ interface TokenLike {
 
 interface LendingPoolLike {
     function getReserveData(address asset) external view returns (
-        uint256,    // Configuration
+        uint256,    // configuration
         uint128,    // the liquidity index. Expressed in ray
         uint128,    // variable borrow index. Expressed in ray
         uint128,    // the current supply rate. Expressed in ray
@@ -49,18 +49,41 @@ interface InterestRateStrategyLike {
     function getMaxVariableBorrowRate() external view returns (uint256);
 }
 
-contract D3MAaveDaiPlan is D3MPlanBase {
+contract D3MAaveDaiPlan is ID3MPlan {
 
-    InterestRateStrategyLike public immutable interestStrategy;
+    LendingPoolLike          public immutable pool;
     TokenLike                public immutable stableDebt;
     TokenLike                public immutable variableDebt;
+    TokenLike                public immutable dai;
     address                  public immutable adai;
+    InterestRateStrategyLike public           interestStrategy;
 
     uint256 public bar;  // Target Interest Rate [ray]
 
-    event File(bytes32 indexed what, uint256 data);
+    // --- Auth ---
+    mapping (address => uint256) public wards;
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MAaveDaiPlan/not-authorized");
+        _;
+    }
 
-    constructor(address dai_, address pool_) public D3MPlanBase(dai_) {
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
+    event File(bytes32 indexed what, uint256 data);
+    event File(bytes32 indexed what, address data);
+
+    constructor(address dai_, address pool_) public {
+        dai = TokenLike(dai_);
+        pool = LendingPoolLike(pool_);
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
@@ -73,6 +96,9 @@ contract D3MAaveDaiPlan is D3MPlanBase {
         stableDebt = TokenLike(stableDebt_);
         variableDebt = TokenLike(variableDebt_);
         interestStrategy = InterestRateStrategyLike(interestStrategy_);
+
+        wards[msg.sender] = 1;
+        emit Rely(msg.sender);
     }
 
     // --- Math ---
@@ -97,14 +123,20 @@ contract D3MAaveDaiPlan is D3MPlanBase {
     // --- Admin ---
     function file(bytes32 what, uint256 data) external auth {
         if (what == "bar") {
-            require(data <= maxBar(), "D3MAaveDaiPlan/above-max-interest");
+            require(data <= _maxBar(), "D3MAaveDaiPlan/above-max-interest");
 
             bar = data;
         } else revert("D3MAaveDaiPlan/file-unrecognized-param");
         emit File(what, data);
     }
 
-    function maxBar() public view returns (uint256) {
+    function file(bytes32 what, address data) external auth {
+        if (what == "interestStrategy") interestStrategy = InterestRateStrategyLike(data);
+        else revert("D3MAaveDaiPlan/file-unrecognized-param");
+        emit File(what, data);
+    }
+
+    function _maxBar() internal view returns (uint256) {
         return interestStrategy.getMaxVariableBorrowRate();
     }
 
@@ -117,7 +149,7 @@ contract D3MAaveDaiPlan is D3MPlanBase {
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 totalDebt) internal view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
         require(targetInterestRate > base, "D3MAaveDaiPlan/target-interest-base");
-        require(targetInterestRate <= interestStrategy.getMaxVariableBorrowRate(), "D3MAaveDaiPlan/above-max-interest");
+        require(targetInterestRate <= _maxBar(), "D3MAaveDaiPlan/above-max-interest");
 
         // Do inverse calculation of interestStrategy
         uint256 variableRateSlope1 = interestStrategy.variableRateSlope1();
@@ -141,12 +173,12 @@ contract D3MAaveDaiPlan is D3MPlanBase {
 
     function getTargetAssets(uint256 currentAssets) external override view returns (uint256) {
         uint256 targetInterestRate = bar;
-        if (targetInterestRate == 0) return 0;     // De-activated
+        if (targetInterestRate == 0) return 0;  // De-activated
 
         uint256 totalDebt = _add(stableDebt.totalSupply(), variableDebt.totalSupply());
 
         uint256 totalPoolSize = _add(
-                TokenLike(dai).balanceOf(address(adai)),
+                TokenLike(dai).balanceOf(adai),
                 totalDebt
             );
 
@@ -165,7 +197,16 @@ contract D3MAaveDaiPlan is D3MPlanBase {
         }
     }
 
-    function disable() external override auth {
+    function active() public view override returns (bool) {
+        (,,,,,,,,,, address strategy,) = pool.getReserveData(address(dai));
+        return strategy == address(interestStrategy);
+    }
+
+    function disable() external override {
+        require(
+            wards[msg.sender] == 1 ||
+            !active()
+        , "D3MAaveDaiPlan/not-authorized");
         bar = 0;
         emit Disable();
     }

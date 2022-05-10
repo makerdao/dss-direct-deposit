@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-[[ "$ETH_RPC_URL" && "$(seth chain)" == "ethlive" ]] || { echo "Please set a mainnet ETH_RPC_URL"; exit 1; }
+[[ "$ETH_RPC_URL" && "$(cast chain)" == "ethlive" ]] || { echo "Please set a mainnet ETH_RPC_URL"; exit 1; }
 
 for ARGUMENT in "$@"
 do
@@ -12,8 +12,8 @@ do
             match)           MATCH="$VALUE" ;;
             match-test)      MATCH_TEST="$VALUE" ;;
             match-contract)  MATCH_CONTRACT="$VALUE" ;;
-            block)           BLOCK="$VALUE" ;;     
-            *)   
+            block)           BLOCK="$VALUE" ;;
+            *)
     esac
 done
 

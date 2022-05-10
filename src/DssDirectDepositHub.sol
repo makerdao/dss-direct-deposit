@@ -16,9 +16,28 @@
 
 pragma solidity 0.6.12;
 
+interface D3MPoolLike {
+    function deposit(uint256) external;
+    function withdraw(uint256) external;
+    function transfer(address, uint256) external returns (bool);
+    function transferAll(address) external returns (bool);
+    function accrueIfNeeded() external;
+    function assetBalance() external returns (uint256);
+    function maxDeposit() external view returns (uint256);
+    function maxWithdraw() external view returns (uint256);
+    function active() external view returns (bool);
+}
+
+interface D3MPlanLike {
+    function getTargetAssets(uint256) external view returns (uint256);
+    function active() external view returns (bool);
+}
+
 interface VatLike {
+    function debt() external view returns (uint256);
     function hope(address) external;
     function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
+    function Line() external view returns (uint256);
     function urns(bytes32, address) external view returns (uint256, uint256);
     function gem(bytes32, address) external view returns (uint256);
     function live() external view returns (uint256);
@@ -33,22 +52,6 @@ interface VatLike {
 interface EndLike {
     function debt() external view returns (uint256);
     function skim(bytes32, address) external;
-}
-
-interface D3MPoolLike {
-    function validTarget() external view returns (bool);
-    function deposit(uint256) external;
-    function withdraw(uint256) external;
-    function transfer(address, uint256) external returns (bool);
-    function transferAll(address) external returns (bool);
-    function accrueIfNeeded() external;
-    function assetBalance() external returns (uint256);
-    function maxWithdraw() external view returns (uint256);
-    function cage() external;
-}
-
-interface D3MPlanLike {
-    function getTargetAssets(uint256) external view returns (uint256);
 }
 
 interface DaiJoinLike {
@@ -78,8 +81,7 @@ contract DssDirectDepositHub {
         _;
     }
 
-    enum Mode{ NORMAL, MODULE_CULLED, MCD_CAGED }
-    uint256             constant  RAY  = 10 ** 27;
+    enum Mode { NORMAL, MODULE_CULLED, MCD_CAGED }
 
     VatLike      public immutable vat;
     DaiJoinLike  public immutable daiJoin;
@@ -94,7 +96,6 @@ contract DssDirectDepositHub {
         uint256     tic;    // Timestamp when the pool is caged
     }
     mapping (bytes32 => Ilk) public ilks;
-    uint256                  public live = 1;
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -103,7 +104,7 @@ contract DssDirectDepositHub {
     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
     event Wind(bytes32 indexed ilk, uint256 amount);
-    event Unwind(bytes32 indexed ilk, uint256 amount);
+    event Unwind(bytes32 indexed ilk, uint256 amount, uint256 fees);
     event Reap(bytes32 indexed ilk, uint256 amt);
     event Cage();
     event Cage(bytes32 indexed ilk);
@@ -123,6 +124,8 @@ contract DssDirectDepositHub {
     }
 
     // --- Math ---
+    uint256 internal constant RAY = 10 ** 27;
+
     function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x, "DssDirectDepositHub/overflow");
     }
@@ -134,6 +137,12 @@ contract DssDirectDepositHub {
     }
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
+    }
+    function _max(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = x >= y ? x : y;
+    }
+    function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = _add(x, _sub(y, 1)) / y;
     }
 
     // --- Administration ---
@@ -147,7 +156,6 @@ contract DssDirectDepositHub {
     }
 
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
-        require(live == 1, "DssDirectDepositHub/hub-not-live");
         require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
 
         if (what == "tau" ) {
@@ -158,7 +166,6 @@ contract DssDirectDepositHub {
     }
 
     function file(bytes32 ilk, bytes32 what, address data) external auth {
-        require(live == 1, "DssDirectDepositHub/hub-not-live");
         require(vat.live() == 1, "DssDirectDepositHub/no-file-during-shutdown");
         require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
 
@@ -203,6 +210,8 @@ contract DssDirectDepositHub {
         } else if (mode == Mode.MODULE_CULLED) {
             // Module shutdown and culled
             // debt is obtained from free collateral owned by this contract
+            // We rebalance the CDP after grabbing in `cull` so the gems represents
+            // the debt at time of cull
             daiDebt = vat.gem(ilk, address(pool));
         } else {
             // MCD caged
@@ -236,7 +245,7 @@ contract DssDirectDepositHub {
         }
 
         if (amount == 0 && fees == 0) {
-            emit Unwind(ilk, 0);
+            emit Unwind(ilk, 0, 0);
             return;
         }
 
@@ -257,14 +266,14 @@ contract DssDirectDepositHub {
             vat.slip(ilk, address(pool), -int256(amount));
             vat.move(address(this), vow, _mul(total, RAY));
         } else {
-            // This can be done with the assumption that the price of 1 aDai equals 1 DAI.
+            // This can be done with the assumption that the price of 1 collateral unit equals 1 DAI.
             // That way we know that the prev End.skim call kept its gap[ilk] emptied as the CDP was always collateralized.
             // Otherwise we couldn't just simply take away the collateral from the End module as the next line will be doing.
             vat.slip(ilk, address(end_), -int256(amount));
             vat.move(address(this), vow, _mul(total, RAY));
         }
 
-        emit Unwind(ilk, amount);
+        emit Unwind(ilk, amount, fees);
     }
 
     function exec(bytes32 ilk_) external {
@@ -286,8 +295,8 @@ contract DssDirectDepositHub {
                 Mode.MCD_CAGED,
                 currentAssets
             );
-        } else if (live == 0 || ilks[ilk_].tic != 0) {
-            // This module or pool caged
+        } else if (ilks[ilk_].tic != 0 || !pool.active() || !ilks[ilk_].plan.active()) {
+            // pool caged
             _unwind(
                 ilk_,
                 pool,
@@ -299,39 +308,42 @@ contract DssDirectDepositHub {
                 currentAssets
             );
         } else {
-            // Normal path
+            // Determine if it needs to unwind due to debt ceilings
+            (uint256 Art,,, uint256 line,) = vat.ilks(ilk_);
+            uint256 lineWad = line / RAY; // Round down to always be under the actual limit
+            uint256 Line = vat.Line();
+            uint256 debt = vat.debt();
+            uint256 toUnwind;
+            if (Art > lineWad) {
+                toUnwind = Art - lineWad;
+            }
+            if (debt > Line) {
+                toUnwind = _max(toUnwind, _divup(debt - Line, RAY));
+            }
+
+            // Determine if it needs to unwind due plan
             uint256 targetAssets = ilks[ilk_].plan.getTargetAssets(currentAssets);
+            if (targetAssets < currentAssets) {
+                toUnwind = _max(toUnwind, currentAssets - targetAssets);
+            }
 
-            if (targetAssets > currentAssets) {
-                // Amount is limited by the debt ceiling
-                (uint256 Art,,, uint256 line,) = vat.ilks(ilk_);
-                uint256 lineWad = line / RAY; // Round down to always be under the actual limit
-
-                if(Art > lineWad) { // Our debt is greater than our debt ceiling, we need to unwind
-                    _unwind(
-                        ilk_,
-                        pool,
-                        Art - lineWad,
-                        availableAssets,
-                        Mode.NORMAL,
-                        currentAssets
-                    );
-                } else {
-                    uint256 amount = targetAssets - currentAssets;
-                    if (_add(Art, amount) > lineWad) { // we do not have enough room in the debt ceiling to fully wind
-                        amount = lineWad - Art;
-                    }
-                    _wind(ilk_, pool, amount);
-                }
-            } else if (targetAssets < currentAssets) {
+            if (toUnwind > 0) {
                 _unwind(
                     ilk_,
                     pool,
-                    currentAssets - targetAssets,
+                    toUnwind,
                     availableAssets,
                     Mode.NORMAL,
                     currentAssets
                 );
+            } else {
+                // All the subtractions are safe as otherwise toUnwind is > 0
+                uint256 toWind = targetAssets - currentAssets;
+                toWind = _min(toWind, lineWad - Art);
+                toWind = _min(toWind, (Line - debt) / RAY);
+                // Determine if the pool limits our total deposits
+                toWind = _min(toWind, pool.maxDeposit());
+                _wind(ilk_, pool, toWind);
             }
         }
     }
@@ -341,7 +353,6 @@ contract DssDirectDepositHub {
         D3MPoolLike pool = ilks[ilk_].pool;
 
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
-        require(live == 1, "DssDirectDepositHub/no-reap-during-cage");
         require(ilks[ilk_].tic == 0, "DssDirectDepositHub/pool-not-live");
 
         pool.accrueIfNeeded();
@@ -349,10 +360,7 @@ contract DssDirectDepositHub {
         (, uint256 daiDebt) = vat.urns(ilk_, address(pool));
         if (assetBalance > daiDebt) {
             uint256 fees = assetBalance - daiDebt;
-            uint256 availableAssets = pool.maxWithdraw();
-            if (fees > availableAssets) {
-                fees = availableAssets;
-            }
+            fees = _min(fees, pool.maxWithdraw());
             pool.withdraw(fees);
             daiJoin.join(vow, fees);
             emit Reap(ilk_, fees);
@@ -370,50 +378,39 @@ contract DssDirectDepositHub {
     }
 
     // --- Shutdown ---
-    function cage(bytes32 ilk_) external {
+    function cage(bytes32 ilk_) external auth {
         require(vat.live() == 1, "DssDirectDepositHub/no-cage-during-shutdown");
 
-        D3MPoolLike pool = ilks[ilk_].pool;
-
-        // Can shut pools down if we are authed
-        // or if the interest rate strategy changes
-        // or if the main module is caged
-        require(
-            wards[msg.sender] == 1 ||
-            live == 0 ||
-            !pool.validTarget()
-        , "DssDirectDepositHub/not-authorized");
-
-        pool.cage();
         ilks[ilk_].tic = block.timestamp;
         emit Cage(ilk_);
-    }
-
-    function cage() external auth {
-        require(vat.live() == 1, "DssDirectDepositHub/no-cage-during-shutdown");
-
-        live = 0;
-        emit Cage();
     }
 
     // --- Write-off ---
     function cull(bytes32 ilk_) external {
         require(vat.live() == 1, "DssDirectDepositHub/no-cull-during-shutdown");
-        require(live == 0, "DssDirectDepositHub/live");
 
-        uint256     tic     = ilks[ilk_].tic;
-        uint256     culled  = ilks[ilk_].culled;
-        uint256     tau     = ilks[ilk_].tau;
-        D3MPoolLike pool    = ilks[ilk_].pool;
-
+        uint256 tic = ilks[ilk_].tic;
         require(tic > 0, "DssDirectDepositHub/pool-live");
+
+        uint256 tau = ilks[ilk_].tau;
         require(_add(tic, tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
+
+        uint256 culled = ilks[ilk_].culled;
         require(culled == 0, "DssDirectDepositHub/already-culled");
+
+        D3MPoolLike pool = ilks[ilk_].pool;
 
         (uint256 ink, uint256 art) = vat.urns(ilk_, address(pool));
         require(ink <= 2 ** 255, "DssDirectDepositHub/overflow");
         require(art <= 2 ** 255, "DssDirectDepositHub/overflow");
         vat.grab(ilk_, address(pool), address(pool), vow, -int256(ink), -int256(art));
+
+        if (ink > art) {
+            // We have more collateral than debt, so need to rebalance.
+            // After cull the gems we grab above represent the debt to
+            // unwind.
+            vat.slip(ilk_, address(pool), -int256(ink - art));
+        }
 
         ilks[ilk_].culled = 1;
         emit Cull(ilk_);

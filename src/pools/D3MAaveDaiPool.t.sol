@@ -59,7 +59,6 @@ contract FakeRewardsClaimer {
 
 contract FakeLendingPool {
     address public adai;
-    address public interestStrategy;
 
     struct DepositCall {
         address asset;
@@ -76,13 +75,8 @@ contract FakeLendingPool {
     }
     WithdrawCall public lastWithdraw;
 
-    constructor(address adai_, address interestStrategy_) public {
+    constructor(address adai_) public {
         adai = adai_;
-        interestStrategy = interestStrategy_;
-    }
-
-    function file(bytes32 what, address data) public {
-        if (what == "interestStrategy") interestStrategy = data;
     }
 
     function getReserveData(address asset) external view returns(
@@ -111,7 +105,7 @@ contract FakeLendingPool {
             adai,
             address(2),
             address(3),
-            interestStrategy,
+            address(4),
             7
         );
     }
@@ -153,10 +147,13 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
 
         dai = DaiLike(address(new D3MTestGem(18)));
         adai = new AToken(18);
-        aavePool = LendingPoolLike(address(new FakeLendingPool(address(adai), address(123))));
+        aavePool = LendingPoolLike(address(new FakeLendingPool(address(adai))));
         rewardsClaimer = address(new FakeRewardsClaimer());
 
-        d3mTestPool = address(new D3MAaveDaiPool(address(new FakeHub()), address(dai), address(aavePool), rewardsClaimer));
+        address hub = address(new FakeHub());
+
+        d3mTestPool = address(new D3MAaveDaiPool(hub, address(dai), address(aavePool), rewardsClaimer));
+        D3MAaveDaiPool(d3mTestPool).rely(hub);
     }
 
     function test_can_file_king() public {
@@ -165,14 +162,6 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         D3MAaveDaiPool(d3mTestPool).file("king", address(123));
 
         assertEq(D3MAaveDaiPool(d3mTestPool).king(), address(123));
-    }
-
-    function testFail_cannot_file_king_not_live() public {
-        assertEq(D3MAaveDaiPool(d3mTestPool).king(), address(0));
-
-        D3MAaveDaiPool(d3mTestPool).cage();
-
-        D3MAaveDaiPool(d3mTestPool).file("king", address(123));
     }
 
     function testFail_cannot_file_king_no_auth() public {
@@ -185,19 +174,6 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
 
     function testFail_cannot_file_unknown_param() public {
         D3MAaveDaiPool(d3mTestPool).file("fail", address(123));
-    }
-
-    function test_validTarget_when_interestStrategy_same() public {
-        (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
-        assertEq(D3MAaveDaiPool(d3mTestPool).interestStrategy(), poolStrategy);
-        assertTrue(D3MAaveDaiPool(d3mTestPool).validTarget());
-    }
-
-    function test_validTarget_false_when_changed() public {
-        FakeLendingPool(address(aavePool)).file("interestStrategy", address(456));
-        (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
-        assertTrue(D3MAaveDaiPool(d3mTestPool).interestStrategy() != poolStrategy);
-        assertTrue(D3MAaveDaiPool(d3mTestPool).validTarget() == false);
     }
 
     function test_deposit_calls_lending_pool_deposit() public {
@@ -221,7 +197,7 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
         assertEq(asset, address(dai));
         assertEq(amt, 1);
-        assertEq(dst, D3MAaveDaiPool(d3mTestPool).hub());
+        assertEq(dst, address(this));
     }
 
     function testFail_withdraw_requires_auth() public {
@@ -234,25 +210,20 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         address king = address(123);
         D3MAaveDaiPool(d3mTestPool).file("king", king);
 
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(adai);
-
-        D3MAaveDaiPool(d3mTestPool).collect(tokens, 1);
+        D3MAaveDaiPool(d3mTestPool).collect();
 
         (uint256 amt, address dst) = FakeRewardsClaimer(rewardsClaimer).lastClaim();
         address[] memory assets = FakeRewardsClaimer(rewardsClaimer).getAssetsFromClaim();
 
-        assertEq(tokens[0], assets[0]);
-        assertEq(amt, 1);
+        assertEq(address(adai), assets[0]);
+        assertEq(amt, type(uint256).max);
         assertEq(dst, king);
     }
 
     function testFail_collect_no_king() public {
         assertEq(D3MAaveDaiPool(d3mTestPool).king(), address(0));
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(adai);
 
-        D3MAaveDaiPool(d3mTestPool).collect(tokens, 1);
+        D3MAaveDaiPool(d3mTestPool).collect();
     }
 
     function test_transfer_adai() public {
@@ -328,5 +299,9 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         assertEq(adai.balanceOf(d3mTestPool), tokens);
 
         assertEq(D3MAaveDaiPool(d3mTestPool).maxWithdraw(), 0);
+    }
+
+    function test_maxDeposit_returns_max_uint() public {
+        assertEq(D3MAaveDaiPool(d3mTestPool).maxDeposit(), type(uint256).max);
     }
 }
