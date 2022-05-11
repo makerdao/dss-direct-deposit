@@ -14,5 +14,8 @@ jobs:
       - name: Install deps
         run: forge install
 
+      - name: Check gas snapshots
+        run: forge snapshot --check
+
       - name: Run tests
-        run: forge test
+        run: forge test -vv --force --fork-url ${{ secrets.ETH_RPC_URL }}
