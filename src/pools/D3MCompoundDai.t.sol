@@ -122,7 +122,7 @@ contract D3MCompoundDaiTest is DSTest {
         directDepositHub = new DssDirectDepositHub(address(vat), address(daiJoin));
         d3mCompoundDaiPool = new D3MCompoundDaiPool(address(directDepositHub), address(dai), address(cDai));
         d3mCompoundDaiPool.rely(address(directDepositHub));
-        d3mCompoundDaiPlan = new D3MCompoundDaiPlan(address(dai), address(cDai));
+        d3mCompoundDaiPlan = new D3MCompoundDaiPlan(address(cDai));
 
         directDepositHub.file(ilk, "pool", address(d3mCompoundDaiPool));
         directDepositHub.file(ilk, "plan", address(d3mCompoundDaiPlan));

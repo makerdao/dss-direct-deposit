@@ -64,8 +64,8 @@ contract D3MCompoundDaiPlan is ID3MPlan {
 
     CErc20 public immutable cDai;
 
-    uint256           public barb;  // Target Interest Rate Per Block [wad] (0)
     InterestRateModel public rateModel;
+    uint256           public barb;  // Target Interest Rate Per Block [wad] (0)
 
     // --- Auth ---
     mapping (address => uint256) public wards;
@@ -82,28 +82,25 @@ contract D3MCompoundDaiPlan is ID3MPlan {
         _;
     }
 
+    // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
-    event Disable();
 
-    // TODO: remove dai_ as it is unused
-    constructor(address dai_, address cDai_) public {
-
+    constructor(address cDai_) public {
         address rateModel_ = CErc20(cDai_).interestRateModel();
         require(rateModel_ != address(0), "D3MCompoundDaiPlan/invalid-rateModel");
-        require(dai_       == CErc20(cDai_).underlying(), "D3MCompoundDaiPool/cdai-dai-mismatch");
 
-        rateModel = InterestRateModel(rateModel_);
         cDai = CErc20(cDai_);
+        rateModel = InterestRateModel(rateModel_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
 
     // --- Math ---
-    uint256 constant WAD  = 10 ** 18; // TODO: why 2 spaces?
+    uint256 constant WAD = 10 ** 18;
 
     function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x, "D3MCompoundDaiPlan/overflow");
@@ -135,7 +132,6 @@ contract D3MCompoundDaiPlan is ID3MPlan {
         emit File(what, data);
     }
 
-    // --- Automated Rate targeting ---
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 borrows) internal view returns (uint256) {
         uint256 kink                   = rateModel.kink();
         uint256 multiplierPerBlock     = rateModel.multiplierPerBlock();

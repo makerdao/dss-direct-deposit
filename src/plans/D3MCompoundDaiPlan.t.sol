@@ -96,7 +96,7 @@ contract DssDirectDepositHubTest is DSTest {
         cDai  = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
         model = InterestRateModelLike(cDai.interestRateModel());
 
-        plan = new D3MCompoundDaiPlan(address(dai), address(cDai));
+        plan = new D3MCompoundDaiPlan(address(cDai));
     }
 
     function _targetRateForUtil(uint256 util) internal view returns (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) {
