@@ -35,6 +35,7 @@ interface InterestRateModelLike {
     function kink()                   external view returns (uint256);
     function multiplierPerBlock()     external view returns (uint256);
     function jumpMultiplierPerBlock() external view returns (uint256);
+    function blocksPerYear()          external view returns (uint256);
     function getBorrowRate(uint256 cash, uint256 borrows, uint256 reserves) external view returns (uint256);
     function utilizationRate(uint256 cash, uint256 borrows, uint256 reserves) external pure returns (uint256);
 }
@@ -123,6 +124,44 @@ contract DssDirectDepositHubTest is DSTest {
         (targetRate, newCash, borrows, reserves) = _targetRateForUtil(newUtil);
     }
 
+    function test_sets_cdai() public {
+        assertEq(address(cDai), address(plan.cDai()));
+    }
+
+    function test_sets_rateModel() public {
+        assertEq(address(model), address(plan.rateModel()));
+    }
+
+    function test_can_file_barb() public {
+        assertEq(plan.barb(), 0);
+
+        plan.file("barb", 1);
+
+        assertEq(plan.barb(), 1);
+    }
+
+    function testFail_cannot_file_unknown_uint_param() public {
+        plan.file("bad", 1);
+    }
+
+    function test_can_file_rateModel() public {
+        assertEq(address(plan.rateModel()), address(model));
+
+        plan.file("rateModel", address(1));
+
+        assertEq(address(plan.rateModel()), address(1));
+    }
+
+    function testFail_cannot_file_unknown_address_param() public {
+        plan.file("bad", address(1));
+    }
+
+    function testFail_cannot_file_without_auth() public {
+        plan.deny(address(this));
+
+        plan.file("bar", 1);
+    }
+
     function test_calculate_current_rate() public {
         uint256 borrowRatePerBlock = cDai.borrowRatePerBlock();
         uint256 targetSupply = plan.calculateTargetSupply(borrowRatePerBlock);
@@ -204,13 +243,62 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(plan.calculateTargetSupply(overTopRate), 0);
     }
 
-    function test_supplies_current_rate() public {
+    function test_implements_getTargetAssets() public {
+        uint256 initialRatePerBlock = cDai.borrowRatePerBlock();
+
+        plan.file("barb", initialRatePerBlock - (1 * WAD / 1000) / model.blocksPerYear()); // minus 0.1% from current yearly rate
+
+        uint256 initialTargetAssets = plan.getTargetAssets(0);
+        assertGt(initialTargetAssets, 0);
+
+        // Reduce target rate (increase needed number of target Assets)
+        plan.file("barb", initialRatePerBlock - (2 * WAD / 1000) / model.blocksPerYear()); // minus 0.2% from current yearly rate
+
+        uint256 newTargetAssets = plan.getTargetAssets(0);
+        assertGt(newTargetAssets, initialTargetAssets);
+    }
+
+    function test_getTargetAssets_barb_zero() public {
+        assertEq(plan.barb(), 0);
+        assertEq(plan.getTargetAssets(0), 0);
+    }
+
+    function test_getTargetAssets_current_rate() public {
         cDai.accrueInterest();
         uint256 borrowRatePerBlock = cDai.borrowRatePerBlock();
         plan.file("barb", borrowRatePerBlock);
 
         uint256 targetAssets = plan.getTargetAssets(0);
         assertEqAbsolute(0, targetAssets, WAD);
+    }
+
+    function test_rate_model_changed_not_active() public {
+        // Simulate Compound changing the rate model in the pool
+        plan.file("rateModel", address(456));
+
+        assertTrue(address(plan.rateModel()) != cDai.interestRateModel());
+        assertTrue(plan.active() == false);
+    }
+
+    function test_rate_model_not_changed_active() public {
+        assertEq(address(plan.rateModel()), address(model));
+        assertTrue(plan.active());
+    }
+
+    function test_implements_disable() public {
+        // disable_sets_bar_to_zero
+        plan.file("barb", 123);
+        assertTrue(plan.barb() != 0);
+
+        plan.disable();
+        assertEq(plan.barb(), 0);
+    }
+
+    function testFail_disable_without_auth() public {
+        assertEq(address(plan.rateModel()), address(model));
+        plan.deny(address(this));
+
+        plan.disable();
     }
 }
 
