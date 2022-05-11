@@ -1,7 +1,7 @@
 { url
   , dappPkgs ? (
     import (fetchTarball "https://github.com/makerdao/makerpkgs/tarball/master") {}
-  ).dappPkgsVersions.master-20220325
+  ).dappPkgsVersions.master-20220406
 }: with dappPkgs;
 
 mkShell {
