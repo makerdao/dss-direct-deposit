@@ -127,7 +127,7 @@ contract D3MCompoundDaiPlan is ID3MPlan {
     }
 
     function file(bytes32 what, address data) external auth {
-        if (what == "rateModel") InterestRateModel(data);
+        if (what == "rateModel") rateModel = InterestRateModel(data);
         else revert("D3MCompoundDaiPlan/file-unrecognized-param");
         emit File(what, data);
     }
