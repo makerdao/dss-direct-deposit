@@ -1,7 +1,7 @@
 on: [push]
 
 jobs:
-  block-tests:
+  tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -18,4 +18,4 @@ jobs:
         run: chmod u+x ./test-forge-blocks.sh
 
       - name: Run tests
-        run: ./test-forge-blocks.sh --url ${{ secrets.ETH_RPC_URL }}
+        run: ETH_RPC_URL=${{ secrets.ETH_RPC_URL }} ./test-forge-blocks.sh
