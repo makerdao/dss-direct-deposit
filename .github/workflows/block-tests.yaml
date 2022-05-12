@@ -14,5 +14,8 @@ jobs:
       - name: Install deps
         run: forge install
 
+      - name: Give Permission
+        run: chmod u+x ./test-forge-blocks.sh
+
       - name: Run tests
         run: ./test-forge-blocks.sh --url ${{ secrets.ETH_RPC_URL }}
