@@ -19,5 +19,5 @@ echo "Checking from $START to $BLOCK"
 for i in $( eval echo {$START..$BLOCK} )
 do
     echo "================================ $i ================================"
-    forge test --fork-url "$ETH_RPC_URL" --fork-block-number "$i" -vvv
+    forge test --fork-url "$URL" --fork-block-number "$i" -v --force
 done
