@@ -40,7 +40,7 @@ interface InterestRateModelLike {
     function utilizationRate(uint256 cash, uint256 borrows, uint256 reserves) external pure returns (uint256);
 }
 
-contract DssDirectDepositHubTest is DSTest {
+contract D3MCompoundDaiPlanTest is DSTest {
     DaiLike dai;
     CErc20Like cDai;
     InterestRateModelLike model;

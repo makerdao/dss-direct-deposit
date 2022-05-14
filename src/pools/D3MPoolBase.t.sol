@@ -31,6 +31,8 @@ interface Hevm {
     ) external;
 
     function load(address, bytes32) external view returns (bytes32);
+
+    function roll(uint256) external;
 }
 
 contract D3MPoolBase is ID3MPool {
@@ -158,10 +160,6 @@ contract D3MPoolBaseTest is DSTest {
 
         // We have failed if we reach here
         assertTrue(false);
-    }
-
-    function test_sets_dai_value() public {
-        assertEq(address(D3MPoolBase(d3mTestPool).asset()), address(dai));
     }
 
     function test_sets_creator_as_ward() public {
