@@ -48,7 +48,7 @@ interface CErc20Like {
 }
 
 interface CEthLike {
-    function mint()        external payable;
+    function mint() external payable;
 }
 
 interface CompltrollerLike {
@@ -240,24 +240,19 @@ contract D3MCompoundDaiTest is DSTest {
         assertTrue(false);
     }
 
-    // TODO: same as below, remove one of them!
-    function assertEqAbsolute(uint256 _a, uint256 _b, uint256 _tolerance) internal {
-        uint256 a = _a;
-        uint256 b = _b;
-        if (a < b) {
-            uint256 tmp = a;
-            a = b;
-            b = tmp;
-        }
-        if (a - b > _tolerance) {
-            emit log_bytes32("Error: Wrong `uint' value");
-            emit log_named_uint("  Expected", _b);
-            emit log_named_uint("    Actual", _a);
-            fail();
-        }
+    function assertEqRounding(uint256 _a, uint256 _b) internal {
+        _assertEqApprox(_a, _b, 10 ** 10);
     }
 
-    function assertEqApprox(uint256 _a, uint256 _b, uint256 _tolerance) internal {
+    function assertEqCdai(uint256 _a, uint256 _b) internal {
+        _assertEqApprox(_a, _b, 1);
+    }
+
+    function assertEqVatDai(uint256 _a, uint256 _b) internal {
+        _assertEqApprox(_a, _b, (10 ** 10) * RAY);
+    }
+
+    function _assertEqApprox(uint256 _a, uint256 _b, uint256 _tolerance) internal {
         uint256 a = _a;
         uint256 b = _b;
         if (a < b) {
@@ -306,8 +301,6 @@ contract D3MCompoundDaiTest is DSTest {
         }
     }
 
-    // TODO: port below tests to plan? make sure to use util and not absolute rae as bas
-
     function getBorrowRate() public view returns (uint256 borrowRate) {
         borrowRate = cDai.borrowRatePerBlock();
     }
@@ -346,8 +339,8 @@ contract D3MCompoundDaiTest is DSTest {
 
         assertTrue(amountSupplied > 0);
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mCompoundDaiPool));
-        assertEqAbsolute(ink, amountSupplied, 10 ** 10);
-        assertEqAbsolute(art, amountSupplied, 10 ** 10);
+        assertEqRounding(ink, amountSupplied);
+        assertEqRounding(art, amountSupplied);
 
         assertEq(vat.gem(ilk, address(d3mCompoundDaiPool)), 0);
         assertEq(vat.dai(address(directDepositHub)), 0);
@@ -365,8 +358,8 @@ contract D3MCompoundDaiTest is DSTest {
         uint256 amountSupplied = cDai.balanceOfUnderlying(address(d3mCompoundDaiPool));
         assertTrue(amountSupplied > 0);
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mCompoundDaiPool));
-        assertEqAbsolute(ink, amountSupplied, 10 ** 10);
-        assertEqAbsolute(art, amountSupplied, 10 ** 10);
+        assertEqRounding(ink, amountSupplied);
+        assertEqRounding(art, amountSupplied);
 
         assertEq(vat.gem(ilk, address(d3mCompoundDaiPool)), 0);
         assertEq(vat.dai(address(directDepositHub)), 0);
@@ -387,12 +380,12 @@ contract D3MCompoundDaiTest is DSTest {
         d3mCompoundDaiPlan.file("barb", 0);
 
         directDepositHub.exec(ilk);
-        assertEqAbsolute(cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)), 0, 10 ** 10);
+        assertEqRounding(cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)), 0);
 
         (ink, art) = vat.urns(ilk, address(d3mCompoundDaiPool));
 
-        assertEqAbsolute(ink, 0, 10 ** 10);
-        assertEqAbsolute(art, 0, 10 ** 10);
+        assertEqRounding(ink, 0);
+        assertEqRounding(art, 0);
     }
 
     function test_target_increase_insufficient_liquidity() public {
@@ -441,11 +434,11 @@ contract D3MCompoundDaiTest is DSTest {
         assertEq(cDai.repayBorrow(amountToBorrow), 0);
 
         directDepositHub.exec(ilk);
-        assertEqAbsolute(cDai.balanceOf(address(d3mCompoundDaiPool)), 0, 1);
+        assertEqCdai(cDai.balanceOf(address(d3mCompoundDaiPool)), 0);
         assertTrue(dai.balanceOf(address(cDai)) > 0);
         (ink, art) = vat.urns(ilk, address(d3mCompoundDaiPool));
-        assertEqAbsolute(ink, 0, 10 ** 10);
-        assertEqAbsolute(art, 0, 10 ** 10);
+        assertEqRounding(ink, 0);
+        assertEqRounding(art, 0);
     }
 
     function test_cage_perm_insufficient_liquidity() public {
@@ -495,14 +488,14 @@ contract D3MCompoundDaiTest is DSTest {
 
         // Close out the remainder of the position
         uint256 assetBalance = cDai.balanceOfUnderlying(address(d3mCompoundDaiPool));
-        assertEqAbsolute(assetBalance, art, 10 ** 10);
+        assertEqRounding(assetBalance, art);
         directDepositHub.exec(ilk);
-        assertEqAbsolute(cDai.balanceOf(address(d3mCompoundDaiPool)), 0, 1);
+        assertEqCdai(cDai.balanceOf(address(d3mCompoundDaiPool)), 0);
         assertTrue(dai.balanceOf(address(cDai)) > 0);
         assertEq(vat.sin(vow), sin + art * RAY);
 
         assertEq(vat.dai(vow), vowDai + assetBalance * RAY);
-        assertEqAbsolute(vat.gem(ilk, address(d3mCompoundDaiPool)), 0, 10 ** 10);
+        assertEqRounding(vat.gem(ilk, address(d3mCompoundDaiPool)), 0);
     }
 
     function test_hit_debt_ceiling() public {
@@ -520,14 +513,14 @@ contract D3MCompoundDaiTest is DSTest {
         assertEq(art, debtCeiling);
         assertTrue(getBorrowRate() > targetBorrowRate && getBorrowRate() < currBorrowRate);
         uint256 assetBalance = cDai.balanceOfUnderlying(address(d3mCompoundDaiPool));
-        assertEqAbsolute(assetBalance, debtCeiling, 10 ** 10);
+        assertEqRounding(assetBalance, debtCeiling);
 
         // Should be a no-op
         directDepositHub.exec(ilk);
         (ink, art) = vat.urns(ilk, address(d3mCompoundDaiPool));
         assertEq(ink, debtCeiling);
         assertEq(art, debtCeiling);
-        assertEqAbsolute(assetBalance, debtCeiling, 10 ** 10);
+        assertEqRounding(assetBalance, debtCeiling);
 
         // Raise it by a bit
         currBorrowRate = getBorrowRate();
@@ -540,8 +533,7 @@ contract D3MCompoundDaiTest is DSTest {
         assertEq(art, debtCeiling);
         assertTrue(getBorrowRate() > targetBorrowRate && getBorrowRate() < currBorrowRate);
         assetBalance = cDai.balanceOfUnderlying(address(d3mCompoundDaiPool));
-        assertEqAbsolute(assetBalance, debtCeiling, 10 ** 10);
-        //assertEqRoundingAgainst(cDai.balanceOf(address(d3mCompoundDaiPool)), debtCeiling);    // We allow a rounding error of 1 because aTOKENs round against the user
+        assertEqRounding(assetBalance, debtCeiling);
     }
 
     function test_collect_interest() public {
@@ -596,8 +588,8 @@ contract D3MCompoundDaiTest is DSTest {
         (ink, art) = vat.urns(ilk, address(d3mCompoundDaiPool));
         assertEq(ink, 0);
         assertEq(art, 0);
-        assertEqAbsolute(cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)), 0, 10 ** 10);
-        assertEqApprox(vat.dai(vow), vowDai + feesAccrued * RAY, 10 ** 10 * RAY);
+        assertEqRounding(cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)), 0);
+        assertEqVatDai(vat.dai(vow), vowDai + feesAccrued * RAY);
     }
 
     function test_insufficient_liquidity_for_reap_fees() public {
@@ -660,10 +652,10 @@ contract D3MCompoundDaiTest is DSTest {
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2); // Automatically skimmed when unwinding
         if (prevSin + (amountSupplied / 2) * RAY >= prevDai) {
-            assertEqApprox(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai, RAY);
+            assertEqVatDai(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai);
             assertEq(vat.dai(vow), 0);
         } else {
-            assertEqApprox(vat.dai(vow), prevDai - prevSin - (amountSupplied / 2) * RAY, RAY);
+            assertEqVatDai(vat.dai(vow), prevDai - prevSin - (amountSupplied / 2) * RAY);
             assertEq(vat.sin(vow), 0);
         }
 
@@ -721,10 +713,10 @@ contract D3MCompoundDaiTest is DSTest {
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(end)), pink);
         if (prevSin + amountSupplied * RAY >= prevDai) {
-            assertEqApprox(vat.sin(vow), prevSin + amountSupplied * RAY - prevDai, 10 ** 10 * RAY); // TODO: IS THIS OK??
+            assertEqVatDai(vat.sin(vow), prevSin + amountSupplied * RAY - prevDai);
             assertEq(vat.dai(vow), 0);
         } else {
-            assertEqApprox(vat.dai(vow), prevDai - prevSin - amountSupplied * RAY, RAY);
+            assertEqVatDai(vat.dai(vow), prevDai - prevSin - amountSupplied * RAY);
             assertEq(vat.sin(vow), 0);
         }
 
@@ -735,10 +727,10 @@ contract D3MCompoundDaiTest is DSTest {
         // Part can't be done yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
         if (prevSin + (amountSupplied / 2) * RAY >= prevDai) {
-            assertEqApprox(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai, RAY);
+            assertEqVatDai(vat.sin(vow), prevSin + (amountSupplied / 2) * RAY - prevDai);
             assertEq(vat.dai(vow), 0);
         } else {
-            assertEqApprox(vat.dai(vow), prevDai - prevSin - (amountSupplied / 2) * RAY, RAY);
+            assertEqVatDai(vat.dai(vow), prevDai - prevSin - (amountSupplied / 2) * RAY);
             assertEq(vat.sin(vow), 0);
         }
 
@@ -816,7 +808,7 @@ contract D3MCompoundDaiTest is DSTest {
         hevm.warp(block.timestamp + tau);
         hevm.roll(block.number + tau / 15);
 
-        //assertEqAbsolute(cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)), 0, 10 ** 10);
+        //assertEqRounding(cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)), 0, 10 ** 10); // TDODO: what to do here?
         uint256 daiEarned = cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)) - pink;
 
         VowLike(vow).heal(
@@ -881,10 +873,10 @@ contract D3MCompoundDaiTest is DSTest {
         //assertGe(cDai.balanceOf(address(d3mCompoundDaiPool)), pink);
         assertGe(cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)), pink);
         if (originalSin + part * RAY >= originalDai) {
-            assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai, RAY);
+            assertEqVatDai(vat.sin(vow), originalSin + part * RAY - originalDai);
             assertEq(vat.dai(vow), 0);
         } else {
-            assertEqApprox(vat.dai(vow), originalDai - originalSin - part * RAY, RAY);
+            assertEqVatDai(vat.dai(vow), originalDai - originalSin - part * RAY);
             assertEq(vat.sin(vow), 0);
         }
 
@@ -896,10 +888,10 @@ contract D3MCompoundDaiTest is DSTest {
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
         assertGt(cDai.balanceOfUnderlying(address(d3mCompoundDaiPool)), amountSupplied / 2);
         if (originalSin + part * RAY >= originalDai + (amountSupplied / 2) * RAY) {
-            assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY, 10 ** 10 * RAY); // TODO: is this ok?
+            assertEqVatDai(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY);
             assertEq(vat.dai(vow), 0);
         } else {
-            assertEqApprox(vat.dai(vow), originalDai + (amountSupplied / 2) * RAY - originalSin - part * RAY, RAY);
+            assertEqVatDai(vat.dai(vow), originalDai + (amountSupplied / 2) * RAY - originalSin - part * RAY);
             assertEq(vat.sin(vow), 0);
         }
 
@@ -910,9 +902,9 @@ contract D3MCompoundDaiTest is DSTest {
         directDepositHub.exec(ilk);
         VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
-        assertEqApprox(cDai.balanceOf(address(d3mCompoundDaiPool)), 0, 1);
+        assertEqCdai(cDai.balanceOf(address(d3mCompoundDaiPool)), 0);
         assertEq(vat.sin(vow), 0);
-        assertEqApprox(vat.dai(vow), originalDai - originalSin + daiEarned * RAY, 10 ** 10 * RAY); // TODO: is this ok?
+        assertEqVatDai(vat.dai(vow), originalDai - originalSin + daiEarned * RAY);
     }
 
     function testFail_uncull_not_culled() public {
@@ -989,7 +981,7 @@ contract D3MCompoundDaiTest is DSTest {
 
         uint256 expectedCdai = _wdiv(100 * 1e18, cDai.exchangeRateCurrent());
         assertEq(cDai.balanceOf(address(this)), expectedCdai);
-        assertEqApprox(100 * 1e18, cDai.balanceOfUnderlying(address(this)), 10 ** 10);
+        assertEqRounding(100 * 1e18, cDai.balanceOfUnderlying(address(this)));
     }
 
     function testFail_shutdown_cant_cull() public {
@@ -1084,7 +1076,6 @@ contract D3MCompoundDaiTest is DSTest {
         directDepositHub.reap(ilk);
     }
 
-    // TODO: handle this as currently the MOM only knows to file "bar"
     function test_direct_deposit_mom() public {
         _setRelBorrowTarget(7500);
 
@@ -1101,7 +1092,7 @@ contract D3MCompoundDaiTest is DSTest {
         directDepositHub.exec(ilk);
 
         (ink, ) = vat.urns(ilk, address(d3mCompoundDaiPool));
-        assertEqAbsolute(ink, 0, 10 ** 10);
+        assertEqRounding(ink, 0);
     }
 
     function test_set_tau_not_caged() public {
