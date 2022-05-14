@@ -19,7 +19,8 @@ pragma solidity 0.6.12;
 import "ds-test/test.sol";
 import "../tests/interfaces/interfaces.sol";
 
-import {D3MCompoundDaiPlan, CErc20} from "./D3MCompoundDaiPlan.sol";
+import { D3MPlanBaseTest }            from "./D3MPlanBase.t.sol";
+import { D3MCompoundDaiPlan, CErc20 } from "./D3MCompoundDaiPlan.sol";
 
 interface CErc20Like {
     function borrowRatePerBlock()               external view returns (uint256);
@@ -40,12 +41,10 @@ interface InterestRateModelLike {
     function utilizationRate(uint256 cash, uint256 borrows, uint256 reserves) external pure returns (uint256);
 }
 
-contract D3MCompoundDaiPlanTest is DSTest {
-    DaiLike dai;
-    CErc20Like cDai;
+contract D3MCompoundDaiPlanTest is D3MPlanBaseTest {
+    CErc20Like            cDai;
     InterestRateModelLike model;
-
-    D3MCompoundDaiPlan plan;
+    D3MCompoundDaiPlan    plan;
 
     uint256 constant WAD = 10 ** 18;
 
@@ -97,12 +96,13 @@ contract D3MCompoundDaiPlanTest is DSTest {
         }
     }
 
-    function setUp() public {
+    function setUp() public override {
         dai   = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         cDai  = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
         model = InterestRateModelLike(cDai.interestRateModel());
 
-        plan = new D3MCompoundDaiPlan(address(cDai));
+        d3mTestPlan = address(new D3MCompoundDaiPlan(address(cDai)));
+        plan = D3MCompoundDaiPlan(d3mTestPlan);
     }
 
     function _targetRateForUtil(uint256 util) internal view returns (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) {
@@ -243,7 +243,7 @@ contract D3MCompoundDaiPlanTest is DSTest {
         assertEq(plan.calculateTargetSupply(overTopRate), 0);
     }
 
-    function test_implements_getTargetAssets() public {
+    function test_implements_getTargetAssets() public override {
         uint256 initialRatePerBlock = cDai.borrowRatePerBlock();
 
         plan.file("barb", initialRatePerBlock - (1 * WAD / 1000) / model.blocksPerYear()); // minus 0.1% from current yearly rate
@@ -285,7 +285,7 @@ contract D3MCompoundDaiPlanTest is DSTest {
         assertTrue(plan.active());
     }
 
-    function test_implements_disable() public {
+    function test_implements_disable() public override {
         // disable_sets_bar_to_zero
         plan.file("barb", 123);
         assertTrue(plan.barb() != 0);

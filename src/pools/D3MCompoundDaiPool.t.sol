@@ -154,10 +154,8 @@ contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
         uint256 compBefore = comp.balanceOf(king);
         hevm.roll(block.number + 5760);
         pool.collect();
-        uint256 compAfter = comp.balanceOf(king);
 
         assertGt(comp.balanceOf(address(king)), compBefore);
-
     }
 
     function testFail_collect_no_king() public {
