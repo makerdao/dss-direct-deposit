@@ -304,7 +304,6 @@ contract D3MCompoundDaiTest is DSTest {
         directDepositHub.reap(ilk);     // Clear out interest to get rid of rounding errors
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
-        //uint256 amountMinted = cDai.balanceOf(address(d3mCompoundDaiPool));
         uint256 amountSupplied = cDai.balanceOfUnderlying(address(d3mCompoundDaiPool));
 
         assertTrue(amountSupplied > 0);

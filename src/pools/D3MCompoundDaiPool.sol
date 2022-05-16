@@ -126,7 +126,10 @@ contract D3MCompoundDaiPool is ID3MPool {
     function deposit(uint256 amt) external override auth {
         uint256 prev = cDai.balanceOf(address(this));
         require(cDai.mint(amt) == 0, "D3MCompoundDaiPool/mint-failure");
-        require(cDai.balanceOf(address(this)) == _add(prev, _wdiv(amt, cDai.exchangeRateStored())), "D3MCompoundDaiPool/incorrect-cdai-credit");
+        require(
+            cDai.balanceOf(address(this)) ==
+            _add(prev, _wdiv(amt, cDai.exchangeRateStored())), "D3MCompoundDaiPool/incorrect-cdai-credit"
+        );
     }
 
     function withdraw(uint256 amt) external override auth {
