@@ -20,7 +20,7 @@ import "ds-test/test.sol";
 import "../tests/interfaces/interfaces.sol";
 
 import { D3MPlanBaseTest }            from "./D3MPlanBase.t.sol";
-import { D3MCompoundDaiPlan, CErc20 } from "./D3MCompoundDaiPlan.sol";
+import { D3MCompoundDaiPlan } from "./D3MCompoundDaiPlan.sol";
 
 interface CErc20Like {
     function borrowRatePerBlock()               external view returns (uint256);

@@ -32,7 +32,7 @@ interface D3mHubLike {
     function vat() external view returns (address);
 }
 
-interface CErc20 is TokenLike {
+interface CErc20Like is TokenLike {
     function interestRateModel()                    external view returns (address);
     function underlying()                           external view returns (address);
     function comptroller()                          external view returns (address);
@@ -45,16 +45,16 @@ interface CErc20 is TokenLike {
     function exchangeRateCurrent()                  external returns (uint256);
 }
 
-interface Comptroller {
+interface ComptrollerLike {
     function getCompAddress() external view returns (address);
     function claimComp(address[] memory holders, address[] memory cTokens, bool borrowers, bool suppliers) external;
 }
 
 contract D3MCompoundDaiPool is ID3MPool {
 
-    Comptroller public immutable comptroller;
-    TokenLike   public immutable dai;
-    CErc20      public immutable cDai;
+    ComptrollerLike public immutable comptroller;
+    TokenLike       public immutable dai;
+    CErc20Like      public immutable cDai;
 
     address     public king; // Who gets the rewards
 
@@ -80,14 +80,14 @@ contract D3MCompoundDaiPool is ID3MPool {
     event Collect(address indexed king, address indexed comp);
 
     constructor(address hub_, address dai_, address cDai_) public {
-        address comptroller_ = CErc20(cDai_).comptroller();
+        address comptroller_ = CErc20Like(cDai_).comptroller();
 
         require(comptroller_ != address(0), "D3MCompoundDaiPool/invalid-comptroller");
-        require(dai_         == CErc20(cDai_).underlying(), "D3MCompoundDaiPool/cdai-dai-mismatch");
+        require(dai_         == CErc20Like(cDai_).underlying(), "D3MCompoundDaiPool/cdai-dai-mismatch");
 
-        comptroller = Comptroller(comptroller_);
+        comptroller = ComptrollerLike(comptroller_);
         dai         = TokenLike(dai_);
-        cDai        = CErc20(cDai_);
+        cDai        = CErc20Like(cDai_);
 
         TokenLike(dai_).approve(cDai_, type(uint256).max);
 

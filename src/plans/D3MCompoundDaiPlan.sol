@@ -45,7 +45,7 @@ pragma solidity 0.6.12;
 
 import "./ID3MPlan.sol";
 
-interface CErc20 {
+interface CErc20Like {
     function totalBorrows()           external view returns (uint256);
     function totalReserves()          external view returns (uint256);
     function interestRateModel()      external view returns (address);
@@ -53,7 +53,7 @@ interface CErc20 {
     function underlying()             external view returns (address);
 }
 
-interface InterestRateModel {
+interface InterestRateModelLike {
     function baseRatePerBlock()       external view returns (uint256);
     function kink()                   external view returns (uint256);
     function multiplierPerBlock()     external view returns (uint256);
@@ -62,10 +62,10 @@ interface InterestRateModel {
 
 contract D3MCompoundDaiPlan is ID3MPlan {
 
-    CErc20 public immutable cDai;
+    CErc20Like public immutable cDai;
 
-    InterestRateModel public rateModel;
-    uint256           public barb;  // Target Interest Rate Per Block [wad] (0)
+    InterestRateModelLike public rateModel;
+    uint256               public barb;  // Target Interest Rate Per Block [wad] (0)
 
     // --- Auth ---
     mapping (address => uint256) public wards;
@@ -89,11 +89,11 @@ contract D3MCompoundDaiPlan is ID3MPlan {
     event File(bytes32 indexed what, address data);
 
     constructor(address cDai_) public {
-        address rateModel_ = CErc20(cDai_).interestRateModel();
+        address rateModel_ = CErc20Like(cDai_).interestRateModel();
         require(rateModel_ != address(0), "D3MCompoundDaiPlan/invalid-rateModel");
 
-        cDai = CErc20(cDai_);
-        rateModel = InterestRateModel(rateModel_);
+        cDai = CErc20Like(cDai_);
+        rateModel = InterestRateModelLike(rateModel_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -127,7 +127,7 @@ contract D3MCompoundDaiPlan is ID3MPlan {
     }
 
     function file(bytes32 what, address data) external auth {
-        if (what == "rateModel") rateModel = InterestRateModel(data);
+        if (what == "rateModel") rateModel = InterestRateModelLike(data);
         else revert("D3MCompoundDaiPlan/file-unrecognized-param");
         emit File(what, data);
     }
@@ -190,7 +190,7 @@ contract D3MCompoundDaiPlan is ID3MPlan {
     }
 
     function active() public view override returns (bool) {
-        return CErc20(cDai).interestRateModel() == address(rateModel);
+        return CErc20Like(cDai).interestRateModel() == address(rateModel);
     }
 
     // TODO: align to aave's plan disable() once finalized
