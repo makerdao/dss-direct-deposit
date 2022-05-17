@@ -159,10 +159,6 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         assertEq(address(D3MAaveDaiPool(d3mTestPool).asset()), address(dai));
     }
 
-    function test_sets_dai_value() public {
-        assertEq(address(D3MAaveDaiPool(d3mTestPool).asset()), address(dai));
-    }
-
     function test_can_file_king() public {
         assertEq(D3MAaveDaiPool(d3mTestPool).king(), address(0));
 
