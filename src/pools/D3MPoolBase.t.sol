@@ -160,10 +160,6 @@ contract D3MPoolBaseTest is DSTest {
         assertTrue(false);
     }
 
-    function test_sets_dai_value() public {
-        assertEq(address(D3MPoolBase(d3mTestPool).asset()), address(dai));
-    }
-
     function test_sets_creator_as_ward() public {
         assertEq(D3MPoolBase(d3mTestPool).wards(address(this)), 1);
     }
