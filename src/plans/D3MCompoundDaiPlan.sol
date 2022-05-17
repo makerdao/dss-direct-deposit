@@ -63,11 +63,6 @@ interface InterestRateModelLike {
 
 contract D3MCompoundDaiPlan is ID3MPlan {
 
-    CErc20Like public immutable cDai;
-
-    InterestRateModelLike public rateModel;
-    uint256               public barb; // target Interest Rate Per Block [wad] (0)
-
     // --- Auth ---
     mapping (address => uint256) public wards;
     function rely(address usr) external auth {
@@ -82,6 +77,12 @@ contract D3MCompoundDaiPlan is ID3MPlan {
         require(wards[msg.sender] == 1, "D3MCompoundDaiPlan/not-authorized");
         _;
     }
+
+    // --- Data ---
+    CErc20Like public immutable cDai;
+
+    InterestRateModelLike public rateModel;
+    uint256               public barb; // target Interest Rate Per Block [wad] (0)
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -119,48 +120,17 @@ contract D3MCompoundDaiPlan is ID3MPlan {
         z = _mul(x, WAD) / y;
     }
 
-    // --- Admin ---
+    // --- Administration ---
     function file(bytes32 what, uint256 data) external auth {
         if (what == "barb") {
             barb = data;
         } else revert("D3MCompoundDaiPlan/file-unrecognized-param");
         emit File(what, data);
     }
-
     function file(bytes32 what, address data) external auth {
         if (what == "rateModel") rateModel = InterestRateModelLike(data);
         else revert("D3MCompoundDaiPlan/file-unrecognized-param");
         emit File(what, data);
-    }
-
-    function _calculateTargetSupply(uint256 targetInterestRate, uint256 borrows) internal view returns (uint256) {
-        uint256 kink                   = rateModel.kink();
-        uint256 multiplierPerBlock     = rateModel.multiplierPerBlock();
-        uint256 baseRatePerBlock       = rateModel.baseRatePerBlock();
-        uint256 jumpMultiplierPerBlock = rateModel.jumpMultiplierPerBlock();
-
-        uint256 normalRate = _add(_wmul(kink, multiplierPerBlock), baseRatePerBlock);
-
-        uint256 targetUtil;
-        if (targetInterestRate > normalRate) {
-            if (jumpMultiplierPerBlock == 0) return 0; // illegal rate, max is normal rate for this case
-            targetUtil = _add(kink, _wdiv(targetInterestRate - normalRate, jumpMultiplierPerBlock));             // (1)
-        } else if (targetInterestRate > baseRatePerBlock) {
-            targetUtil = _wdiv(targetInterestRate - baseRatePerBlock, multiplierPerBlock);                       // (2)
-        } else {
-            // if (target == base) => (borrows == 0) => supply does not matter
-            // if (target  < base) => illegal rate
-            return 0;
-        }
-
-        if (targetUtil > WAD) return 0; // illegal rate (unacheivable utilization)
-
-        return _wdiv(borrows, targetUtil);                                                                       // (3)
-    }
-
-    // targetSupply = cash + borrows - reserves
-    function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
-        return _calculateTargetSupply(targetInterestRate, cDai.totalBorrows());
     }
 
     function getTargetAssets(uint256 currentAssets) external override view returns (uint256) {
@@ -190,6 +160,37 @@ contract D3MCompoundDaiPlan is ID3MPlan {
                 return 0;
             }
         }
+    }
+
+    // TODO: this function seems unneeded, remove once it's removed from the interfcae and AAVE
+    // targetSupply = cash + borrows - reserves
+    function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
+        return _calculateTargetSupply(targetInterestRate, cDai.totalBorrows());
+    }
+
+    function _calculateTargetSupply(uint256 targetInterestRate, uint256 borrows) internal view returns (uint256) {
+        uint256 kink                   = rateModel.kink();
+        uint256 multiplierPerBlock     = rateModel.multiplierPerBlock();
+        uint256 baseRatePerBlock       = rateModel.baseRatePerBlock();
+        uint256 jumpMultiplierPerBlock = rateModel.jumpMultiplierPerBlock();
+
+        uint256 normalRate = _add(_wmul(kink, multiplierPerBlock), baseRatePerBlock);
+
+        uint256 targetUtil;
+        if (targetInterestRate > normalRate) {
+            if (jumpMultiplierPerBlock == 0) return 0; // illegal rate, max is normal rate for this case
+            targetUtil = _add(kink, _wdiv(targetInterestRate - normalRate, jumpMultiplierPerBlock));             // (1)
+        } else if (targetInterestRate > baseRatePerBlock) {
+            targetUtil = _wdiv(targetInterestRate - baseRatePerBlock, multiplierPerBlock);                       // (2)
+        } else {
+            // if (target == base) => (borrows == 0) => supply does not matter
+            // if (target  < base) => illegal rate
+            return 0;
+        }
+
+        if (targetUtil > WAD) return 0; // illegal rate (unacheivable utilization)
+
+        return _wdiv(borrows, targetUtil);                                                                       // (3)
     }
 
     function active() public view override returns (bool) {
