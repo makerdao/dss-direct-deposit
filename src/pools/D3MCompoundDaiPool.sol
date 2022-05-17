@@ -78,7 +78,7 @@ contract D3MCompoundDaiPool is ID3MPool {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, address data);
-    event Collect(address indexed king, address indexed comp);
+    event Collect(address indexed king, address indexed comp, uint256 amt);
 
     constructor(address hub_, address dai_, address cDai_) public {
         address comptroller_ = CErc20Like(cDai_).comptroller();
@@ -181,9 +181,11 @@ contract D3MCompoundDaiPool is ID3MPool {
         cTokens[0] = address(cDai);
 
         comptroller.claimComp(holders, cTokens, false, true);
-        TokenLike comp = TokenLike(comptroller.getCompAddress());
-        comp.transfer(king, comp.balanceOf(address(this)));
 
-        emit Collect(king, address(comp));
+        TokenLike comp = TokenLike(comptroller.getCompAddress());
+        uint256 amt = comp.balanceOf(address(this));
+        comp.transfer(king, amt);
+
+        emit Collect(king, address(comp), amt);
     }
 }
