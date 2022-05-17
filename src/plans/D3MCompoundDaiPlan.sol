@@ -66,7 +66,7 @@ contract D3MCompoundDaiPlan is ID3MPlan {
     CErc20Like public immutable cDai;
 
     InterestRateModelLike public rateModel;
-    uint256               public barb;  // Target Interest Rate Per Block [wad] (0)
+    uint256               public barb; // target Interest Rate Per Block [wad] (0)
 
     // --- Auth ---
     mapping (address => uint256) public wards;
@@ -148,7 +148,9 @@ contract D3MCompoundDaiPlan is ID3MPlan {
         } else if (targetInterestRate > baseRatePerBlock) {
             targetUtil = _wdiv(targetInterestRate - baseRatePerBlock, multiplierPerBlock);                       // (2)
         } else {
-            return 0; // target <= base, supply should be 0
+            // if (target == base) => (borrows == 0) => supply does not matter
+            // if (target  < base) => illegal rate
+            return 0;
         }
 
         if (targetUtil > WAD) return 0; // illegal rate (unacheivable utilization)

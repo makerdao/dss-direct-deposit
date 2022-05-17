@@ -56,7 +56,7 @@ contract D3MCompoundDaiPool is ID3MPool {
     TokenLike       public immutable dai;
     CErc20Like      public immutable cDai;
 
-    address     public king; // Who gets the rewards
+    address public king; // Who gets the rewards
 
     // --- Auth ---
     mapping (address => uint256) public wards;
