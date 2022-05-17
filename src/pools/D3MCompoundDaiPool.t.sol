@@ -30,12 +30,17 @@ interface CompltrollerLike {
     function compSupplySpeeds(address cToken) external view returns (uint256);
 }
 
+interface LensLike {
+    function getCompBalanceMetadataExt(address comp, address comptroller, address account) external returns (uint256, uint256, address, uint256);
+}
+
 contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
 
     CErc20Like         cDai;
     D3MCompoundDaiPool pool;
     CompltrollerLike   comptroller;
     TokenLike          comp;
+    LensLike           lens;
 
     address public vat; // Needed in pool's ctr
 
@@ -68,6 +73,7 @@ contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
         cDai        = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
         comptroller = CompltrollerLike(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
         comp        = TokenLike(0xc00e94Cb662C3520282E6f5717214004A7f26888);
+        lens        = LensLike(0xdCbDb7306c6Ff46f77B349188dC18cEd9DF30299);
         vat         = 0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B;
 
         d3mTestPool = address(new D3MCompoundDaiPool(address(this), address(dai), address(cDai)));
@@ -153,9 +159,13 @@ contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
 
         uint256 compBefore = comp.balanceOf(king);
         hevm.roll(block.number + 5760);
+
+        (,,,uint256 expected) = lens.getCompBalanceMetadataExt(address(comp), address(comptroller), address(pool));
+        assertGt(expected, 0);
+
         pool.collect();
 
-        assertGt(comp.balanceOf(address(king)), compBefore);
+        assertEq(comp.balanceOf(address(king)), compBefore + expected);
     }
 
     function testFail_collect_no_king() public {
