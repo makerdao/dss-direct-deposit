@@ -27,7 +27,7 @@ interface CErc20Like {
 }
 
 interface CompltrollerLike {
-    function compSupplySpeeds(address cToken) external view returns (uint256);
+    function compBorrowSpeeds(address cToken) external view returns (uint256);
 }
 
 interface LensLike {
@@ -150,7 +150,7 @@ contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
     function test_collect_claims_for_king() public {
 
         // Return if rewards are turned off - this is still an acceptable state
-        if (CompltrollerLike(cDai.comptroller()).compSupplySpeeds(address(cDai)) == 0) return;
+        if (CompltrollerLike(cDai.comptroller()).compBorrowSpeeds(address(cDai)) == 0) return;
 
         address king = address(123);
         pool.file("king", king);
