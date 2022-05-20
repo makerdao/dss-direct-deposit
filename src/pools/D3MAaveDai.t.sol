@@ -132,6 +132,7 @@ contract D3MAaveDaiTest is DSTest {
 
         directDepositHub = new DssDirectDepositHub(address(vat), address(daiJoin));
         d3mAaveDaiPool = new D3MAaveDaiPool(address(directDepositHub), address(dai), address(aavePool), address(rewardsClaimer));
+        d3mAaveDaiPool.rely(address(directDepositHub));
         d3mAaveDaiPlan = new D3MAaveDaiPlan(address(dai), address(aavePool));
 
         directDepositHub.file(ilk, "pool", address(d3mAaveDaiPool));
@@ -378,7 +379,6 @@ contract D3MAaveDaiTest is DSTest {
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAaveDaiPool));
         directDepositHub.cage(ilk);
-        assertEq(d3mAaveDaiPool.live(), 0);
         directDepositHub.exec(ilk);
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
@@ -418,7 +418,6 @@ contract D3MAaveDaiTest is DSTest {
         currentLiquidity = dai.balanceOf(address(adai));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAaveDaiPool));
         directDepositHub.cage(ilk);
-        assertEq(d3mAaveDaiPool.live(), 0);
         directDepositHub.exec(ilk);
 
         // Should be no dai liquidity remaining as we attempt to fully unwind
@@ -895,7 +894,7 @@ contract D3MAaveDaiTest is DSTest {
         tokens[0] = address(adai);
         uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(directDepositHub));
         if (amountToClaim == 0) return;     // Rewards are turned off - this is still an acceptable state
-        uint256 amountClaimed = d3mAaveDaiPool.collect(tokens, uint256(-1));
+        uint256 amountClaimed = d3mAaveDaiPool.collect();
         assertEq(amountClaimed, amountToClaim);
         assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed);
         assertEq(rewardsClaimer.getRewardsBalance(tokens, address(directDepositHub)), 0);
@@ -905,7 +904,7 @@ contract D3MAaveDaiTest is DSTest {
         // Collect some more rewards
         uint256 amountToClaim2 = rewardsClaimer.getRewardsBalance(tokens, address(directDepositHub));
         assertGt(amountToClaim2, 0);
-        uint256 amountClaimed2 = d3mAaveDaiPool.collect(tokens, uint256(-1));
+        uint256 amountClaimed2 = d3mAaveDaiPool.collect();
         assertEq(amountClaimed2, amountToClaim2);
         assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed + amountClaimed2);
         assertEq(rewardsClaimer.getRewardsBalance(tokens, address(directDepositHub)), 0);
@@ -921,7 +920,7 @@ contract D3MAaveDaiTest is DSTest {
         tokens[0] = address(adai);
         uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(d3mAaveDaiPool));
         assertGt(amountToClaim, 0);
-        d3mAaveDaiPool.collect(tokens, uint256(-1));
+        d3mAaveDaiPool.collect();
     }
 
     function test_cage_exit() public {
@@ -1063,7 +1062,6 @@ contract D3MAaveDaiTest is DSTest {
         assertEq(tau, 7 days);
 
         directDepositHub.cage(ilk);
-        assertEq(d3mAaveDaiPool.live(), 0);
 
         // file should fail with error "D3MAaveDai/live"
         directDepositHub.file(ilk, "tau", 1 days);

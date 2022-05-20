@@ -81,6 +81,10 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         assertEq(address(adai), D3MAaveDaiPlan(d3mTestPlan).adai());
     }
 
+    function test_sets_dai_value() public {
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).dai()), address(dai));
+    }
+
     function test_sets_stableDebt() public {
         (,,,,,,,, address stableDebt,,,) = LendingPoolLike(aavePool).getReserveData(address(dai));
 
@@ -105,8 +109,20 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         assertEq(D3MAaveDaiPlan(d3mTestPlan).bar(), 1);
     }
 
-    function testFail_cannot_file_unknown_param() public {
+    function testFail_cannot_file_unknown_uint_param() public {
         D3MAaveDaiPlan(d3mTestPlan).file("bad", 1);
+    }
+
+    function test_can_file_interestStratgey() public {
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), address(interestStrategy));
+
+        D3MAaveDaiPlan(d3mTestPlan).file("interestStrategy", address(1));
+
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), address(1));
+    }
+
+    function testFail_cannot_file_unknown_address_param() public {
+        D3MAaveDaiPlan(d3mTestPlan).file("bad", address(1));
     }
 
     function testFail_cannot_file_without_auth() public {
@@ -116,11 +132,7 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
     }
 
     function testFail_cannot_file_too_high_bar() public {
-        D3MAaveDaiPlan(d3mTestPlan).file("bar", D3MAaveDaiPlan(d3mTestPlan).maxBar() + 1);
-    }
-
-    function test_maxBar_is_MaxVarBorrowRate() public {
-        assertEq(interestStrategy.getMaxVariableBorrowRate(), D3MAaveDaiPlan(d3mTestPlan).maxBar());
+        D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.getMaxVariableBorrowRate() + 1);
     }
 
     function test_interest_rate_calc() public {
@@ -157,6 +169,25 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         assertEq(D3MAaveDaiPlan(d3mTestPlan).getTargetAssets(0), 0);
     }
 
+    function test_interestStrategy_changed_not_active() public {
+        D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
+
+        // Simulate AAVE changing the strategy in the pool
+        D3MAaveDaiPlan(d3mTestPlan).file("interestStrategy", address(456));
+        (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
+
+        assertTrue(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()) != poolStrategy);
+
+        assertTrue(D3MAaveDaiPlan(d3mTestPlan).active() == false);
+    }
+
+    function test_interestStrategy_not_changed_active() public {
+        (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), poolStrategy);
+
+        assertTrue(D3MAaveDaiPlan(d3mTestPlan).active());
+    }
+
     function test_implements_disable() public override {
         // disable_sets_bar_to_zero
         D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
@@ -169,6 +200,8 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
     }
 
     function testFail_disable_without_auth() public {
+        (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), poolStrategy);
         D3MAaveDaiPlan(d3mTestPlan).deny(address(this));
 
         D3MAaveDaiPlan(d3mTestPlan).disable();

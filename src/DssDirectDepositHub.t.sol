@@ -90,16 +90,15 @@ contract DssDirectDepositHubTest is DSTest {
         d3mTestPool = new D3MTestPool(
             address(directDepositHub),
             address(dai),
+            address(testGem),
             address(rewardsClaimer)
         );
+        d3mTestPool.rely(address(directDepositHub));
         d3mTestPlan = new D3MTestPlan(address(dai));
-
-        d3mTestPool.file("share", address(testGem));
 
         // Test Target Setup
         testGem.rely(address(d3mTestPool));
         d3mTestPlan.file("maxBar_", type(uint256).max);
-        d3mTestPool.file("isValidTarget", true);
         testGem.giveAllowance(
             address(dai),
             address(d3mTestPool),
@@ -359,9 +358,60 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(d3mTestPool.accrued());
     }
 
-    function testFail_exec_invalid_traget() public {
-        d3mTestPool.file("isValidTarget", false);
+    function test_wind_limited_by_maxDeposit() public {
+        _windSystem(); // winds to 50 * WAD
+        d3mTestPlan.file("targetAssets", 75 * WAD);
+        d3mTestPool.file("maxDepositAmount", 5 * WAD);
+
+        directDepositHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 55 * WAD);
+        assertEq(art, 55 * WAD);
+        assertTrue(d3mTestPool.accrued());
+    }
+
+    function test_wind_limited_to_zero_by_maxDeposit() public {
+        _windSystem(); // winds to 50 * WAD
+        d3mTestPlan.file("targetAssets", 75 * WAD);
+        d3mTestPool.file("maxDepositAmount", 0);
+
+        directDepositHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertTrue(d3mTestPool.accrued());
+    }
+
+    function test_unwind_pool_not_active() public {
         _windSystem();
+
+        // Temporarily disable the module
+        d3mTestPool.file("active_", false);
+        directDepositHub.exec(ilk);
+
+        // Ensure we unwound our position
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        // Make sure unwind calls accrued
+        assertTrue(d3mTestPool.accrued());
+    }
+
+    function test_unwind_plan_not_active() public {
+        _windSystem();
+
+        // Temporarily disable the module
+        d3mTestPlan.file("active_", false);
+        directDepositHub.exec(ilk);
+
+        // Ensure we unwound our position
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        // Make sure unwind calls accrued
+        assertTrue(d3mTestPool.accrued());
     }
 
     function test_unwind_bar_zero() public {
@@ -564,35 +614,16 @@ contract DssDirectDepositHubTest is DSTest {
     function test_cage_pool() public {
         (, , , , uint256 tic) = directDepositHub.ilks(ilk);
         assertEq(tic, 0);
-        assertEq(d3mTestPool.live(), 1);
 
         directDepositHub.cage(ilk);
 
         (, , , , tic) = directDepositHub.ilks(ilk);
         assertEq(tic, block.timestamp);
-        assertEq(d3mTestPool.live(), 0);
     }
 
     function testFail_cage_pool_no_auth() public {
         directDepositHub.deny(address(this));
         directDepositHub.cage(ilk);
-    }
-
-    function test_cage_pool_invalid_target() public {
-        (, , , , uint256 tic) = directDepositHub.ilks(ilk);
-        assertEq(tic, 0);
-        assertEq(d3mTestPool.live(), 1);
-
-        // We should not need permission for this
-        directDepositHub.deny(address(this));
-        // Simulate some condition on the target that makes it invalid
-        d3mTestPool.file("isValidTarget", false);
-
-        directDepositHub.cage(ilk);
-
-        (, , , , tic) = directDepositHub.ilks(ilk);
-        assertEq(tic, block.timestamp);
-        assertEq(d3mTestPool.live(), 0);
     }
 
     function test_cull() public {
