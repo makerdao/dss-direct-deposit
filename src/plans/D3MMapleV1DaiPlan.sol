@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-import "./D3MPlanBase.sol";
+import "./ID3MPlan.sol";
 
 interface PoolLike {
     function approve(address, uint256) external returns (bool);
@@ -31,15 +31,37 @@ interface MapleGlobalsLike {
     function getLpCooldownParams() external view returns (uint256, uint256);
 }
 
-contract D3MMapleV1DaiPlan is D3MPlanBase {
+contract D3MMapleV1DaiPlan is ID3MPlan {
 
     PoolLike public immutable pool;
 
     uint256 public cap; // Target Loan Size
     bool    public cue; // If true then we intend to initiate a withdraw
 
-    constructor(address dai_, address pool_) public D3MPlanBase(dai_) {
+    // --- Auth ---
+    mapping (address => uint256) public wards;
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MMapleV1DaiPlan/not-authorized");
+        _;
+    }
+
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
+
+    constructor(address dai_, address pool_) public {
         pool = PoolLike(pool_);
+
+        wards[msg.sender] = 1;
+        emit Rely(msg.sender);
     }
 
     // --- Admin ---
@@ -55,6 +77,10 @@ contract D3MMapleV1DaiPlan is D3MPlanBase {
 
             cap = data;
         } else revert("D3MMapleV1DaiPlan/file-unrecognized-param");
+    }
+
+    function active() external view override returns (bool) {
+        return true;
     }
 
     // @dev A keeper needs to watch this and trigger when non-reverting

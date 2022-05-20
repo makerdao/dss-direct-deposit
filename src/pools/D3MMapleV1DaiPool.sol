@@ -16,7 +16,14 @@
 
 pragma solidity 0.6.12;
 
-import "./D3MPoolBase.sol";
+import "./ID3MPool.sol";
+
+interface TokenLike {
+    function approve(address, uint256) external returns (bool);
+    function transfer(address, uint256) external returns (bool);
+    function transferFrom(address, address, uint256) external returns (bool);
+    function balanceOf(address) external view returns (uint256);
+}
 
 interface PoolLike is TokenLike {
     function deposit(uint256 amount) external;
@@ -42,31 +49,52 @@ interface MapleGlobalsLike {
     function getLpCooldownParams() external view returns (uint256, uint256);
 }
 
-contract D3MMapleV1DaiPool is D3MPoolBase {
+contract D3MMapleV1DaiPool is ID3MPool {
 
-    PoolLike public immutable pool;
+    TokenLike public immutable asset; // Dai
+    PoolLike  public immutable pool;
 
     address public king;  // Who gets the rewards
 
+    // --- Auth ---
+    mapping (address => uint256) public wards;
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MAaveDaiPool/not-authorized");
+        _;
+    }
+
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
     event Collect();
     event File(bytes32 indexed what, address data);
 
-    constructor(address hub_, address dai_, address pool_) public D3MPoolBase(hub_, dai_) {
+    constructor(address hub_, address dai_, address pool_) public {
         pool = PoolLike(pool_);
+        asset = TokenLike(dai_);
 
         TokenLike(dai_).approve(pool_, type(uint256).max);
+
+        wards[msg.sender] = 1;
+        emit Rely(msg.sender);
     }
 
     // --- Admin ---
     function file(bytes32 what, address data) external auth {
-        require(live == 1, "D3MMapleV1DaiPool/no-file-not-live");
-
         if (what == "king") king = data;
         else revert("D3MMapleV1DaiPool/file-unrecognized-param");
         emit File(what, data);
     }
 
-    function validTarget() external view override returns (bool) {
+    function active() external view override returns (bool) {
         return true;
     }
 
@@ -80,7 +108,7 @@ contract D3MMapleV1DaiPool is D3MPoolBase {
         // `withdraw` claims interest and recognizes any losses, so use DAI balance change to transfer to hub.
         uint256 preDaiBalance = asset.balanceOf(address(this));
         pool.withdraw(amt);
-        asset.transfer(hub, asset.balanceOf(address(this)) - preDaiBalance);
+        asset.transfer(msg.sender, asset.balanceOf(address(this)) - preDaiBalance);
 
         // TODO: Emit withdraw event if we decide to leave it in base
     }
@@ -117,5 +145,13 @@ contract D3MMapleV1DaiPool is D3MPoolBase {
         uint256 totalLiquidity = asset.balanceOf(pool.liquidityLocker());
 
         return totalLiquidity > assetBalance() ? assetBalance() : totalLiquidity;
+    }
+
+    function maxDeposit() external view override returns (uint256) {
+        return 0;   // TODO
+    }
+
+    function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {
+        return TokenLike(token).transfer(dst, amt);
     }
 }
