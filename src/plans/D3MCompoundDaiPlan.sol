@@ -102,7 +102,7 @@ contract D3MCompoundDaiPlan is ID3MPlan {
     }
 
     // --- Math ---
-    uint256 constant WAD = 10 ** 18;
+    uint256 internal constant WAD = 10 ** 18;
 
     function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x, "D3MCompoundDaiPlan/overflow");

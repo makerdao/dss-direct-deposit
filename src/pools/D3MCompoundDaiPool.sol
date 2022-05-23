@@ -99,7 +99,7 @@ contract D3MCompoundDaiPool is ID3MPool {
     }
 
     // --- Math ---
-    uint256 constant WAD = 10 ** 18;
+    uint256 internal constant WAD = 10 ** 18;
 
     function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x, "D3MCompoundDaiPool/overflow");
@@ -156,6 +156,7 @@ contract D3MCompoundDaiPool is ID3MPool {
         return (error == 0) ? _wmul(cTokenBalance, exchangeRate) : 0;
     }
 
+    // TODO: change to pure once moving to 0.8.13
     function maxDeposit() external view override returns (uint256) {
         return type(uint256).max;
     }
@@ -168,6 +169,7 @@ contract D3MCompoundDaiPool is ID3MPool {
         return TokenLike(token).transfer(dst, amt);
     }
 
+    // TODO: change to pure once moving to 0.8.13
     function active() external view override returns (bool) {
         return true;
     }

@@ -114,7 +114,7 @@ contract D3MCompoundDaiPlanTest is D3MPlanBaseTest {
         targetRate = model.getBorrowRate(cash, borrows, reserves);
     }
 
-    function _targetRateForRelativeUtil(uint256 deltaBPS) internal returns (uint256 targetRate, uint256 newCash, uint256 borrows, uint256 reserves) {
+    function _targetRateForRelativeUtil(uint256 deltaBPS) internal view returns (uint256 targetRate, uint256 newCash, uint256 borrows, uint256 reserves) {
         uint256 cash = cDai.getCash();
         borrows = cDai.totalBorrows();
         reserves = cDai.totalReserves();
