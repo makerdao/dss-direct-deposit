@@ -138,13 +138,7 @@ contract D3MCompoundDaiPlan is ID3MPlan {
         if (targetInterestRate == 0) return 0; // De-activated
 
         uint256 borrows = cDai.totalBorrows();
-        uint256 totalPoolSize = _sub(
-            _add(
-                cDai.getCash(),
-                borrows
-            ),
-            cDai.totalReserves()
-        );
+        uint256 totalPoolSize = _sub(_add(cDai.getCash(), borrows), cDai.totalReserves());
 
         uint256 targetTotalPoolSize = _calculateTargetSupply(targetInterestRate, borrows);
 
@@ -162,7 +156,7 @@ contract D3MCompoundDaiPlan is ID3MPlan {
         }
     }
 
-    // TODO: this function seems unneeded, remove once it's removed from the interfcae and AAVE
+    // TODO: this function seems unneeded, remove once it's removed from the interface and AAVE
     // targetSupply = cash + borrows - reserves
     function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
         return _calculateTargetSupply(targetInterestRate, cDai.totalBorrows());
