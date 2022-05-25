@@ -78,7 +78,7 @@ contract D3MMapleV1DaiPool is ID3MPool {
     event File(bytes32 indexed what, address data);
 
     constructor(address hub_, address dai_, address pool_) public {
-        pool = PoolLike(pool_);
+        pool  = PoolLike(pool_);
         asset = TokenLike(dai_);
 
         TokenLike(dai_).approve(pool_, type(uint256).max);
