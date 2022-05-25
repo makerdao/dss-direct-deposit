@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2021 Dai Foundation
+// Copyright (C) 2021-2022 Dai Foundation
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -16,8 +16,8 @@
 
 pragma solidity 0.6.12;
 
-interface FileLike {
-    function file(bytes32 what, uint256 data) external;
+interface DisableLike {
+    function disable() external;
 }
 
 interface AuthorityLike {
@@ -25,7 +25,7 @@ interface AuthorityLike {
 }
 
 // Bypass governance delay to disable a direct deposit module
-contract DirectDepositMom {
+contract D3MMom {
     address public owner;
     address public authority;
 
@@ -73,7 +73,7 @@ contract DirectDepositMom {
 
     // Governance action without delay
     function disable(address who) external auth {
-        FileLike(who).file("bar", 0);
+        DisableLike(who).disable();
         emit Disable(who);
     }
 }
