@@ -211,7 +211,7 @@ contract DssDirectDepositHub {
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
         require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
 
-        if (what == "tau" ) {
+        if (what == "tau") {
             ilks[ilk].tau = data;
         } else revert("DssDirectDepositHub/file-unrecognized-param");
 
