@@ -70,7 +70,7 @@ contract DssDirectDepositHubTest is DSTest {
         );
 
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
-        end = EndLike(0xBB856d1742fD182a90239D7AE85706C2FE4e5922);
+        end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         daiJoin = DaiJoinLike(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
         spot = SpotLike(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
