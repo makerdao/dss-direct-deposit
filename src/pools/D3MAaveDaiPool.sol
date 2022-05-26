@@ -140,6 +140,14 @@ contract D3MAaveDaiPool is ID3MPool {
         emit File(what, data);
     }
 
+    function hope(address hub) external override auth{
+        CanLike(D3mHubLike(hub).vat()).hope(hub);
+    }
+
+    function nope(address hub) external override auth{
+        CanLike(D3mHubLike(hub).vat()).nope(hub);
+    }
+
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
     function deposit(uint256 amt) external override auth {

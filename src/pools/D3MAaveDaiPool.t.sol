@@ -150,7 +150,9 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         aavePool = LendingPoolLike(address(new FakeLendingPool(address(adai))));
         rewardsClaimer = address(new FakeRewardsClaimer());
 
-        address hub = address(new FakeHub());
+        vat = address(new FakeVat());
+
+        hub = address(new FakeHub(vat));
 
         d3mTestPool = address(new D3MAaveDaiPool(hub, address(dai), address(aavePool), rewardsClaimer));
     }

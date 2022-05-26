@@ -75,10 +75,11 @@ interface VowLike {
 }
 
 interface CanLike {
+    function can(address, address) external returns (uint256);
     function hope(address) external;
     function nope(address) external;
 }
 
-interface d3mHubLike {
+interface D3mHubLike {
     function vat() external view returns (address);
 }

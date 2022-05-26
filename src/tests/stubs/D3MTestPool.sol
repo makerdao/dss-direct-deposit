@@ -18,7 +18,7 @@ pragma solidity >=0.6.12;
 
 import { D3MTestGem } from "./D3MTestGem.sol";
 import "../../pools/ID3MPool.sol";
-import { TokenLike, CanLike, d3mHubLike } from "../interfaces/interfaces.sol";
+import { TokenLike, CanLike, D3mHubLike } from "../interfaces/interfaces.sol";
 
 interface RewardsClaimerLike {
     function claimRewards(address[] memory assets, uint256 amount, address to) external returns (uint256);
@@ -62,7 +62,7 @@ contract D3MTestPool is ID3MPool {
 
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
 
-        CanLike(d3mHubLike(hub_).vat()).hope(hub_);
+        CanLike(D3mHubLike(hub_).vat()).hope(hub_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -84,6 +84,15 @@ contract D3MTestPool is ID3MPool {
         if (what == "king") king = data;
         else revert("D3MTestPool/file-unrecognized-param");
     }
+
+    function hope(address hub) external override auth{
+        CanLike(D3mHubLike(hub).vat()).hope(hub);
+    }
+
+    function nope(address hub) external override auth{
+        CanLike(D3mHubLike(hub).vat()).nope(hub);
+    }
+
 
     function deposit(uint256 amt) external override {
         D3MTestGem(share).mint(address(this), amt);
