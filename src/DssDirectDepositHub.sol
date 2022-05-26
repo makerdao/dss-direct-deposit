@@ -22,6 +22,7 @@ import "./plans/ID3MPlan.sol";
 interface VatLike {
     function debt() external view returns (uint256);
     function hope(address) external;
+    function nope(address) external;
     function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
     function Line() external view returns (uint256);
     function urns(bytes32, address) external view returns (uint256, uint256);
@@ -219,6 +220,10 @@ contract DssDirectDepositHub {
         else if (what == "plan") ilks[ilk].plan = ID3MPlan(data);
         else revert("DssDirectDepositHub/file-unrecognized-param");
         emit File(ilk, what, data);
+    }
+
+    function nope() external auth {
+        vat.nope(address(daiJoin));
     }
 
     // --- Deposit controls ---

@@ -214,6 +214,7 @@ contract DssDirectDepositHubTest is DSTest {
             dai.allowance(address(directDepositHub), address(daiJoin)),
             type(uint256).max
         );
+        assertEq(vat.can(address(directDepositHub), address(daiJoin)), 1);
     }
 
     function test_can_file_tau() public {
@@ -334,6 +335,18 @@ contract DssDirectDepositHubTest is DSTest {
         end.cage(ilk);
 
         directDepositHub.file(ilk, "pool", address(123));
+    }
+
+    function test_can_nope_daiJoin() public {
+        assertEq(vat.can(address(directDepositHub), address(daiJoin)), 1);
+        directDepositHub.nope();
+        assertEq(vat.can(address(directDepositHub), address(daiJoin)), 0);
+    }
+
+    function testFail_cannot_nope_without_auth() public {
+        assertEq(vat.can(address(directDepositHub), address(daiJoin)), 1);
+        directDepositHub.deny(address(this));
+        directDepositHub.nope();
     }
 
     function test_wind_limited_ilk_line() public {
