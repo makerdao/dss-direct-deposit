@@ -64,7 +64,7 @@ interface RewardsClaimerLike {
 
 contract D3MAaveDaiPool is ID3MPool {
 
-    uint256 constant RAY  = 10 ** 27;
+    mapping (address => uint256) public wards;
 
     LendingPoolLike          public immutable pool;
     RewardsClaimerLike       public immutable rewardsClaimer;
@@ -73,21 +73,6 @@ contract D3MAaveDaiPool is ID3MPool {
     ATokenLike               public immutable adai;
     TokenLike                public immutable asset; // Dai
     address                  public           king;  // Who gets the rewards
-
-    // --- Auth ---
-    mapping (address => uint256) public wards;
-    function rely(address usr) external auth {
-        wards[usr] = 1;
-        emit Rely(usr);
-    }
-    function deny(address usr) external auth {
-        wards[usr] = 0;
-        emit Deny(usr);
-    }
-    modifier auth {
-        require(wards[msg.sender] == 1, "D3MAaveDaiPool/not-authorized");
-        _;
-    }
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -119,7 +104,14 @@ contract D3MAaveDaiPool is ID3MPool {
         emit Rely(msg.sender);
     }
 
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MAaveDaiPool/not-authorized");
+        _;
+    }
+
     // --- Math ---
+    uint256 internal constant RAY  = 10 ** 27;
+
     function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x, "D3MAaveDaiPool/overflow");
     }
@@ -134,6 +126,15 @@ contract D3MAaveDaiPool is ID3MPool {
     }
 
     // --- Admin ---
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+
     function file(bytes32 what, address data) external auth {
         if (what == "king") king = data;
         else revert("D3MAaveDaiPool/file-unrecognized-param");

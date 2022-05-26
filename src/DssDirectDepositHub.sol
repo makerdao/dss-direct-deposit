@@ -67,38 +67,15 @@ contract DssDirectDepositHub {
     */
     mapping (address => uint256) public wards;
 
-    /**
-        @notice Makes an address authorized to perform auth'ed functions.
-        @dev msg.sender must be authorized.
-        @param usr address to be authorized
-    */
-    function rely(address usr) external auth {
-        wards[usr] = 1;
-        emit Rely(usr);
-    }
-
-    /**
-        @notice De-authorizes an address from performing auth'ed functions.
-        @dev msg.sender must be authorized.
-        @param usr address to be de-authorized
-    */
-    function deny(address usr) external auth {
-        wards[usr] = 0;
-        emit Deny(usr);
-    }
-
-    /// @notice Modifier will revoke if msg.sender is not authorized.
-    modifier auth {
-        require(wards[msg.sender] == 1, "DssDirectDepositHub/not-authorized");
-        _;
-    }
-
-    enum Mode { NORMAL, MODULE_CULLED, MCD_CAGED }
-
     VatLike      public immutable vat;
     DaiJoinLike  public immutable daiJoin;
     address      public           vow;
     EndLike      public           end;
+
+    /// @notice maps ilk bytes32 to the D3M tracking struct.
+    mapping (bytes32 => Ilk) public ilks;
+
+    enum Mode { NORMAL, MODULE_CULLED, MCD_CAGED }
 
     /**
         @notice Tracking struct for each of the D3M ilks.
@@ -115,9 +92,6 @@ contract DssDirectDepositHub {
         uint256     culled; // Debt write off triggered
         uint256     tic;    // Timestamp when the pool is caged
     }
-
-    /// @notice maps ilk bytes32 to the D3M tracking struct.
-    mapping (bytes32 => Ilk) public ilks;
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -150,6 +124,12 @@ contract DssDirectDepositHub {
         emit Rely(msg.sender);
     }
 
+    /// @notice Modifier will revoke if msg.sender is not authorized.
+    modifier auth {
+        require(wards[msg.sender] == 1, "DssDirectDepositHub/not-authorized");
+        _;
+    }
+
     // --- Math ---
     uint256 internal constant RAY = 10 ** 27;
 
@@ -173,6 +153,26 @@ contract DssDirectDepositHub {
     }
 
     // --- Administration ---
+    /**
+        @notice Makes an address authorized to perform auth'ed functions.
+        @dev msg.sender must be authorized.
+        @param usr address to be authorized
+    */
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+
+    /**
+        @notice De-authorizes an address from performing auth'ed functions.
+        @dev msg.sender must be authorized.
+        @param usr address to be de-authorized
+    */
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+
     /**
         @notice update vow or end addresses.
         @dev msg.sender must be authorized.

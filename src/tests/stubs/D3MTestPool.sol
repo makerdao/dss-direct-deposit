@@ -26,6 +26,8 @@ interface RewardsClaimerLike {
 
 contract D3MTestPool is ID3MPool {
 
+    mapping (address => uint256) public wards;
+
     RewardsClaimerLike public immutable rewardsClaimer;
     address            public immutable share; // Token representing a share of the asset pool
     TokenLike          public immutable asset; // Dai
@@ -35,21 +37,6 @@ contract D3MTestPool is ID3MPool {
     uint256        maxDepositAmount = type(uint256).max;
     bool    public accrued = false;
     bool    public active_ = true;
-
-    // --- Auth ---
-    mapping (address => uint256) public wards;
-    function rely(address usr) external auth {
-        wards[usr] = 1;
-        emit Rely(usr);
-    }
-    function deny(address usr) external auth {
-        wards[usr] = 0;
-        emit Deny(usr);
-    }
-    modifier auth {
-        require(wards[msg.sender] == 1, "D3MTestPool/not-authorized");
-        _;
-    }
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -68,6 +55,12 @@ contract D3MTestPool is ID3MPool {
         emit Rely(msg.sender);
     }
 
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MTestPool/not-authorized");
+        _;
+    }
+
+
     // --- Testing Admin ---
     function file(bytes32 what, bool data) external auth {
         if (what == "accrued") accrued = data;
@@ -80,6 +73,15 @@ contract D3MTestPool is ID3MPool {
     }
 
     // --- Admin ---
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+
     function file(bytes32 what, address data) external auth {
         if (what == "king") king = data;
         else revert("D3MTestPool/file-unrecognized-param");
