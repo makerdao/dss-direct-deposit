@@ -918,8 +918,10 @@ contract D3MAaveDaiTest is DSTest {
         // Collect some stake rewards into the pause proxy
         address[] memory tokens = new address[](1);
         tokens[0] = address(adai);
-        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(d3mAaveDaiPool));
-        assertGt(amountToClaim, 0);
+        rewardsClaimer.getRewardsBalance(tokens, address(d3mAaveDaiPool));
+
+        assertEq(d3mAaveDaiPool.king(), address(0));
+
         d3mAaveDaiPool.collect();
     }
 
