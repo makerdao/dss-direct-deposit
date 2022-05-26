@@ -19,7 +19,9 @@ pragma solidity >=0.6.12;
 import "ds-test/test.sol";
 import "./tests/interfaces/interfaces.sol";
 
-import {DssDirectDepositHub, D3MPoolLike, D3MPlanLike} from "./DssDirectDepositHub.sol";
+import {DssDirectDepositHub} from "./DssDirectDepositHub.sol";
+import "./pools/ID3MPool.sol";
+import "./plans/ID3MPlan.sol";
 
 import {D3MTestPool} from "./tests/stubs/D3MTestPool.sol";
 import {D3MTestPlan} from "./tests/stubs/D3MTestPlan.sol";
@@ -248,7 +250,7 @@ contract DssDirectDepositHubTest is DSTest {
     }
 
     function test_can_file_pool() public {
-        (D3MPoolLike pool, , , , ) = directDepositHub.ilks(ilk);
+        (ID3MPool pool, , , , ) = directDepositHub.ilks(ilk);
 
         assertEq(address(pool), address(d3mTestPool));
 
@@ -259,7 +261,7 @@ contract DssDirectDepositHubTest is DSTest {
     }
 
     function test_can_file_plan() public {
-        (, D3MPlanLike plan, , , ) = directDepositHub.ilks(ilk);
+        (, ID3MPlan plan, , , ) = directDepositHub.ilks(ilk);
 
         assertEq(address(plan), address(d3mTestPlan));
 
@@ -323,7 +325,7 @@ contract DssDirectDepositHubTest is DSTest {
 
     function testFail_vat_not_live_ilk_address_file() public {
         directDepositHub.file(ilk, "pool", address(this));
-        (D3MPoolLike pool, , , , ) = directDepositHub.ilks(ilk);
+        (ID3MPool pool, , , , ) = directDepositHub.ilks(ilk);
 
         assertEq(address(pool), address(this));
 
