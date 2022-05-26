@@ -222,6 +222,9 @@ contract DssDirectDepositHub {
         emit File(ilk, what, data);
     }
 
+    /**
+        @notice remove nope on daiJoin to kill hub
+    */
     function nope() external auth {
         vat.nope(address(daiJoin));
     }
