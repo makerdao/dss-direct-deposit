@@ -51,7 +51,7 @@ interface CEthLike {
     function mint() external payable;
 }
 
-interface CompltrollerLike {
+interface ComptrollerLike {
     function enterMarkets(address[] memory cTokens) external returns (uint256[] memory);
     function compBorrowSpeeds(address cToken) external view returns (uint256);
 }
@@ -154,7 +154,7 @@ contract D3MCompoundDaiTest is DSTest {
         address[] memory cTokens = new address[](1);
         cTokens[0] = address(cEth);
 
-        CompltrollerLike(cDai.comptroller()).enterMarkets(cTokens);
+        ComptrollerLike(cDai.comptroller()).enterMarkets(cTokens);
     }
 
     // --- Math ---
@@ -908,7 +908,7 @@ contract D3MCompoundDaiTest is DSTest {
         d3mCompoundDaiPool.file("king", address(pauseProxy));
 
         // If rewards are turned off - this is still an acceptable state
-        if (CompltrollerLike(cDai.comptroller()).compBorrowSpeeds(address(cDai)) == 0) return;
+        if (ComptrollerLike(cDai.comptroller()).compBorrowSpeeds(address(cDai)) == 0) return;
 
         uint256 compBefore = comp.balanceOf(address(pauseProxy));
         d3mCompoundDaiPool.collect();
@@ -926,7 +926,7 @@ contract D3MCompoundDaiTest is DSTest {
         _setRelBorrowTarget(7500);
 
         hevm.roll(block.number + 5760);
-        if (CompltrollerLike(cDai.comptroller()).compBorrowSpeeds(address(cDai)) == 0) return; // Rewards are turned off
+        if (ComptrollerLike(cDai.comptroller()).compBorrowSpeeds(address(cDai)) == 0) return; // Rewards are turned off
 
         // Collect some stake rewards into the pause proxy
         d3mCompoundDaiPool.collect();

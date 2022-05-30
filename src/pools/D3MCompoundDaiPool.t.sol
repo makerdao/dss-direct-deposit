@@ -26,7 +26,7 @@ interface CErc20Like {
     function balanceOfUnderlying(address owner) external returns (uint256);
 }
 
-interface CompltrollerLike {
+interface ComptrollerLike {
     function compBorrowSpeeds(address cToken) external view returns (uint256);
 }
 
@@ -38,7 +38,7 @@ contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
 
     CErc20Like         cDai;
     D3MCompoundDaiPool pool;
-    CompltrollerLike   comptroller;
+    ComptrollerLike   comptroller;
     TokenLike          comp;
     LensLike           lens;
 
@@ -71,7 +71,7 @@ contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
 
         dai         = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         cDai        = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
-        comptroller = CompltrollerLike(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
+        comptroller = ComptrollerLike(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
         comp        = TokenLike(0xc00e94Cb662C3520282E6f5717214004A7f26888);
         lens        = LensLike(0xdCbDb7306c6Ff46f77B349188dC18cEd9DF30299);
         vat         = 0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B;
@@ -150,7 +150,7 @@ contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
     function test_collect_claims_for_king() public {
 
         // Return if rewards are turned off - this is still an acceptable state
-        if (CompltrollerLike(cDai.comptroller()).compBorrowSpeeds(address(cDai)) == 0) return;
+        if (ComptrollerLike(cDai.comptroller()).compBorrowSpeeds(address(cDai)) == 0) return;
 
         address king = address(123);
         pool.file("king", king);
