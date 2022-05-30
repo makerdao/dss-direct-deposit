@@ -23,6 +23,7 @@ import { D3MCompoundDaiPool }    from "./D3MCompoundDaiPool.sol";
 interface CErc20Like {
     function balanceOf(address owner) external view returns (uint256);
     function comptroller()            external view returns (uint256);
+    function exchangeRateStored()     external view returns (uint256);
     function balanceOfUnderlying(address owner) external returns (uint256);
 }
 
@@ -48,7 +49,11 @@ contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
         require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
     }
 
-    function assertEqApproxBPS(uint256 _a, uint256 _b, uint256 _tolerance_bps) internal {
+    function _wdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = _mul(x, WAD) / y;
+    }
+
+    function _assertEqApprox(uint256 _a, uint256 _b) internal {
         uint256 a = _a;
         uint256 b = _b;
         if (a < b) {
@@ -56,7 +61,7 @@ contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
             a = b;
             b = tmp;
         }
-        if (a - b > _mul(_b, _tolerance_bps) / 10 ** 4) {
+        if (a - b > b / 10 ** 9) {
             emit log_bytes32("Error: Wrong `uint' value");
             emit log_named_uint("  Expected", _b);
             emit log_named_uint("    Actual", _a);
@@ -116,11 +121,14 @@ contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
 
     function test_deposit_calls_cdai_deposit() public {
         assertEq(cDai.balanceOfUnderlying(address(pool)), 0);
+        assertEq(cDai.balanceOf(address(pool)), 0);
         uint256 poolBefore = dai.balanceOf(address(pool));
 
         pool.deposit(1 * WAD);
 
-        assertEqApproxBPS(cDai.balanceOfUnderlying(address(pool)), 1 * WAD, 1);
+        _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 1 * WAD);
+        assertGt(cDai.balanceOf(address(pool)), 0);
+        assertEq(cDai.balanceOf(address(pool)), _wdiv(1 * WAD, cDai.exchangeRateStored()));
         assertEq(poolBefore - dai.balanceOf(address(pool)), 1 * WAD);
     }
 
@@ -132,12 +140,12 @@ contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
     function test_withdraw_calls_cdai_withdraw() public {
         pool.deposit(1 * WAD);
 
-        assertEqApproxBPS(cDai.balanceOfUnderlying(address(pool)), 1 * WAD, 1);
+        _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 1 * WAD);
         uint256 before = dai.balanceOf(address(this));
 
         pool.withdraw(1 * WAD);
 
-        assertEqApproxBPS(cDai.balanceOfUnderlying(address(pool)), 0, 1);
+        _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 0);
         assertEq(dai.balanceOf(address(this)) - before, 1 * WAD);
     }
 
@@ -213,12 +221,12 @@ contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
     function test_assetBalance_gets_dai_balanceOf_pool() public {
         uint256 before = pool.assetBalance();
         pool.deposit(1 * WAD);
-        assertEqApproxBPS(pool.assetBalance() - before, 1 * WAD, 1);
+        _assertEqApprox(pool.assetBalance() - before, 1 * WAD);
     }
 
     function test_maxWithdraw_gets_available_assets() public {
         pool.deposit(1 * WAD);
-        assertEqApproxBPS(pool.assetBalance(), pool.maxWithdraw(), 1);
+        _assertEqApprox(pool.assetBalance(), pool.maxWithdraw());
     }
 
     function test_maxDeposit_returns_max_uint() public {
