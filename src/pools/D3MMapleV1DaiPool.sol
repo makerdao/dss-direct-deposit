@@ -18,6 +18,15 @@ pragma solidity 0.6.12;
 
 import "./ID3MPool.sol";
 
+interface CanLike {
+    function hope(address) external;
+    function nope(address) external;
+}
+
+interface D3mHubLike {
+    function vat() external view returns (address);
+}
+
 interface TokenLike {
     function approve(address, uint256) external returns (bool);
     function transfer(address, uint256) external returns (bool);
@@ -78,8 +87,10 @@ contract D3MMapleV1DaiPool is ID3MPool {
     event File(bytes32 indexed what, address data);
 
     constructor(address hub_, address dai_, address pool_) public {
-        pool = PoolLike(pool_);
+        pool  = PoolLike(pool_);
         asset = TokenLike(dai_);
+
+        CanLike(D3mHubLike(hub_).vat()).hope(hub_);
 
         TokenLike(dai_).approve(pool_, type(uint256).max);
 
@@ -148,7 +159,7 @@ contract D3MMapleV1DaiPool is ID3MPool {
     }
 
     function maxDeposit() external view override returns (uint256) {
-        return 0;   // TODO
+        return pool.liquidityCap() - (pool.principalOut() + asset.balanceOf(pool.liquidityLocker()));
     }
 
     function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {
