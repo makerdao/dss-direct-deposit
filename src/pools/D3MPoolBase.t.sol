@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity >=0.6.12;
 
 import "ds-test/test.sol";
-import {DaiLike, CanLike, d3mHubLike} from "../tests/interfaces/interfaces.sol";
+import {DaiLike, CanLike, D3mHubLike} from "../tests/interfaces/interfaces.sol";
 
 import "./ID3MPool.sol";
 
@@ -61,10 +61,18 @@ contract D3MPoolBase is ID3MPool {
     constructor(address hub_, address dai_) public {
         asset = DaiLike(dai_);
 
-        CanLike(d3mHubLike(hub_).vat()).hope(hub_);
+        CanLike(D3mHubLike(hub_).vat()).hope(hub_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
+    }
+
+    function hope(address hub) external override auth{
+        CanLike(D3mHubLike(hub).vat()).hope(hub);
+    }
+
+    function nope(address hub) external override auth{
+        CanLike(D3mHubLike(hub).vat()).nope(hub);
     }
 
     function deposit(uint256 amt) external override {}
@@ -95,17 +103,16 @@ contract D3MPoolBase is ID3MPool {
 }
 
 contract FakeVat {
-    function hope(address who) external pure returns(bool) {
-        who;
-        return true;
-    }
+    mapping(address => mapping (address => uint)) public can;
+    function hope(address usr) external { can[msg.sender][usr] = 1; }
+    function nope(address usr) external { can[msg.sender][usr] = 0; }
 }
 
 contract FakeHub {
     address public immutable vat;
 
-    constructor() public {
-        vat = address(new FakeVat());
+    constructor(address vat_) public {
+        vat = vat_;
     }
 }
 
@@ -117,6 +124,8 @@ contract D3MPoolBaseTest is DSTest {
     DaiLike dai;
 
     address d3mTestPool;
+    address hub;
+    address vat;
 
     function setUp() public virtual {
         hevm = Hevm(
@@ -125,7 +134,9 @@ contract D3MPoolBaseTest is DSTest {
 
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
 
-        address hub = address(new FakeHub());
+        vat = address(new FakeVat());
+
+        hub = address(new FakeHub(vat));
 
         d3mTestPool = address(new D3MPoolBase(hub, address(dai)));
     }
@@ -164,6 +175,34 @@ contract D3MPoolBaseTest is DSTest {
 
     function test_sets_creator_as_ward() public {
         assertEq(D3MPoolBase(d3mTestPool).wards(address(this)), 1);
+    }
+
+    function test_hopes_on_hub() public {
+        assertEq(CanLike(vat).can(d3mTestPool, hub), 1);
+    }
+
+    function test_can_hope() public {
+        address newHub = address(new FakeHub(vat));
+        assertEq(CanLike(vat).can(d3mTestPool, newHub), 0);
+        D3MPoolBase(d3mTestPool).hope(newHub);
+        assertEq(CanLike(vat).can(d3mTestPool, newHub), 1);
+    }
+
+    function test_can_nope() public {
+        assertEq(CanLike(vat).can(d3mTestPool, hub), 1);
+        D3MPoolBase(d3mTestPool).nope(hub);
+        assertEq(CanLike(vat).can(d3mTestPool, hub), 0);
+    }
+
+    function testFail_cannot_hope_without_auth() public {
+        D3MPoolBase(d3mTestPool).deny(address(this));
+        address newHub = address(new FakeHub(vat));
+        D3MPoolBase(d3mTestPool).hope(newHub);
+    }
+
+    function testFail_cannot_nope_without_auth() public {
+        D3MPoolBase(d3mTestPool).deny(address(this));
+        D3MPoolBase(d3mTestPool).nope(hub);
     }
 
     function test_can_rely() public {

@@ -22,7 +22,7 @@ if [[ -z "$MATCH" && -z "$BLOCK" && -z "$MATCH_TEST" && -z "$MATCH_CONTRACT" ]];
 elif [[ -z "$MATCH" && -z "$MATCH_TEST" && -z "$MATCH_CONTRACT" ]]; then
     forge test --fork-url "$ETH_RPC_URL" --fork-block-number "$BLOCK" -vv --force
 else
-    if [[ -z "$BLOCK" ]]; then
+    if [[ -n "$BLOCK" ]]; then
         if [[ -n "$MATCH" ]]; then
             forge test --fork-url "$ETH_RPC_URL" --match "$MATCH" --fork-block-number "$BLOCK" -vvv --force
         elif [[ -n "$MATCH_TEST" ]]; then

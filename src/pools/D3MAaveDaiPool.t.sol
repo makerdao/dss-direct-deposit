@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity >=0.6.12;
 
 import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat } from "./D3MPoolBase.t.sol";
 import { DaiLike, TokenLike } from "../tests/interfaces/interfaces.sol";
@@ -150,7 +150,9 @@ contract D3MAaveDaiPoolTest is D3MPoolBaseTest {
         aavePool = LendingPoolLike(address(new FakeLendingPool(address(adai))));
         rewardsClaimer = address(new FakeRewardsClaimer());
 
-        address hub = address(new FakeHub());
+        vat = address(new FakeVat());
+
+        hub = address(new FakeHub(vat));
 
         d3mTestPool = address(new D3MAaveDaiPool(hub, address(dai), address(aavePool), rewardsClaimer));
     }

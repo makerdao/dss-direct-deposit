@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity >=0.6.12;
 
 import "ds-test/test.sol";
 import "../tests/interfaces/interfaces.sol";
@@ -918,8 +918,10 @@ contract D3MAaveDaiTest is DSTest {
         // Collect some stake rewards into the pause proxy
         address[] memory tokens = new address[](1);
         tokens[0] = address(adai);
-        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(d3mAaveDaiPool));
-        assertGt(amountToClaim, 0);
+        rewardsClaimer.getRewardsBalance(tokens, address(d3mAaveDaiPool));
+
+        assertEq(d3mAaveDaiPool.king(), address(0));
+
         d3mAaveDaiPool.collect();
     }
 

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity >=0.6.12;
 
 interface TokenLike {
     function approve(address, uint256) external returns (bool);
@@ -24,13 +24,32 @@ interface TokenLike {
 }
 
 contract D3MTestGem {
+    mapping (address => uint256) public wards;
+
     uint256 public totalSupply = 1_000_000 ether;
     uint256 public immutable decimals;
     mapping (address => uint256) public balanceOf;
     mapping (address => mapping(address => uint256)) public allowance;
 
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
+
+    constructor(uint256 decimals_) public {
+        balanceOf[msg.sender] = totalSupply;
+        decimals = decimals_;
+
+        wards[msg.sender] = 1;
+    }
+
+    // --- Math ---
+    function add(uint x, uint y) internal pure returns (uint z) {
+        require((z = x + y) >= x);
+    }
+    function sub(uint x, uint y) internal pure returns (uint z) {
+        require((z = x - y) <= x);
+    }
+
     // --- Auth ---
-    mapping (address => uint256) public wards;
     function rely(address usr) external auth {
         wards[usr] = 1;
 
@@ -44,24 +63,6 @@ contract D3MTestGem {
     modifier auth {
         require(wards[msg.sender] == 1, "DssDirectDepositTestGem/not-authorized");
         _;
-    }
-
-    event Rely(address indexed usr);
-    event Deny(address indexed usr);
-
-     // --- Math ---
-    function add(uint x, uint y) internal pure returns (uint z) {
-        require((z = x + y) >= x);
-    }
-    function sub(uint x, uint y) internal pure returns (uint z) {
-        require((z = x - y) <= x);
-    }
-
-    constructor(uint256 decimals_) public {
-        balanceOf[msg.sender] = totalSupply;
-        decimals = decimals_;
-
-        wards[msg.sender] = 1;
     }
 
     function approve(address who, uint256 amt) external returns (bool) {

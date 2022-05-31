@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity >=0.6.12;
 
 /**
     @title D3M Pool Interface
@@ -25,6 +25,18 @@ pragma solidity 0.6.12;
     guidelines for assets/shares/maxWithdraw etc.
 */
 interface ID3MPool {
+    /**
+        @notice Hopes on an address in the Vat.
+        @param hub address you want to hope on
+    */
+    function hope(address hub) external;
+
+    /**
+        @notice Nopes on an address in the Vat.
+        @param hub address you want to nope on
+    */
+    function nope(address hub) external;
+
     /**
         @notice Deposit assets (Dai) in the external pool.
         @dev If the external pool requires a different amount to be passed in, the
@@ -45,7 +57,7 @@ interface ID3MPool {
 
      /**
         @notice Transfer shares.
-        @dev If the external pool/shares contract requires a different amount be
+        @dev If the external pool/shares contract requires a different amount to be
         passed in the conversion should occur here as the Hub passes Gem [wad]
         amounts. msg.sender must be authorized.
         @param dst address that should receive the shares
