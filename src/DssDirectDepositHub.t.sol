@@ -994,6 +994,28 @@ contract DssDirectDepositHubTest is DSTest {
         (npink, npart) = vat.urns(ilk, address(newPool));
         assertEq(npink, 100 * WAD);
         assertEq(npart, 100 * WAD);
+    }
 
+    function test_plan_upgrade() public {
+        _windSystem(); // Tests that the current pool has ink/art
+
+        // Setup new pool
+        D3MTestPlan newPlan = new D3MTestPlan(address(dai));
+        newPlan.file("maxBar_", type(uint256).max);
+        newPlan.file("bar", 5);
+        newPlan.file("targetAssets", 100 * WAD);
+
+        directDepositHub.file(ilk, "plan", address(newPlan));
+
+        (, ID3MPlan plan, , , ) = directDepositHub.ilks(ilk);
+        assertEq(address(plan), address(newPlan));
+        
+        directDepositHub.exec(ilk);
+
+        // New Plan should determine the pool position
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 100 * WAD);
+        assertEq(art, 100 * WAD);
+        assertTrue(d3mTestPool.accrued());
     }
 }
