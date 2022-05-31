@@ -20,6 +20,8 @@ import "../../plans/ID3MPlan.sol";
 
 contract D3MTestPlan is ID3MPlan {
 
+    mapping (address => uint256) public wards;
+
     address public immutable dai;
 
     // test helper variables
@@ -29,21 +31,6 @@ contract D3MTestPlan is ID3MPlan {
     bool    public active_ = true;
 
     uint256 public bar;  // Target Interest Rate [ray]
-
-    // --- Auth ---
-    mapping (address => uint256) public wards;
-    function rely(address usr) external auth {
-        wards[usr] = 1;
-        emit Rely(usr);
-    }
-    function deny(address usr) external auth {
-        wards[usr] = 0;
-        emit Deny(usr);
-    }
-    modifier auth {
-        require(wards[msg.sender] == 1, "D3MTestPlan/not-authorized");
-        _;
-    }
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -56,7 +43,21 @@ contract D3MTestPlan is ID3MPlan {
         emit Rely(msg.sender);
     }
 
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MTestPlan/not-authorized");
+        _;
+    }
+
     // --- Admin ---
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+
     function file(bytes32 what, uint256 data) external auth {
         if (what == "maxBar_") {
             maxBar_ = data;

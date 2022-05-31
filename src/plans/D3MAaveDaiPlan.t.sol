@@ -81,6 +81,10 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         assertEq(address(adai), D3MAaveDaiPlan(d3mTestPlan).adai());
     }
 
+    function test_sets_dai_value() public {
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).dai()), address(dai));
+    }
+
     function test_sets_stableDebt() public {
         (,,,,,,,, address stableDebt,,,) = LendingPoolLike(aavePool).getReserveData(address(dai));
 

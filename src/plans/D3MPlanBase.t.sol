@@ -93,10 +93,6 @@ contract D3MPlanBaseTest is DSTest {
         d3mTestPlan = address(new D3MPlanBase(address(dai)));
     }
 
-    function test_sets_dai_value() public {
-        assertEq(D3MPlanBase(d3mTestPlan).dai(), address(dai));
-    }
-
     function test_sets_creator_as_ward() public {
         assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
     }

@@ -18,13 +18,15 @@ pragma solidity >=0.6.12;
 
 import { D3MTestGem } from "./D3MTestGem.sol";
 import "../../pools/ID3MPool.sol";
-import { TokenLike, CanLike, d3mHubLike } from "../interfaces/interfaces.sol";
+import { TokenLike, CanLike, D3mHubLike } from "../interfaces/interfaces.sol";
 
 interface RewardsClaimerLike {
     function claimRewards(address[] memory assets, uint256 amount, address to) external returns (uint256);
 }
 
 contract D3MTestPool is ID3MPool {
+
+    mapping (address => uint256) public wards;
 
     RewardsClaimerLike public immutable rewardsClaimer;
     address            public immutable share; // Token representing a share of the asset pool
@@ -35,21 +37,6 @@ contract D3MTestPool is ID3MPool {
     uint256        maxDepositAmount = type(uint256).max;
     bool    public accrued = false;
     bool    public active_ = true;
-
-    // --- Auth ---
-    mapping (address => uint256) public wards;
-    function rely(address usr) external auth {
-        wards[usr] = 1;
-        emit Rely(usr);
-    }
-    function deny(address usr) external auth {
-        wards[usr] = 0;
-        emit Deny(usr);
-    }
-    modifier auth {
-        require(wards[msg.sender] == 1, "D3MTestPool/not-authorized");
-        _;
-    }
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -62,11 +49,17 @@ contract D3MTestPool is ID3MPool {
 
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
 
-        CanLike(d3mHubLike(hub_).vat()).hope(hub_);
+        CanLike(D3mHubLike(hub_).vat()).hope(hub_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
+
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MTestPool/not-authorized");
+        _;
+    }
+
 
     // --- Testing Admin ---
     function file(bytes32 what, bool data) external auth {
@@ -80,10 +73,28 @@ contract D3MTestPool is ID3MPool {
     }
 
     // --- Admin ---
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+
     function file(bytes32 what, address data) external auth {
         if (what == "king") king = data;
         else revert("D3MTestPool/file-unrecognized-param");
     }
+
+    function hope(address hub) external override auth{
+        CanLike(D3mHubLike(hub).vat()).hope(hub);
+    }
+
+    function nope(address hub) external override auth{
+        CanLike(D3mHubLike(hub).vat()).nope(hub);
+    }
+
 
     function deposit(uint256 amt) external override {
         D3MTestGem(share).mint(address(this), amt);

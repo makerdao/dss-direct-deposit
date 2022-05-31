@@ -112,7 +112,7 @@ contract D3MAaveDaiTest is DSTest {
         hevm = Hevm(address(bytes20(uint160(uint256(keccak256('hevm cheat code'))))));
 
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
-        end = EndLike(0xBB856d1742fD182a90239D7AE85706C2FE4e5922);
+        end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
         adai = ATokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
         stkAave = TokenLike(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
@@ -918,8 +918,10 @@ contract D3MAaveDaiTest is DSTest {
         // Collect some stake rewards into the pause proxy
         address[] memory tokens = new address[](1);
         tokens[0] = address(adai);
-        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(d3mAaveDaiPool));
-        assertGt(amountToClaim, 0);
+        rewardsClaimer.getRewardsBalance(tokens, address(d3mAaveDaiPool));
+
+        assertEq(d3mAaveDaiPool.king(), address(0));
+
         d3mAaveDaiPool.collect();
     }
 

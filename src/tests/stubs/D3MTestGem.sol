@@ -24,13 +24,32 @@ interface TokenLike {
 }
 
 contract D3MTestGem {
+    mapping (address => uint256) public wards;
+
     uint256 public totalSupply = 1_000_000 ether;
     uint256 public immutable decimals;
     mapping (address => uint256) public balanceOf;
     mapping (address => mapping(address => uint256)) public allowance;
 
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
+
+    constructor(uint256 decimals_) public {
+        balanceOf[msg.sender] = totalSupply;
+        decimals = decimals_;
+
+        wards[msg.sender] = 1;
+    }
+
+    // --- Math ---
+    function add(uint x, uint y) internal pure returns (uint z) {
+        require((z = x + y) >= x);
+    }
+    function sub(uint x, uint y) internal pure returns (uint z) {
+        require((z = x - y) <= x);
+    }
+
     // --- Auth ---
-    mapping (address => uint256) public wards;
     function rely(address usr) external auth {
         wards[usr] = 1;
 

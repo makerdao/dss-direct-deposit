@@ -51,29 +51,15 @@ interface InterestRateStrategyLike {
 
 contract D3MAaveDaiPlan is ID3MPlan {
 
+    mapping (address => uint256) public wards;
+
     LendingPoolLike          public immutable pool;
     TokenLike                public immutable stableDebt;
     TokenLike                public immutable variableDebt;
     TokenLike                public immutable dai;
     address                  public immutable adai;
     InterestRateStrategyLike public           interestStrategy;
-
-    uint256 public bar;  // Target Interest Rate [ray]
-
-    // --- Auth ---
-    mapping (address => uint256) public wards;
-    function rely(address usr) external auth {
-        wards[usr] = 1;
-        emit Rely(usr);
-    }
-    function deny(address usr) external auth {
-        wards[usr] = 0;
-        emit Deny(usr);
-    }
-    modifier auth {
-        require(wards[msg.sender] == 1, "D3MAaveDaiPlan/not-authorized");
-        _;
-    }
+    uint256                  public           bar;  // Target Interest Rate [ray]
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -101,6 +87,11 @@ contract D3MAaveDaiPlan is ID3MPlan {
         emit Rely(msg.sender);
     }
 
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MAaveDaiPlan/not-authorized");
+        _;
+    }
+
     // --- Math ---
     uint256 constant RAY  = 10 ** 27;
 
@@ -112,6 +103,15 @@ contract D3MAaveDaiPlan is ID3MPlan {
     }
 
     // --- Admin ---
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+
     function file(bytes32 what, uint256 data) external auth {
         if (what == "bar") {
             require(data <= _maxBar(), "D3MAaveDaiPlan/above-max-interest");
