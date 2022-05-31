@@ -26,6 +26,7 @@ interface TokenLike {
 
 interface CanLike {
     function hope(address) external;
+    function nope(address) external;
 }
 
 interface D3mHubLike {
@@ -122,6 +123,14 @@ contract D3MCompoundDaiPool is ID3MPool {
         if (what == "king") king = data;
         else revert("D3MCompoundDaiPool/file-unrecognized-param");
         emit File(what, data);
+    }
+
+    function hope(address hub) external override auth {
+        CanLike(D3mHubLike(hub).vat()).hope(hub);
+    }
+
+    function nope(address hub) external override auth {
+        CanLike(D3mHubLike(hub).vat()).nope(hub);
     }
 
     function deposit(uint256 amt) external override auth {

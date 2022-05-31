@@ -16,7 +16,7 @@
 
 pragma solidity 0.6.12;
 
-import { Hevm, D3MPoolBaseTest } from "./D3MPoolBase.t.sol";
+import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat } from "./D3MPoolBase.t.sol";
 import { DaiLike, TokenLike }    from "../tests/interfaces/interfaces.sol";
 import { D3MCompoundDaiPool }    from "./D3MCompoundDaiPool.sol";
 
@@ -42,8 +42,6 @@ contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
     ComptrollerLike   comptroller;
     TokenLike          comp;
     LensLike           lens;
-
-    address public vat; // Needed in pool's ctr
 
     function _mul(uint256 x, uint256 y) public pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
@@ -79,9 +77,11 @@ contract D3MCompoundDaiPoolTest is D3MPoolBaseTest {
         comptroller = ComptrollerLike(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
         comp        = TokenLike(0xc00e94Cb662C3520282E6f5717214004A7f26888);
         lens        = LensLike(0xdCbDb7306c6Ff46f77B349188dC18cEd9DF30299);
-        vat         = 0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B;
 
-        d3mTestPool = address(new D3MCompoundDaiPool(address(this), address(dai), address(cDai)));
+        vat = address(new FakeVat());
+        hub = address(new FakeHub(vat));
+
+        d3mTestPool = address(new D3MCompoundDaiPool(hub, address(dai), address(cDai)));
         pool = D3MCompoundDaiPool(d3mTestPool);
 
         // allocate some dai for the pool
