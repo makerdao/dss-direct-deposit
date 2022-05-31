@@ -513,7 +513,7 @@ contract DssDirectDepositHub {
         address vow_ = vow;
         uint256 wad = vat.gem(ilk, address(pool));
         require(wad < 2 ** 255, "DssDirectDepositHub/overflow");
-        vat.suck(vow_, vow_, (wad * RAY)); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+        vat.suck(vow_, vow_, wad * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
         vat.grab(ilk, address(pool), address(pool), vow_, int256(wad), int256(wad));
 
         ilks[ilk].culled = 0;

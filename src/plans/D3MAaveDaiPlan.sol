@@ -165,7 +165,7 @@ contract D3MAaveDaiPlan is ID3MPlan {
 
         uint256 totalDebt = stableDebt.totalSupply() + variableDebt.totalSupply();
 
-        uint256 totalPoolSize = TokenLike(dai).balanceOf(adai) + totalDebt;
+        uint256 totalPoolSize = dai.balanceOf(adai) + totalDebt;
 
         uint256 targetTotalPoolSize = _calculateTargetSupply(targetInterestRate, totalDebt);
         if (targetTotalPoolSize >= totalPoolSize) {
