@@ -42,7 +42,7 @@
 //         util = borrows * WAD / (cash + borrows - reserves);
 // (3)     cash + borrows - reserves = borrows * WAD / util
 
-pragma solidity 0.6.12;
+pragma solidity >=0.6.12;
 
 import "./ID3MPlan.sol";
 
