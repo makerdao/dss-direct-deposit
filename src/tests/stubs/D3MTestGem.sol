@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 interface TokenLike {
     function approve(address, uint256) external returns (bool);
@@ -34,7 +34,7 @@ contract D3MTestGem {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(uint256 decimals_) public {
+    constructor(uint256 decimals_) {
         balanceOf[msg.sender] = totalSupply;
         decimals = decimals_;
 
@@ -63,16 +63,6 @@ contract D3MTestGem {
     modifier auth {
         require(wards[msg.sender] == 1, "DssDirectDepositTestGem/not-authorized");
         _;
-    }
-
-    event Rely(address indexed usr);
-    event Deny(address indexed usr);
-
-    constructor(uint256 decimals_) {
-        balanceOf[msg.sender] = totalSupply;
-        decimals = decimals_;
-
-        wards[msg.sender] = 1;
     }
 
     function approve(address who, uint256 amt) external returns (bool) {
