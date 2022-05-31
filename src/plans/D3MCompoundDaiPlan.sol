@@ -63,8 +63,13 @@ interface InterestRateModelLike {
 
 contract D3MCompoundDaiPlan is ID3MPlan {
 
-    // --- Auth ---
     mapping (address => uint256) public wards;
+    InterestRateModelLike public rateModel;
+    uint256               public barb; // target Interest Rate Per Block [wad] (0)
+
+    CErc20Like public immutable cDai;
+
+    // --- Auth ---
     function rely(address usr) external auth {
         wards[usr] = 1;
         emit Rely(usr);
@@ -77,12 +82,6 @@ contract D3MCompoundDaiPlan is ID3MPlan {
         require(wards[msg.sender] == 1, "D3MCompoundDaiPlan/not-authorized");
         _;
     }
-
-    // --- Data ---
-    CErc20Like public immutable cDai;
-
-    InterestRateModelLike public rateModel;
-    uint256               public barb; // target Interest Rate Per Block [wad] (0)
 
     // --- Events ---
     event Rely(address indexed usr);

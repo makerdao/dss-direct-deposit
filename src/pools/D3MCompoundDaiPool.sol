@@ -53,8 +53,14 @@ interface ComptrollerLike {
 
 contract D3MCompoundDaiPool is ID3MPool {
 
-    // --- Auth ---
     mapping (address => uint256) public wards;
+    address public king; // Who gets the rewards
+
+    ComptrollerLike public immutable comptroller;
+    TokenLike       public immutable dai;
+    CErc20Like      public immutable cDai;
+
+    // --- Auth ---
     function rely(address usr) external auth {
         wards[usr] = 1;
         emit Rely(usr);
@@ -67,13 +73,6 @@ contract D3MCompoundDaiPool is ID3MPool {
         require(wards[msg.sender] == 1, "D3MCompoundDaiPool/not-authorized");
         _;
     }
-
-    // --- Data ---
-    ComptrollerLike public immutable comptroller;
-    TokenLike       public immutable dai;
-    CErc20Like      public immutable cDai;
-
-    address public king; // Who gets the rewards
 
     // --- Events ---
     event Rely(address indexed usr);
