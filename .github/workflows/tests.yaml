@@ -6,12 +6,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Define Foundry
+      - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
 
-      - name: Install Foundry
+      - name: Install Dependencies
         run: forge install
 
       - name: Run tests
