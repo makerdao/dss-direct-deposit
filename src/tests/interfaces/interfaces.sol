@@ -126,11 +126,11 @@ interface MapleGlobalsLike {
     function setValidBalancerPool(address, bool) external;
 }
 
-interface PoolFactoryLike {
+interface MaplePoolFactoryLike {
     function createPool(address, address, address, address, uint256, uint256, uint256) external returns (address);
 }
 
-interface PoolLike {
+interface MaplePoolLike {
     function balanceOf(address) external view returns (uint256);
     function claim(address, address) external returns (uint256[7] memory);
     function getInitialStakeRequirements() external view returns (uint256, uint256, bool, uint256, uint256);

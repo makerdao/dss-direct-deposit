@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.6.12;
 
-import { ERC20Like, PoolFactoryLike, PoolLike, StakeLockerLike } from "../interfaces/interfaces.sol";
+import { ERC20Like, MaplePoolFactoryLike, MaplePoolLike, StakeLockerLike } from "../interfaces/interfaces.sol";
 
 contract PoolDelegate {
 
@@ -10,7 +10,7 @@ contract PoolDelegate {
     }
 
     function claim(address pool, address loan, address dlFactory) external returns (uint256[7] memory) {
-        return PoolLike(pool).claim(loan, dlFactory);
+        return MaplePoolLike(pool).claim(loan, dlFactory);
     }
 
     function createPool(
@@ -25,7 +25,7 @@ contract PoolDelegate {
     )
         external returns (address liquidityPool)
     {
-        liquidityPool = PoolFactoryLike(poolFactory).createPool(
+        liquidityPool = MaplePoolFactoryLike(poolFactory).createPool(
             liquidityAsset,
             stakeAsset,
             slFactory,
@@ -37,15 +37,15 @@ contract PoolDelegate {
     }
 
     function finalize(address pool) external {
-        PoolLike(pool).finalize();
+        MaplePoolLike(pool).finalize();
     }
 
     function fundLoan(address pool, address loan, address dlFactory, uint256 amt) external {
-        PoolLike(pool).fundLoan(loan, dlFactory, amt);
+        MaplePoolLike(pool).fundLoan(loan, dlFactory, amt);
     }
 
     function setAllowList(address pool, address account, bool status) external {
-        PoolLike(pool).setAllowList(account, status);
+        MaplePoolLike(pool).setAllowList(account, status);
     }
 
     function stake(address stakeLocker, uint256 amt) external {

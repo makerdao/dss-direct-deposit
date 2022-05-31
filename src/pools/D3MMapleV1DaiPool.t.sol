@@ -27,7 +27,7 @@ import {
     DaiLike,
     LoanLike,
     MapleGlobalsLike,
-    PoolLike,
+    MaplePoolLike,
     TokenLike
 } from "../tests/interfaces/interfaces.sol";
 
@@ -51,8 +51,8 @@ contract D3MMapleV1DaiPoolTest is AddressRegistry, D3MPoolBaseTest {
 
     TokenLike constant mpl = TokenLike(MPL);
 
-    PoolDelegate poolDelegate;
-    PoolLike     maplePool;
+    MaplePoolLike mapleDaiPool;
+    PoolDelegate  poolDelegate;
 
     D3MMapleV1DaiPlan   plan;
     D3MMapleV1DaiPool   d3mPool;
@@ -73,8 +73,8 @@ contract D3MMapleV1DaiPoolTest is AddressRegistry, D3MPoolBaseTest {
         _setUpMapleDaiPool();
 
         hub     = new DssDirectDepositHub(VAT, DAI_JOIN);
-        plan    = new D3MMapleV1DaiPlan(DAI, address(maplePool));
-        d3mPool = new D3MMapleV1DaiPool(address(hub), address(dai), address(maplePool));
+        plan    = new D3MMapleV1DaiPlan(DAI, address(mapleDaiPool));
+        d3mPool = new D3MMapleV1DaiPool(address(hub), address(dai), address(mapleDaiPool));
         mom     = new D3MMom();
 
         d3mTestPool = address(d3mPool);
@@ -82,28 +82,35 @@ contract D3MMapleV1DaiPoolTest is AddressRegistry, D3MPoolBaseTest {
         d3mPool.rely(address(plan));
         plan.rely(address(mom));
 
-        // Add Maker D3M as sole lender in new Maple maplePool
-        poolDelegate.setAllowList(address(maplePool), address(d3mPool), true);
+        // Add Maker D3M as sole lender in new Maple mapleDaiPool
+        poolDelegate.setAllowList(address(mapleDaiPool), address(d3mPool), true);
     }
 
     function test_sets_dai_value() public {
-
+        assertEq(address(d3mPool.asset()), address(dai));
     }
 
     function test_can_file_king() public {
+        assertEq(d3mPool.king(), address(0));
 
+        d3mPool.file("king", address(123));
+
+        assertEq(d3mPool.king(), address(123));
     }
 
     function testFail_cannot_file_king_no_auth() public {
-        fail();
+        assertEq(d3mPool.king(), address(0));
+
+        d3mPool.deny(address(this));
+
+        d3mPool.file("king", address(123));
     }
 
     function testFail_cannot_file_unknown_param() public {
-        fail();
+        d3mPool.file("fail", address(123));
     }
 
     function test_deposit_calls_lending_pool_deposit() public {
-
     }
 
     function testFail_deposit_requires_auth() public {
@@ -222,16 +229,16 @@ contract D3MMapleV1DaiPoolTest is AddressRegistry, D3MPoolBaseTest {
         globals.setPriceOracle(DAI, USD_ORACLE);
 
         /*******************************************************/
-        /*** Set up new DAI liquidity maplePool, closed to public ***/
+        /*** Set up new DAI liquidity mapleDaiPool, closed to public ***/
         /*******************************************************/
 
-        // Create a DAI maplePool with a 5m liquidity cap
-        maplePool = PoolLike(poolDelegate.createPool(POOL_FACTORY, DAI, address(bPool), SL_FACTORY, LL_FACTORY, 1000, 1000, 5_000_000 ether));
+        // Create a DAI mapleDaiPool with a 5m liquidity cap
+        mapleDaiPool = MaplePoolLike(poolDelegate.createPool(POOL_FACTORY, DAI, address(bPool), SL_FACTORY, LL_FACTORY, 1000, 1000, 5_000_000 ether));
 
-        // Stake BPT for insurance and finalize maplePool
-        poolDelegate.approve(address(bPool), maplePool.stakeLocker(), type(uint256).max);
-        poolDelegate.stake(maplePool.stakeLocker(), bPool.balanceOf(address(poolDelegate)));
-        poolDelegate.finalize(address(maplePool));
+        // Stake BPT for insurance and finalize mapleDaiPool
+        poolDelegate.approve(address(bPool), mapleDaiPool.stakeLocker(), type(uint256).max);
+        poolDelegate.stake(mapleDaiPool.stakeLocker(), bPool.balanceOf(address(poolDelegate)));
+        poolDelegate.finalize(address(mapleDaiPool));
     }
 
     function _createLoan(Borrower borrower, uint256[5] memory specs) internal returns (address loan) {
@@ -239,7 +246,7 @@ contract D3MMapleV1DaiPoolTest is AddressRegistry, D3MPoolBaseTest {
     }
 
     function _fundLoanAndDrawdown(Borrower borrower, address loan, uint256 fundAmount) internal {
-        poolDelegate.fundLoan(address(maplePool), loan, DL_FACTORY, fundAmount);
+        poolDelegate.fundLoan(address(mapleDaiPool), loan, DL_FACTORY, fundAmount);
 
         uint256 collateralRequired = LoanLike(loan).collateralRequiredForDrawdown(fundAmount);
 
