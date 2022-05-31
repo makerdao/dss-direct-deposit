@@ -147,14 +147,28 @@ contract D3MAaveDaiPlan is ID3MPlan {
         uint256 targetUtil;
         if (targetInterestRate > base + variableRateSlope1) {
             // Excess interest rate
-            uint256 r = targetInterestRate - base - variableRateSlope1;
+            uint256 r;
+            unchecked {
+                r = targetInterestRate - base - variableRateSlope1;
+            }
             targetUtil = _rdiv(
-                            _rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r),
+                            _rmul(
+                                interestStrategy.EXCESS_UTILIZATION_RATE(),
+                                r
+                            ),
                             interestStrategy.variableRateSlope2()
-                        ) + interestStrategy.OPTIMAL_UTILIZATION_RATE();
+                         ) + interestStrategy.OPTIMAL_UTILIZATION_RATE();
         } else {
             // Optimal interest rate
-            targetUtil = _rdiv(_rmul((targetInterestRate - base), interestStrategy.OPTIMAL_UTILIZATION_RATE()), variableRateSlope1);
+            unchecked {
+                targetUtil = _rdiv(
+                                _rmul(
+                                    targetInterestRate - base, 
+                                    interestStrategy.OPTIMAL_UTILIZATION_RATE()
+                                ), 
+                                variableRateSlope1
+                             );
+            }
         }
         return _rdiv(totalDebt, targetUtil);
     }
@@ -175,7 +189,9 @@ contract D3MAaveDaiPlan is ID3MPlan {
             // Decrease debt
             uint256 decrease = totalPoolSize - targetTotalPoolSize;
             if (currentAssets >= decrease) {
-                return currentAssets - decrease;
+                unchecked {
+                    return currentAssets - decrease;
+                }
             } else {
                 return 0;
             }
