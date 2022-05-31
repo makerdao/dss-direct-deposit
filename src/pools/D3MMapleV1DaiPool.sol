@@ -159,7 +159,7 @@ contract D3MMapleV1DaiPool is ID3MPool {
     }
 
     function maxDeposit() external view override returns (uint256) {
-        return 0;   // TODO
+        return pool.liquidityCap() - (pool.principalOut() + asset.balanceOf(pool.liquidityLocker()));
     }
 
     function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {

@@ -54,6 +54,7 @@ interface VatLike {
     function debt() external view returns (uint256);
     function rely(address) external;
     function hope(address) external;
+    function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
     function urns(bytes32, address) external view returns (uint256, uint256);
     function gem(bytes32, address) external view returns (uint256);
     function dai(address) external view returns (uint256);

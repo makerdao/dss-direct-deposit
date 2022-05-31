@@ -113,43 +113,45 @@ contract DssDirectDepositMapleTest is AddressRegistry, DSTest {
         poolDelegate.setAllowList(address(mapleDaiPool), address(d3mMaplePool), true);
     }
 
-    // function test_basic_deposit() external {
-    //     uint256 daiTotalSupply = dai.totalSupply();
+    function test_basic_deposit() external {
+        uint256 daiTotalSupply = dai.totalSupply();
 
-    //     ( uint256 ink, uint256 art ) = vat.urns(ilk, address(deposit));
-    //     ( uint256 Art,,,, )          = vat.ilks(ilk);
+        ( uint256 ink, uint256 art ) = vat.urns(ilk, address(d3mMaplePool));
+        ( uint256 Art,,,, )          = vat.ilks(ilk);
 
-    //     uint256 gem    = vat.gem(ilk, address(deposit));
-    //     uint256 vatDai = vat.dai(address(deposit));
+        uint256 gem    = vat.gem(ilk, address(d3mMaplePool));
+        uint256 vatDai = vat.dai(address(d3mMaplePool));
 
-    //     assertEq(ink,    0);
-    //     assertEq(art,    0);
-    //     assertEq(Art,    0);
-    //     assertEq(gem,    0);
-    //     assertEq(vatDai, 0);
+        assertEq(ink,    0);
+        assertEq(art,    0);
+        assertEq(Art,    0);
+        assertEq(gem,    0);
+        assertEq(vatDai, 0);
 
-    //     assertEq(dai.balanceOf(address(pool.liquidityLocker())), 0);
-    //     assertEq(pool.balanceOf(address(deposit)),               0);
+        assertEq(dai.balanceOf(address(mapleDaiPool.liquidityLocker())), 0);
+        assertEq(mapleDaiPool.balanceOf(address(d3mMaplePool)),          0);
 
-    //     deposit.exec();
+        d3mMaplePlan.file("cap", 50_000_000 * WAD);
 
-    //     ( ink, art ) = vat.urns(ilk, address(deposit));
-    //     ( Art,,,, )  = vat.ilks(ilk);
+        d3mHub.exec(ilk);
 
-    //     gem    = vat.gem(ilk, address(deposit));
-    //     vatDai = vat.dai(address(deposit));
+        ( ink, art ) = vat.urns(ilk, address(d3mMaplePool));
+        ( Art,,,, )  = vat.ilks(ilk);
 
-    //     assertEq(ink,    5_000_000 * WAD);
-    //     assertEq(art,    5_000_000 * WAD);
-    //     assertEq(Art,    5_000_000 * WAD);
-    //     assertEq(gem,    0);  // TODO: Follow up on why gem doesn't change
-    //     assertEq(vatDai, 0);
+        gem    = vat.gem(ilk, address(d3mMaplePool));
+        vatDai = vat.dai(address(d3mMaplePool));
 
-    //     assertEq(dai.totalSupply(), daiTotalSupply + 5_000_000 * WAD);
+        assertEq(ink,    50_000_000 * WAD);
+        assertEq(art,    50_000_000 * WAD);
+        assertEq(Art,    50_000_000 * WAD);
+        assertEq(gem,    0);
+        assertEq(vatDai, 0);
 
-    //     assertEq(dai.balanceOf(address(pool.liquidityLocker())), 5_000_000 * WAD);
-    //     assertEq(pool.balanceOf(address(deposit)),               5_000_000 * WAD);
-    // }
+        assertEq(dai.totalSupply(), daiTotalSupply + 50_000_000 * WAD);
+
+        assertEq(dai.balanceOf(address(mapleDaiPool.liquidityLocker())), 50_000_000 * WAD);
+        assertEq(mapleDaiPool.balanceOf(address(d3mMaplePool)),          50_000_000 * WAD);
+    }
 
     // function test_claim_interest() external {
 
@@ -395,7 +397,7 @@ contract DssDirectDepositMapleTest is AddressRegistry, DSTest {
         /*******************************************************/
 
         // Create a DAI pool with a 5m liquidity cap
-        mapleDaiPool = MaplePoolLike(poolDelegate.createPool(POOL_FACTORY, DAI, address(bPool), SL_FACTORY, LL_FACTORY, 1000, 1000, 5_000_000 ether));
+        mapleDaiPool = MaplePoolLike(poolDelegate.createPool(POOL_FACTORY, DAI, address(bPool), SL_FACTORY, LL_FACTORY, 1000, 1000, 50_000_000 * WAD));
 
         // Stake BPT for insurance and finalize pool
         poolDelegate.approve(address(bPool), mapleDaiPool.stakeLocker(), type(uint256).max);
