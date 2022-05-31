@@ -213,7 +213,7 @@ contract DssDirectDepositHub {
     }
 
     /**
-        @notice remove nope on daiJoin to kill hub
+        @notice remove hope on daiJoin to kill hub
     */
     function nope() external auth {
         vat.nope(address(daiJoin));
@@ -280,11 +280,14 @@ contract DssDirectDepositHub {
         // Determine the amount of fees to bring back
         uint256 fees = 0;
         if (assetBalance > daiDebt) {
-            fees = assetBalance - daiDebt;
+            unchecked {
+                fees = assetBalance - daiDebt;
+            }
 
             if (amount + fees > availableAssets) {
-                // Don't need safe-math because this is constrained above
-                fees = availableAssets - amount;
+                unchecked {
+                    fees = availableAssets - amount;
+                }
             }
         }
 
@@ -368,16 +371,22 @@ contract DssDirectDepositHub {
             uint256 debt = vat.debt();
             uint256 toUnwind;
             if (Art > lineWad) {
-                toUnwind = Art - lineWad;
+                unchecked {
+                    toUnwind = Art - lineWad;
+                }
             }
             if (debt > Line) {
-                toUnwind = _max(toUnwind, _divup(debt - Line, RAY));
+                unchecked {
+                    toUnwind = _max(toUnwind, _divup(debt - Line, RAY));
+                }
             }
 
             // Determine if it needs to unwind due plan
             uint256 targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
             if (targetAssets < currentAssets) {
-                toUnwind = _max(toUnwind, currentAssets - targetAssets);
+                unchecked {
+                    toUnwind = _max(toUnwind, currentAssets - targetAssets);
+                }
             }
 
             if (toUnwind > 0) {
@@ -390,9 +399,12 @@ contract DssDirectDepositHub {
                     currentAssets
                 );
             } else {
-                uint256 toWind = targetAssets - currentAssets;
-                toWind = _min(toWind, lineWad - Art);
-                toWind = _min(toWind, (Line - debt) / RAY);
+                uint256 toWind;
+                unchecked {
+                    toWind = targetAssets - currentAssets;
+                    toWind = _min(toWind, lineWad - Art);
+                    toWind = _min(toWind, (Line - debt) / RAY);
+                }
                 // Determine if the pool limits our total deposits
                 toWind = _min(toWind, pool.maxDeposit());
                 _wind(ilk, pool, toWind);
@@ -416,7 +428,10 @@ contract DssDirectDepositHub {
         uint256 assetBalance = pool.assetBalance();
         (, uint256 daiDebt) = vat.urns(ilk, address(pool));
         if (assetBalance > daiDebt) {
-            uint256 fees = assetBalance - daiDebt;
+            uint256 fees;
+            unchecked {
+                fees = assetBalance - daiDebt;
+            }
             fees = _min(fees, pool.maxWithdraw());
             pool.withdraw(fees);
             daiJoin.join(vow, fees);
@@ -488,7 +503,9 @@ contract DssDirectDepositHub {
             // We have more collateral than debt, so need to rebalance.
             // After cull the gems we grab above represent the debt to
             // unwind.
-            vat.slip(ilk, address(pool), -int256(ink - art));
+            unchecked {
+                vat.slip(ilk, address(pool), -int256(ink - art));
+            }
         }
 
         ilks[ilk].culled = 1;
