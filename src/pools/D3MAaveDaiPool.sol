@@ -133,7 +133,7 @@ contract D3MAaveDaiPool is ID3MPool {
         emit File(what, data);
     }
 
-    function hope(address hub) external override auth{
+    function hope(address hub) external override auth {
         CanLike(D3mHubLike(hub).vat()).hope(hub);
     }
 
