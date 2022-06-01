@@ -151,7 +151,7 @@ contract D3MAaveDaiPool is ID3MPool {
         // Verify the correct amount of adai shows up
         uint256 interestIndex = pool.getReserveNormalizedIncome(address(asset));
         uint256 scaledAmount = _rdiv(wad, interestIndex);
-        return adai.scaledBalanceOf(address(this)) >= scaledPrev + scaledAmount;
+        return adai.scaledBalanceOf(address(this)) >= (scaledPrev + scaledAmount);
     }
 
     // Withdraws Dai from Aave in exchange for adai
