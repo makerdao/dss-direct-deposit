@@ -141,11 +141,6 @@ contract D3MAaveDaiPlan is ID3MPlan {
     }
 
     // --- Automated Rate targeting ---
-    function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
-        uint256 totalDebt = _add(stableDebt.totalSupply(), variableDebt.totalSupply());
-        return _calculateTargetSupply(targetInterestRate, totalDebt);
-    }
-
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 totalDebt) internal view returns (uint256) {
         uint256 base = interestStrategy.baseVariableBorrowRate();
         require(targetInterestRate > base, "D3MAaveDaiPlan/target-interest-base");
