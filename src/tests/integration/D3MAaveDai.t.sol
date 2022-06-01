@@ -1059,16 +1059,6 @@ contract D3MAaveDaiTest is DSTest {
         assertEq(tau, 1 days);
     }
 
-    function testFail_set_tau_caged() public {
-        (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
-        assertEq(tau, 7 days);
-
-        directDepositHub.cage(ilk);
-
-        // file should fail with error "D3MAaveDai/live"
-        directDepositHub.file(ilk, "tau", 1 days);
-    }
-
     // Make sure the module works correctly even when someone permissionlessly repays the urn
     function test_permissionless_repay() public {
         _setRelBorrowTarget(7500);
