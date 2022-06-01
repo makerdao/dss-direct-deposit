@@ -66,14 +66,14 @@ interface RewardsClaimerLike {
 contract D3MAaveDaiPool is ID3MPool {
 
     mapping (address => uint256) public wards;
+    address                      public king;  // Who gets the rewards
 
-    LendingPoolLike          public immutable pool;
-    RewardsClaimerLike       public immutable rewardsClaimer;
-    ATokenLike               public immutable stableDebt;
-    ATokenLike               public immutable variableDebt;
-    ATokenLike               public immutable adai;
-    TokenLike                public immutable asset; // Dai
-    address                  public           king;  // Who gets the rewards
+    LendingPoolLike    public immutable pool;
+    RewardsClaimerLike public immutable rewardsClaimer;
+    ATokenLike         public immutable stableDebt;
+    ATokenLike         public immutable variableDebt;
+    ATokenLike         public immutable adai;
+    TokenLike          public immutable asset; // Dai
 
     // --- Events ---
     event Rely(address indexed usr);

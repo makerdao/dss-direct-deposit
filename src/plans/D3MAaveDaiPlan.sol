@@ -52,14 +52,14 @@ interface InterestRateStrategyLike {
 contract D3MAaveDaiPlan is ID3MPlan {
 
     mapping (address => uint256) public wards;
+    InterestRateStrategyLike     public tack;
+    uint256                      public bar;  // Target Interest Rate [ray]
 
-    LendingPoolLike          public immutable pool;
-    TokenLike                public immutable stableDebt;
-    TokenLike                public immutable variableDebt;
-    TokenLike                public immutable dai;
-    address                  public immutable adai;
-    InterestRateStrategyLike public           tack;
-    uint256                  public           bar;  // Target Interest Rate [ray]
+    LendingPoolLike public immutable pool;
+    TokenLike       public immutable stableDebt;
+    TokenLike       public immutable variableDebt;
+    TokenLike       public immutable dai;
+    address         public immutable adai;
 
     // --- Events ---
     event Rely(address indexed usr);
