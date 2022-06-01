@@ -278,7 +278,7 @@ contract DssDirectDepositHub {
                                 availableAssets
                             ),
                             daiDebt
-                        );
+                         );
 
         // Determine the amount of fees to bring back
         uint256 fees = 0;
