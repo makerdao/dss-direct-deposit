@@ -42,20 +42,20 @@ interface ID3MPool {
         @dev If the external pool requires a different amount to be passed in, the
         conversion should occur here as the Hub passes Dai [wad] amounts.
         msg.sender must be authorized.
-        @param amt amount in asset (Dai) terms that we want to deposit
+        @param wad amount in asset (Dai) terms that we want to deposit
         @return bool whether the withdraw was successful
     */
-    function deposit(uint256 amt) external returns (bool);
+    function deposit(uint256 wad) external returns (bool);
 
     /**
         @notice Withdraw assets (Dai) from the external pool.
         @dev If the external pool requires a different amount to be passed in
         the conversion should occur here as the Hub passes Dai [wad] amounts.
         msg.sender must be authorized.
-        @param amt amount in asset (Dai) terms that we want to withdraw
+        @param wad amount in asset (Dai) terms that we want to withdraw
         @return bool whether the withdraw was successful
     */
-    function withdraw(uint256 amt) external returns (bool);
+    function withdraw(uint256 wad) external returns (bool);
 
      /**
         @notice Transfer shares.
@@ -63,10 +63,10 @@ interface ID3MPool {
         passed in the conversion should occur here as the Hub passes Gem [wad]
         amounts. msg.sender must be authorized.
         @param dst address that should receive the shares
-        @param amt amount in Gem terms that we want to withdraw
+        @param wad amount in Gem terms that we want to withdraw
         @return bool whether the transfer was successful per ERC-20 standard
     */
-    function transfer(address dst, uint256 amt) external returns (bool);
+    function transfer(address dst, uint256 wad) external returns (bool);
 
     /**
         @notice Transfer all shares from this pool.

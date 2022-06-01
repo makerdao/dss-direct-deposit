@@ -150,26 +150,26 @@ contract D3MAaveDaiPool is ID3MPool {
 
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
-    function deposit(uint256 amt) external override auth returns (bool) {
+    function deposit(uint256 wad) external override auth returns (bool) {
         uint256 scaledPrev = adai.scaledBalanceOf(address(this));
 
-        pool.deposit(address(asset), amt, address(this), 0);
+        pool.deposit(address(asset), wad, address(this), 0);
 
         // Verify the correct amount of adai shows up
         uint256 interestIndex = pool.getReserveNormalizedIncome(address(asset));
-        uint256 scaledAmount = _rdiv(amt, interestIndex);
+        uint256 scaledAmount = _rdiv(wad, interestIndex);
         return adai.scaledBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount);
     }
 
     // Withdraws Dai from Aave in exchange for adai
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
-    function withdraw(uint256 amt) external override auth returns (bool) {
-        pool.withdraw(address(asset), amt, address(msg.sender));
+    function withdraw(uint256 wad) external override auth returns (bool) {
+        pool.withdraw(address(asset), wad, address(msg.sender));
         return true;
     }
 
-    function transfer(address dst, uint256 amt) external override auth returns (bool) {
-        return adai.transfer(dst, amt);
+    function transfer(address dst, uint256 wad) external override auth returns (bool) {
+        return adai.transfer(dst, wad);
     }
 
     function transferAll(address dst) external override auth returns (bool) {
