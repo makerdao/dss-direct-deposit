@@ -224,7 +224,7 @@ contract DssDirectDepositHub {
         vat.frob(ilk, address(pool), address(pool), address(this), int256(amount), int256(amount));
         // normalized debt == erc20 DAI (Vat rate for this ilk fixed to 1 RAY)
         daiJoin.exit(address(pool), amount);
-        pool.deposit(amount);
+        require(pool.deposit(amount), "DssDirectDepositHub/deposit-failed");
 
         emit Wind(ilk, amount);
     }
@@ -291,7 +291,7 @@ contract DssDirectDepositHub {
 
         // To save gas you can bring the fees back with the unwind
         uint256 total = amount + fees;
-        pool.withdraw(total);
+        require(pool.withdraw(total), "DssDirectDepositHub/withdraw-failed");
         daiJoin.join(address(this), total);
 
         // normalized debt == erc20 DAI to pool (Vat rate for this ilk fixed to 1 RAY)
@@ -467,8 +467,8 @@ contract DssDirectDepositHub {
 
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
         require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
-        require(pool.active() == true, "DssDirectDepositHub/pool-not-active");
-        require(ilks[ilk].plan.active() == true, "DssDirectDepositHub/plan-not-active");
+        require(pool.active(), "DssDirectDepositHub/pool-not-active");
+        require(ilks[ilk].plan.active(), "DssDirectDepositHub/plan-not-active");
 
         pool.preDebtChange();
         uint256 assetBalance = pool.assetBalance();

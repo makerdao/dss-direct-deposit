@@ -96,14 +96,14 @@ contract D3MTestPool is ID3MPool {
         CanLike(D3mHubLike(hub).vat()).nope(hub);
     }
 
-    function deposit(uint256 amt) external override {
+    function deposit(uint256 amt) external override returns (bool) {
         D3MTestGem(share).mint(address(this), amt);
-        TokenLike(asset).transfer(share, amt);
+        return TokenLike(asset).transfer(share, amt);
     }
 
-    function withdraw(uint256 amt) external override {
+    function withdraw(uint256 amt) external override returns (bool)  {
         D3MTestGem(share).burn(address(this), amt);
-        TokenLike(asset).transferFrom(share, address(msg.sender), amt);
+        return TokenLike(asset).transferFrom(share, address(msg.sender), amt);
     }
 
     function transfer(address dst, uint256 amt) public override auth returns (bool) {
