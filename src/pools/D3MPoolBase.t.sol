@@ -73,9 +73,9 @@ contract D3MPoolBase is ID3MPool {
         CanLike(D3mHubLike(hub).vat()).nope(hub);
     }
 
-    function deposit(uint256 amt) external override {}
+    function deposit(uint256 amt) external override returns (bool) {}
 
-    function withdraw(uint256 amt) external override {}
+    function withdraw(uint256 amt) external override returns (bool) {}
 
     function transfer(address dst, uint256 amt)
         external

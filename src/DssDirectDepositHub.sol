@@ -234,7 +234,7 @@ contract DssDirectDepositHub {
         vat.frob(ilk, address(pool), address(pool), address(this), int256(amount), int256(amount));
         // normalized debt == erc20 DAI (Vat rate for this ilk fixed to 1 RAY)
         daiJoin.exit(address(pool), amount);
-        pool.deposit(amount);
+        require(pool.deposit(amount), "DssDirectDepositHub/deposit-failed");
 
         emit Wind(ilk, amount);
     }
@@ -298,7 +298,7 @@ contract DssDirectDepositHub {
 
         // To save gas you can bring the fees back with the unwind
         uint256 total = _add(amount, fees);
-        pool.withdraw(total);
+        require(pool.withdraw(total), "DssDirectDepositHub/withdraw-failed");
         daiJoin.join(address(this), total);
 
         // normalized debt == erc20 DAI to pool (Vat rate for this ilk fixed to 1 RAY)
