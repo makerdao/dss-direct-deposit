@@ -29,8 +29,8 @@ contract D3MMom {
     address public owner;
     address public authority;
 
-    event SetOwner(address indexed oldOwner, address indexed newOwner);
-    event SetAuthority(address indexed oldAuthority, address indexed newAuthority);
+    event SetOwner(address indexed newOwner);
+    event SetAuthority(address indexed newAuthority);
     event Disable(address indexed who);
 
     modifier onlyOwner {
@@ -45,7 +45,7 @@ contract D3MMom {
 
     constructor() {
         owner = msg.sender;
-        emit SetOwner(address(0), msg.sender);
+        emit SetOwner(msg.sender);
     }
 
     function isAuthorized(address src, bytes4 sig) internal view returns (bool) {
@@ -62,13 +62,13 @@ contract D3MMom {
 
     // Governance actions with delay
     function setOwner(address owner_) external onlyOwner {
-        emit SetOwner(owner, owner_);
         owner = owner_;
+        emit SetOwner(owner_);
     }
 
     function setAuthority(address authority_) external onlyOwner {
-        emit SetAuthority(authority, authority_);
         authority = authority_;
+        emit SetAuthority(authority_);
     }
 
     // Governance action without delay
