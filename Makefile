@@ -1,4 +1,4 @@
-all    		 :; DAPP_BUILD_OPTIMIZE=1 DAPP_BUILD_OPTIMIZE_RUNS=200 dapp --use solc:0.8.13 build
+all    		 :; DAPP_BUILD_OPTIMIZE=1 DAPP_BUILD_OPTIMIZE_RUNS=200 dapp --use solc:0.8.14 build
 clean  		 :; dapp clean
 test   		 :; ./test.sh match="$(match)" optimizer=1
 test-dev   	 :; ./test.sh match="$(match)" optimizer=0
