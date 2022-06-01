@@ -94,12 +94,6 @@ contract D3MAaveDaiPlan is ID3MPlan {
 
     // --- Math ---
     uint256 constant RAY  = 10 ** 27;
-    function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = x <= y ? x : y;
-    }
-    function _max(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = x >= y ? x : y;
-    }
     function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = (x * y) / RAY;
     }
@@ -137,9 +131,9 @@ contract D3MAaveDaiPlan is ID3MPlan {
     // --- Automated Rate targeting ---
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 totalDebt) internal view returns (uint256) {
         uint256 base = tack.baseVariableBorrowRate();
-
-        targetInterestRate = _max(targetInterestRate, base);
-        targetInterestRate = _min(targetInterestRate, _maxBar());
+        if (targetInterestRate <= base || targetInterestRate > _maxBar()) {
+            return 0;
+        }
 
         // Do inverse calculation of interestStrategy
         uint256 variableRateSlope1 = tack.variableRateSlope1();

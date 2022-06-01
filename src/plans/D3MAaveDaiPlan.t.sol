@@ -141,6 +141,16 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         D3MAaveDaiPlan(d3mTestPlan).file("bar", 1);
     }
 
+    function test_set_bar_too_high_unwinds() public {
+        D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.getMaxVariableBorrowRate() + 1);
+        assertEq(D3MAaveDaiPlan(d3mTestPlan).getTargetAssets(1), 0);
+    }
+
+    function test_set_bar_too_low_unwinds() public {
+        D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate());
+        assertEq(D3MAaveDaiPlan(d3mTestPlan).getTargetAssets(1), 0);
+    }
+
     function test_interest_rate_calc() public {
         // Confirm that the inverse function is correct by comparing all percentages
         for (uint256 i = 1; i <= 100 * interestStrategy.getMaxVariableBorrowRate() / RAY; i++) {
