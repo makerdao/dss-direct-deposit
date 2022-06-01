@@ -218,8 +218,6 @@ contract DssDirectDepositHub {
             return;
         }
 
-        require(amount <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
-
         vat.slip(ilk, address(pool), int256(amount));
         vat.frob(ilk, address(pool), address(pool), address(this), int256(amount), int256(amount));
         // normalized debt == erc20 DAI (Vat rate for this ilk fixed to 1 RAY)
@@ -451,6 +449,7 @@ contract DssDirectDepositHub {
                 }
                 // Determine if the pool limits our total deposits
                 toWind = _min(toWind, pool.maxDeposit());
+                toWind = _min(toWind, uint256(type(int256).max));
                 _wind(ilk, pool, toWind);
             }
         }
