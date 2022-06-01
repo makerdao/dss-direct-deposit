@@ -181,7 +181,13 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         assertTrue(D3MAaveDaiPlan(d3mTestPlan).active() == false);
     }
 
+    function test_bar_zero_not_active() public {
+        assertEq(D3MAaveDaiPlan(d3mTestPlan).bar(), 0);
+        assertTrue(D3MAaveDaiPlan(d3mTestPlan).active() == false);
+    }
+
     function test_interestStrategy_not_changed_active() public {
+        D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
         (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
         assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), poolStrategy);
 
@@ -200,6 +206,7 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
     }
 
     function testFail_disable_without_auth() public {
+        D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
         (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
         assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), poolStrategy);
         D3MAaveDaiPlan(d3mTestPlan).deny(address(this));
