@@ -269,7 +269,7 @@ contract D3MCompoundDaiPlanTest is D3MPlanBaseTest {
         plan.file("barb", borrowRatePerBlock);
 
         uint256 targetAssets = plan.getTargetAssets(0);
-        assertEqAbsolute(0, targetAssets, WAD);
+        assertEqAbsolute(targetAssets, 0, WAD);
     }
 
     function test_rate_model_changed_not_active() public {
