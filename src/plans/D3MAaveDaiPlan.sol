@@ -94,7 +94,9 @@ contract D3MAaveDaiPlan is ID3MPlan {
 
     // --- Math ---
     uint256 constant RAY  = 10 ** 27;
-
+    function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = x <= y ? x : y;
+    }
     function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = (x * y) / RAY;
     }
@@ -114,8 +116,6 @@ contract D3MAaveDaiPlan is ID3MPlan {
 
     function file(bytes32 what, uint256 data) external auth {
         if (what == "bar") {
-            require(data <= _maxBar(), "D3MAaveDaiPlan/above-max-interest");
-
             bar = data;
         } else revert("D3MAaveDaiPlan/file-unrecognized-param");
         emit File(what, data);
@@ -135,7 +135,7 @@ contract D3MAaveDaiPlan is ID3MPlan {
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 totalDebt) internal view returns (uint256) {
         uint256 base = tack.baseVariableBorrowRate();
         require(targetInterestRate > base, "D3MAaveDaiPlan/target-interest-base");
-        require(targetInterestRate <= _maxBar(), "D3MAaveDaiPlan/above-max-interest");
+        targetInterestRate = _min(targetInterestRate, _maxBar());
 
         // Do inverse calculation of interestStrategy
         uint256 variableRateSlope1 = tack.variableRateSlope1();
