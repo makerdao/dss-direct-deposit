@@ -95,7 +95,6 @@ contract D3MAaveDaiPool is ID3MPool {
         variableDebt = ATokenLike(variableDebt_);
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
 
-        ATokenLike(adai_).approve(pool_, type(uint256).max);
         TokenLike(dai_).approve(pool_, type(uint256).max);
 
         CanLike(D3mHubLike(hub_).vat()).hope(hub_);
