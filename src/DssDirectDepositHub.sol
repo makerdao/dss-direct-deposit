@@ -387,7 +387,7 @@ contract DssDirectDepositHub {
     function exec(bytes32 ilk) external {
         ID3MPool pool = ilks[ilk].pool;
 
-        pool.accrueIfNeeded();
+        pool.preDebtChange();
         uint256 availableAssets = pool.maxWithdraw();
         uint256 currentAssets = pool.assetBalance();
 
@@ -454,6 +454,8 @@ contract DssDirectDepositHub {
                 _wind(ilk, pool, toWind);
             }
         }
+
+        pool.postDebtChange();
     }
 
     /**
@@ -468,7 +470,7 @@ contract DssDirectDepositHub {
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
         require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
 
-        pool.accrueIfNeeded();
+        pool.preDebtChange();
         uint256 assetBalance = pool.assetBalance();
         (, uint256 daiDebt) = vat.urns(ilk, address(pool));
         if (assetBalance > daiDebt) {
@@ -478,6 +480,7 @@ contract DssDirectDepositHub {
             daiJoin.join(vow, fees);
             emit Reap(ilk, fees);
         }
+        pool.postDebtChange();
     }
 
     /**

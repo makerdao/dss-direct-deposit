@@ -176,7 +176,9 @@ contract D3MAaveDaiPool is ID3MPool {
         return adai.transfer(dst, adai.balanceOf(address(this)));
     }
 
-    function accrueIfNeeded() external override {}
+    function preDebtChange() external override {}
+
+    function postDebtChange() external override {}
 
     // --- Balance of the underlying asset (Dai)
     function assetBalance() public view override returns (uint256) {

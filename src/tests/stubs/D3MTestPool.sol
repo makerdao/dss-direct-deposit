@@ -35,8 +35,9 @@ contract D3MTestPool is ID3MPool {
 
     // test helper variables
     uint256        maxDepositAmount = type(uint256).max;
-    bool    public accrued = false;
-    bool    public active_ = true;
+    bool    public preDebt          = false;
+    bool    public postDebt         = false;
+    bool    public active_          = true;
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -60,10 +61,10 @@ contract D3MTestPool is ID3MPool {
         _;
     }
 
-
     // --- Testing Admin ---
     function file(bytes32 what, bool data) external auth {
-        if (what == "accrued") accrued = data;
+        if (what == "preDebt") preDebt = data;
+        else if (what == "postDebt") postDebt = data;
         else if (what == "active_") active_ = data;
         else revert("D3MTestPool/file-unrecognized-param");
     }
@@ -95,7 +96,6 @@ contract D3MTestPool is ID3MPool {
         CanLike(D3mHubLike(hub).vat()).nope(hub);
     }
 
-
     function deposit(uint256 amt) external override {
         D3MTestGem(share).mint(address(this), amt);
         TokenLike(asset).transfer(share, amt);
@@ -114,8 +114,12 @@ contract D3MTestPool is ID3MPool {
         return TokenLike(share).transfer(dst, shareBalance());
     }
 
-    function accrueIfNeeded() external override {
-        accrued = true;
+    function preDebtChange() external override {
+        preDebt = true;
+    }
+
+    function postDebtChange() external override {
+        postDebt = true;
     }
 
     function assetBalance() external view override returns (uint256) {

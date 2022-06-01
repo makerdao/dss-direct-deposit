@@ -83,7 +83,9 @@ contract D3MPoolBase is ID3MPool {
         returns (bool)
     {}
 
-    function accrueIfNeeded() external override {}
+    function preDebtChange() external override {}
+
+    function postDebtChange() external override {}
 
     function assetBalance() external view override returns (uint256) {}
 
@@ -232,8 +234,12 @@ contract D3MPoolBaseTest is DSTest {
         D3MPoolBase(d3mTestPool).recoverTokens(address(dai), address(this), 10 * WAD);
     }
 
-    function test_implements_accrueIfNeeded() public {
-        D3MPoolBase(d3mTestPool).accrueIfNeeded();
+    function test_implements_preDebtChange() public {
+        D3MPoolBase(d3mTestPool).preDebtChange();
+    }
+
+    function test_implements_postDebtChange() public {
+        D3MPoolBase(d3mTestPool).postDebtChange();
     }
 
     function test_implements_active() public view {
