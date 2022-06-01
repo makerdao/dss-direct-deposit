@@ -103,7 +103,7 @@ contract DssDirectDepositHub {
     event Unwind(bytes32 indexed ilk, uint256 amount, uint256 fees);
     event Reap(bytes32 indexed ilk, uint256 amt);
     event Cage(bytes32 indexed ilk);
-    event Cull(bytes32 indexed ilk);
+    event Cull(bytes32 indexed ilk, uint256 ink, uint256 art);
     event Uncull(bytes32 indexed ilk);
     event Quit(bytes32 indexed ilk, address indexed usr);
     event Exit(bytes32 indexed ilk, address indexed usr, uint256 amt);
@@ -548,7 +548,7 @@ contract DssDirectDepositHub {
         }
 
         ilks[ilk].culled = 1;
-        emit Cull(ilk);
+        emit Cull(ilk, ink, art);
     }
 
     /**
