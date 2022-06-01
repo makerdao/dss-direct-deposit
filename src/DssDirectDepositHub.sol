@@ -517,8 +517,8 @@ contract DssDirectDepositHub {
 
     /**
         @notice Write off the debt for a caged pool.
-        This must occur while vat is live and after tau number of seconds has
-        passed since the pool was caged.
+        This must occur while vat is live. Can be triggered by auth or
+        after tau number of seconds has passed since the pool was caged.
         @dev This will send the pool's debt to the vow as sin and convert its
         collateral to gems.  There is a situation where another user has paid
         back some of the Pool's debt where ink != art in this case we rebalance
