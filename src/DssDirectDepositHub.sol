@@ -90,7 +90,7 @@ contract DssDirectDepositHub {
         ID3MPlan plan;   // How we calculate target debt
         uint256  tau;    // Time until you can write off the debt [sec]
         uint256  culled; // Debt write off triggered
-        uint256  tic;    // Timestamp when the d3m is caged
+        uint256  tic;    // Timestamp when the d3m can be culled (tau + timestamp when caged)
     }
 
     // --- Events ---
@@ -185,11 +185,8 @@ contract DssDirectDepositHub {
         @param data number of seconds to wait after caging a pool to write off debt
     */
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
-        require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
-
-        if (what == "tau") {
-            ilks[ilk].tau = data;
-        } else revert("DssDirectDepositHub/file-unrecognized-param");
+        if (what == "tau") ilks[ilk].tau = data;
+        else revert("DssDirectDepositHub/file-unrecognized-param");
 
         emit File(ilk, what, data);
     }
@@ -232,7 +229,7 @@ contract DssDirectDepositHub {
         emit Wind(ilk, amount);
     }
 
-    function _unwind(bytes32 ilk, ID3MPool pool, uint256 supplyReduction, uint256 availableAssets, Mode mode, uint256 assetBalance) internal {
+    function _unwind(bytes32 ilk, ID3MPool pool, uint256 supplyReduction, Mode mode, uint256 assetBalance) internal {
         // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
         // That's why it converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
@@ -257,6 +254,8 @@ contract DssDirectDepositHub {
             daiDebt = vat.gem(ilk, address(end_));
         }
 
+        uint256 availableAssets = pool.maxWithdraw();
+
         // Unwind amount is limited by how much:
         // - max reduction desired
         // - assets available
@@ -267,7 +266,7 @@ contract DssDirectDepositHub {
                                 availableAssets
                             ),
                             daiDebt
-                        );
+                         );
 
         // Determine the amount of fees to bring back
         uint256 fees = 0;
@@ -378,10 +377,12 @@ contract DssDirectDepositHub {
         @param ilk bytes32 of the D3M ilk name
     */
     function exec(bytes32 ilk) external {
+        (uint256 Art, uint256 rate,, uint256 line,) = vat.ilks(ilk);
+        require(rate == 1 * RAY, "DssDirectDepositHub/rate-not-one");
+
         ID3MPool pool = ilks[ilk].pool;
 
         pool.preDebtChange();
-        uint256 availableAssets = pool.maxWithdraw();
         uint256 currentAssets = pool.assetBalance();
 
         if (vat.live() == 0) {
@@ -392,7 +393,6 @@ contract DssDirectDepositHub {
                 ilk,
                 pool,
                 type(uint256).max,
-                availableAssets,
                 Mode.MCD_CAGED,
                 currentAssets
             );
@@ -402,7 +402,6 @@ contract DssDirectDepositHub {
                 ilk,
                 pool,
                 type(uint256).max,
-                availableAssets,
                 ilks[ilk].culled == 1
                 ? Mode.MODULE_CULLED
                 : Mode.NORMAL,
@@ -410,7 +409,6 @@ contract DssDirectDepositHub {
             );
         } else {
             // Determine if it needs to unwind due to debt ceilings
-            (uint256 Art,,, uint256 line,) = vat.ilks(ilk);
             uint256 lineWad = line / RAY; // Round down to always be under the actual limit
             uint256 Line = vat.Line();
             uint256 debt = vat.debt();
@@ -439,7 +437,6 @@ contract DssDirectDepositHub {
                     ilk,
                     pool,
                     toUnwind,
-                    availableAssets,
                     Mode.NORMAL,
                     currentAssets
                 );
@@ -470,6 +467,8 @@ contract DssDirectDepositHub {
 
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
         require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
+        require(pool.active() == true, "DssDirectDepositHub/pool-not-active");
+        require(ilks[ilk].plan.active() == true, "DssDirectDepositHub/plan-not-active");
 
         pool.preDebtChange();
         uint256 assetBalance = pool.assetBalance();
@@ -514,14 +513,14 @@ contract DssDirectDepositHub {
     function cage(bytes32 ilk) external auth {
         require(vat.live() == 1, "DssDirectDepositHub/no-cage-during-shutdown");
 
-        ilks[ilk].tic = block.timestamp;
+        ilks[ilk].tic = block.timestamp + ilks[ilk].tau;
         emit Cage(ilk);
     }
 
     /**
         @notice Write off the debt for a caged pool.
-        This must occur while vat is live and after tau number of seconds has
-        passed since the pool was caged.
+        This must occur while vat is live. Can be triggered by auth or
+        after tau number of seconds has passed since the pool was caged.
         @dev This will send the pool's debt to the vow as sin and convert its
         collateral to gems.  There is a situation where another user has paid
         back some of the Pool's debt where ink != art in this case we rebalance
@@ -534,8 +533,7 @@ contract DssDirectDepositHub {
         uint256 tic = ilks[ilk].tic;
         require(tic > 0, "DssDirectDepositHub/pool-live");
 
-        uint256 tau = ilks[ilk].tau;
-        require(tic + tau <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
+        require(tic <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
 
         uint256 culled = ilks[ilk].culled;
         require(culled == 0, "DssDirectDepositHub/already-culled");

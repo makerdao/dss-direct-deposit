@@ -234,17 +234,6 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "tau", 1 days);
     }
 
-    function testFail_pool_not_live_tau_file() public {
-        directDepositHub.file(ilk, "tau", 1 days);
-        (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
-        assertEq(tau, 1 days);
-
-        // Cage Pool
-        directDepositHub.cage(ilk);
-
-        directDepositHub.file(ilk, "tau", 7 days);
-    }
-
     function testFail_unknown_uint256_file() public {
         directDepositHub.file(ilk, "unknown", 1);
     }
@@ -354,6 +343,11 @@ contract DssDirectDepositHubTest is DSTest {
 
     function testFail_exec_no_ilk() public {
         directDepositHub.exec("fake-ilk");
+    }
+
+    function testFail_exec_rate_not_one() public {
+        vat.fold(ilk, vow, int(2 * RAY));
+        directDepositHub.exec(ilk);
     }
     
     function test_wind_limited_ilk_line() public {
@@ -625,6 +619,32 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.reap(ilk);
     }
 
+    function testFail_no_reap_pool_inactive() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD);
+
+        // pool inactive
+        d3mTestPool.file("active_", false);
+
+        directDepositHub.reap(ilk);
+    }
+
+    function testFail_no_reap_plan_inactive() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD);
+
+        // pool inactive
+        d3mTestPlan.file("active_", false);
+
+        directDepositHub.reap(ilk);
+    }
+
     function test_exit() public {
         _windSystem();
         // Vat is caged for global settlement
@@ -648,13 +668,13 @@ contract DssDirectDepositHubTest is DSTest {
     }
 
     function test_cage_pool() public {
-        (, , , , uint256 tic) = directDepositHub.ilks(ilk);
+        (, , uint256 tau, , uint256 tic) = directDepositHub.ilks(ilk);
         assertEq(tic, 0);
 
         directDepositHub.cage(ilk);
 
         (, , , , tic) = directDepositHub.ilks(ilk);
-        assertEq(tic, block.timestamp);
+        assertEq(tic, block.timestamp + tau);
     }
 
     function testFail_cage_pool_no_auth() public {
