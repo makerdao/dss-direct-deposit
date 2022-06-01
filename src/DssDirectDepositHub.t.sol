@@ -905,6 +905,10 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.cull(ilk);
     }
 
+    function testFail_no_cull_no_ilk() public {
+        directDepositHub.cull("fake-ilk");
+    }
+
     function test_uncull() public {
         _windSystem();
         directDepositHub.cage(ilk);
