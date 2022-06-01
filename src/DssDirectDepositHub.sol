@@ -227,7 +227,13 @@ contract DssDirectDepositHub {
         emit Wind(ilk, amount);
     }
 
-    function _unwind(bytes32 ilk, ID3MPool pool, uint256 supplyReduction, Mode mode, uint256 assetBalance) internal {
+    function _unwind(
+                bytes32 ilk, 
+                ID3MPool pool, 
+                uint256 supplyReduction, // [wad]
+                Mode mode, 
+                uint256 assetBalance     // [wad]
+             ) internal {
         // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
         // That's why it converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
