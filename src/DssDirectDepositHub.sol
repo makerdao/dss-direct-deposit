@@ -475,7 +475,7 @@ contract DssDirectDepositHub {
         if (assetBalance > daiDebt) {
             uint256 fees = assetBalance - daiDebt;
             fees = _min(fees, pool.maxWithdraw());
-            pool.withdraw(fees);
+            require(pool.withdraw(fees), "DssDirectDepositHub/withdraw-failed");
             daiJoin.join(vow, fees);
             emit Reap(ilk, fees);
         }
