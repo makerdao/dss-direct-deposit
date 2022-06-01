@@ -88,9 +88,9 @@ contract DssDirectDepositHub {
     struct Ilk {
         ID3MPool pool;   // Access external pool and holds balances
         ID3MPlan plan;   // How we calculate target debt
-        uint256     tau;    // Time until you can write off the debt [sec]
-        uint256     culled; // Debt write off triggered
-        uint256     tic;    // Timestamp when the pool is caged
+        uint256  tau;    // Time until you can write off the debt [sec]
+        uint256  culled; // Debt write off triggered
+        uint256  tic;    // Timestamp when the d3m is caged
     }
 
     // --- Events ---
@@ -226,6 +226,52 @@ contract DssDirectDepositHub {
     */
     function nope() external auth {
         vat.nope(address(daiJoin));
+    }
+
+    // Ilk Getters
+    /**
+        @notice Return pool of an ilk
+        @param ilk   bytes32 of the D3M ilk
+        @return pool address of pool contract
+    */
+    function ilkPool(bytes32 ilk) external view returns (address) {
+        return address(ilks[ilk].pool);
+    }
+
+    /**
+        @notice Return plan of an ilk
+        @param ilk   bytes32 of the D3M ilk
+        @return plan address of plan contract
+    */
+    function ilkPlan(bytes32 ilk) external view returns (address) {
+        return address(ilks[ilk].plan);
+    }
+
+    /**
+        @notice Return tau of an ilk
+        @param ilk  bytes32 of the D3M ilk
+        @return tau sec until debt can be written off
+    */
+    function ilkTau(bytes32 ilk) external view returns (uint256) {
+        return ilks[ilk].tau;
+    }
+
+    /**
+        @notice Return culled status of an ilk
+        @param ilk  bytes32 of the D3M ilk
+        @return culled whether or not the d3m has been culled
+    */
+    function ilkCulled(bytes32 ilk) external view returns (uint256) {
+        return ilks[ilk].culled;
+    }
+
+    /**
+        @notice Return tic of an ilk
+        @param ilk  bytes32 of the D3M ilk
+        @return tic timestamp of when d3m is caged
+    */
+    function ilkTic(bytes32 ilk) external view returns (uint256) {
+        return ilks[ilk].tic;
     }
 
     // --- Deposit controls ---
