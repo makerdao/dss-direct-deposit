@@ -192,7 +192,7 @@ contract DssDirectDepositHub {
         @dev msg.sender must be authorized.
         @param ilk  bytes32 of the D3M ilk to be updated
         @param what bytes32("tau") or it will revert
-        @param data number of second to wait after caging a pool to write of debt
+        @param data number of seconds to wait after caging a pool to write off debt
     */
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
         require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
