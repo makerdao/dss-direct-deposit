@@ -466,8 +466,8 @@ contract DssDirectDepositHub {
 
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
         require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
-        require(pool.active() == true, "DssDirectDepositHub/pool-not-active");
-        require(ilks[ilk].plan.active() == true, "DssDirectDepositHub/plan-not-active");
+        require(pool.active(), "DssDirectDepositHub/pool-not-active");
+        require(ilks[ilk].plan.active(), "DssDirectDepositHub/plan-not-active");
 
         pool.preDebtChange();
         uint256 assetBalance = pool.assetBalance();
