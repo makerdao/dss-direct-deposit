@@ -630,6 +630,32 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.reap(ilk);
     }
 
+    function testFail_no_reap_pool_inactive() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD);
+
+        // pool inactive
+        d3mTestPool.file("active_", false);
+
+        directDepositHub.reap(ilk);
+    }
+
+    function testFail_no_reap_plan_inactive() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD);
+
+        // pool inactive
+        d3mTestPlan.file("active_", false);
+
+        directDepositHub.reap(ilk);
+    }
+
     function test_exit() public {
         _windSystem();
         // Vat is caged for global settlement
