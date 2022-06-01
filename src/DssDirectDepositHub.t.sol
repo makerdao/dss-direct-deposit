@@ -887,7 +887,7 @@ contract DssDirectDepositHubTest is DSTest {
             address(testGem),
             address(rewardsClaimer)
         );
-        d3mTestPool.rely(address(directDepositHub));
+        newPool.rely(address(directDepositHub));
         testGem.rely(address(newPool));
         testGem.giveAllowance(
             address(dai),
@@ -940,7 +940,7 @@ contract DssDirectDepositHubTest is DSTest {
             address(testGem),
             address(rewardsClaimer)
         );
-        d3mTestPool.rely(address(directDepositHub));
+        newPool.rely(address(directDepositHub));
         testGem.rely(address(newPool));
         testGem.giveAllowance(
             address(dai),
@@ -994,6 +994,175 @@ contract DssDirectDepositHubTest is DSTest {
         (npink, npart) = vat.urns(ilk, address(newPool));
         assertEq(npink, 100 * WAD);
         assertEq(npart, 100 * WAD);
+    }
 
+    function test_plan_upgrade() public {
+        _windSystem(); // Tests that the current pool has ink/art
+
+        // Setup new plan
+        D3MTestPlan newPlan = new D3MTestPlan(address(dai));
+        newPlan.file("maxBar_", type(uint256).max);
+        newPlan.file("bar", 5);
+        newPlan.file("targetAssets", 100 * WAD);
+
+        directDepositHub.file(ilk, "plan", address(newPlan));
+
+        (, ID3MPlan plan, , , ) = directDepositHub.ilks(ilk);
+        assertEq(address(plan), address(newPlan));
+        
+        directDepositHub.exec(ilk);
+
+        // New Plan should determine the pool position
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 100 * WAD);
+        assertEq(art, 100 * WAD);
+        assertTrue(d3mTestPool.accrued());
+    }
+
+    function test_hub_upgrade_same_d3ms() public {
+        _windSystem(); // Tests that the current pool has ink/art
+
+        // Setup New hub
+        DssDirectDepositHub newHub = new DssDirectDepositHub(address(vat), address(daiJoin));
+        newHub.file("vow", vow);
+        newHub.file("end", address(end));
+
+        newHub.file(ilk, "pool", address(d3mTestPool));
+        newHub.file(ilk, "plan", address(d3mTestPlan));
+        newHub.file(ilk, "tau", 7 days);
+
+        // Update permissions on d3ms
+        d3mTestPool.rely(address(newHub));
+        d3mTestPool.deny(address(directDepositHub));
+        d3mTestPool.hope(address(newHub));
+        d3mTestPool.nope(address(directDepositHub));
+        
+        // Update Permissions in Vat
+        vat.deny(address(directDepositHub));
+        vat.rely(address(newHub));
+        directDepositHub.nope();
+
+        // Clean up old hub
+        directDepositHub.file(ilk, "pool", address(0));
+        directDepositHub.file(ilk, "plan", address(0));
+        directDepositHub.file(ilk, "tau", 0);
+
+        // Ensure new hub operation
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 100 * WAD);
+        newHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 100 * WAD);
+        assertEq(art, 100 * WAD);
+        assertTrue(d3mTestPool.accrued());
+    }
+
+    function testFail_hub_upgrade_kills_old_hub() public {
+        _windSystem(); // Tests that the current pool has ink/art
+
+        // Setup New hub
+        DssDirectDepositHub newHub = new DssDirectDepositHub(address(vat), address(daiJoin));
+        newHub.file("vow", vow);
+        newHub.file("end", address(end));
+
+        newHub.file(ilk, "pool", address(d3mTestPool));
+        newHub.file(ilk, "plan", address(d3mTestPlan));
+        newHub.file(ilk, "tau", 7 days);
+
+        // Update permissions on d3ms
+        d3mTestPool.rely(address(newHub));
+        d3mTestPool.deny(address(directDepositHub));
+        d3mTestPool.hope(address(newHub));
+        d3mTestPool.nope(address(directDepositHub));
+        
+        // Update Permissions in Vat
+        vat.deny(address(directDepositHub));
+        vat.rely(address(newHub));
+        directDepositHub.nope();
+
+        // Clean up old hub
+        directDepositHub.file(ilk, "pool", address(0));
+        directDepositHub.file(ilk, "plan", address(0));
+        directDepositHub.file(ilk, "tau", 0);
+
+        // Ensure old hub revert
+        directDepositHub.exec(ilk);
+    }
+
+    function test_hub_upgrade_new_d3ms() public {
+        _windSystem(); // Tests that the current pool has ink/art
+
+        // Setup New hub and D3M
+        DssDirectDepositHub newHub = new DssDirectDepositHub(address(vat), address(daiJoin));
+        newHub.file("vow", vow);
+        newHub.file("end", address(end));
+        vat.rely(address(newHub));
+
+        // Setup new pool
+        D3MTestPool newPool = new D3MTestPool(
+            address(newHub),
+            address(dai),
+            address(testGem),
+            address(rewardsClaimer)
+        );
+        newPool.rely(address(newHub));
+        testGem.rely(address(newPool));
+        testGem.giveAllowance(
+            address(dai),
+            address(newPool),
+            type(uint256).max
+        );
+
+        // Setup new plan
+        D3MTestPlan newPlan = new D3MTestPlan(address(dai));
+        newPlan.file("maxBar_", type(uint256).max);
+        newPlan.file("bar", 5);
+        newPlan.file("targetAssets", 100 * WAD);
+
+        // Create D3M in New Hub
+        newHub.file(ilk, "pool", address(newPool));
+        newHub.file(ilk, "plan", address(newPlan));
+        (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
+        newHub.file(ilk, "tau", tau);
+
+        (uint256 npink, uint256 npart) = vat.urns(ilk, address(newPool));
+        assertEq(npink, 0);
+        assertEq(npart, 0);
+        assertTrue(newPool.accrued() == false);
+
+        // Transition Balances
+        newPool.hope(address(directDepositHub));
+        directDepositHub.quit(ilk, address(newPool));
+        newPool.nope(address(directDepositHub));
+
+        // Ensure we quit our position
+        (uint256 opink, uint256 opart) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(opink, 0);
+        assertEq(opart, 0);
+        // quit does not call accrued
+        assertTrue(d3mTestPool.accrued() == false);
+
+        (npink, npart) = vat.urns(ilk, address(newPool));
+        assertEq(npink, 50 * WAD);
+        assertEq(npart, 50 * WAD);
+        assertTrue(newPool.accrued() == false);
+        
+        // Clean up after transition
+        directDepositHub.cage(ilk);
+        d3mTestPool.deny(address(directDepositHub));
+        d3mTestPool.nope(address(directDepositHub));
+        vat.deny(address(directDepositHub));
+        directDepositHub.nope();
+
+        // Ensure new hub operation
+        newPlan.file("bar", 10);
+        newPlan.file("targetAssets", 200 * WAD);
+        newHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(newPool));
+        assertEq(ink, 200 * WAD);
+        assertEq(art, 200 * WAD);
+        assertTrue(newPool.accrued());
     }
 }

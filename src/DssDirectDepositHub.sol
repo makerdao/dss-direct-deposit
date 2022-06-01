@@ -96,13 +96,12 @@ contract DssDirectDepositHub {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
+    event File(bytes32 indexed what, address data);
     event File(bytes32 indexed ilk, bytes32 indexed what, address data);
     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
-    event File(bytes32 indexed what, address data);
     event Wind(bytes32 indexed ilk, uint256 amount);
     event Unwind(bytes32 indexed ilk, uint256 amount, uint256 fees);
     event Reap(bytes32 indexed ilk, uint256 amt);
-    event Cage();
     event Cage(bytes32 indexed ilk);
     event Cull(bytes32 indexed ilk);
     event Uncull(bytes32 indexed ilk);
