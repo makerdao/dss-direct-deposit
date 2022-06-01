@@ -350,6 +350,10 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.nope();
     }
 
+    function testFail_exec_no_ilk() public {
+        directDepositHub.exec("fake-ilk");
+    }
+    
     function test_wind_limited_ilk_line() public {
         d3mTestPlan.file("bar", 10);
         d3mTestPlan.file("targetAssets", 50 * WAD);
