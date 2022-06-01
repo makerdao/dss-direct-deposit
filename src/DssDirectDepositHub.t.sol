@@ -1318,4 +1318,60 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(newPool.preDebt());
         assertTrue(newPool.postDebt());
     }
+
+    function cmpStr(string memory a, string memory b) internal pure returns (bool) {
+        return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
+    }
+
+    function test_exec_lock_protection() public {
+        // Store memory slot 0x4
+        hevm.store(address(directDepositHub), bytes32(uint256(3)), bytes32(uint256(1)));
+        assertEq(directDepositHub.locked(), 1);
+
+        try directDepositHub.exec(ilk) {}
+        catch Error(string memory errmsg) {
+            bytes32 locked = hevm.load(address(directDepositHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
+            assertTrue(uint256(locked) == 1);
+            assertTrue(cmpStr(errmsg, "DssDirectDepositHub/system-locked"));
+        }
+    }
+
+    function test_reap_lock_protection() public {
+        // Store memory slot 0x4
+        hevm.store(address(directDepositHub), bytes32(uint256(3)), bytes32(uint256(1)));
+        assertEq(directDepositHub.locked(), 1);
+
+        try directDepositHub.reap(ilk) {}
+        catch Error(string memory errmsg) {
+            bytes32 locked = hevm.load(address(directDepositHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
+            assertTrue(uint256(locked) == 1);
+            assertTrue(cmpStr(errmsg, "DssDirectDepositHub/system-locked"));
+        }
+    }
+
+    function test_exit_lock_protection() public {
+        // Store memory slot 0x4
+        hevm.store(address(directDepositHub), bytes32(uint256(3)), bytes32(uint256(1)));
+        assertEq(directDepositHub.locked(), 1);
+
+        try directDepositHub.exit(ilk, address(this), 1) {}
+        catch Error(string memory errmsg) {
+            bytes32 locked = hevm.load(address(directDepositHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
+            assertTrue(uint256(locked) == 1);
+            assertTrue(cmpStr(errmsg, "DssDirectDepositHub/system-locked"));
+        }
+    }
+
+    function test_quit_lock_protection() public {
+        // Store memory slot 0x4
+        hevm.store(address(directDepositHub), bytes32(uint256(3)), bytes32(uint256(1)));
+        assertEq(directDepositHub.locked(), 1);
+
+        try directDepositHub.quit(ilk, address(this)) {}
+        catch Error(string memory errmsg) {
+            bytes32 locked = hevm.load(address(directDepositHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
+            assertTrue(uint256(locked) == 1);
+            assertTrue(cmpStr(errmsg, "DssDirectDepositHub/system-locked"));
+        }
+    }
 }

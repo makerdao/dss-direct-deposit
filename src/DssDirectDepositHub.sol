@@ -71,6 +71,7 @@ contract DssDirectDepositHub {
     DaiJoinLike  public immutable daiJoin;
     address      public           vow;
     EndLike      public           end;
+    uint256      public           locked;
 
     /// @notice maps ilk bytes32 to the D3M tracking struct.
     mapping (bytes32 => Ilk) public ilks;
@@ -127,6 +128,14 @@ contract DssDirectDepositHub {
     modifier auth {
         require(wards[msg.sender] == 1, "DssDirectDepositHub/not-authorized");
         _;
+    }
+
+    /// @notice Mutex to prevent reentrancy on external functions
+    modifier lock {
+        require(locked == 0, "DssDirectDepositHub/system-locked");
+        locked = 1;
+        _;
+        locked = 0;
     }
 
     // --- Math ---
@@ -381,7 +390,7 @@ contract DssDirectDepositHub {
         of assets available to be withdrawn from the pool.
         @param ilk bytes32 of the D3M ilk name
     */
-    function exec(bytes32 ilk) external {
+    function exec(bytes32 ilk) external lock {
         (uint256 Art, uint256 rate,, uint256 line,) = vat.ilks(ilk);
         require(rate == 1 * RAY, "DssDirectDepositHub/rate-not-one");
 
@@ -476,7 +485,7 @@ contract DssDirectDepositHub {
         be withdrawn from the pool.
         @param ilk bytes32 of the D3M ilk name
     */
-    function reap(bytes32 ilk) external {
+    function reap(bytes32 ilk) external lock {
         ID3MPool pool = ilks[ilk].pool;
 
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
@@ -508,7 +517,7 @@ contract DssDirectDepositHub {
         @param usr address that should receive the shares from the pool
         @param wad amount of gems that the msg.sender is returning
     */
-    function exit(bytes32 ilk, address usr, uint256 wad) external {
+    function exit(bytes32 ilk, address usr, uint256 wad) external lock {
         require(wad <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
         vat.slip(ilk, msg.sender, -int256(wad));
         ID3MPool pool = ilks[ilk].pool;
@@ -607,7 +616,7 @@ contract DssDirectDepositHub {
         @param ilk bytes32 of the D3M ilk name
         @param who address of who will receive the shares and possibly the urn
     */
-    function quit(bytes32 ilk, address who) external auth {
+    function quit(bytes32 ilk, address who) external lock auth {
         require(vat.live() == 1, "DssDirectDepositHub/no-quit-during-shutdown");
 
         ID3MPool pool = ilks[ilk].pool;
