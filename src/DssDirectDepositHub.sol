@@ -102,7 +102,6 @@ contract DssDirectDepositHub {
     event Wind(bytes32 indexed ilk, uint256 amount);
     event Unwind(bytes32 indexed ilk, uint256 amount, uint256 fees);
     event Reap(bytes32 indexed ilk, uint256 amt);
-    event Cage();
     event Cage(bytes32 indexed ilk);
     event Cull(bytes32 indexed ilk);
     event Uncull(bytes32 indexed ilk);
