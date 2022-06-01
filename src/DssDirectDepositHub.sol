@@ -241,7 +241,7 @@ contract DssDirectDepositHub {
         emit Wind(ilk, amount);
     }
 
-    function _unwind(bytes32 ilk, ID3MPool pool, uint256 supplyReduction, uint256 availableAssets, Mode mode, uint256 assetBalance) internal {
+    function _unwind(bytes32 ilk, ID3MPool pool, uint256 supplyReduction, Mode mode, uint256 assetBalance) internal {
         // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
         // That's why it converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
@@ -265,6 +265,8 @@ contract DssDirectDepositHub {
             end_.skim(ilk, address(pool));
             daiDebt = vat.gem(ilk, address(end_));
         }
+
+        uint256 availableAssets = pool.maxWithdraw();
 
         // Unwind amount is limited by how much:
         // - max reduction desired
@@ -387,7 +389,6 @@ contract DssDirectDepositHub {
         ID3MPool pool = ilks[ilk].pool;
 
         pool.preDebtChange();
-        uint256 availableAssets = pool.maxWithdraw();
         uint256 currentAssets = pool.assetBalance();
 
         if (vat.live() == 0) {
@@ -398,7 +399,6 @@ contract DssDirectDepositHub {
                 ilk,
                 pool,
                 type(uint256).max,
-                availableAssets,
                 Mode.MCD_CAGED,
                 currentAssets
             );
@@ -408,7 +408,6 @@ contract DssDirectDepositHub {
                 ilk,
                 pool,
                 type(uint256).max,
-                availableAssets,
                 ilks[ilk].culled == 1
                 ? Mode.MODULE_CULLED
                 : Mode.NORMAL,
@@ -439,7 +438,6 @@ contract DssDirectDepositHub {
                     ilk,
                     pool,
                     toUnwind,
-                    availableAssets,
                     Mode.NORMAL,
                     currentAssets
                 );
