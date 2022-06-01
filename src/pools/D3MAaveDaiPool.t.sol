@@ -43,6 +43,8 @@ contract FakeRewardsClaimer {
     }
     ClaimCall public lastClaim;
 
+    address public REWARD_TOKEN = address(123);
+
     function claimRewards(address[] calldata assets, uint256 amt, address dst) external returns (uint256) {
         lastClaim = ClaimCall(
             assets,

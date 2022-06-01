@@ -59,6 +59,7 @@ interface LendingPoolLike {
 }
 
 interface RewardsClaimerLike {
+    function REWARD_TOKEN() external returns (address);
     function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
 }
 
@@ -78,7 +79,7 @@ contract D3MAaveDaiPool is ID3MPool {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, address data);
-    event Collect(address indexed king, address[] assets, uint256 amt);
+    event Collect(address indexed king, address indexed gift, uint256 amt);
 
     constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) {
         pool = LendingPoolLike(pool_);
@@ -201,6 +202,7 @@ contract D3MAaveDaiPool is ID3MPool {
         assets[0] = address(adai);
 
         amt = rewardsClaimer.claimRewards(assets, type(uint256).max, king);
-        emit Collect(king, assets, amt);
+        address gift = rewardsClaimer.REWARD_TOKEN();
+        emit Collect(king, gift, amt);
     }
 }
