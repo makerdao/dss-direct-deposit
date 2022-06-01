@@ -508,6 +508,7 @@ contract DssDirectDepositHub {
     */
     function cage(bytes32 ilk) external auth {
         require(vat.live() == 1, "DssDirectDepositHub/no-cage-during-shutdown");
+        require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-already-caged");
 
         ilks[ilk].tic = block.timestamp + ilks[ilk].tau;
         emit Cage(ilk);

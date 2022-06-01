@@ -228,7 +228,7 @@ contract D3MPoolBaseTest is DSTest {
         D3MPoolBase(d3mTestPool).rely(address(this));
     }
 
-    function testFail_no_auth_cannot_recoverTokens() public {
+    function testFail_no_auth_cannot_recoverDai() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
 
         D3MPoolBase(d3mTestPool).recoverDai(address(this), 10 * WAD);

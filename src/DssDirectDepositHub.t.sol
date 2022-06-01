@@ -677,8 +677,18 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(tic, block.timestamp + tau);
     }
 
+    function testFail_cage_pool_mcd_caged() public {
+        vat.cage();
+        directDepositHub.cage(ilk);
+    }
+    
     function testFail_cage_pool_no_auth() public {
         directDepositHub.deny(address(this));
+        directDepositHub.cage(ilk);
+    }
+
+    function testFail_cage_pool_already_caged() public {
+        directDepositHub.cage(ilk);
         directDepositHub.cage(ilk);
     }
 
