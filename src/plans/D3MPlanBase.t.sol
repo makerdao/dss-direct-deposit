@@ -88,7 +88,7 @@ contract D3MPlanBaseTest is DSTest {
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );
 
-        dai = DaiLike(address(123));
+        dai = DaiLike(address(0x123));
 
         d3mTestPlan = address(new D3MPlanBase(address(dai)));
     }
