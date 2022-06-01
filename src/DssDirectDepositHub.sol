@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import "./pools/ID3MPool.sol";
 import "./plans/ID3MPlan.sol";
@@ -113,7 +113,7 @@ contract DssDirectDepositHub {
         @param vat_     address of the DSS vat contract
         @param daiJoin_ address of the DSS Dai Join contract
     */
-    constructor(address vat_, address daiJoin_) public {
+    constructor(address vat_, address daiJoin_) {
         vat = VatLike(vat_);
         daiJoin = DaiJoinLike(daiJoin_);
         TokenLike(DaiJoinLike(daiJoin_).dai()).approve(daiJoin_, type(uint256).max);
@@ -131,16 +131,6 @@ contract DssDirectDepositHub {
 
     // --- Math ---
     uint256 internal constant RAY = 10 ** 27;
-
-    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "DssDirectDepositHub/overflow");
-    }
-    function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "DssDirectDepositHub/underflow");
-    }
-    function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "DssDirectDepositHub/overflow");
-    }
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
     }
@@ -148,7 +138,7 @@ contract DssDirectDepositHub {
         z = x >= y ? x : y;
     }
     function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _add(x, _sub(y, 1)) / y;
+        z = (x + (y - 1)) / y;
     }
 
     // --- Administration ---
@@ -228,7 +218,7 @@ contract DssDirectDepositHub {
             return;
         }
 
-        require(int256(amount) >= 0, "DssDirectDepositHub/overflow");
+        require(amount <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
 
         vat.slip(ilk, address(pool), int256(amount));
         vat.frob(ilk, address(pool), address(pool), address(this), int256(amount), int256(amount));
@@ -281,11 +271,14 @@ contract DssDirectDepositHub {
         // Determine the amount of fees to bring back
         uint256 fees = 0;
         if (assetBalance > daiDebt) {
-            fees = assetBalance - daiDebt;
+            unchecked {
+                fees = assetBalance - daiDebt;
+            }
 
-            if (_add(amount, fees) > availableAssets) {
-                // Don't need safe-math because this is constrained above
-                fees = availableAssets - amount;
+            if (amount + fees > availableAssets) {
+                unchecked {
+                    fees = availableAssets - amount;
+                }
             }
         }
 
@@ -294,10 +287,10 @@ contract DssDirectDepositHub {
             return;
         }
 
-        require(amount <= 2 ** 255, "DssDirectDepositHub/overflow");
+        require(amount <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
 
         // To save gas you can bring the fees back with the unwind
-        uint256 total = _add(amount, fees);
+        uint256 total = amount + fees;
         require(pool.withdraw(total), "DssDirectDepositHub/withdraw-failed");
         daiJoin.join(address(this), total);
 
@@ -306,16 +299,16 @@ contract DssDirectDepositHub {
         if (mode == Mode.NORMAL) {
             vat.frob(ilk, address(pool), address(pool), address(this), -int256(amount), -int256(amount));
             vat.slip(ilk, address(pool), -int256(amount));
-            vat.move(address(this), vow, _mul(fees, RAY));
+            vat.move(address(this), vow, fees * RAY);
         } else if (mode == Mode.MODULE_CULLED) {
             vat.slip(ilk, address(pool), -int256(amount));
-            vat.move(address(this), vow, _mul(total, RAY));
+            vat.move(address(this), vow, total * RAY);
         } else {
             // This can be done with the assumption that the price of 1 collateral unit equals 1 DAI.
             // That way we know that the prev End.skim call kept its gap[ilk] emptied as the CDP was always collateralized.
             // Otherwise we couldn't just simply take away the collateral from the End module as the next line will be doing.
             vat.slip(ilk, address(end_), -int256(amount));
-            vat.move(address(this), vow, _mul(total, RAY));
+            vat.move(address(this), vow, total * RAY);
         }
 
         emit Unwind(ilk, amount, fees);
@@ -421,16 +414,22 @@ contract DssDirectDepositHub {
             uint256 debt = vat.debt();
             uint256 toUnwind;
             if (Art > lineWad) {
-                toUnwind = Art - lineWad;
+                unchecked {
+                    toUnwind = Art - lineWad;
+                }
             }
             if (debt > Line) {
-                toUnwind = _max(toUnwind, _divup(debt - Line, RAY));
+                unchecked {
+                    toUnwind = _max(toUnwind, _divup(debt - Line, RAY));
+                }
             }
 
             // Determine if it needs to unwind due plan
             uint256 targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
             if (targetAssets < currentAssets) {
-                toUnwind = _max(toUnwind, currentAssets - targetAssets);
+                unchecked {
+                    toUnwind = _max(toUnwind, currentAssets - targetAssets);
+                }
             }
 
             if (toUnwind > 0) {
@@ -442,10 +441,13 @@ contract DssDirectDepositHub {
                     currentAssets
                 );
             } else {
+                uint256 toWind;
                 // All the subtractions are safe as otherwise toUnwind is > 0
-                uint256 toWind = targetAssets - currentAssets;
-                toWind = _min(toWind, lineWad - Art);
-                toWind = _min(toWind, (Line - debt) / RAY);
+                unchecked {
+                    toWind = targetAssets - currentAssets;
+                    toWind = _min(toWind, lineWad - Art);
+                    toWind = _min(toWind, (Line - debt) / RAY);
+                }
                 // Determine if the pool limits our total deposits
                 toWind = _min(toWind, pool.maxDeposit());
                 _wind(ilk, pool, toWind);
@@ -473,7 +475,10 @@ contract DssDirectDepositHub {
         uint256 assetBalance = pool.assetBalance();
         (, uint256 daiDebt) = vat.urns(ilk, address(pool));
         if (assetBalance > daiDebt) {
-            uint256 fees = assetBalance - daiDebt;
+            uint256 fees;
+            unchecked {
+                fees = assetBalance - daiDebt;
+            }
             fees = _min(fees, pool.maxWithdraw());
             require(pool.withdraw(fees), "DssDirectDepositHub/withdraw-failed");
             daiJoin.join(vow, fees);
@@ -491,7 +496,7 @@ contract DssDirectDepositHub {
         @param wad amount of gems that the msg.sender is returning
     */
     function exit(bytes32 ilk, address usr, uint256 wad) external {
-        require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
+        require(wad <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
         vat.slip(ilk, msg.sender, -int256(wad));
         ID3MPool pool = ilks[ilk].pool;
         require(pool.transfer(usr, wad), "DssDirectDepositHub/failed-transfer");
@@ -538,15 +543,17 @@ contract DssDirectDepositHub {
         ID3MPool pool = ilks[ilk].pool;
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
-        require(ink <= 2 ** 255, "DssDirectDepositHub/overflow");
-        require(art <= 2 ** 255, "DssDirectDepositHub/overflow");
+        require(ink <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
+        require(art <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
         vat.grab(ilk, address(pool), address(pool), vow, -int256(ink), -int256(art));
 
         if (ink > art) {
             // We have more collateral than debt, so need to rebalance.
             // After cull the gems we grab above represent the debt to
             // unwind.
-            vat.slip(ilk, address(pool), -int256(ink - art));
+            unchecked {
+                vat.slip(ilk, address(pool), -int256(ink - art));
+            }
         }
 
         ilks[ilk].culled = 1;
@@ -570,8 +577,8 @@ contract DssDirectDepositHub {
 
         address vow_ = vow;
         uint256 wad = vat.gem(ilk, address(pool));
-        require(wad < 2 ** 255, "DssDirectDepositHub/overflow");
-        vat.suck(vow_, vow_, _mul(wad, RAY)); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+        require(wad <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
+        vat.suck(vow_, vow_, wad * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
         vat.grab(ilk, address(pool), address(pool), vow_, int256(wad), int256(wad));
 
         ilks[ilk].culled = 0;
@@ -598,13 +605,13 @@ contract DssDirectDepositHub {
         if (ilks[ilk].culled == 1) {
             // Culled - just zero out the gems
             uint256 wad = vat.gem(ilk, address(pool));
-            require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
+            require(wad <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
             vat.slip(ilk, address(pool), -int256(wad));
         } else {
             // Regular operation - transfer the debt position (requires who to accept the transfer)
             (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
-            require(ink < 2 ** 255, "DssDirectDepositHub/overflow");
-            require(art < 2 ** 255, "DssDirectDepositHub/overflow");
+            require(ink <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
+            require(art <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
             vat.fork(ilk, address(pool), who, int256(ink), int256(art));
         }
         emit Quit(ilk, who);

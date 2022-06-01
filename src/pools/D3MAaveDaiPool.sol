@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import "./ID3MPool.sol";
 
@@ -80,7 +80,7 @@ contract D3MAaveDaiPool is ID3MPool {
     event File(bytes32 indexed what, address data);
     event Collect(address indexed king, address[] assets, uint256 amt);
 
-    constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) public {
+    constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) {
         pool = LendingPoolLike(pool_);
         asset = TokenLike(dai_);
 
@@ -110,15 +110,8 @@ contract D3MAaveDaiPool is ID3MPool {
 
     // --- Math ---
     uint256 internal constant RAY  = 10 ** 27;
-
-    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "D3MAaveDaiPool/overflow");
-    }
-    function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "D3MAaveDaiPool/overflow");
-    }
     function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, RAY) / y;
+        z = (x * RAY) / y;
     }
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
@@ -158,7 +151,7 @@ contract D3MAaveDaiPool is ID3MPool {
         // Verify the correct amount of adai shows up
         uint256 interestIndex = pool.getReserveNormalizedIncome(address(asset));
         uint256 scaledAmount = _rdiv(wad, interestIndex);
-        return adai.scaledBalanceOf(address(this)) >= _add(scaledPrev, scaledAmount);
+        return adai.scaledBalanceOf(address(this)) >= (scaledPrev + scaledAmount);
     }
 
     // Withdraws Dai from Aave in exchange for adai
@@ -185,7 +178,7 @@ contract D3MAaveDaiPool is ID3MPool {
         return adai.balanceOf(address(this));
     }
 
-    function maxDeposit() external view override returns (uint256) {
+    function maxDeposit() external pure override returns (uint256) {
         return type(uint256).max;
     }
 
@@ -197,7 +190,7 @@ contract D3MAaveDaiPool is ID3MPool {
         return TokenLike(asset).transfer(dst, wad);
     }
 
-    function active() external view override returns (bool) {
+    function active() external pure override returns (bool) {
         return true;
     }
 

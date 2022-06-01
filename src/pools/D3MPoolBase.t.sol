@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import "ds-test/test.sol";
 import {DaiLike, CanLike, D3mHubLike} from "../tests/interfaces/interfaces.sol";
@@ -56,7 +56,7 @@ contract D3MPoolBase is ID3MPool {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(address hub_, address dai_) public {
+    constructor(address hub_, address dai_) {
         asset = DaiLike(dai_);
 
         CanLike(D3mHubLike(hub_).vat()).hope(hub_);
@@ -97,7 +97,7 @@ contract D3MPoolBase is ID3MPool {
 
     function recoverDai(address dst, uint256 wad) external override auth returns (bool) {}
 
-    function active() external override view returns(bool) {
+    function active() external override pure returns(bool) {
         return true;
     }
 }
@@ -111,7 +111,7 @@ contract FakeVat {
 contract FakeHub {
     address public immutable vat;
 
-    constructor(address vat_) public {
+    constructor(address vat_) {
         vat = vat_;
     }
 }

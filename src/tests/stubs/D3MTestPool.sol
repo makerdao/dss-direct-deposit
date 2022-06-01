@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import { D3MTestGem } from "./D3MTestGem.sol";
 import "../../pools/ID3MPool.sol";
@@ -44,7 +44,7 @@ contract D3MTestPool is ID3MPool {
     event Deny(address indexed usr);
     event Collect(address indexed king, address[] assets, uint256 amt);
 
-    constructor(address hub_, address dai_, address share_, address _rewardsClaimer) public {
+    constructor(address hub_, address dai_, address share_, address _rewardsClaimer) {
         asset = TokenLike(dai_);
         share = share_;
 
