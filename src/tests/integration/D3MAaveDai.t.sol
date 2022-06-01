@@ -17,14 +17,14 @@
 pragma solidity ^0.8.14;
 
 import "ds-test/test.sol";
-import "../tests/interfaces/interfaces.sol";
+import "../interfaces/interfaces.sol";
 
-import { DssDirectDepositHub } from "../DssDirectDepositHub.sol";
-import { D3MMom } from "../D3MMom.sol";
-import { ValueStub } from "../tests/stubs/ValueStub.sol";
+import { DssDirectDepositHub } from "../../DssDirectDepositHub.sol";
+import { D3MMom } from "../../D3MMom.sol";
+import { ValueStub } from "../stubs/ValueStub.sol";
 
-import { D3MAaveDaiPlan } from "../plans/D3MAaveDaiPlan.sol";
-import { D3MAaveDaiPool } from "./D3MAaveDaiPool.sol";
+import { D3MAaveDaiPlan } from "../../plans/D3MAaveDaiPlan.sol";
+import { D3MAaveDaiPool } from "../../pools/D3MAaveDaiPool.sol";
 
 interface Hevm {
     function warp(uint256) external;
