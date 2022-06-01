@@ -443,13 +443,20 @@ contract DssDirectDepositHub {
                 uint256 toWind;
                 // All the subtractions are safe as otherwise toUnwind is > 0
                 unchecked {
-                    toWind = targetAssets - currentAssets;
-                    toWind = _min(toWind, lineWad - Art);
-                    toWind = _min(toWind, (Line - debt) / RAY);
+                    toWind = _min(
+                                _min(
+                                    _min(
+                                        _min(
+                                            targetAssets - currentAssets,
+                                            lineWad - Art
+                                        ), 
+                                        (Line - debt) / RAY
+                                    ),
+                                    pool.maxDeposit() // Determine if the pool limits our total deposits
+                                ), 
+                                uint256(type(int256).max)
+                            );
                 }
-                // Determine if the pool limits our total deposits
-                toWind = _min(toWind, pool.maxDeposit());
-                toWind = _min(toWind, uint256(type(int256).max));
                 _wind(ilk, pool, toWind);
             }
         }
