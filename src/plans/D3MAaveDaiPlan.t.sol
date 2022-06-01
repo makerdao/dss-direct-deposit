@@ -40,10 +40,10 @@ interface InterestRateStrategyLike {
 
 contract D3MAaveDaiPlanWrapper is D3MAaveDaiPlan {
 
-    constructor(address dai_, address pool_) public D3MAaveDaiPlan(dai_, pool_) {}
+    constructor(address dai_, address pool_) D3MAaveDaiPlan(dai_, pool_) {}
 
     function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
-        uint256 totalDebt = _add(stableDebt.totalSupply(), variableDebt.totalSupply());
+        uint256 totalDebt = stableDebt.totalSupply() + variableDebt.totalSupply();
         return _calculateTargetSupply(targetInterestRate, totalDebt);
     }
 }

@@ -211,59 +211,6 @@ contract DssDirectDepositHub {
         emit File(ilk, what, data);
     }
 
-    /**
-        @notice remove hope on daiJoin to kill hub
-    */
-    function nope() external auth {
-        vat.nope(address(daiJoin));
-    }
-
-    // Ilk Getters
-    /**
-        @notice Return pool of an ilk
-        @param ilk   bytes32 of the D3M ilk
-        @return pool address of pool contract
-    */
-    function ilkPool(bytes32 ilk) external view returns (address) {
-        return address(ilks[ilk].pool);
-    }
-
-    /**
-        @notice Return plan of an ilk
-        @param ilk   bytes32 of the D3M ilk
-        @return plan address of plan contract
-    */
-    function ilkPlan(bytes32 ilk) external view returns (address) {
-        return address(ilks[ilk].plan);
-    }
-
-    /**
-        @notice Return tau of an ilk
-        @param ilk  bytes32 of the D3M ilk
-        @return tau sec until debt can be written off
-    */
-    function ilkTau(bytes32 ilk) external view returns (uint256) {
-        return ilks[ilk].tau;
-    }
-
-    /**
-        @notice Return culled status of an ilk
-        @param ilk  bytes32 of the D3M ilk
-        @return culled whether or not the d3m has been culled
-    */
-    function ilkCulled(bytes32 ilk) external view returns (uint256) {
-        return ilks[ilk].culled;
-    }
-
-    /**
-        @notice Return tic of an ilk
-        @param ilk  bytes32 of the D3M ilk
-        @return tic timestamp of when d3m is caged
-    */
-    function ilkTic(bytes32 ilk) external view returns (uint256) {
-        return ilks[ilk].tic;
-    }
-
     // --- Deposit controls ---
     function _wind(bytes32 ilk, ID3MPool pool, uint256 amount) internal {
         // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
