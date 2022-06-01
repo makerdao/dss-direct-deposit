@@ -262,10 +262,13 @@ contract DssDirectDepositHub {
         // - dai debt tracked in vat (CDP or free)
         uint256 amount = _min(
                             _min(
-                                supplyReduction,
-                                availableAssets
+                                _min(
+                                    supplyReduction,
+                                    availableAssets
+                                ),
+                                daiDebt
                             ),
-                            daiDebt
+                            uint256(type(int256).max)
                          );
 
         // Determine the amount of fees to bring back
@@ -286,8 +289,6 @@ contract DssDirectDepositHub {
             emit Unwind(ilk, 0, 0);
             return;
         }
-
-        require(amount <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
 
         // To save gas you can bring the fees back with the unwind
         uint256 total = amount + fees;
