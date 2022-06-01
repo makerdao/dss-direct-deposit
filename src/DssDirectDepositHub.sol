@@ -274,7 +274,7 @@ contract DssDirectDepositHub {
             return;
         }
 
-        require(int256(amount) >= 0, "DssDirectDepositHub/overflow");
+        require(amount <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
 
         vat.slip(ilk, address(pool), int256(amount));
         vat.frob(ilk, address(pool), address(pool), address(this), int256(amount), int256(amount));
@@ -341,7 +341,7 @@ contract DssDirectDepositHub {
             return;
         }
 
-        require(amount <= 2 ** 255, "DssDirectDepositHub/overflow");
+        require(amount <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
 
         // To save gas you can bring the fees back with the unwind
         uint256 total = amount + fees;
@@ -496,7 +496,7 @@ contract DssDirectDepositHub {
         @param wad amount of gems that the msg.sender is returning
     */
     function exit(bytes32 ilk, address usr, uint256 wad) external {
-        require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
+        require(wad <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
         vat.slip(ilk, msg.sender, -int256(wad));
         ID3MPool pool = ilks[ilk].pool;
         require(pool.transfer(usr, wad), "DssDirectDepositHub/failed-transfer");
@@ -543,8 +543,8 @@ contract DssDirectDepositHub {
         ID3MPool pool = ilks[ilk].pool;
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
-        require(ink <= 2 ** 255, "DssDirectDepositHub/overflow");
-        require(art <= 2 ** 255, "DssDirectDepositHub/overflow");
+        require(ink <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
+        require(art <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
         vat.grab(ilk, address(pool), address(pool), vow, -int256(ink), -int256(art));
 
         if (ink > art) {
@@ -577,7 +577,7 @@ contract DssDirectDepositHub {
 
         address vow_ = vow;
         uint256 wad = vat.gem(ilk, address(pool));
-        require(wad < 2 ** 255, "DssDirectDepositHub/overflow");
+        require(wad <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
         vat.suck(vow_, vow_, wad * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
         vat.grab(ilk, address(pool), address(pool), vow_, int256(wad), int256(wad));
 
@@ -605,13 +605,13 @@ contract DssDirectDepositHub {
         if (ilks[ilk].culled == 1) {
             // Culled - just zero out the gems
             uint256 wad = vat.gem(ilk, address(pool));
-            require(wad <= 2 ** 255, "DssDirectDepositHub/overflow");
+            require(wad <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
             vat.slip(ilk, address(pool), -int256(wad));
         } else {
             // Regular operation - transfer the debt position (requires who to accept the transfer)
             (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
-            require(ink < 2 ** 255, "DssDirectDepositHub/overflow");
-            require(art < 2 ** 255, "DssDirectDepositHub/overflow");
+            require(ink <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
+            require(art <= uint256(type(int256).max), "DssDirectDepositHub/overflow");
             vat.fork(ilk, address(pool), who, int256(ink), int256(art));
         }
         emit Quit(ilk, who);
