@@ -38,6 +38,16 @@ interface InterestRateStrategyLike {
     );
 }
 
+contract D3MAaveDaiPlanWrapper is D3MAaveDaiPlan {
+
+    constructor(address dai_, address pool_) public D3MAaveDaiPlan(dai_, pool_) {}
+
+    function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
+        uint256 totalDebt = _add(stableDebt.totalSupply(), variableDebt.totalSupply());
+        return _calculateTargetSupply(targetInterestRate, totalDebt);
+    }
+}
+
 contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
     uint256 constant RAY = 10 ** 27;
 
@@ -58,7 +68,7 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         adai = TokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
         interestStrategy = InterestRateStrategyLike(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
 
-        d3mTestPlan = address(new D3MAaveDaiPlan(address(dai), address(aavePool)));
+        d3mTestPlan = address(new D3MAaveDaiPlanWrapper(address(dai), address(aavePool)));
     }
 
     function assertEqInterest(uint256 _a, uint256 _b) internal {
@@ -138,7 +148,7 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
     function test_interest_rate_calc() public {
         // Confirm that the inverse function is correct by comparing all percentages
         for (uint256 i = 1; i <= 100 * interestStrategy.getMaxVariableBorrowRate() / RAY; i++) {
-            uint256 targetSupply = D3MAaveDaiPlan(d3mTestPlan).calculateTargetSupply(i * RAY / 100);
+            uint256 targetSupply = D3MAaveDaiPlanWrapper(d3mTestPlan).calculateTargetSupply(i * RAY / 100);
             (,, uint256 varBorrow) = interestStrategy.calculateInterestRates(
                 address(adai),
                 targetSupply - (adai.totalSupply() - dai.balanceOf(address(adai))),
