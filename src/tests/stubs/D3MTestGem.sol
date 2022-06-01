@@ -41,14 +41,6 @@ contract D3MTestGem {
         wards[msg.sender] = 1;
     }
 
-    // --- Math ---
-    function add(uint x, uint y) internal pure returns (uint z) {
-        require((z = x + y) >= x);
-    }
-    function sub(uint x, uint y) internal pure returns (uint z) {
-        require((z = x - y) <= x);
-    }
-
     // --- Auth ---
     function rely(address usr) external auth {
         wards[usr] = 1;
