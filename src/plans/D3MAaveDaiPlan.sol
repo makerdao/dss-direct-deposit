@@ -58,7 +58,7 @@ contract D3MAaveDaiPlan is ID3MPlan {
     TokenLike                public immutable variableDebt;
     TokenLike                public immutable dai;
     address                  public immutable adai;
-    InterestRateStrategyLike public           interestStrategy;
+    InterestRateStrategyLike public           tack;
     uint256                  public           bar;  // Target Interest Rate [ray]
 
     // --- Events ---
@@ -81,7 +81,7 @@ contract D3MAaveDaiPlan is ID3MPlan {
         adai = adai_;
         stableDebt = TokenLike(stableDebt_);
         variableDebt = TokenLike(variableDebt_);
-        interestStrategy = InterestRateStrategyLike(interestStrategy_);
+        tack = InterestRateStrategyLike(interestStrategy_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -122,23 +122,23 @@ contract D3MAaveDaiPlan is ID3MPlan {
     }
 
     function file(bytes32 what, address data) external auth {
-        if (what == "interestStrategy") interestStrategy = InterestRateStrategyLike(data);
+        if (what == "interestStrategy") tack = InterestRateStrategyLike(data);
         else revert("D3MAaveDaiPlan/file-unrecognized-param");
         emit File(what, data);
     }
 
     function _maxBar() internal view returns (uint256) {
-        return interestStrategy.getMaxVariableBorrowRate();
+        return tack.getMaxVariableBorrowRate();
     }
 
     // --- Automated Rate targeting ---
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 totalDebt) internal view returns (uint256) {
-        uint256 base = interestStrategy.baseVariableBorrowRate();
+        uint256 base = tack.baseVariableBorrowRate();
         require(targetInterestRate > base, "D3MAaveDaiPlan/target-interest-base");
         require(targetInterestRate <= _maxBar(), "D3MAaveDaiPlan/above-max-interest");
 
         // Do inverse calculation of interestStrategy
-        uint256 variableRateSlope1 = interestStrategy.variableRateSlope1();
+        uint256 variableRateSlope1 = tack.variableRateSlope1();
         uint256 targetUtil;
         if (targetInterestRate > base + variableRateSlope1) {
             // Excess interest rate
@@ -148,18 +148,18 @@ contract D3MAaveDaiPlan is ID3MPlan {
             }
             targetUtil = _rdiv(
                             _rmul(
-                                interestStrategy.EXCESS_UTILIZATION_RATE(),
+                                tack.EXCESS_UTILIZATION_RATE(),
                                 r
                             ),
-                            interestStrategy.variableRateSlope2()
-                         ) + interestStrategy.OPTIMAL_UTILIZATION_RATE();
+                            tack.variableRateSlope2()
+                         ) + tack.OPTIMAL_UTILIZATION_RATE();
         } else {
             // Optimal interest rate
             unchecked {
                 targetUtil = _rdiv(
                                 _rmul(
                                     targetInterestRate - base, 
-                                    interestStrategy.OPTIMAL_UTILIZATION_RATE()
+                                    tack.OPTIMAL_UTILIZATION_RATE()
                                 ), 
                                 variableRateSlope1
                              );
@@ -198,7 +198,7 @@ contract D3MAaveDaiPlan is ID3MPlan {
             return false;
         }
         (,,,,,,,,,, address strategy,) = pool.getReserveData(address(dai));
-        return strategy == address(interestStrategy);
+        return strategy == address(tack);
     }
 
     function disable() external override {

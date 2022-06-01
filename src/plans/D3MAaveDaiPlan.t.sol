@@ -108,7 +108,7 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
     }
 
     function test_sets_InterestStrategy() public {
-        assertEq(address(interestStrategy), address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()));
+        assertEq(address(interestStrategy), address(D3MAaveDaiPlan(d3mTestPlan).tack()));
     }
 
     function test_can_file_bar() public {
@@ -124,11 +124,11 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
     }
 
     function test_can_file_interestStratgey() public {
-        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), address(interestStrategy));
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).tack()), address(interestStrategy));
 
         D3MAaveDaiPlan(d3mTestPlan).file("interestStrategy", address(1));
 
-        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), address(1));
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).tack()), address(1));
     }
 
     function testFail_cannot_file_unknown_address_param() public {
@@ -186,7 +186,7 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         D3MAaveDaiPlan(d3mTestPlan).file("interestStrategy", address(456));
         (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
 
-        assertTrue(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()) != poolStrategy);
+        assertTrue(address(D3MAaveDaiPlan(d3mTestPlan).tack()) != poolStrategy);
 
         assertTrue(D3MAaveDaiPlan(d3mTestPlan).active() == false);
     }
@@ -199,7 +199,7 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
     function test_interestStrategy_not_changed_active() public {
         D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
         (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
-        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), poolStrategy);
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).tack()), poolStrategy);
 
         assertTrue(D3MAaveDaiPlan(d3mTestPlan).active());
     }
@@ -218,7 +218,7 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
     function testFail_disable_without_auth() public {
         D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
         (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
-        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), poolStrategy);
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).tack()), poolStrategy);
         D3MAaveDaiPlan(d3mTestPlan).deny(address(this));
 
         D3MAaveDaiPlan(d3mTestPlan).disable();
