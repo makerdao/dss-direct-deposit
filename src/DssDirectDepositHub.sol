@@ -90,7 +90,7 @@ contract DssDirectDepositHub {
         ID3MPlan plan;   // How we calculate target debt
         uint256  tau;    // Time until you can write off the debt [sec]
         uint256  culled; // Debt write off triggered
-        uint256  tic;    // Timestamp when the d3m is caged
+        uint256  tic;    // Timestamp when the d3m can be culled (tau + timestamp when caged)
     }
 
     // --- Events ---
@@ -195,8 +195,6 @@ contract DssDirectDepositHub {
         @param data number of seconds to wait after caging a pool to write off debt
     */
     function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
-        require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
-
         if (what == "tau") ilks[ilk].tau = data;
         else revert("DssDirectDepositHub/file-unrecognized-param");
 
@@ -511,7 +509,7 @@ contract DssDirectDepositHub {
     function cage(bytes32 ilk) external auth {
         require(vat.live() == 1, "DssDirectDepositHub/no-cage-during-shutdown");
 
-        ilks[ilk].tic = block.timestamp;
+        ilks[ilk].tic = block.timestamp + ilks[ilk].tau;
         emit Cage(ilk);
     }
 
@@ -531,8 +529,7 @@ contract DssDirectDepositHub {
         uint256 tic = ilks[ilk].tic;
         require(tic > 0, "DssDirectDepositHub/pool-live");
 
-        uint256 tau = ilks[ilk].tau;
-        require(_add(tic, tau) <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
+        require(tic <= block.timestamp || wards[msg.sender] == 1, "DssDirectDepositHub/unauthorized-cull");
 
         uint256 culled = ilks[ilk].culled;
         require(culled == 0, "DssDirectDepositHub/already-culled");

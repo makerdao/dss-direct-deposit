@@ -234,17 +234,6 @@ contract DssDirectDepositHubTest is DSTest {
         directDepositHub.file(ilk, "tau", 1 days);
     }
 
-    function testFail_pool_not_live_tau_file() public {
-        directDepositHub.file(ilk, "tau", 1 days);
-        (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
-        assertEq(tau, 1 days);
-
-        // Cage Pool
-        directDepositHub.cage(ilk);
-
-        directDepositHub.file(ilk, "tau", 7 days);
-    }
-
     function testFail_unknown_uint256_file() public {
         directDepositHub.file(ilk, "unknown", 1);
     }
@@ -679,13 +668,13 @@ contract DssDirectDepositHubTest is DSTest {
     }
 
     function test_cage_pool() public {
-        (, , , , uint256 tic) = directDepositHub.ilks(ilk);
+        (, , uint256 tau, , uint256 tic) = directDepositHub.ilks(ilk);
         assertEq(tic, 0);
 
         directDepositHub.cage(ilk);
 
         (, , , , tic) = directDepositHub.ilks(ilk);
-        assertEq(tic, block.timestamp);
+        assertEq(tic, block.timestamp + tau);
     }
 
     function testFail_cage_pool_no_auth() public {
