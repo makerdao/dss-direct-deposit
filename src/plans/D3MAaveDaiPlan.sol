@@ -199,6 +199,9 @@ contract D3MAaveDaiPlan is ID3MPlan {
     }
 
     function active() public view override returns (bool) {
+        if (bar == 0) {
+            return false;
+        }
         (,,,,,,,,,, address strategy,) = pool.getReserveData(address(dai));
         return strategy == address(interestStrategy);
     }

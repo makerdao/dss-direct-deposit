@@ -88,24 +88,23 @@ contract DssDirectDepositHub {
     struct Ilk {
         ID3MPool pool;   // Access external pool and holds balances
         ID3MPlan plan;   // How we calculate target debt
-        uint256     tau;    // Time until you can write off the debt [sec]
-        uint256     culled; // Debt write off triggered
-        uint256     tic;    // Timestamp when the pool is caged
+        uint256  tau;    // Time until you can write off the debt [sec]
+        uint256  culled; // Debt write off triggered
+        uint256  tic;    // Timestamp when the d3m is caged
     }
 
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
+    event File(bytes32 indexed what, address data);
     event File(bytes32 indexed ilk, bytes32 indexed what, address data);
     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
-    event File(bytes32 indexed what, address data);
     event Wind(bytes32 indexed ilk, uint256 amount);
     event Unwind(bytes32 indexed ilk, uint256 amount, uint256 fees);
     event Reap(bytes32 indexed ilk, uint256 amt);
-    event Cage();
     event Cage(bytes32 indexed ilk);
-    event Cull(bytes32 indexed ilk);
-    event Uncull(bytes32 indexed ilk);
+    event Cull(bytes32 indexed ilk, uint256 ink, uint256 art);
+    event Uncull(bytes32 indexed ilk, uint256 wad);
     event Quit(bytes32 indexed ilk, address indexed usr);
     event Exit(bytes32 indexed ilk, address indexed usr, uint256 amt);
 
@@ -217,6 +216,52 @@ contract DssDirectDepositHub {
     */
     function nope() external auth {
         vat.nope(address(daiJoin));
+    }
+
+    // Ilk Getters
+    /**
+        @notice Return pool of an ilk
+        @param ilk   bytes32 of the D3M ilk
+        @return pool address of pool contract
+    */
+    function ilkPool(bytes32 ilk) external view returns (address) {
+        return address(ilks[ilk].pool);
+    }
+
+    /**
+        @notice Return plan of an ilk
+        @param ilk   bytes32 of the D3M ilk
+        @return plan address of plan contract
+    */
+    function ilkPlan(bytes32 ilk) external view returns (address) {
+        return address(ilks[ilk].plan);
+    }
+
+    /**
+        @notice Return tau of an ilk
+        @param ilk  bytes32 of the D3M ilk
+        @return tau sec until debt can be written off
+    */
+    function ilkTau(bytes32 ilk) external view returns (uint256) {
+        return ilks[ilk].tau;
+    }
+
+    /**
+        @notice Return culled status of an ilk
+        @param ilk  bytes32 of the D3M ilk
+        @return culled whether or not the d3m has been culled
+    */
+    function ilkCulled(bytes32 ilk) external view returns (uint256) {
+        return ilks[ilk].culled;
+    }
+
+    /**
+        @notice Return tic of an ilk
+        @param ilk  bytes32 of the D3M ilk
+        @return tic timestamp of when d3m is caged
+    */
+    function ilkTic(bytes32 ilk) external view returns (uint256) {
+        return ilks[ilk].tic;
     }
 
     // --- Deposit controls ---
@@ -335,7 +380,7 @@ contract DssDirectDepositHub {
     function exec(bytes32 ilk) external {
         ID3MPool pool = ilks[ilk].pool;
 
-        pool.accrueIfNeeded();
+        pool.preDebtChange();
         uint256 availableAssets = pool.maxWithdraw();
         uint256 currentAssets = pool.assetBalance();
 
@@ -410,6 +455,8 @@ contract DssDirectDepositHub {
                 _wind(ilk, pool, toWind);
             }
         }
+
+        pool.postDebtChange();
     }
 
     /**
@@ -424,7 +471,7 @@ contract DssDirectDepositHub {
         require(vat.live() == 1, "DssDirectDepositHub/no-reap-during-shutdown");
         require(ilks[ilk].tic == 0, "DssDirectDepositHub/pool-not-live");
 
-        pool.accrueIfNeeded();
+        pool.preDebtChange();
         uint256 assetBalance = pool.assetBalance();
         (, uint256 daiDebt) = vat.urns(ilk, address(pool));
         if (assetBalance > daiDebt) {
@@ -437,6 +484,7 @@ contract DssDirectDepositHub {
             daiJoin.join(vow, fees);
             emit Reap(ilk, fees);
         }
+        pool.postDebtChange();
     }
 
     /**
@@ -509,7 +557,7 @@ contract DssDirectDepositHub {
         }
 
         ilks[ilk].culled = 1;
-        emit Cull(ilk);
+        emit Cull(ilk, ink, art);
     }
 
     /**
@@ -534,7 +582,7 @@ contract DssDirectDepositHub {
         vat.grab(ilk, address(pool), address(pool), vow_, int256(wad), int256(wad));
 
         ilks[ilk].culled = 0;
-        emit Uncull(ilk);
+        emit Uncull(ilk, wad);
     }
 
     /**
