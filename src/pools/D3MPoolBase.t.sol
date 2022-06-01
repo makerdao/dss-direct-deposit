@@ -73,11 +73,11 @@ contract D3MPoolBase is ID3MPool {
         CanLike(D3mHubLike(hub).vat()).nope(hub);
     }
 
-    function deposit(uint256 amt) external override returns (bool) {}
+    function deposit(uint256 wad) external override returns (bool) {}
 
-    function withdraw(uint256 amt) external override returns (bool) {}
+    function withdraw(uint256 wad) external override returns (bool) {}
 
-    function transfer(address dst, uint256 amt)
+    function transfer(address dst, uint256 wad)
         external
         override
         returns (bool)
@@ -95,7 +95,7 @@ contract D3MPoolBase is ID3MPool {
 
     function maxWithdraw() external view override returns (uint256) {}
 
-    function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {}
+    function recoverDai(address dst, uint256 wad) external override auth returns (bool) {}
 
     function active() external override pure returns(bool) {
         return true;
@@ -228,10 +228,10 @@ contract D3MPoolBaseTest is DSTest {
         D3MPoolBase(d3mTestPool).rely(address(this));
     }
 
-    function testFail_no_auth_cannot_recoverTokens() public {
+    function testFail_no_auth_cannot_recoverDai() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
 
-        D3MPoolBase(d3mTestPool).recoverTokens(address(dai), address(this), 10 * WAD);
+        D3MPoolBase(d3mTestPool).recoverDai(address(this), 10 * WAD);
     }
 
     function test_implements_preDebtChange() public {

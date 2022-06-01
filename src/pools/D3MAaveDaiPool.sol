@@ -95,7 +95,6 @@ contract D3MAaveDaiPool is ID3MPool {
         variableDebt = ATokenLike(variableDebt_);
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
 
-        ATokenLike(adai_).approve(pool_, type(uint256).max);
         TokenLike(dai_).approve(pool_, type(uint256).max);
 
         CanLike(D3mHubLike(hub_).vat()).hope(hub_);
@@ -144,26 +143,26 @@ contract D3MAaveDaiPool is ID3MPool {
 
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
-    function deposit(uint256 amt) external override auth returns (bool) {
+    function deposit(uint256 wad) external override auth returns (bool) {
         uint256 scaledPrev = adai.scaledBalanceOf(address(this));
 
-        pool.deposit(address(asset), amt, address(this), 0);
+        pool.deposit(address(asset), wad, address(this), 0);
 
         // Verify the correct amount of adai shows up
         uint256 interestIndex = pool.getReserveNormalizedIncome(address(asset));
-        uint256 scaledAmount = _rdiv(amt, interestIndex);
+        uint256 scaledAmount = _rdiv(wad, interestIndex);
         return adai.scaledBalanceOf(address(this)) >= scaledPrev + scaledAmount;
     }
 
     // Withdraws Dai from Aave in exchange for adai
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
-    function withdraw(uint256 amt) external override auth returns (bool) {
-        pool.withdraw(address(asset), amt, address(msg.sender));
+    function withdraw(uint256 wad) external override auth returns (bool) {
+        pool.withdraw(address(asset), wad, address(msg.sender));
         return true;
     }
 
-    function transfer(address dst, uint256 amt) external override auth returns (bool) {
-        return adai.transfer(dst, amt);
+    function transfer(address dst, uint256 wad) external override auth returns (bool) {
+        return adai.transfer(dst, wad);
     }
 
     function transferAll(address dst) external override auth returns (bool) {
@@ -187,8 +186,8 @@ contract D3MAaveDaiPool is ID3MPool {
         return _min(asset.balanceOf(address(adai)), assetBalance());
     }
 
-    function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {
-        return TokenLike(token).transfer(dst, amt);
+    function recoverDai(address dst, uint256 wad) external override auth returns (bool) {
+        return TokenLike(asset).transfer(dst, wad);
     }
 
     function active() external pure override returns (bool) {

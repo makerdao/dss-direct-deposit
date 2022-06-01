@@ -96,18 +96,18 @@ contract D3MTestPool is ID3MPool {
         CanLike(D3mHubLike(hub).vat()).nope(hub);
     }
 
-    function deposit(uint256 amt) external override returns (bool) {
-        D3MTestGem(share).mint(address(this), amt);
-        return TokenLike(asset).transfer(share, amt);
+    function deposit(uint256 wad) external override returns (bool) {
+        D3MTestGem(share).mint(address(this), wad);
+        return TokenLike(asset).transfer(share, wad);
     }
 
-    function withdraw(uint256 amt) external override returns (bool)  {
-        D3MTestGem(share).burn(address(this), amt);
-        return TokenLike(asset).transferFrom(share, address(msg.sender), amt);
+    function withdraw(uint256 wad) external override returns (bool)  {
+        D3MTestGem(share).burn(address(this), wad);
+        return TokenLike(asset).transferFrom(share, address(msg.sender), wad);
     }
 
-    function transfer(address dst, uint256 amt) public override auth returns (bool) {
-        return TokenLike(share).transfer(dst, amt);
+    function transfer(address dst, uint256 wad) public override auth returns (bool) {
+        return TokenLike(share).transfer(dst, wad);
     }
 
     function transferAll(address dst) external override auth returns (bool) {
@@ -142,8 +142,8 @@ contract D3MTestPool is ID3MPool {
         return shares;
     }
 
-    function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {
-        return TokenLike(token).transfer(dst, amt);
+    function recoverDai(address dst, uint256 wad) external override auth returns (bool) {
+        return TokenLike(asset).transfer(dst, wad);
     }
 
     function active() external view override returns (bool) {
