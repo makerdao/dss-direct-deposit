@@ -386,6 +386,9 @@ contract DssDirectDepositHub {
         @param ilk bytes32 of the D3M ilk name
     */
     function exec(bytes32 ilk) external {
+        (uint256 Art, uint256 rate,, uint256 line,) = vat.ilks(ilk);
+        require(rate == 1 * RAY, "DssDirectDepositHub/rate-not-one");
+
         ID3MPool pool = ilks[ilk].pool;
 
         pool.preDebtChange();
@@ -415,7 +418,6 @@ contract DssDirectDepositHub {
             );
         } else {
             // Determine if it needs to unwind due to debt ceilings
-            (uint256 Art,,, uint256 line,) = vat.ilks(ilk);
             uint256 lineWad = line / RAY; // Round down to always be under the actual limit
             uint256 Line = vat.Line();
             uint256 debt = vat.debt();
