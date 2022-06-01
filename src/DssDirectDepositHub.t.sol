@@ -573,6 +573,63 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(d3mTestPool.postDebt());
     }
 
+    function test_wind_unwind_non_standard_token() public {
+        // setup system
+        bytes32 otherIlk = "DD-OTHER-GEM";
+        D3MTestGem otherGem = new D3MTestGem(6);
+        D3MTestRewards otherRewards = new D3MTestRewards(address(otherGem));
+        D3MTestPool otherPool = new D3MTestPool(
+            address(directDepositHub),
+            address(dai),
+            address(otherGem),
+            address(otherRewards)
+        );
+        otherPool.rely(address(directDepositHub));
+        otherGem.rely(address(otherPool));
+        otherGem.giveAllowance(
+            address(dai),
+            address(otherPool),
+            type(uint256).max
+        );
+
+        directDepositHub.file(otherIlk, "pool", address(otherPool));
+        directDepositHub.file(otherIlk, "plan", address(d3mTestPlan));
+        directDepositHub.file(otherIlk, "tau", 7 days);
+
+        spot.file(otherIlk, "pip", address(pip));
+        spot.file(otherIlk, "mat", RAY);
+        spot.poke(otherIlk);
+        vat.init(otherIlk);
+        vat.file(otherIlk, "line", 5_000_000_000 * RAD);
+        vat.file("Line", vat.Line() + 10_000_000_000 * RAD);
+
+        // wind up system
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        directDepositHub.exec(otherIlk);
+
+        (uint256 ink, uint256 art) = vat.urns(otherIlk, address(otherPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertTrue(otherPool.preDebt());
+        assertTrue(otherPool.postDebt());
+        otherPool.file("preDebt", false); // reset preDebt
+        otherPool.file("postDebt", false); // reset postDebt
+
+        // wind down system
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 5 * WAD);
+        directDepositHub.exec(otherIlk);
+
+        (ink, art) = vat.urns(otherIlk, address(otherPool));
+        assertEq(ink, 5 * WAD);
+        assertEq(art, 5 * WAD);
+        assertTrue(otherPool.preDebt());
+        assertTrue(otherPool.postDebt());
+        otherPool.file("preDebt", false); // reset preDebt
+        otherPool.file("postDebt", false); // reset postDebt
+    }
+
     function test_reap_available_liquidity() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
