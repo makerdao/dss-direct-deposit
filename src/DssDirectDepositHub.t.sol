@@ -489,7 +489,7 @@ contract DssDirectDepositHubTest is DSTest {
     function test_unwind_mcd_caged() public {
         _windSystem();
 
-        // MCD shutdowns
+        // MCD shuts down
         end.cage();
         end.cage(ilk);
 
@@ -502,6 +502,38 @@ contract DssDirectDepositHubTest is DSTest {
         // Make sure pre/post functions get called
         assertTrue(d3mTestPool.preDebt());
         assertTrue(d3mTestPool.postDebt());
+    }
+
+    function test_unwind_mcd_caged_debt_paid_back() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(TokenLike(address(dai)), 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(ilk, address(d3mTestPool), address(d3mTestPool), address(this), 0, -int256(10 * WAD));
+
+        // MCD shuts down
+        end.cage();
+        end.cage(ilk);
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(pink, 50 * WAD);
+        assertEq(part, 40 * WAD);
+        uint256 gemBefore = vat.gem(ilk, address(end));
+        assertEq(gemBefore, 0);
+        uint256 sinBefore = vat.sin(vow);
+
+        directDepositHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 10 * WAD);
+        assertEq(art, 0);
+        uint256 gemAfter = vat.gem(ilk, address(end));
+        assertEq(gemAfter, 0);
+        uint256 daiAfter = vat.dai(address(directDepositHub));
+        assertEq(daiAfter, 0);
+        assertEq(sinBefore + 40 * RAD, vat.sin(vow));
     }
 
     function test_unwind_pool_caged() public {
