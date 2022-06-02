@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity ^0.8.14;
 
 import { Hevm, D3MPlanBaseTest } from "./D3MPlanBase.t.sol";
 import { DaiLike, TokenLike } from "../tests/interfaces/interfaces.sol";
@@ -38,6 +38,16 @@ interface InterestRateStrategyLike {
     );
 }
 
+contract D3MAaveDaiPlanWrapper is D3MAaveDaiPlan {
+
+    constructor(address dai_, address pool_) D3MAaveDaiPlan(dai_, pool_) {}
+
+    function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
+        uint256 totalDebt = stableDebt.totalSupply() + variableDebt.totalSupply();
+        return _calculateTargetSupply(targetInterestRate, totalDebt);
+    }
+}
+
 contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
     uint256 constant RAY = 10 ** 27;
 
@@ -58,7 +68,7 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         adai = TokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
         interestStrategy = InterestRateStrategyLike(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
 
-        d3mTestPlan = address(new D3MAaveDaiPlan(address(dai), address(aavePool)));
+        d3mTestPlan = address(new D3MAaveDaiPlanWrapper(address(dai), address(aavePool)));
     }
 
     function assertEqInterest(uint256 _a, uint256 _b) internal {
@@ -98,7 +108,7 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
     }
 
     function test_sets_InterestStrategy() public {
-        assertEq(address(interestStrategy), address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()));
+        assertEq(address(interestStrategy), address(D3MAaveDaiPlan(d3mTestPlan).tack()));
     }
 
     function test_can_file_bar() public {
@@ -114,11 +124,11 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
     }
 
     function test_can_file_interestStratgey() public {
-        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), address(interestStrategy));
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).tack()), address(interestStrategy));
 
         D3MAaveDaiPlan(d3mTestPlan).file("interestStrategy", address(1));
 
-        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), address(1));
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).tack()), address(1));
     }
 
     function testFail_cannot_file_unknown_address_param() public {
@@ -131,14 +141,20 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         D3MAaveDaiPlan(d3mTestPlan).file("bar", 1);
     }
 
-    function testFail_cannot_file_too_high_bar() public {
+    function test_set_bar_too_high_unwinds() public {
         D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.getMaxVariableBorrowRate() + 1);
+        assertEq(D3MAaveDaiPlan(d3mTestPlan).getTargetAssets(1), 0);
+    }
+
+    function test_set_bar_too_low_unwinds() public {
+        D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate());
+        assertEq(D3MAaveDaiPlan(d3mTestPlan).getTargetAssets(1), 0);
     }
 
     function test_interest_rate_calc() public {
         // Confirm that the inverse function is correct by comparing all percentages
         for (uint256 i = 1; i <= 100 * interestStrategy.getMaxVariableBorrowRate() / RAY; i++) {
-            uint256 targetSupply = D3MAaveDaiPlan(d3mTestPlan).calculateTargetSupply(i * RAY / 100);
+            uint256 targetSupply = D3MAaveDaiPlanWrapper(d3mTestPlan).calculateTargetSupply(i * RAY / 100);
             (,, uint256 varBorrow) = interestStrategy.calculateInterestRates(
                 address(adai),
                 targetSupply - (adai.totalSupply() - dai.balanceOf(address(adai))),
@@ -176,14 +192,20 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
         D3MAaveDaiPlan(d3mTestPlan).file("interestStrategy", address(456));
         (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
 
-        assertTrue(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()) != poolStrategy);
+        assertTrue(address(D3MAaveDaiPlan(d3mTestPlan).tack()) != poolStrategy);
 
         assertTrue(D3MAaveDaiPlan(d3mTestPlan).active() == false);
     }
 
+    function test_bar_zero_not_active() public {
+        assertEq(D3MAaveDaiPlan(d3mTestPlan).bar(), 0);
+        assertTrue(D3MAaveDaiPlan(d3mTestPlan).active() == false);
+    }
+
     function test_interestStrategy_not_changed_active() public {
+        D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
         (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
-        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), poolStrategy);
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).tack()), poolStrategy);
 
         assertTrue(D3MAaveDaiPlan(d3mTestPlan).active());
     }
@@ -200,8 +222,9 @@ contract D3MAaveDaiPlanTest is D3MPlanBaseTest {
     }
 
     function testFail_disable_without_auth() public {
+        D3MAaveDaiPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
         (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
-        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).interestStrategy()), poolStrategy);
+        assertEq(address(D3MAaveDaiPlan(d3mTestPlan).tack()), poolStrategy);
         D3MAaveDaiPlan(d3mTestPlan).deny(address(this));
 
         D3MAaveDaiPlan(d3mTestPlan).disable();

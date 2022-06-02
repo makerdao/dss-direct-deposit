@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity ^0.8.14;
 
 import "./D3MTestGem.sol";
 
@@ -23,7 +23,7 @@ contract D3MTestRewards {
     D3MTestGem public immutable rewards;
     address public immutable testGem;
 
-    constructor(address testGem_) public {
+    constructor(address testGem_) {
         rewards = new D3MTestGem(18);
         testGem = testGem_;
     }

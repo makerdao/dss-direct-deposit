@@ -20,11 +20,11 @@ export DAPP_BUILD_OPTIMIZE="$OPTIMIZER"
 export DAPP_BUILD_OPTIMIZE_RUNS=200
 
 if [[ -z "$MATCH" && -z "$RUNS" ]]; then
-    dapp --use solc:0.6.12 test --rpc-url="$ETH_RPC_URL" --fuzz-runs 1 -vv
+    dapp --use solc:0.8.14 test --rpc-url="$ETH_RPC_URL" --fuzz-runs 1 -vv
 elif [[ -z "$RUNS" ]]; then
-    dapp --use solc:0.6.12 test --rpc-url="$ETH_RPC_URL" --match "$MATCH" --fuzz-runs 1 -vv
+    dapp --use solc:0.8.14 test --rpc-url="$ETH_RPC_URL" --match "$MATCH" --fuzz-runs 1 -vv
 elif [[ -z "$MATCH" ]]; then
-    dapp --use solc:0.6.12 test --rpc-url="$ETH_RPC_URL" --fuzz-runs "$RUNS" -vv
+    dapp --use solc:0.8.14 test --rpc-url="$ETH_RPC_URL" --fuzz-runs "$RUNS" -vv
 else
-    dapp --use solc:0.6.12 test --rpc-url="$ETH_RPC_URL" --match "$MATCH" --fuzz-runs "$RUNS" -vv
+    dapp --use solc:0.8.14 test --rpc-url="$ETH_RPC_URL" --match "$MATCH" --fuzz-runs "$RUNS" -vv
 fi

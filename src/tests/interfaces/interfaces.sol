@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity ^0.8.14;
 
 interface AuthLike {
     function wards(address) external view returns (uint256);
@@ -53,7 +53,10 @@ interface SpotLike {
 interface VatLike {
     function debt() external view returns (uint256);
     function rely(address) external;
+    function deny(address) external;
+    function can(address, address) external returns (uint256);
     function hope(address) external;
+    function nope(address) external;
     function urns(bytes32, address) external view returns (uint256, uint256);
     function gem(bytes32, address) external view returns (uint256);
     function dai(address) external view returns (uint256);
@@ -65,6 +68,7 @@ interface VatLike {
     function cage() external;
     function frob(bytes32, address, address, address, int256, int256) external;
     function grab(bytes32, address, address, address, int256, int256) external;
+    function fold(bytes32, address, int256) external;
 }
 
 interface VowLike {
@@ -75,10 +79,11 @@ interface VowLike {
 }
 
 interface CanLike {
+    function can(address, address) external returns (uint256);
     function hope(address) external;
     function nope(address) external;
 }
 
-interface d3mHubLike {
+interface D3mHubLike {
     function vat() external view returns (address);
 }

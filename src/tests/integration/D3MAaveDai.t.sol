@@ -14,17 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity ^0.8.14;
 
 import "ds-test/test.sol";
-import "../tests/interfaces/interfaces.sol";
+import "../interfaces/interfaces.sol";
 
-import { DssDirectDepositHub } from "../DssDirectDepositHub.sol";
-import { D3MMom } from "../D3MMom.sol";
-import { ValueStub } from "../tests/stubs/ValueStub.sol";
+import { DssDirectDepositHub } from "../../DssDirectDepositHub.sol";
+import { D3MMom } from "../../D3MMom.sol";
+import { ValueStub } from "../stubs/ValueStub.sol";
 
-import { D3MAaveDaiPlan } from "../plans/D3MAaveDaiPlan.sol";
-import { D3MAaveDaiPool } from "./D3MAaveDaiPool.sol";
+import { D3MAaveDaiPlan } from "../../plans/D3MAaveDaiPlan.sol";
+import { D3MAaveDaiPool } from "../../pools/D3MAaveDaiPool.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -112,7 +112,7 @@ contract D3MAaveDaiTest is DSTest {
         hevm = Hevm(address(bytes20(uint160(uint256(keccak256('hevm cheat code'))))));
 
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
-        end = EndLike(0xBB856d1742fD182a90239D7AE85706C2FE4e5922);
+        end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
         adai = ATokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
         stkAave = TokenLike(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
@@ -162,8 +162,8 @@ contract D3MAaveDaiTest is DSTest {
         // Give us a bunch of WETH and deposit into Aave
         uint256 amt = 1_000_000 * WAD;
         _giveTokens(weth, amt);
-        weth.approve(address(aavePool), uint256(-1));
-        dai.approve(address(aavePool), uint256(-1));
+        weth.approve(address(aavePool), type(uint256).max);
+        dai.approve(address(aavePool), type(uint256).max);
         aavePool.deposit(address(weth), amt, address(this), 0);
     }
 
@@ -503,7 +503,7 @@ contract D3MAaveDaiTest is DSTest {
         uint256 vowDai = vat.dai(vow);
         directDepositHub.reap(ilk);
 
-        log_named_decimal_uint("dai", vat.dai(vow) - vowDai, 18);
+        emit log_named_decimal_uint("dai", vat.dai(vow) - vowDai, 18);
 
         assertGt(vat.dai(vow) - vowDai, 0);
     }
@@ -918,8 +918,10 @@ contract D3MAaveDaiTest is DSTest {
         // Collect some stake rewards into the pause proxy
         address[] memory tokens = new address[](1);
         tokens[0] = address(adai);
-        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(d3mAaveDaiPool));
-        assertGt(amountToClaim, 0);
+        rewardsClaimer.getRewardsBalance(tokens, address(d3mAaveDaiPool));
+
+        assertEq(d3mAaveDaiPool.king(), address(0));
+
         d3mAaveDaiPool.collect();
     }
 
@@ -1055,16 +1057,6 @@ contract D3MAaveDaiTest is DSTest {
         directDepositHub.file(ilk, "tau", 1 days);
         (, , tau, , ) = directDepositHub.ilks(ilk);
         assertEq(tau, 1 days);
-    }
-
-    function testFail_set_tau_caged() public {
-        (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
-        assertEq(tau, 7 days);
-
-        directDepositHub.cage(ilk);
-
-        // file should fail with error "D3MAaveDai/live"
-        directDepositHub.file(ilk, "tau", 1 days);
     }
 
     // Make sure the module works correctly even when someone permissionlessly repays the urn
