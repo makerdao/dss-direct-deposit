@@ -103,6 +103,7 @@ contract DssDirectDepositHub {
     event Wind(bytes32 indexed ilk, uint256 amount);
     event Unwind(bytes32 indexed ilk, uint256 amount, uint256 fees);
     event Reap(bytes32 indexed ilk, uint256 amt);
+    event Rectify(bytes32 indexed ilk, uint256 limit, uint256 amt);
     event Cage(bytes32 indexed ilk);
     event Cull(bytes32 indexed ilk, uint256 ink, uint256 art);
     event Uncull(bytes32 indexed ilk, uint256 wad);
@@ -507,6 +508,28 @@ contract DssDirectDepositHub {
             emit Reap(ilk, fees);
         }
         pool.postDebtChange();
+    }
+
+    /**
+        @notice Pay back bad debt from the surplus buffer
+        @param ilk bytes32 of the D3M ilk name
+        @param limit Max debt to pay back. Set to uint256 max to ignore.
+    */
+    function rectify(bytes32 ilk, uint256 limit) external auth {
+        ID3MPool pool = ilks[ilk].pool;
+        uint256 assetBalance = pool.assetBalance();
+        (, uint256 daiDebt) = vat.urns(ilk, address(pool));
+        if (daiDebt > assetBalance) {
+            uint256 deficit;
+            unchecked {
+                deficit = daiDebt - assetBalance;
+            }
+            if (deficit > limit) deficit = limit;
+            vat.suck(vow, address(this), deficit * RAY);
+            vat.frob(ilk, address(pool), address(pool), address(this), -int256(deficit), -int256(deficit));
+            vat.slip(ilk, address(pool), -int256(deficit));
+            emit Rectify(ilk, limit, deficit);
+        }
     }
 
     /**

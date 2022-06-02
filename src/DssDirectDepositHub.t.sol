@@ -166,29 +166,29 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(false);
     }
 
-    function _giveTokens(TokenLike token, uint256 amount) internal {
+    function _giveTokens(TokenLike token, address usr, uint256 amount) internal {
         // Edge case - balance is already set for some reason
-        if (token.balanceOf(address(this)) == amount) return;
+        if (token.balanceOf(usr) == amount) return;
 
         for (int256 i = 0; i < 100; i++) {
             // Scan the storage for the balance storage slot
             bytes32 prevValue = hevm.load(
                 address(token),
-                keccak256(abi.encode(address(this), uint256(i)))
+                keccak256(abi.encode(usr, uint256(i)))
             );
             hevm.store(
                 address(token),
-                keccak256(abi.encode(address(this), uint256(i))),
+                keccak256(abi.encode(usr, uint256(i))),
                 bytes32(amount)
             );
-            if (token.balanceOf(address(this)) == amount) {
+            if (token.balanceOf(usr) == amount) {
                 // Found it
                 return;
             } else {
                 // Keep going after restoring the original value
                 hevm.store(
                     address(token),
-                    keccak256(abi.encode(address(this), uint256(i))),
+                    keccak256(abi.encode(usr, uint256(i))),
                     prevValue
                 );
             }
@@ -196,6 +196,10 @@ contract DssDirectDepositHubTest is DSTest {
 
         // We have failed if we reach here
         assertTrue(false);
+    }
+
+    function _giveTokens(TokenLike token, uint256 amount) internal {
+        _giveTokens(token, address(this), amount);
     }
 
     function _windSystem() internal {
@@ -402,6 +406,36 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(art, 50 * WAD);
         assertTrue(d3mTestPool.preDebt());
         assertTrue(d3mTestPool.postDebt());
+    }
+
+    function test_wind_limited_by_pool_loss() public {
+        _windSystem(); // winds to 50 * WAD
+
+        // Set debt ceiling to 60 to limit loss
+        vat.file(ilk, "line", 60 * RAD);
+
+        // Simulate a loss event by removing the share tokens
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+        assertEq(d3mTestPool.assetBalance(), 50 * WAD);
+
+        _giveTokens(TokenLike(address(testGem)), address(d3mTestPool), 0);
+
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
+        assertEq(d3mTestPool.assetBalance(), 0);
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+
+        // This should only fill another 10 because the debt ceiling
+        directDepositHub.exec(ilk);
+
+        assertEq(d3mTestPool.assetBalance(), 10 * WAD);
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 60 * WAD);
+        assertEq(art, 60 * WAD);
     }
 
     function test_unwind_pool_not_active() public {
@@ -732,6 +766,102 @@ contract DssDirectDepositHubTest is DSTest {
         d3mTestPlan.file("active_", false);
 
         directDepositHub.reap(ilk);
+    }
+
+    function test_recify_no_limit() public {
+        _windSystem(); // winds to 50 * WAD
+
+        // Set debt ceiling to 60 to limit loss
+        vat.file(ilk, "line", 60 * RAD);
+
+        // Simulate a loss event by removing the share tokens
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+        assertEq(d3mTestPool.assetBalance(), 50 * WAD);
+
+        _giveTokens(TokenLike(address(testGem)), address(d3mTestPool), 0);
+
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
+        assertEq(d3mTestPool.assetBalance(), 0);
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+
+        // This should only fill another 10 because the debt ceiling
+        directDepositHub.exec(ilk);
+
+        assertEq(d3mTestPool.assetBalance(), 10 * WAD);
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 60 * WAD);
+        assertEq(art, 60 * WAD);
+
+        // Repay the bad debt
+        uint256 vowSin = vat.sin(vow);
+        directDepositHub.rectify(ilk, type(uint256).max);
+
+        assertEq(d3mTestPool.assetBalance(), 10 * WAD);
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 10 * WAD);
+        assertEq(art, 10 * WAD);
+        assertEq(vat.sin(vow), vowSin + 50 * RAD);
+
+        // Refill back up to the target of 50
+        directDepositHub.exec(ilk);
+
+        assertEq(d3mTestPool.assetBalance(), 50 * WAD);
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+    }
+
+    function test_recify_limit() public {
+        _windSystem(); // winds to 50 * WAD
+
+        // Set debt ceiling to 60 to limit loss
+        vat.file(ilk, "line", 60 * RAD);
+
+        // Simulate a loss event by removing the share tokens
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+        assertEq(d3mTestPool.assetBalance(), 50 * WAD);
+
+        _giveTokens(TokenLike(address(testGem)), address(d3mTestPool), 0);
+
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
+        assertEq(d3mTestPool.assetBalance(), 0);
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+
+        // This should only fill another 10 because the debt ceiling
+        directDepositHub.exec(ilk);
+
+        assertEq(d3mTestPool.assetBalance(), 10 * WAD);
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 60 * WAD);
+        assertEq(art, 60 * WAD);
+
+        // Repay only part of the bad debt
+        uint256 vowSin = vat.sin(vow);
+        directDepositHub.rectify(ilk, 20 * WAD);
+
+        assertEq(d3mTestPool.assetBalance(), 10 * WAD);
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 40 * WAD);
+        assertEq(art, 40 * WAD);
+        assertEq(vat.sin(vow), vowSin + 20 * RAD);
+
+        // Refill can only reach 30 as we still have bad debt to clear
+        directDepositHub.exec(ilk);
+
+        assertEq(d3mTestPool.assetBalance(), 30 * WAD);
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 60 * WAD);
+        assertEq(art, 60 * WAD);
     }
 
     function test_exit() public {
