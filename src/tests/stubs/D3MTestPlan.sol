@@ -14,11 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity ^0.8.14;
 
 import "../../plans/ID3MPlan.sol";
 
 contract D3MTestPlan is ID3MPlan {
+
+    mapping (address => uint256) public wards;
 
     address public immutable dai;
 
@@ -30,8 +32,23 @@ contract D3MTestPlan is ID3MPlan {
 
     uint256 public bar;  // Target Interest Rate [ray]
 
-    // --- Auth ---
-    mapping (address => uint256) public wards;
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
+
+    constructor(address dai_) {
+        dai = dai_;
+
+        wards[msg.sender] = 1;
+        emit Rely(msg.sender);
+    }
+
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MTestPlan/not-authorized");
+        _;
+    }
+
+    // --- Admin ---
     function rely(address usr) external auth {
         wards[usr] = 1;
         emit Rely(usr);
@@ -40,23 +57,7 @@ contract D3MTestPlan is ID3MPlan {
         wards[usr] = 0;
         emit Deny(usr);
     }
-    modifier auth {
-        require(wards[msg.sender] == 1, "D3MTestPlan/not-authorized");
-        _;
-    }
 
-    // --- Events ---
-    event Rely(address indexed usr);
-    event Deny(address indexed usr);
-
-    constructor(address dai_) public {
-        dai = dai_;
-
-        wards[msg.sender] = 1;
-        emit Rely(msg.sender);
-    }
-
-    // --- Admin ---
     function file(bytes32 what, uint256 data) external auth {
         if (what == "maxBar_") {
             maxBar_ = data;
