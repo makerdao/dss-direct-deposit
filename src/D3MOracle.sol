@@ -1,0 +1,114 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2022 Dai Foundation
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+pragma solidity ^0.8.14;
+
+interface VatLike {
+    function live() external view returns (uint256);
+}
+
+interface HubLike {
+    function ilkCulled(bytes32) external view returns (uint256);
+}
+
+contract D3MOracle {
+    // --- Auth ---
+    /**
+        @notice Maps address that have permission in the Pool.
+        @dev 1 = allowed, 0 = no permission
+        @return authorization 1 or 0
+    */
+    mapping (address => uint256) public wards;
+    address public hub;
+
+    VatLike public immutable vat;
+    bytes32 public immutable ilk;
+
+    uint256 internal constant WAD = 10 ** 18;
+
+    // --- Events ---
+    event Rely(address indexed usr);
+    event Deny(address indexed usr);
+    event File(bytes32 indexed what, address data);
+
+    constructor(address vat_, bytes32 ilk_) {
+        vat = VatLike(vat_);
+        ilk = ilk_;
+
+        wards[msg.sender] = 1;
+        emit Rely(msg.sender);
+    }
+
+    /// @notice Modifier will revoke if msg.sender is not authorized.
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MOracle/not-authorized");
+        _;
+    }
+
+    // --- Administration ---
+    /**
+        @notice Makes an address authorized to perform auth'ed functions.
+        @dev msg.sender must be authorized.
+        @param usr address to be authorized
+    */
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+
+    /**
+        @notice De-authorizes an address from performing auth'ed functions.
+        @dev msg.sender must be authorized.
+        @param usr address to be de-authorized
+    */
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+
+    /**
+        @notice update vow or end addresses.
+        @dev msg.sender must be authorized.
+        @param what name of what we are updating bytes32("vow"|"end")
+        @param data address we are setting it to
+    */
+    function file(bytes32 what, address data) external auth {
+        require(vat.live() == 1, "D3MOracle/no-file-during-shutdown");
+
+        if (what == "hub") hub = data;
+        else revert("D3MOracle/file-unrecognized-param");
+        emit File(what, data);
+    }
+
+    /**
+        @notice Return value and status of the oracle
+        @return value always 1 WAD
+        @return ok always true
+    */
+    function peek() external pure returns (uint256, bool) {
+        return (WAD, true);
+    }
+
+    /**
+        @notice Return value
+        @dev ilk must be unculled in hub.
+        @return value always 1 WAD value
+    */
+    function read() external view returns (uint256) {
+        require(HubLike(hub).ilkCulled(ilk) == 0, "D3MOracle/ilk-is-culled");
+        return WAD;
+    }
+}

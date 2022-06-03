@@ -21,7 +21,7 @@ import "../interfaces/interfaces.sol";
 
 import { DssDirectDepositHub } from "../../DssDirectDepositHub.sol";
 import { D3MMom } from "../../D3MMom.sol";
-import { ValueStub } from "../stubs/ValueStub.sol";
+import { D3MOracle } from "../../D3MOracle.sol";
 
 import { D3MAaveDaiPlan } from "../../plans/D3MAaveDaiPlan.sol";
 import { D3MAaveDaiPool } from "../../pools/D3MAaveDaiPool.sol";
@@ -102,7 +102,7 @@ contract D3MAaveDaiTest is DSTest {
     D3MAaveDaiPool d3mAaveDaiPool;
     D3MAaveDaiPlan d3mAaveDaiPlan;
     D3MMom d3mMom;
-    ValueStub pip;
+    D3MOracle pip;
 
     // Allow for a 1 BPS margin of error on interest rates
     uint256 constant INTEREST_RATE_TOLERANCE = RAY / 10000;
@@ -148,8 +148,8 @@ contract D3MAaveDaiTest is DSTest {
         d3mAaveDaiPlan.rely(address(d3mMom));
 
         // Init new collateral
-        pip = new ValueStub();
-        pip.poke(bytes32(WAD));
+        pip = new D3MOracle(address(vat), ilk);
+        pip.file("hub", address(directDepositHub));
         spot.file(ilk, "pip", address(pip));
         spot.file(ilk, "mat", RAY);
         spot.poke(ilk);
@@ -787,7 +787,6 @@ contract D3MAaveDaiTest is DSTest {
         // MCD shutdowns
         originalDai = originalDai + vat.dai(VowLike(vow).flapper());
         end.cage();
-        end.cage(ilk);
 
         if (originalSin + part * RAY >= originalDai) {
             assertEq(vat.sin(vow), originalSin + part * RAY - originalDai);
@@ -799,6 +798,8 @@ contract D3MAaveDaiTest is DSTest {
 
         directDepositHub.uncull(ilk);
         VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+
+        end.cage(ilk);
 
         // So the position is restablished
         (ink, art) = vat.urns(ilk, address(d3mAaveDaiPool));
