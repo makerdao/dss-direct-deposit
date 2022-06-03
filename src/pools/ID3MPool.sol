@@ -26,18 +26,6 @@ pragma solidity ^0.8.14;
 */
 interface ID3MPool {
     /**
-        @notice Hopes on an address in the Vat.
-        @param hub address you want to hope on
-    */
-    function hope(address hub) external;
-
-    /**
-        @notice Nopes on an address in the Vat.
-        @param hub address you want to nope on
-    */
-    function nope(address hub) external;
-
-    /**
         @notice Deposit assets (Dai) in the external pool.
         @dev If the external pool requires a different amount to be passed in, the
         conversion should occur here as the Hub passes Dai [wad] amounts.

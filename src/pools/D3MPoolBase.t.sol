@@ -33,7 +33,16 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
+interface VatLike {
+    function hope(address) external;
+    function nope(address) external;
+}
+
 contract D3MPoolBase is ID3MPool {
+
+    address public hub;
+
+    VatLike public immutable vat;
 
     DaiLike public immutable asset; // Dai
 
@@ -48,7 +57,7 @@ contract D3MPoolBase is ID3MPool {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MAaveDaiPool/not-authorized");
+        require(wards[msg.sender] == 1, "D3MPoolBase/not-authorized");
         _;
     }
 
@@ -59,18 +68,22 @@ contract D3MPoolBase is ID3MPool {
     constructor(address hub_, address dai_) {
         asset = DaiLike(dai_);
 
+        hub = hub_;
+        vat = VatLike(D3mHubLike(hub_).vat());
+
         CanLike(D3mHubLike(hub_).vat()).hope(hub_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
 
-    function hope(address hub) external override auth{
-        CanLike(D3mHubLike(hub).vat()).hope(hub);
-    }
-
-    function nope(address hub) external override auth{
-        CanLike(D3mHubLike(hub).vat()).nope(hub);
+    function file(bytes32 what, address data) external auth {
+        if (what == "hub") {
+            vat.nope(hub);
+            hub = data;
+            vat.hope(data);
+        }
+        else revert("D3MPoolBase/file-unrecognized-param");
     }
 
     function deposit(uint256 wad) external override returns (bool) {}
@@ -103,7 +116,9 @@ contract D3MPoolBase is ID3MPool {
 }
 
 contract FakeVat {
+    uint256 public live = 1;
     mapping(address => mapping (address => uint)) public can;
+    function cage() external { live = 0; }
     function hope(address usr) external { can[msg.sender][usr] = 1; }
     function nope(address usr) external { can[msg.sender][usr] = 0; }
 }
@@ -181,28 +196,19 @@ contract D3MPoolBaseTest is DSTest {
         assertEq(CanLike(vat).can(d3mTestPool, hub), 1);
     }
 
-    function test_can_hope() public {
+    function test_can_file() public {
         address newHub = address(new FakeHub(vat));
+        assertEq(CanLike(vat).can(d3mTestPool, hub), 1);
         assertEq(CanLike(vat).can(d3mTestPool, newHub), 0);
-        D3MPoolBase(d3mTestPool).hope(newHub);
+        D3MPoolBase(d3mTestPool).file("hub", newHub);
+        assertEq(CanLike(vat).can(d3mTestPool, hub), 0);
         assertEq(CanLike(vat).can(d3mTestPool, newHub), 1);
     }
 
-    function test_can_nope() public {
-        assertEq(CanLike(vat).can(d3mTestPool, hub), 1);
-        D3MPoolBase(d3mTestPool).nope(hub);
-        assertEq(CanLike(vat).can(d3mTestPool, hub), 0);
-    }
-
-    function testFail_cannot_hope_without_auth() public {
+    function testFail_cannot_file_without_auth() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
         address newHub = address(new FakeHub(vat));
-        D3MPoolBase(d3mTestPool).hope(newHub);
-    }
-
-    function testFail_cannot_nope_without_auth() public {
-        D3MPoolBase(d3mTestPool).deny(address(this));
-        D3MPoolBase(d3mTestPool).nope(hub);
+        D3MPoolBase(d3mTestPool).file("hub", newHub);
     }
 
     function test_can_rely() public {

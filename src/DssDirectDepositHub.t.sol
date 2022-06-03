@@ -1186,8 +1186,7 @@ contract DssDirectDepositHubTest is DSTest {
         // Update permissions on d3ms
         d3mTestPool.rely(address(newHub));
         d3mTestPool.deny(address(directDepositHub));
-        d3mTestPool.hope(address(newHub));
-        d3mTestPool.nope(address(directDepositHub));
+        d3mTestPool.file("hub", address(newHub));
         
         // Update Permissions in Vat
         vat.deny(address(directDepositHub));
@@ -1226,8 +1225,7 @@ contract DssDirectDepositHubTest is DSTest {
         // Update permissions on d3ms
         d3mTestPool.rely(address(newHub));
         d3mTestPool.deny(address(directDepositHub));
-        d3mTestPool.hope(address(newHub));
-        d3mTestPool.nope(address(directDepositHub));
+        d3mTestPool.file("hub", address(newHub));
         
         // Update Permissions in Vat
         vat.deny(address(directDepositHub));
@@ -1286,9 +1284,8 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(newPool.postDebt() == false);
 
         // Transition Balances
-        newPool.hope(address(directDepositHub));
+        newPool.file("hub", address(directDepositHub));
         directDepositHub.quit(ilk, address(newPool));
-        newPool.nope(address(directDepositHub));
 
         // Ensure we quit our position
         (uint256 opink, uint256 opart) = vat.urns(ilk, address(d3mTestPool));
@@ -1307,7 +1304,6 @@ contract DssDirectDepositHubTest is DSTest {
         // Clean up after transition
         directDepositHub.cage(ilk);
         d3mTestPool.deny(address(directDepositHub));
-        d3mTestPool.nope(address(directDepositHub));
         vat.deny(address(directDepositHub));
         directDepositHub.nope();
 
