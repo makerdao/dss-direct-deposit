@@ -180,13 +180,13 @@ contract D3MAavePlan is ID3MPlan {
             return currentAssets + (targetTotalPoolSize - totalPoolSize);
         } else {
             // Decrease debt
-            uint256 decrease = totalPoolSize - targetTotalPoolSize;
-            if (currentAssets >= decrease) {
-                unchecked {
+            unchecked {
+                uint256 decrease = totalPoolSize - targetTotalPoolSize;
+                if (currentAssets >= decrease) {
                     return currentAssets - decrease;
+                } else {
+                    return 0;
                 }
-            } else {
-                return 0;
             }
         }
     }
