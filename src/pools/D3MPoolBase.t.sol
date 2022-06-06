@@ -48,7 +48,7 @@ contract D3MPoolBase is ID3MPool {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MAaveDaiPool/not-authorized");
+        require(wards[msg.sender] == 1, "D3MPoolBase/not-authorized");
         _;
     }
 

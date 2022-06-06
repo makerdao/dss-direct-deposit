@@ -49,7 +49,7 @@ interface InterestRateStrategyLike {
     function getMaxVariableBorrowRate() external view returns (uint256);
 }
 
-contract D3MAaveDaiPlan is ID3MPlan {
+contract D3MAavePlan is ID3MPlan {
 
     mapping (address => uint256) public wards;
     InterestRateStrategyLike     public tack;
@@ -73,10 +73,10 @@ contract D3MAaveDaiPlan is ID3MPlan {
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
-        require(adai_ != address(0), "D3MAaveDaiPlan/invalid-adai");
-        require(stableDebt_ != address(0), "D3MAaveDaiPlan/invalid-stableDebt");
-        require(variableDebt_ != address(0), "D3MAaveDaiPlan/invalid-variableDebt");
-        require(interestStrategy_ != address(0), "D3MAaveDaiPlan/invalid-interestStrategy");
+        require(adai_ != address(0), "D3MAavePlan/invalid-adai");
+        require(stableDebt_ != address(0), "D3MAavePlan/invalid-stableDebt");
+        require(variableDebt_ != address(0), "D3MAavePlan/invalid-variableDebt");
+        require(interestStrategy_ != address(0), "D3MAavePlan/invalid-interestStrategy");
 
         adai = adai_;
         stableDebt = TokenLike(stableDebt_);
@@ -88,7 +88,7 @@ contract D3MAaveDaiPlan is ID3MPlan {
     }
 
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MAaveDaiPlan/not-authorized");
+        require(wards[msg.sender] == 1, "D3MAavePlan/not-authorized");
         _;
     }
 
@@ -114,13 +114,13 @@ contract D3MAaveDaiPlan is ID3MPlan {
     function file(bytes32 what, uint256 data) external auth {
         if (what == "bar") {
             bar = data;
-        } else revert("D3MAaveDaiPlan/file-unrecognized-param");
+        } else revert("D3MAavePlan/file-unrecognized-param");
         emit File(what, data);
     }
 
     function file(bytes32 what, address data) external auth {
         if (what == "interestStrategy") tack = InterestRateStrategyLike(data);
-        else revert("D3MAaveDaiPlan/file-unrecognized-param");
+        else revert("D3MAavePlan/file-unrecognized-param");
         emit File(what, data);
     }
 
@@ -203,7 +203,7 @@ contract D3MAaveDaiPlan is ID3MPlan {
         require(
             wards[msg.sender] == 1 ||
             !active()
-        , "D3MAaveDaiPlan/not-authorized");
+        , "D3MAavePlan/not-authorized");
         bar = 0;
         emit Disable();
     }
