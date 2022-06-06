@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat } from "./D3MPoolBase.t.sol";
 import { DaiLike, TokenLike } from "../tests/interfaces/interfaces.sol";
@@ -28,7 +28,7 @@ interface RewardsClaimerLike {
 
 contract AToken is D3MTestGem {
 
-    constructor(uint256 decimals_) public D3MTestGem(decimals_) {}
+    constructor(uint256 decimals_) D3MTestGem(decimals_) {}
 
     function scaledBalanceOf(address who) external view returns (uint256) {
         return balanceOf[who];
@@ -42,6 +42,8 @@ contract FakeRewardsClaimer {
         address dst;
     }
     ClaimCall public lastClaim;
+
+    address public REWARD_TOKEN = address(123);
 
     function claimRewards(address[] calldata assets, uint256 amt, address dst) external returns (uint256) {
         lastClaim = ClaimCall(
@@ -75,7 +77,7 @@ contract FakeLendingPool {
     }
     WithdrawCall public lastWithdraw;
 
-    constructor(address adai_) public {
+    constructor(address adai_) {
         adai = adai_;
     }
 

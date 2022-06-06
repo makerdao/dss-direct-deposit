@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import "ds-test/test.sol";
 import "../tests/interfaces/interfaces.sol";
@@ -55,18 +55,18 @@ contract D3MPlanBase is ID3MPlan {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(address dai_) public {
+    constructor(address dai_) {
         dai = dai_;
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
 
-    function getTargetAssets(uint256 currentAssets) external override view returns(uint256) {
+    function getTargetAssets(uint256 currentAssets) external override pure returns(uint256) {
         return currentAssets;
     }
 
-    function active() external override view returns(bool) {
+    function active() external override pure returns(bool) {
         return true;
     }
 
@@ -88,7 +88,7 @@ contract D3MPlanBaseTest is DSTest {
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );
 
-        dai = DaiLike(123);
+        dai = DaiLike(address(123));
 
         d3mTestPlan = address(new D3MPlanBase(address(dai)));
     }
