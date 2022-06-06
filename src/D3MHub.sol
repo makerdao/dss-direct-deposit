@@ -331,13 +331,6 @@ contract D3MHub {
         emit Unwind(ilk, amount, fees);
     }
 
-    /**
-        @notice remove nope on daiJoin to kill hub
-    */
-    function nope() external auth {
-        vat.nope(address(daiJoin));
-    }
-
     // Ilk Getters
     /**
         @notice Return pool of an ilk

@@ -333,18 +333,6 @@ contract D3MHubTest is DSTest {
         d3mHub.file(ilk, "pool", address(123));
     }
 
-    function test_can_nope_daiJoin() public {
-        assertEq(vat.can(address(d3mHub), address(daiJoin)), 1);
-        d3mHub.nope();
-        assertEq(vat.can(address(d3mHub), address(daiJoin)), 0);
-    }
-
-    function testFail_cannot_nope_without_auth() public {
-        assertEq(vat.can(address(d3mHub), address(daiJoin)), 1);
-        d3mHub.deny(address(this));
-        d3mHub.nope();
-    }
-
     function testFail_exec_no_ilk() public {
         d3mHub.exec("fake-ilk");
     }
@@ -1196,7 +1184,6 @@ contract D3MHubTest is DSTest {
         // Update Permissions in Vat
         vat.deny(address(d3mHub));
         vat.rely(address(newHub));
-        d3mHub.nope();
 
         // Clean up old hub
         d3mHub.file(ilk, "pool", address(0));
@@ -1236,7 +1223,6 @@ contract D3MHubTest is DSTest {
         // Update Permissions in Vat
         vat.deny(address(d3mHub));
         vat.rely(address(newHub));
-        d3mHub.nope();
 
         // Clean up old hub
         d3mHub.file(ilk, "pool", address(0));
@@ -1313,7 +1299,6 @@ contract D3MHubTest is DSTest {
         d3mTestPool.deny(address(d3mHub));
         d3mTestPool.nope(address(d3mHub));
         vat.deny(address(d3mHub));
-        d3mHub.nope();
 
         // Ensure new hub operation
         newPlan.file("bar", 10);
