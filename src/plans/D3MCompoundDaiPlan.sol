@@ -64,24 +64,10 @@ interface InterestRateModelLike {
 contract D3MCompoundDaiPlan is ID3MPlan {
 
     mapping (address => uint256) public wards;
-    InterestRateModelLike public tack;
-    uint256               public barb; // target Interest Rate Per Block [wad] (0)
+    InterestRateModelLike        public tack;
+    uint256                      public barb; // target Interest Rate Per Block [wad] (0)
 
     CErc20Like public immutable cDai;
-
-    // --- Auth ---
-    function rely(address usr) external auth {
-        wards[usr] = 1;
-        emit Rely(usr);
-    }
-    function deny(address usr) external auth {
-        wards[usr] = 0;
-        emit Deny(usr);
-    }
-    modifier auth {
-        require(wards[msg.sender] == 1, "D3MCompoundDaiPlan/not-authorized");
-        _;
-    }
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -100,9 +86,13 @@ contract D3MCompoundDaiPlan is ID3MPlan {
         emit Rely(msg.sender);
     }
 
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MCompoundDaiPlan/not-authorized");
+        _;
+    }
+
     // --- Math ---
     uint256 internal constant WAD = 10 ** 18;
-
     function _wmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = (x * y) / WAD;
     }
@@ -110,14 +100,22 @@ contract D3MCompoundDaiPlan is ID3MPlan {
         z = (x * WAD) / y;
     }
 
-    // --- Administration ---
+    // --- Admin ---
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+
     function file(bytes32 what, uint256 data) external auth {
         if (what == "barb") {
             barb = data;
         } else revert("D3MCompoundDaiPlan/file-unrecognized-param");
         emit File(what, data);
     }
-
     function file(bytes32 what, address data) external auth {
         if (what == "rateModel") tack = InterestRateModelLike(data); // TODO: change "rateModel" to "tack" once changed on aave plan
         else revert("D3MCompoundDaiPlan/file-unrecognized-param");

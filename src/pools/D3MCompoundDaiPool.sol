@@ -53,25 +53,11 @@ interface ComptrollerLike {
 contract D3MCompoundDaiPool is ID3MPool {
 
     mapping (address => uint256) public wards;
-    address public king; // Who gets the rewards
+    address                      public king; // Who gets the rewards
 
     ComptrollerLike public immutable comptroller;
     TokenLike       public immutable dai;
     CErc20Like      public immutable cDai;
-
-    // --- Auth ---
-    function rely(address usr) external auth {
-        wards[usr] = 1;
-        emit Rely(usr);
-    }
-    function deny(address usr) external auth {
-        wards[usr] = 0;
-        emit Deny(usr);
-    }
-    modifier auth {
-        require(wards[msg.sender] == 1, "D3MCompoundDaiPool/not-authorized");
-        _;
-    }
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -97,9 +83,13 @@ contract D3MCompoundDaiPool is ID3MPool {
         emit Rely(msg.sender);
     }
 
+    modifier auth {
+        require(wards[msg.sender] == 1, "D3MCompoundDaiPool/not-authorized");
+        _;
+    }
+
     // --- Math ---
     uint256 internal constant WAD = 10 ** 18;
-
     function _wmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = (x * y) / WAD;
     }
@@ -110,7 +100,16 @@ contract D3MCompoundDaiPool is ID3MPool {
         z = x <= y ? x : y;
     }
 
-    // --- Administration ---
+    // --- Admin ---
+    function rely(address usr) external auth {
+        wards[usr] = 1;
+        emit Rely(usr);
+    }
+    function deny(address usr) external auth {
+        wards[usr] = 0;
+        emit Deny(usr);
+    }
+
     function file(bytes32 what, address data) external auth {
         if (what == "king") king = data;
         else revert("D3MCompoundDaiPool/file-unrecognized-param");
