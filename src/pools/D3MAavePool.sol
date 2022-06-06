@@ -64,7 +64,7 @@ interface RewardsClaimerLike {
     function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
 }
 
-contract D3MAaveDaiPool is ID3MPool {
+contract D3MAavePool is ID3MPool {
 
     mapping (address => uint256) public wards;
     address                      public hub;
@@ -90,8 +90,8 @@ contract D3MAaveDaiPool is ID3MPool {
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, ,) = LendingPoolLike(pool_).getReserveData(dai_);
-        require(stableDebt_ != address(0), "D3MAaveDaiPool/invalid-stableDebt");
-        require(variableDebt_ != address(0), "D3MAaveDaiPool/invalid-variableDebt");
+        require(stableDebt_ != address(0), "D3MAavePool/invalid-stableDebt");
+        require(variableDebt_ != address(0), "D3MAavePool/invalid-variableDebt");
 
         adai = ATokenLike(adai_);
         stableDebt = ATokenLike(stableDebt_);
@@ -110,7 +110,7 @@ contract D3MAaveDaiPool is ID3MPool {
     }
 
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MAaveDaiPool/not-authorized");
+        require(wards[msg.sender] == 1, "D3MAavePool/not-authorized");
         _;
     }
 
@@ -129,27 +129,27 @@ contract D3MAaveDaiPool is ID3MPool {
         emit Rely(usr);
     }
     function deny(address usr) external auth {
-        require(vat.live() == 1, "D3MAaveDaiPool/no-deny-during-shutdown");
+        require(vat.live() == 1, "D3MAavePool/no-deny-during-shutdown");
         wards[usr] = 0;
         emit Deny(usr);
     }
 
     function file(bytes32 what, address data) external auth {
-        require(vat.live() == 1, "D3MAaveDaiPool/no-file-during-shutdown");
+        require(vat.live() == 1, "D3MAavePool/no-file-during-shutdown");
         if (what == "hub") {
             vat.nope(hub);
             hub = data;
             vat.hope(data);
         }
         else if (what == "king") king = data;
-        else revert("D3MAaveDaiPool/file-unrecognized-param");
+        else revert("D3MAavePool/file-unrecognized-param");
         emit File(what, data);
     }
 
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
     function deposit(uint256 wad) external override auth returns (bool) {
-        require(vat.live() == 1, "D3MAaveDaiPool/no-deposit-during-shutdown");
+        require(vat.live() == 1, "D3MAavePool/no-deposit-during-shutdown");
         uint256 scaledPrev = adai.scaledBalanceOf(address(this));
 
         pool.deposit(address(asset), wad, address(this), 0);
@@ -163,18 +163,18 @@ contract D3MAaveDaiPool is ID3MPool {
     // Withdraws Dai from Aave in exchange for adai
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
     function withdraw(uint256 wad) external override auth returns (bool) {
-        require(vat.live() == 1 || msg.sender == hub, "D3MAaveDaiPool/no-withdraw-during-shutdown-if-not-hub");
+        require(vat.live() == 1 || msg.sender == hub, "D3MAavePool/no-withdraw-during-shutdown-if-not-hub");
         pool.withdraw(address(asset), wad, address(msg.sender));
         return true;
     }
 
     function transfer(address dst, uint256 wad) external override auth returns (bool) {
-        require(vat.live() == 1 || msg.sender == hub, "D3MAaveDaiPool/no-transfer-during-shutdown-if-not-hub");
+        require(vat.live() == 1 || msg.sender == hub, "D3MAavePool/no-transfer-during-shutdown-if-not-hub");
         return adai.transfer(dst, wad);
     }
 
     function transferAll(address dst) external override auth returns (bool) {
-        require(vat.live() == 1, "D3MAaveDaiPool/no-transferAll-during-shutdown");
+        require(vat.live() == 1, "D3MAavePool/no-transferAll-during-shutdown");
         return adai.transfer(dst, adai.balanceOf(address(this)));
     }
 
@@ -205,7 +205,7 @@ contract D3MAaveDaiPool is ID3MPool {
 
     // --- Collect any rewards ---
     function collect() external returns (uint256 amt) {
-        require(king != address(0), "D3MAaveDaiPool/king-not-set");
+        require(king != address(0), "D3MAavePool/king-not-set");
 
         address[] memory assets = new address[](1);
         assets[0] = address(adai);
