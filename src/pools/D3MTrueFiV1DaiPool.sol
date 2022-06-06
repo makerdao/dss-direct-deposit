@@ -138,7 +138,7 @@ contract D3mTrueFiV1DaiPool is ID3MPool {
     }
 
     function active() external view override returns (bool) {
-        return portfolio.getStatus() == PortfolioLike.PortfolioStatus.Open;
+        return true;
     }
 
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
