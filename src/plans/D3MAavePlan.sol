@@ -119,7 +119,7 @@ contract D3MAavePlan is ID3MPlan {
     }
 
     function file(bytes32 what, address data) external auth {
-        if (what == "interestStrategy") tack = InterestRateStrategyLike(data);
+        if (what == "tack") tack = InterestRateStrategyLike(data);
         else revert("D3MAavePlan/file-unrecognized-param");
         emit File(what, data);
     }
