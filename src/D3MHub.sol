@@ -67,14 +67,15 @@ contract D3MHub {
     */
     mapping (address => uint256) public wards;
 
-    VatLike      public immutable vat;
-    DaiJoinLike  public immutable daiJoin;
-    address      public           vow;
-    EndLike      public           end;
-    uint256      public           locked;
+    address public vow;
+    EndLike public end;
+    uint256 public locked;
 
     /// @notice maps ilk bytes32 to the D3M tracking struct.
     mapping (bytes32 => Ilk) public ilks;
+    
+    VatLike     public immutable vat;
+    DaiJoinLike public immutable daiJoin;
 
     enum Mode { NORMAL, MODULE_CULLED, MCD_CAGED }
 
