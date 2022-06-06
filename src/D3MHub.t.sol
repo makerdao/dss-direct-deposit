@@ -167,28 +167,32 @@ contract D3MHubTest is DSTest {
     }
 
     function _giveTokens(TokenLike token, uint256 amount) internal {
+        _giveTokens(token, address(this), amount);
+    }
+
+    function _giveTokens(TokenLike token, address usr, uint256 amount) internal {
         // Edge case - balance is already set for some reason
-        if (token.balanceOf(address(this)) == amount) return;
+        if (token.balanceOf(address(usr)) == amount) return;
 
         for (int256 i = 0; i < 100; i++) {
             // Scan the storage for the balance storage slot
             bytes32 prevValue = hevm.load(
                 address(token),
-                keccak256(abi.encode(address(this), uint256(i)))
+                keccak256(abi.encode(address(usr), uint256(i)))
             );
             hevm.store(
                 address(token),
-                keccak256(abi.encode(address(this), uint256(i))),
+                keccak256(abi.encode(address(usr), uint256(i))),
                 bytes32(amount)
             );
-            if (token.balanceOf(address(this)) == amount) {
+            if (token.balanceOf(address(usr)) == amount) {
                 // Found it
                 return;
             } else {
                 // Keep going after restoring the original value
                 hevm.store(
                     address(token),
-                    keccak256(abi.encode(address(this), uint256(i))),
+                    keccak256(abi.encode(address(usr), uint256(i))),
                     prevValue
                 );
             }
@@ -1377,5 +1381,35 @@ contract D3MHubTest is DSTest {
             assertTrue(uint256(locked) == 1);
             assertTrue(cmpStr(errmsg, "D3MHub/system-locked"));
         }
+    }
+
+    function test_wind_limited_by_pool_loss() public {
+        _windSystem(); // winds to 50 * WAD
+
+        // Set debt ceiling to 60 to limit loss
+        vat.file(ilk, "line", 60 * RAD);
+
+        // Simulate a loss event by removing the share tokens
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+        assertEq(d3mTestPool.assetBalance(), 50 * WAD);
+
+        _giveTokens(TokenLike(address(testGem)), address(d3mTestPool), 0);
+
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
+        assertEq(d3mTestPool.assetBalance(), 0);
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+
+        // This should only fill another 10 because the debt ceiling
+        d3mHub.exec(ilk);
+
+        assertEq(d3mTestPool.assetBalance(), 10 * WAD);
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 60 * WAD);
+        assertEq(art, 60 * WAD);
     }
 }
