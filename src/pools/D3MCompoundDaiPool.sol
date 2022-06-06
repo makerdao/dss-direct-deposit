@@ -148,10 +148,12 @@ contract D3MCompoundDaiPool is ID3MPool {
         return cDai.transfer(dst, cDai.balanceOf(address(this)));
     }
 
+    // TODO: add bytes parameter to signature once supported in the interface
     function preDebtChange() external override {
         require(cDai.accrueInterest() == 0, "D3MCompoundDaiPool/accrueInterest-failure");
     }
 
+    // TODO: add bytes parameter to signature once supported in the interface
     function postDebtChange() external override {}
 
     // Does not accrue interest (as opposed to cToken's balanceOfUnderlying() which is not a view function).
@@ -169,11 +171,12 @@ contract D3MCompoundDaiPool is ID3MPool {
         return _min(cDai.getCash(), assetBalance());
     }
 
-    // TODO: remove once removed from base
+    // TODO: remove once removed from the interface
     function recoverDai(address dst, uint256 wad) external override auth returns (bool) {
         return TokenLike(dai).transfer(dst, wad);
     }
 
+    // TODO: remove active from pool and rely just on active in plan - once supported in the interface
     function active() external pure override returns (bool) {
         return true;
     }
@@ -194,4 +197,6 @@ contract D3MCompoundDaiPool is ID3MPool {
 
         emit Collect(king, address(comp), amt);
     }
+
+    // TODO: add utility function for what token we get on exit() - once supported in the interface
 }
