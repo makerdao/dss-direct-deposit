@@ -140,6 +140,8 @@ contract D3MHub {
 
     // --- Math ---
     uint256 internal constant RAY = 10 ** 27;
+    uint256 internal constant MAXINT256 = uint256(type(int256).max);
+
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
     }
@@ -281,7 +283,7 @@ contract D3MHub {
                                 ),
                                 daiDebt
                             ),
-                            uint256(type(int256).max)
+                            MAXINT256
                          );
 
         // Determine the amount of fees to bring back
@@ -469,7 +471,7 @@ contract D3MHub {
                                     ),
                                     pool.maxDeposit() // Determine if the pool limits our total deposits
                                 ), 
-                                uint256(type(int256).max)
+                                MAXINT256
                             );
                 }
                 _wind(ilk, pool, toWind);
@@ -518,7 +520,7 @@ contract D3MHub {
         @param wad amount of gems that the msg.sender is returning
     */
     function exit(bytes32 ilk, address usr, uint256 wad) external lock {
-        require(wad <= uint256(type(int256).max), "D3MHub/overflow");
+        require(wad <= MAXINT256, "D3MHub/overflow");
         vat.slip(ilk, msg.sender, -int256(wad));
         ID3MPool pool = ilks[ilk].pool;
         require(pool.transfer(usr, wad), "D3MHub/failed-transfer");
@@ -565,8 +567,8 @@ contract D3MHub {
         ID3MPool pool = ilks[ilk].pool;
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
-        require(ink <= uint256(type(int256).max), "D3MHub/overflow");
-        require(art <= uint256(type(int256).max), "D3MHub/overflow");
+        require(ink <= MAXINT256, "D3MHub/overflow");
+        require(art <= MAXINT256, "D3MHub/overflow");
         vat.grab(ilk, address(pool), address(pool), vow, -int256(ink), -int256(art));
 
         if (ink > art) {
@@ -599,7 +601,7 @@ contract D3MHub {
 
         address vow_ = vow;
         uint256 wad = vat.gem(ilk, address(pool));
-        require(wad <= uint256(type(int256).max), "D3MHub/overflow");
+        require(wad <= MAXINT256, "D3MHub/overflow");
         vat.suck(vow_, vow_, wad * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
         vat.grab(ilk, address(pool), address(pool), vow_, int256(wad), int256(wad));
 
@@ -627,13 +629,13 @@ contract D3MHub {
         if (ilks[ilk].culled == 1) {
             // Culled - just zero out the gems
             uint256 wad = vat.gem(ilk, address(pool));
-            require(wad <= uint256(type(int256).max), "D3MHub/overflow");
+            require(wad <= MAXINT256, "D3MHub/overflow");
             vat.slip(ilk, address(pool), -int256(wad));
         } else {
             // Regular operation - transfer the debt position (requires who to accept the transfer)
             (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
-            require(ink <= uint256(type(int256).max), "D3MHub/overflow");
-            require(art <= uint256(type(int256).max), "D3MHub/overflow");
+            require(ink <= MAXINT256, "D3MHub/overflow");
+            require(art <= MAXINT256, "D3MHub/overflow");
             vat.fork(ilk, address(pool), who, int256(ink), int256(art));
         }
         emit Quit(ilk, who);
