@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import "ds-test/test.sol";
 import "../tests/interfaces/interfaces.sol";
@@ -41,10 +41,18 @@ interface InterestRateModelLike {
     function utilizationRate(uint256 cash, uint256 borrows, uint256 reserves) external pure returns (uint256);
 }
 
+contract D3MCompoundDaiPlanWrapper is D3MCompoundDaiPlan {
+    constructor(address cdai_) D3MCompoundDaiPlan(cdai_) {}
+
+    function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
+        return _calculateTargetSupply(targetInterestRate, cDai.totalBorrows());
+    }
+}
+
 contract D3MCompoundDaiPlanTest is D3MPlanBaseTest {
-    CErc20Like            cDai;
-    InterestRateModelLike model;
-    D3MCompoundDaiPlan    plan;
+    CErc20Like                cDai;
+    InterestRateModelLike     model;
+    D3MCompoundDaiPlanWrapper plan;
 
     uint256 constant WAD = 10 ** 18;
 
@@ -101,8 +109,8 @@ contract D3MCompoundDaiPlanTest is D3MPlanBaseTest {
         cDai  = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
         model = InterestRateModelLike(cDai.interestRateModel());
 
-        d3mTestPlan = address(new D3MCompoundDaiPlan(address(cDai)));
-        plan = D3MCompoundDaiPlan(d3mTestPlan);
+        d3mTestPlan = address(new D3MCompoundDaiPlanWrapper(address(cDai)));
+        plan = D3MCompoundDaiPlanWrapper(d3mTestPlan);
     }
 
     function _targetRateForUtil(uint256 util) internal view returns (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) {
@@ -129,7 +137,7 @@ contract D3MCompoundDaiPlanTest is D3MPlanBaseTest {
     }
 
     function test_sets_rateModel() public {
-        assertEq(address(model), address(plan.rateModel()));
+        assertEq(address(model), address(plan.tack()));
     }
 
     function test_can_file_barb() public {
@@ -145,11 +153,11 @@ contract D3MCompoundDaiPlanTest is D3MPlanBaseTest {
     }
 
     function test_can_file_rateModel() public {
-        assertEq(address(plan.rateModel()), address(model));
+        assertEq(address(plan.tack()), address(model));
 
         plan.file("rateModel", address(1));
 
-        assertEq(address(plan.rateModel()), address(1));
+        assertEq(address(plan.tack()), address(1));
     }
 
     function testFail_cannot_file_unknown_address_param() public {
@@ -276,12 +284,18 @@ contract D3MCompoundDaiPlanTest is D3MPlanBaseTest {
         // Simulate Compound changing the rate model in the pool
         plan.file("rateModel", address(456));
 
-        assertTrue(address(plan.rateModel()) != cDai.interestRateModel());
+        assertTrue(address(plan.tack()) != cDai.interestRateModel());
+        assertTrue(plan.active() == false);
+    }
+
+    function test_barb_zero_not_active() public {
+        assertEq(plan.barb(), 0);
         assertTrue(plan.active() == false);
     }
 
     function test_rate_model_not_changed_active() public {
-        assertEq(address(plan.rateModel()), address(model));
+        plan.file("barb", 123);
+        assertEq(address(plan.tack()), address(model));
         assertTrue(plan.active());
     }
 
@@ -295,7 +309,8 @@ contract D3MCompoundDaiPlanTest is D3MPlanBaseTest {
     }
 
     function testFail_disable_without_auth() public {
-        assertEq(address(plan.rateModel()), address(model));
+        plan.file("barb", 123);
+        assertEq(address(plan.tack()), address(model));
         plan.deny(address(this));
 
         plan.disable();

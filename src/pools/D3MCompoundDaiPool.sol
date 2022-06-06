@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import "./ID3MPool.sol";
 
@@ -34,7 +34,6 @@ interface D3mHubLike {
 }
 
 interface CErc20Like is TokenLike {
-    function interestRateModel()                    external view returns (address);
     function underlying()                           external view returns (address);
     function comptroller()                          external view returns (address);
     function exchangeRateStored()                   external view returns (uint256);
@@ -78,9 +77,9 @@ contract D3MCompoundDaiPool is ID3MPool {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, address data);
-    event Collect(address indexed king, address indexed comp, uint256 amt);
+    event Collect(address indexed king, address indexed gift, uint256 amt);
 
-    constructor(address hub_, address dai_, address cDai_) public {
+    constructor(address hub_, address dai_, address cDai_) {
         address comptroller_ = CErc20Like(cDai_).comptroller();
 
         require(comptroller_ != address(0), "D3MCompoundDaiPool/invalid-comptroller");
@@ -101,17 +100,11 @@ contract D3MCompoundDaiPool is ID3MPool {
     // --- Math ---
     uint256 internal constant WAD = 10 ** 18;
 
-    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "D3MCompoundDaiPool/overflow");
-    }
-    function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "D3MCompoundDaiPool/overflow");
-    }
     function _wmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, y) / WAD;
+        z = (x * y) / WAD;
     }
     function _wdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, WAD) / y;
+        z = (x * WAD) / y;
     }
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
@@ -132,31 +125,35 @@ contract D3MCompoundDaiPool is ID3MPool {
         CanLike(D3mHubLike(hub).vat()).nope(hub);
     }
 
-    function deposit(uint256 amt) external override auth {
+    function deposit(uint256 wad) external override auth returns (bool) {
         uint256 prev = cDai.balanceOf(address(this));
-        require(cDai.mint(amt) == 0, "D3MCompoundDaiPool/mint-failure");
+        require(cDai.mint(wad) == 0, "D3MCompoundDaiPool/mint-failure");
         require(
             cDai.balanceOf(address(this)) ==
-            _add(prev, _wdiv(amt, cDai.exchangeRateStored())), "D3MCompoundDaiPool/incorrect-cdai-credit"
+            prev + _wdiv(wad, cDai.exchangeRateStored()), "D3MCompoundDaiPool/incorrect-cdai-credit"
         );
+        return true;
     }
 
-    function withdraw(uint256 amt) external override auth {
-        require(cDai.redeemUnderlying(amt) == 0, "D3MCompoundDaiPool/redeemUnderlying-failure");
-        dai.transfer(msg.sender, amt);
+    function withdraw(uint256 wad) external override auth returns (bool) {
+        require(cDai.redeemUnderlying(wad) == 0, "D3MCompoundDaiPool/redeemUnderlying-failure");
+        dai.transfer(msg.sender, wad);
+        return true;
     }
 
-    function transfer(address dst, uint256 amt) external override auth returns (bool) {
-        return cDai.transfer(dst, _wdiv(amt, cDai.exchangeRateCurrent()));
+    function transfer(address dst, uint256 wad) external override auth returns (bool) {
+        return cDai.transfer(dst, _wdiv(wad, cDai.exchangeRateCurrent()));
     }
 
     function transferAll(address dst) external override auth returns (bool) {
         return cDai.transfer(dst, cDai.balanceOf(address(this)));
     }
 
-    function accrueIfNeeded() override external {
+    function preDebtChange() external override {
         require(cDai.accrueInterest() == 0, "D3MCompoundDaiPool/accrueInterest-failure");
     }
+
+    function postDebtChange() external override {}
 
     // Does not accrue interest (as opposed to cToken's balanceOfUnderlying() which is not a view function).
     function assetBalance() public view override returns (uint256) {
@@ -164,8 +161,7 @@ contract D3MCompoundDaiPool is ID3MPool {
         return (error == 0) ? _wmul(cTokenBalance, exchangeRate) : 0;
     }
 
-    // TODO: change to pure once moving to 0.8.13
-    function maxDeposit() external view override returns (uint256) {
+    function maxDeposit() external pure override returns (uint256) {
         return type(uint256).max;
     }
 
@@ -173,12 +169,12 @@ contract D3MCompoundDaiPool is ID3MPool {
         return _min(cDai.getCash(), assetBalance());
     }
 
-    function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {
-        return TokenLike(token).transfer(dst, amt);
+    // TODO: remove once removed from base
+    function recoverDai(address dst, uint256 wad) external override auth returns (bool) {
+        return TokenLike(dai).transfer(dst, wad);
     }
 
-    // TODO: change to pure once moving to 0.8.13
-    function active() external view override returns (bool) {
+    function active() external pure override returns (bool) {
         return true;
     }
 

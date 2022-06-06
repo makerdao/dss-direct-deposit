@@ -14,17 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import "ds-test/test.sol";
-import "../tests/interfaces/interfaces.sol";
+import "../interfaces/interfaces.sol";
 
-import { DssDirectDepositHub } from "../DssDirectDepositHub.sol";
-import { D3MMom } from "../D3MMom.sol";
-import { ValueStub } from "../tests/stubs/ValueStub.sol";
+import { DssDirectDepositHub } from "../../DssDirectDepositHub.sol";
+import { D3MMom } from "../../D3MMom.sol";
+import { ValueStub } from "../stubs/ValueStub.sol";
 
-import { D3MCompoundDaiPlan } from "../plans/D3MCompoundDaiPlan.sol";
-import { D3MCompoundDaiPool } from "./D3MCompoundDaiPool.sol";
+import { D3MCompoundDaiPlan } from "../../plans/D3MCompoundDaiPlan.sol";
+import { D3MCompoundDaiPool } from "../../pools/D3MCompoundDaiPool.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -40,7 +40,7 @@ interface CErc20Like {
     function totalReserves()          external view returns (uint256);
     function interestRateModel()      external view returns (address);
     function balanceOf(address owner) external view returns (uint256);
-    function comptroller()            external view returns (uint256);
+    function comptroller()            external view returns (address);
     function borrow(uint256 borrowAmount)       external returns (uint256);
     function balanceOfUnderlying(address owner) external returns (uint256);
     function repayBorrow(uint256 repayAmount)   external returns (uint256);
@@ -149,7 +149,7 @@ contract D3MCompoundDaiTest is DSTest {
         // Deposit ETH into Compound to allow borrowing
         uint256 amt = 10_000_000_000 * WAD;
         cEth.mint{value: amt}();
-        dai.approve(address(cDai), uint256(-1));
+        dai.approve(address(cDai), type(uint256).max);
 
         address[] memory cTokens = new address[](1);
         cTokens[0] = address(cEth);
@@ -512,7 +512,7 @@ contract D3MCompoundDaiTest is DSTest {
         uint256 vowDai = vat.dai(vow);
         directDepositHub.reap(ilk);
 
-        log_named_decimal_uint("dai", vat.dai(vow) - vowDai, 18);
+        emit log_named_decimal_uint("dai", vat.dai(vow) - vowDai, 18);
 
         assertGt(vat.dai(vow) - vowDai, 0);
     }
@@ -1068,16 +1068,6 @@ contract D3MCompoundDaiTest is DSTest {
         directDepositHub.file(ilk, "tau", 1 days);
         (, , tau, , ) = directDepositHub.ilks(ilk);
         assertEq(tau, 1 days);
-    }
-
-    function testFail_set_tau_caged() public {
-        (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
-        assertEq(tau, 7 days);
-
-        directDepositHub.cage(ilk);
-
-        // file should fail with error "D3MCompoundDai/live"
-        directDepositHub.file(ilk, "tau", 1 days);
     }
 
     // Make sure the module works correctly even when someone permissionlessly repays the urn

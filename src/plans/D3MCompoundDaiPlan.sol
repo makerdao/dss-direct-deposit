@@ -42,7 +42,7 @@
 //         util = borrows * WAD / (cash + borrows - reserves);
 // (3)     cash + borrows - reserves = borrows * WAD / util
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import "./ID3MPlan.sol";
 
@@ -64,7 +64,7 @@ interface InterestRateModelLike {
 contract D3MCompoundDaiPlan is ID3MPlan {
 
     mapping (address => uint256) public wards;
-    InterestRateModelLike public rateModel;
+    InterestRateModelLike public tack;
     uint256               public barb; // target Interest Rate Per Block [wad] (0)
 
     CErc20Like public immutable cDai;
@@ -89,12 +89,12 @@ contract D3MCompoundDaiPlan is ID3MPlan {
     event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
 
-    constructor(address cDai_) public {
+    constructor(address cDai_) {
         address rateModel_ = CErc20Like(cDai_).interestRateModel();
         require(rateModel_ != address(0), "D3MCompoundDaiPlan/invalid-rateModel");
 
         cDai = CErc20Like(cDai_);
-        rateModel = InterestRateModelLike(rateModel_);
+        tack = InterestRateModelLike(rateModel_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -103,20 +103,11 @@ contract D3MCompoundDaiPlan is ID3MPlan {
     // --- Math ---
     uint256 internal constant WAD = 10 ** 18;
 
-    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "D3MCompoundDaiPlan/overflow");
-    }
-    function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "D3MCompoundDaiPlan/underflow");
-    }
-    function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "D3MCompoundDaiPlan/overflow");
-    }
     function _wmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, y) / WAD;
+        z = (x * y) / WAD;
     }
     function _wdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, WAD) / y;
+        z = (x * WAD) / y;
     }
 
     // --- Administration ---
@@ -126,8 +117,9 @@ contract D3MCompoundDaiPlan is ID3MPlan {
         } else revert("D3MCompoundDaiPlan/file-unrecognized-param");
         emit File(what, data);
     }
+
     function file(bytes32 what, address data) external auth {
-        if (what == "rateModel") rateModel = InterestRateModelLike(data);
+        if (what == "rateModel") tack = InterestRateModelLike(data); // TODO: change "rateModel" to "tack" once changed on aave plan
         else revert("D3MCompoundDaiPlan/file-unrecognized-param");
         emit File(what, data);
     }
@@ -137,44 +129,38 @@ contract D3MCompoundDaiPlan is ID3MPlan {
         if (targetInterestRate == 0) return 0; // De-activated
 
         uint256 borrows = cDai.totalBorrows();
-        uint256 totalPoolSize = _sub(_add(cDai.getCash(), borrows), cDai.totalReserves());
-
         uint256 targetTotalPoolSize = _calculateTargetSupply(targetInterestRate, borrows);
+        uint256 totalPoolSize = cDai.getCash() + borrows - cDai.totalReserves();
 
         if (targetTotalPoolSize >= totalPoolSize) {
             // Increase debt (or same)
-            return _add(currentAssets, targetTotalPoolSize - totalPoolSize);
+            return currentAssets + targetTotalPoolSize - totalPoolSize;
         } else {
             // Decrease debt
-            uint256 decrease = totalPoolSize - targetTotalPoolSize;
+            uint256 decrease;
+            unchecked { decrease = totalPoolSize - targetTotalPoolSize; }
             if (currentAssets >= decrease) {
-                return currentAssets - decrease;
+                unchecked { return currentAssets - decrease; }
             } else {
                 return 0;
             }
         }
     }
 
-    // TODO: this function seems unneeded, remove once it's removed from the interface and AAVE
-    // targetSupply = cash + borrows - reserves
-    function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
-        return _calculateTargetSupply(targetInterestRate, cDai.totalBorrows());
-    }
-
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 borrows) internal view returns (uint256) {
-        uint256 kink                   = rateModel.kink();
-        uint256 multiplierPerBlock     = rateModel.multiplierPerBlock();
-        uint256 baseRatePerBlock       = rateModel.baseRatePerBlock();
-        uint256 jumpMultiplierPerBlock = rateModel.jumpMultiplierPerBlock();
+        uint256 kink                   = tack.kink();
+        uint256 multiplierPerBlock     = tack.multiplierPerBlock();
+        uint256 baseRatePerBlock       = tack.baseRatePerBlock();
+        uint256 jumpMultiplierPerBlock = tack.jumpMultiplierPerBlock();
 
-        uint256 normalRate = _add(_wmul(kink, multiplierPerBlock), baseRatePerBlock);
+        uint256 normalRate = _wmul(kink, multiplierPerBlock) + baseRatePerBlock;
 
         uint256 targetUtil;
         if (targetInterestRate > normalRate) {
             if (jumpMultiplierPerBlock == 0) return 0; // illegal rate, max is normal rate for this case
-            targetUtil = _add(kink, _wdiv(targetInterestRate - normalRate, jumpMultiplierPerBlock));             // (1)
+            targetUtil = kink + _wdiv(targetInterestRate - normalRate, jumpMultiplierPerBlock); // (1)
         } else if (targetInterestRate > baseRatePerBlock) {
-            targetUtil = _wdiv(targetInterestRate - baseRatePerBlock, multiplierPerBlock);                       // (2)
+            targetUtil = _wdiv(targetInterestRate - baseRatePerBlock, multiplierPerBlock);      // (2)
         } else {
             // if (target == base) => (borrows == 0) => supply does not matter
             // if (target  < base) => illegal rate
@@ -183,14 +169,14 @@ contract D3MCompoundDaiPlan is ID3MPlan {
 
         if (targetUtil > WAD) return 0; // illegal rate (unacheivable utilization)
 
-        return _wdiv(borrows, targetUtil);                                                                       // (3)
+        return _wdiv(borrows, targetUtil);                                                      // (3)
     }
 
     function active() public view override returns (bool) {
-        return CErc20Like(cDai).interestRateModel() == address(rateModel);
+        if (barb == 0) return false;
+        return CErc20Like(cDai).interestRateModel() == address(tack);
     }
 
-    // TODO: align to aave's plan disable() once finalized
     function disable() external override {
         require(wards[msg.sender] == 1 || !active(), "D3MCompoundDaiPlan/not-authorized");
         barb = 0;
