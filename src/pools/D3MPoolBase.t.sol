@@ -99,7 +99,7 @@ contract D3MPoolBase is ID3MPool {
         return true;
     }
 
-    function wild() external override view returns(bool) {
+    function wild() external override pure returns(bool) {
         return false;
     }
 }
