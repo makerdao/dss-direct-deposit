@@ -157,7 +157,8 @@ contract D3MCompoundDaiPool is ID3MPool {
     // Does not accrue interest (as opposed to cToken's balanceOfUnderlying() which is not a view function).
     function assetBalance() public view override returns (uint256) {
         (uint256 error, uint256 cTokenBalance,, uint256 exchangeRate) = cDai.getAccountSnapshot(address(this));
-        return (error == 0) ? _wmul(cTokenBalance, exchangeRate) : 0;
+        require(error == 0, "D3MCompoundDaiPool/getAccountSnapshot-failure");
+        return _wmul(cTokenBalance, exchangeRate);
     }
 
     function maxDeposit() external pure override returns (uint256) {
