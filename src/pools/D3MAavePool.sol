@@ -63,7 +63,7 @@ interface RewardsClaimerLike {
     function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
 }
 
-contract D3MAaveDaiPool is ID3MPool {
+contract D3MAavePool is ID3MPool {
 
     mapping (address => uint256) public wards;
     address                      public king;  // Who gets the rewards
@@ -87,8 +87,8 @@ contract D3MAaveDaiPool is ID3MPool {
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, ,) = LendingPoolLike(pool_).getReserveData(dai_);
-        require(stableDebt_ != address(0), "D3MAaveDaiPool/invalid-stableDebt");
-        require(variableDebt_ != address(0), "D3MAaveDaiPool/invalid-variableDebt");
+        require(stableDebt_ != address(0), "D3MAavePool/invalid-stableDebt");
+        require(variableDebt_ != address(0), "D3MAavePool/invalid-variableDebt");
 
         adai = ATokenLike(adai_);
         stableDebt = ATokenLike(stableDebt_);
@@ -104,7 +104,7 @@ contract D3MAaveDaiPool is ID3MPool {
     }
 
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MAaveDaiPool/not-authorized");
+        require(wards[msg.sender] == 1, "D3MAavePool/not-authorized");
         _;
     }
 
@@ -129,7 +129,7 @@ contract D3MAaveDaiPool is ID3MPool {
 
     function file(bytes32 what, address data) external auth {
         if (what == "king") king = data;
-        else revert("D3MAaveDaiPool/file-unrecognized-param");
+        else revert("D3MAavePool/file-unrecognized-param");
         emit File(what, data);
     }
 
@@ -196,7 +196,7 @@ contract D3MAaveDaiPool is ID3MPool {
 
     // --- Collect any rewards ---
     function collect() external returns (uint256 amt) {
-        require(king != address(0), "D3MAaveDaiPool/king-not-set");
+        require(king != address(0), "D3MAavePool/king-not-set");
 
         address[] memory assets = new address[](1);
         assets[0] = address(adai);
