@@ -27,11 +27,18 @@ interface RewardsClaimerLike {
 }
 
 contract AToken is D3MTestGem {
+    address public rewardsClaimer;
 
-    constructor(uint256 decimals_) D3MTestGem(decimals_) {}
+    constructor(uint256 decimals_) D3MTestGem(decimals_) {
+        rewardsClaimer = address(new FakeRewardsClaimer());
+    }
 
     function scaledBalanceOf(address who) external view returns (uint256) {
         return balanceOf[who];
+    }
+
+    function getIncentivesController() external view returns (address) {
+        return rewardsClaimer;
     }
 }
 
@@ -140,7 +147,6 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
     AToken adai;
     LendingPoolLike aavePool;
-    address rewardsClaimer;
 
     function setUp() override public {
         hevm = Hevm(
@@ -150,13 +156,12 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         dai = DaiLike(address(new D3MTestGem(18)));
         adai = new AToken(18);
         aavePool = LendingPoolLike(address(new FakeLendingPool(address(adai))));
-        rewardsClaimer = address(new FakeRewardsClaimer());
 
         vat = address(new FakeVat());
 
         hub = address(new FakeHub(vat));
 
-        d3mTestPool = address(new D3MAavePool(hub, address(dai), address(aavePool), rewardsClaimer));
+        d3mTestPool = address(new D3MAavePool(hub, address(dai), address(aavePool)));
     }
 
     function test_sets_dai_value() public {
@@ -215,6 +220,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
     function test_collect_claims_for_king() public {
         address king = address(123);
+        address rewardsClaimer = adai.getIncentivesController();
         D3MAavePool(d3mTestPool).file("king", king);
 
         D3MAavePool(d3mTestPool).collect();

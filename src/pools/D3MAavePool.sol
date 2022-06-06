@@ -37,6 +37,7 @@ interface D3mHubLike {
 // aDai: https://etherscan.io/address/0x028171bCA77440897B824Ca71D1c56caC55b68A3
 interface ATokenLike is TokenLike {
     function scaledBalanceOf(address) external view returns (uint256);
+    function getIncentivesController() external view returns (address);
 }
 
 // Aave Lending Pool v2: https://etherscan.io/address/0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9
@@ -72,7 +73,6 @@ contract D3MAavePool is ID3MPool {
     address                      public king;  // Who gets the rewards
 
     LendingPoolLike    public immutable pool;
-    RewardsClaimerLike public immutable rewardsClaimer;
     ATokenLike         public immutable stableDebt;
     ATokenLike         public immutable variableDebt;
     ATokenLike         public immutable adai;
@@ -84,7 +84,7 @@ contract D3MAavePool is ID3MPool {
     event File(bytes32 indexed what, address data);
     event Collect(address indexed king, address indexed gift, uint256 amt);
 
-    constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) {
+    constructor(address hub_, address dai_, address pool_) {
         pool = LendingPoolLike(pool_);
         asset = TokenLike(dai_);
 
@@ -96,7 +96,6 @@ contract D3MAavePool is ID3MPool {
         adai = ATokenLike(adai_);
         stableDebt = ATokenLike(stableDebt_);
         variableDebt = ATokenLike(variableDebt_);
-        rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
 
         TokenLike(dai_).approve(pool_, type(uint256).max);
 
@@ -203,6 +202,8 @@ contract D3MAavePool is ID3MPool {
 
         address[] memory assets = new address[](1);
         assets[0] = address(adai);
+
+        RewardsClaimerLike rewardsClaimer = RewardsClaimerLike(adai.getIncentivesController());
 
         amt = rewardsClaimer.claimRewards(assets, type(uint256).max, king);
         address gift = rewardsClaimer.REWARD_TOKEN();
