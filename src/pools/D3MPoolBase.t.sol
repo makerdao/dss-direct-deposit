@@ -83,9 +83,9 @@ contract D3MPoolBase is ID3MPool {
         returns (bool)
     {}
 
-    function preDebtChange() external override {}
+    function preDebtChange(bytes32 what) external override {}
 
-    function postDebtChange() external override {}
+    function postDebtChange(bytes32 what) external override {}
 
     function assetBalance() external view override returns (uint256) {}
 
@@ -235,11 +235,11 @@ contract D3MPoolBaseTest is DSTest {
     }
 
     function test_implements_preDebtChange() public {
-        D3MPoolBase(d3mTestPool).preDebtChange();
+        D3MPoolBase(d3mTestPool).preDebtChange("test");
     }
 
     function test_implements_postDebtChange() public {
-        D3MPoolBase(d3mTestPool).postDebtChange();
+        D3MPoolBase(d3mTestPool).postDebtChange("test");
     }
 
     function test_implements_active() public view {

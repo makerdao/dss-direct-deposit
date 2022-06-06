@@ -114,11 +114,13 @@ contract D3MTestPool is ID3MPool {
         return TokenLike(share).transfer(dst, shareBalance());
     }
 
-    function preDebtChange() external override {
+    function preDebtChange(bytes32 what) external override {
+        what;
         preDebt = true;
     }
 
-    function postDebtChange() external override {
+    function postDebtChange(bytes32 what) external override {
+        what;
         postDebt = true;
     }
 

@@ -398,7 +398,7 @@ contract D3MHub {
 
         ID3MPool pool = ilks[ilk].pool;
 
-        pool.preDebtChange();
+        pool.preDebtChange("exec");
         uint256 currentAssets = pool.assetBalance();
 
         if (vat.live() == 0) {
@@ -478,7 +478,7 @@ contract D3MHub {
             }
         }
 
-        pool.postDebtChange();
+        pool.postDebtChange("exec");
     }
 
     /**
@@ -495,7 +495,7 @@ contract D3MHub {
         require(pool.active(), "D3MHub/pool-not-active");
         require(ilks[ilk].plan.active(), "D3MHub/plan-not-active");
 
-        pool.preDebtChange();
+        pool.preDebtChange("reap");
         uint256 assetBalance = pool.assetBalance();
         (, uint256 daiDebt) = vat.urns(ilk, address(pool));
         if (assetBalance > daiDebt) {
@@ -508,7 +508,7 @@ contract D3MHub {
             daiJoin.join(vow, fees);
             emit Reap(ilk, fees);
         }
-        pool.postDebtChange();
+        pool.postDebtChange("reap");
     }
 
     /**
