@@ -144,10 +144,6 @@ contract D3MTestPool is ID3MPool {
         return shares;
     }
 
-    function recoverDai(address dst, uint256 wad) external override auth returns (bool) {
-        return TokenLike(asset).transfer(dst, wad);
-    }
-
     function active() external view override returns (bool) {
         return active_;
     }

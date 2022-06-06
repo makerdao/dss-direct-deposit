@@ -188,10 +188,6 @@ contract D3MAavePool is ID3MPool {
         return _min(asset.balanceOf(address(adai)), assetBalance());
     }
 
-    function recoverDai(address dst, uint256 wad) external override auth returns (bool) {
-        return TokenLike(asset).transfer(dst, wad);
-    }
-
     function active() external pure override returns (bool) {
         return true;
     }

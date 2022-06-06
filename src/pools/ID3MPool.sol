@@ -108,19 +108,6 @@ interface ID3MPool {
     */
     function maxWithdraw() external view returns (uint256);
 
-    /**
-        @notice Used to recover ERC-20 DAI accidentally sent to the pool.
-        --- YOU SHOULD NOT SEND ERC-20 DIRECTLY TO THIS CONTRACT ---
-        The presence of this function does not convey any right to recover tokens
-        sent to this contract. Maker Governance must evaluate and perform this
-        action at its sole discretion.
-        @dev msg.sender must be authorized.
-        @param dst address that should receive the shares
-        @param wad amount in wad terms that we want to withdraw
-        @return bool whether the transfer was successful per ERC-20 standard
-    */
-    function recoverDai(address dst, uint256 wad) external returns (bool);
-
     /// @notice Reports whether the plan is active
     function active() external view returns (bool);
 }
