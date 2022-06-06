@@ -536,7 +536,7 @@ contract D3MHub {
         @dev msg.sender must be authorized.
         @param ilk bytes32 of the D3M ilk name
     */
-    function cage(bytes32 ilk) external auth {
+    function cage(bytes32 ilk) external {
         require(vat.live() == 1, "D3MHub/no-cage-during-shutdown");
         require(ilks[ilk].tic == 0, "D3MHub/pool-already-caged");
 

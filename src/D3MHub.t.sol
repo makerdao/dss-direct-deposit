@@ -756,7 +756,7 @@ contract D3MHubTest is DSTest {
         assertEq(testGem.balanceOf(address(this)), prevBalance + 50 * WAD);
     }
 
-    function test_cage_pool() public {
+    function test_cage_d3m_with_auth() public {
         (, , uint256 tau, , uint256 tic) = d3mHub.ilks(ilk);
         assertEq(tic, 0);
 
@@ -766,17 +766,47 @@ contract D3MHubTest is DSTest {
         assertEq(tic, block.timestamp + tau);
     }
 
-    function testFail_cage_pool_mcd_caged() public {
+    function test_cage_d3m_with_wild_pool() public {
+        (, , uint256 tau, , uint256 tic) = d3mHub.ilks(ilk);
+        assertEq(tic, 0);
+
+        d3mHub.deny(address(this));
+        d3mTestPool.file("wild_", true);
+        assertTrue(d3mTestPool.wild());
+        assertTrue(d3mTestPlan.wild() == false);
+        d3mHub.cage(ilk);
+
+        (, , , , tic) = d3mHub.ilks(ilk);
+        assertEq(tic, block.timestamp + tau);
+    }
+
+    function test_cage_d3m_with_wild_plan() public {
+        (, , uint256 tau, , uint256 tic) = d3mHub.ilks(ilk);
+        assertEq(tic, 0);
+
+        d3mHub.deny(address(this));
+        d3mTestPlan.file("wild_", true);
+        assertTrue(d3mTestPool.wild() == false);
+        assertTrue(d3mTestPlan.wild());
+        d3mHub.cage(ilk);
+
+        (, , , , tic) = d3mHub.ilks(ilk);
+        assertEq(tic, block.timestamp + tau);
+    }
+
+    function testFail_cage_d3m_mcd_caged() public {
         vat.cage();
         d3mHub.cage(ilk);
     }
     
-    function testFail_cage_pool_no_auth() public {
+    function testFail_cage_d3m_no_auth() public {
         d3mHub.deny(address(this));
+        assertTrue(d3mTestPool.wild() == false);
+        assertTrue(d3mTestPlan.wild() == false);
         d3mHub.cage(ilk);
     }
 
-    function testFail_cage_pool_already_caged() public {
+    function testFail_cage_d3m_already_caged() public {
         d3mHub.cage(ilk);
         d3mHub.cage(ilk);
     }
