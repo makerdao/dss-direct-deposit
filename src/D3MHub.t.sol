@@ -19,7 +19,7 @@ pragma solidity ^0.8.14;
 import "ds-test/test.sol";
 import "./tests/interfaces/interfaces.sol";
 
-import {DssDirectDepositHub} from "./DssDirectDepositHub.sol";
+import {D3MHub} from "./D3MHub.sol";
 import "./pools/ID3MPool.sol";
 import "./plans/ID3MPlan.sol";
 
@@ -41,7 +41,7 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
-contract DssDirectDepositHubTest is DSTest {
+contract D3MHubTest is DSTest {
     uint256 constant WAD = 10**18;
     uint256 constant RAY = 10**27;
     uint256 constant RAD = 10**45;
@@ -61,7 +61,7 @@ contract DssDirectDepositHubTest is DSTest {
     address pauseProxy;
 
     bytes32 constant ilk = "DD-DAI-TEST";
-    DssDirectDepositHub directDepositHub;
+    D3MHub d3mHub;
     D3MTestPool d3mTestPool;
     D3MTestPlan d3mTestPlan;
     ValueStub pip;
@@ -86,16 +86,16 @@ contract DssDirectDepositHubTest is DSTest {
         _giveAuthAccess(address(spot), address(this));
 
         testGem = new D3MTestGem(18);
-        directDepositHub = new DssDirectDepositHub(address(vat), address(daiJoin));
+        d3mHub = new D3MHub(address(vat), address(daiJoin));
 
         rewardsClaimer = new D3MTestRewards(address(testGem));
         d3mTestPool = new D3MTestPool(
-            address(directDepositHub),
+            address(d3mHub),
             address(dai),
             address(testGem),
             address(rewardsClaimer)
         );
-        d3mTestPool.rely(address(directDepositHub));
+        d3mTestPool.rely(address(d3mHub));
         d3mTestPlan = new D3MTestPlan(address(dai));
 
         // Test Target Setup
@@ -107,12 +107,12 @@ contract DssDirectDepositHubTest is DSTest {
             type(uint256).max
         );
 
-        directDepositHub.file("vow", vow);
-        directDepositHub.file("end", address(end));
+        d3mHub.file("vow", vow);
+        d3mHub.file("end", address(end));
 
-        directDepositHub.file(ilk, "pool", address(d3mTestPool));
-        directDepositHub.file(ilk, "plan", address(d3mTestPlan));
-        directDepositHub.file(ilk, "tau", 7 days);
+        d3mHub.file(ilk, "pool", address(d3mTestPool));
+        d3mHub.file(ilk, "plan", address(d3mTestPlan));
+        d3mHub.file(ilk, "tau", 7 days);
 
         // Init new collateral
         pip = new ValueStub();
@@ -121,7 +121,7 @@ contract DssDirectDepositHubTest is DSTest {
         spot.file(ilk, "mat", RAY);
         spot.poke(ilk);
 
-        vat.rely(address(directDepositHub));
+        vat.rely(address(d3mHub));
         vat.init(ilk);
         vat.file(ilk, "line", 5_000_000_000 * RAD);
         vat.file("Line", vat.Line() + 5_000_000_000 * RAD);
@@ -201,7 +201,7 @@ contract DssDirectDepositHubTest is DSTest {
     function _windSystem() internal {
         d3mTestPlan.file("bar", 10);
         d3mTestPlan.file("targetAssets", 50 * WAD);
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 50 * WAD);
@@ -214,81 +214,81 @@ contract DssDirectDepositHubTest is DSTest {
 
     function test_approvals() public {
         assertEq(
-            dai.allowance(address(directDepositHub), address(daiJoin)),
+            dai.allowance(address(d3mHub), address(daiJoin)),
             type(uint256).max
         );
-        assertEq(vat.can(address(directDepositHub), address(daiJoin)), 1);
+        assertEq(vat.can(address(d3mHub), address(daiJoin)), 1);
     }
 
     function test_can_file_tau() public {
-        (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
+        (, , uint256 tau, , ) = d3mHub.ilks(ilk);
         assertEq(tau, 7 days);
-        directDepositHub.file(ilk, "tau", 1 days);
-        (, , tau, , ) = directDepositHub.ilks(ilk);
+        d3mHub.file(ilk, "tau", 1 days);
+        (, , tau, , ) = d3mHub.ilks(ilk);
         assertEq(tau, 1 days);
     }
 
     function testFail_unauth_file_tau() public {
-        directDepositHub.deny(address(this));
+        d3mHub.deny(address(this));
 
-        directDepositHub.file(ilk, "tau", 1 days);
+        d3mHub.file(ilk, "tau", 1 days);
     }
 
     function testFail_unknown_uint256_file() public {
-        directDepositHub.file(ilk, "unknown", 1);
+        d3mHub.file(ilk, "unknown", 1);
     }
 
     function testFail_unknown_address_file() public {
-        directDepositHub.file("unknown", address(this));
+        d3mHub.file("unknown", address(this));
     }
 
     function test_can_file_pool() public {
-        (ID3MPool pool, , , , ) = directDepositHub.ilks(ilk);
+        (ID3MPool pool, , , , ) = d3mHub.ilks(ilk);
 
         assertEq(address(pool), address(d3mTestPool));
 
-        directDepositHub.file(ilk, "pool", address(this));
+        d3mHub.file(ilk, "pool", address(this));
 
-        (pool, , , , ) = directDepositHub.ilks(ilk);
+        (pool, , , , ) = d3mHub.ilks(ilk);
         assertEq(address(pool), address(this));
     }
 
     function test_can_file_plan() public {
-        (, ID3MPlan plan, , , ) = directDepositHub.ilks(ilk);
+        (, ID3MPlan plan, , , ) = d3mHub.ilks(ilk);
 
         assertEq(address(plan), address(d3mTestPlan));
 
-        directDepositHub.file(ilk, "plan", address(this));
+        d3mHub.file(ilk, "plan", address(this));
 
-        (, plan, , , ) = directDepositHub.ilks(ilk);
+        (, plan, , , ) = d3mHub.ilks(ilk);
         assertEq(address(plan), address(this));
     }
 
     function test_can_file_vow() public {
-        address setVow = directDepositHub.vow();
+        address setVow = d3mHub.vow();
 
         assertEq(vow, setVow);
 
-        directDepositHub.file("vow", address(this));
+        d3mHub.file("vow", address(this));
 
-        setVow = directDepositHub.vow();
+        setVow = d3mHub.vow();
         assertEq(setVow, address(this));
     }
 
     function test_can_file_end() public {
-        address setEnd = address(directDepositHub.end());
+        address setEnd = address(d3mHub.end());
 
         assertEq(address(end), setEnd);
 
-        directDepositHub.file("end", address(this));
+        d3mHub.file("end", address(this));
 
-        setEnd = address(directDepositHub.end());
+        setEnd = address(d3mHub.end());
         assertEq(setEnd, address(this));
     }
 
     function testFail_vat_not_live_address_file() public {
-        directDepositHub.file("end", address(this));
-        address hubEnd = address(directDepositHub.end());
+        d3mHub.file("end", address(this));
+        address hubEnd = address(d3mHub.end());
 
         assertEq(hubEnd, address(this));
 
@@ -296,29 +296,29 @@ contract DssDirectDepositHubTest is DSTest {
         end.cage();
         end.cage(ilk);
 
-        directDepositHub.file("end", address(123));
+        d3mHub.file("end", address(123));
     }
 
     function testFail_unauth_file_pool() public {
-        directDepositHub.deny(address(this));
+        d3mHub.deny(address(this));
 
-        directDepositHub.file(ilk, "pool", address(this));
+        d3mHub.file(ilk, "pool", address(this));
     }
 
     function testFail_hub_not_live_pool_file() public {
         // Cage Pool
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
 
-        directDepositHub.file(ilk, "pool", address(123));
+        d3mHub.file(ilk, "pool", address(123));
     }
 
     function testFail_unknown_ilk_address_file() public {
-        directDepositHub.file(ilk, "unknown", address(123));
+        d3mHub.file(ilk, "unknown", address(123));
     }
 
     function testFail_vat_not_live_ilk_address_file() public {
-        directDepositHub.file(ilk, "pool", address(this));
-        (ID3MPool pool, , , , ) = directDepositHub.ilks(ilk);
+        d3mHub.file(ilk, "pool", address(this));
+        (ID3MPool pool, , , , ) = d3mHub.ilks(ilk);
 
         assertEq(address(pool), address(this));
 
@@ -326,35 +326,35 @@ contract DssDirectDepositHubTest is DSTest {
         end.cage();
         end.cage(ilk);
 
-        directDepositHub.file(ilk, "pool", address(123));
+        d3mHub.file(ilk, "pool", address(123));
     }
 
     function test_can_nope_daiJoin() public {
-        assertEq(vat.can(address(directDepositHub), address(daiJoin)), 1);
-        directDepositHub.nope();
-        assertEq(vat.can(address(directDepositHub), address(daiJoin)), 0);
+        assertEq(vat.can(address(d3mHub), address(daiJoin)), 1);
+        d3mHub.nope();
+        assertEq(vat.can(address(d3mHub), address(daiJoin)), 0);
     }
 
     function testFail_cannot_nope_without_auth() public {
-        assertEq(vat.can(address(directDepositHub), address(daiJoin)), 1);
-        directDepositHub.deny(address(this));
-        directDepositHub.nope();
+        assertEq(vat.can(address(d3mHub), address(daiJoin)), 1);
+        d3mHub.deny(address(this));
+        d3mHub.nope();
     }
 
     function testFail_exec_no_ilk() public {
-        directDepositHub.exec("fake-ilk");
+        d3mHub.exec("fake-ilk");
     }
 
     function testFail_exec_rate_not_one() public {
         vat.fold(ilk, vow, int(2 * RAY));
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
     }
     
     function test_wind_limited_ilk_line() public {
         d3mTestPlan.file("bar", 10);
         d3mTestPlan.file("targetAssets", 50 * WAD);
         vat.file(ilk, "line", 40 * RAD);
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 40 * WAD);
@@ -367,7 +367,7 @@ contract DssDirectDepositHubTest is DSTest {
         d3mTestPlan.file("bar", 10);
         d3mTestPlan.file("targetAssets", 50 * WAD);
         vat.file("Line", vat.debt() + 40 * RAD);
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 40 * WAD);
@@ -381,7 +381,7 @@ contract DssDirectDepositHubTest is DSTest {
         d3mTestPlan.file("targetAssets", 75 * WAD);
         d3mTestPool.file("maxDepositAmount", 5 * WAD);
 
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 55 * WAD);
@@ -395,7 +395,7 @@ contract DssDirectDepositHubTest is DSTest {
         d3mTestPlan.file("targetAssets", 75 * WAD);
         d3mTestPool.file("maxDepositAmount", 0);
 
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 50 * WAD);
@@ -409,7 +409,7 @@ contract DssDirectDepositHubTest is DSTest {
 
         // Temporarily disable the module
         d3mTestPool.file("active_", false);
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         // Ensure we unwound our position
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
@@ -425,7 +425,7 @@ contract DssDirectDepositHubTest is DSTest {
 
         // Temporarily disable the module
         d3mTestPlan.file("active_", false);
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         // Ensure we unwound our position
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
@@ -441,7 +441,7 @@ contract DssDirectDepositHubTest is DSTest {
 
         // Temporarily disable the module
         d3mTestPlan.file("bar", 0);
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         // Ensure we unwound our position
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
@@ -458,7 +458,7 @@ contract DssDirectDepositHubTest is DSTest {
         // Set ilk line below current debt
         d3mTestPlan.file("targetAssets", 55 * WAD); // Increasing target in 5 WAD
         vat.file(ilk, "line", 45 * RAD);
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         // Ensure we unwound our position to debt ceiling
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
@@ -475,7 +475,7 @@ contract DssDirectDepositHubTest is DSTest {
         // Set ilk line below current debt
         d3mTestPlan.file("targetAssets", 55 * WAD); // Increasing target in 5 WAD
         vat.file("Line", vat.debt() - 5 * RAD);
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         // Ensure we unwound our position to debt ceiling
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
@@ -493,7 +493,7 @@ contract DssDirectDepositHubTest is DSTest {
         end.cage();
         end.cage(ilk);
 
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         // Ensure we unwound our position
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
@@ -524,14 +524,14 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(gemBefore, 0);
         uint256 sinBefore = vat.sin(vow);
 
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 10 * WAD);
         assertEq(art, 0);
         uint256 gemAfter = vat.gem(ilk, address(end));
         assertEq(gemAfter, 0);
-        uint256 daiAfter = vat.dai(address(directDepositHub));
+        uint256 daiAfter = vat.dai(address(d3mHub));
         assertEq(daiAfter, 0);
         assertEq(sinBefore + 40 * RAD, vat.sin(vow));
     }
@@ -540,9 +540,9 @@ contract DssDirectDepositHubTest is DSTest {
         _windSystem();
 
         // Module caged
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
 
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         // Ensure we unwound our position
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
@@ -562,7 +562,7 @@ contract DssDirectDepositHubTest is DSTest {
 
         d3mTestPlan.file("targetAssets", 25 * WAD);
 
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         // Ensure we unwound our position
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
@@ -579,12 +579,12 @@ contract DssDirectDepositHubTest is DSTest {
         D3MTestGem otherGem = new D3MTestGem(6);
         D3MTestRewards otherRewards = new D3MTestRewards(address(otherGem));
         D3MTestPool otherPool = new D3MTestPool(
-            address(directDepositHub),
+            address(d3mHub),
             address(dai),
             address(otherGem),
             address(otherRewards)
         );
-        otherPool.rely(address(directDepositHub));
+        otherPool.rely(address(d3mHub));
         otherGem.rely(address(otherPool));
         otherGem.giveAllowance(
             address(dai),
@@ -592,9 +592,9 @@ contract DssDirectDepositHubTest is DSTest {
             type(uint256).max
         );
 
-        directDepositHub.file(otherIlk, "pool", address(otherPool));
-        directDepositHub.file(otherIlk, "plan", address(d3mTestPlan));
-        directDepositHub.file(otherIlk, "tau", 7 days);
+        d3mHub.file(otherIlk, "pool", address(otherPool));
+        d3mHub.file(otherIlk, "plan", address(d3mTestPlan));
+        d3mHub.file(otherIlk, "tau", 7 days);
 
         spot.file(otherIlk, "pip", address(pip));
         spot.file(otherIlk, "mat", RAY);
@@ -606,7 +606,7 @@ contract DssDirectDepositHubTest is DSTest {
         // wind up system
         d3mTestPlan.file("bar", 10);
         d3mTestPlan.file("targetAssets", 50 * WAD);
-        directDepositHub.exec(otherIlk);
+        d3mHub.exec(otherIlk);
 
         (uint256 ink, uint256 art) = vat.urns(otherIlk, address(otherPool));
         assertEq(ink, 50 * WAD);
@@ -619,7 +619,7 @@ contract DssDirectDepositHubTest is DSTest {
         // wind down system
         d3mTestPlan.file("bar", 10);
         d3mTestPlan.file("targetAssets", 5 * WAD);
-        directDepositHub.exec(otherIlk);
+        d3mHub.exec(otherIlk);
 
         (ink, art) = vat.urns(otherIlk, address(otherPool));
         assertEq(ink, 5 * WAD);
@@ -641,7 +641,7 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(part, 50 * WAD);
         uint256 prevDai = vat.dai(vow);
 
-        directDepositHub.reap(ilk);
+        d3mHub.reap(ilk);
 
         (, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(art, 50 * WAD);
@@ -670,7 +670,7 @@ contract DssDirectDepositHubTest is DSTest {
         dai.transferFrom(address(testGem), address(this), 45 * WAD);
         assertEq(dai.balanceOf(address(testGem)), 5 * WAD); // liquidity after
 
-        directDepositHub.reap(ilk);
+        d3mHub.reap(ilk);
 
         (, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(art, 50 * WAD);
@@ -692,7 +692,7 @@ contract DssDirectDepositHubTest is DSTest {
         end.cage();
         end.cage(ilk);
 
-        directDepositHub.reap(ilk);
+        d3mHub.reap(ilk);
     }
 
     function testFail_no_reap_pool_caged() public {
@@ -703,9 +703,9 @@ contract DssDirectDepositHubTest is DSTest {
         testGem.transfer(address(d3mTestPool), 10 * WAD);
 
         // module caged
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
 
-        directDepositHub.reap(ilk);
+        d3mHub.reap(ilk);
     }
 
     function testFail_no_reap_pool_inactive() public {
@@ -718,7 +718,7 @@ contract DssDirectDepositHubTest is DSTest {
         // pool inactive
         d3mTestPool.file("active_", false);
 
-        directDepositHub.reap(ilk);
+        d3mHub.reap(ilk);
     }
 
     function testFail_no_reap_plan_inactive() public {
@@ -731,7 +731,7 @@ contract DssDirectDepositHubTest is DSTest {
         // pool inactive
         d3mTestPlan.file("active_", false);
 
-        directDepositHub.reap(ilk);
+        d3mHub.reap(ilk);
     }
 
     function test_exit() public {
@@ -752,38 +752,38 @@ contract DssDirectDepositHubTest is DSTest {
         uint256 prevBalance = testGem.balanceOf(address(this));
 
         // User can exit and get the aDAI
-        directDepositHub.exit(ilk, address(this), 50 * WAD);
+        d3mHub.exit(ilk, address(this), 50 * WAD);
         assertEq(testGem.balanceOf(address(this)), prevBalance + 50 * WAD);
     }
 
     function test_cage_pool() public {
-        (, , uint256 tau, , uint256 tic) = directDepositHub.ilks(ilk);
+        (, , uint256 tau, , uint256 tic) = d3mHub.ilks(ilk);
         assertEq(tic, 0);
 
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
 
-        (, , , , tic) = directDepositHub.ilks(ilk);
+        (, , , , tic) = d3mHub.ilks(ilk);
         assertEq(tic, block.timestamp + tau);
     }
 
     function testFail_cage_pool_mcd_caged() public {
         vat.cage();
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
     }
     
     function testFail_cage_pool_no_auth() public {
-        directDepositHub.deny(address(this));
-        directDepositHub.cage(ilk);
+        d3mHub.deny(address(this));
+        d3mHub.cage(ilk);
     }
 
     function testFail_cage_pool_already_caged() public {
-        directDepositHub.cage(ilk);
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
+        d3mHub.cage(ilk);
     }
 
     function test_cull() public {
         _windSystem();
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
         assertEq(pink, 50 * WAD);
@@ -792,7 +792,7 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(gemBefore, 0);
         uint256 sinBefore = vat.sin(vow);
 
-        directDepositHub.cull(ilk);
+        d3mHub.cull(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 0);
@@ -800,7 +800,7 @@ contract DssDirectDepositHubTest is DSTest {
         uint256 gemAfter = vat.gem(ilk, address(d3mTestPool));
         assertEq(gemAfter, 50 * WAD);
         assertEq(sinBefore + 50 * RAD, vat.sin(vow));
-        (, , , uint256 culled, ) = directDepositHub.ilks(ilk);
+        (, , , uint256 culled, ) = d3mHub.ilks(ilk);
         assertEq(culled, 1);
     }
 
@@ -813,7 +813,7 @@ contract DssDirectDepositHubTest is DSTest {
         daiJoin.join(address(this), 10 * WAD);
         vat.frob(ilk, address(d3mTestPool), address(d3mTestPool), address(this), 0, -int256(10 * WAD));
 
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
         assertEq(pink, 50 * WAD);
@@ -823,25 +823,25 @@ contract DssDirectDepositHubTest is DSTest {
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
 
-        directDepositHub.cull(ilk);
+        d3mHub.cull(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 0);
         assertEq(art, 0);
         uint256 gemAfter = vat.gem(ilk, address(d3mTestPool));
         assertEq(gemAfter, 40 * WAD);
-        uint256 daiAfter = vat.dai(address(directDepositHub));
+        uint256 daiAfter = vat.dai(address(d3mHub));
         assertEq(daiAfter, 0);
         // Sin only increases by 40 WAD since 10 was covered previously
         assertEq(sinBefore + 40 * RAD, vat.sin(vow));
         assertEq(vowDaiBefore, vat.dai(vow));
-        (, , , uint256 culled, ) = directDepositHub.ilks(ilk);
+        (, , , uint256 culled, ) = d3mHub.ilks(ilk);
         assertEq(culled, 1);
 
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
-        assertEq(vat.dai(address(directDepositHub)), 0);
+        assertEq(vat.dai(address(d3mHub)), 0);
         // Still 50 WAD because the extra 10 WAD from repayment are not
         // accounted for in the fees from unwind
         assertEq(vowDaiBefore + 50 * RAD, vat.dai(vow));
@@ -849,9 +849,9 @@ contract DssDirectDepositHubTest is DSTest {
 
     function test_cull_no_auth_time_passed() public {
         _windSystem();
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
         // with auth we can cull anytime
-        directDepositHub.deny(address(this));
+        d3mHub.deny(address(this));
         // but with enough time, anyone can cull
         hevm.warp(block.timestamp + 7 days);
 
@@ -862,7 +862,7 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(gemBefore, 0);
         uint256 sinBefore = vat.sin(vow);
 
-        directDepositHub.cull(ilk);
+        d3mHub.cull(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 0);
@@ -870,61 +870,61 @@ contract DssDirectDepositHubTest is DSTest {
         uint256 gemAfter = vat.gem(ilk, address(d3mTestPool));
         assertEq(gemAfter, 50 * WAD);
         assertEq(sinBefore + 50 * RAD, vat.sin(vow));
-        (, , , uint256 culled, ) = directDepositHub.ilks(ilk);
+        (, , , uint256 culled, ) = d3mHub.ilks(ilk);
         assertEq(culled, 1);
     }
 
     function testFail_no_cull_mcd_caged() public {
         _windSystem();
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
         vat.cage();
 
-        directDepositHub.cull(ilk);
+        d3mHub.cull(ilk);
     }
 
     function testFail_no_cull_pool_live() public {
         _windSystem();
 
-        directDepositHub.cull(ilk);
+        d3mHub.cull(ilk);
     }
 
     function testFail_no_cull_unauth_too_soon() public {
         _windSystem();
-        directDepositHub.cage(ilk);
-        directDepositHub.deny(address(this));
+        d3mHub.cage(ilk);
+        d3mHub.deny(address(this));
         hevm.warp(block.timestamp + 6 days);
 
-        directDepositHub.cull(ilk);
+        d3mHub.cull(ilk);
     }
 
     function testFail_no_cull_already_culled() public {
         _windSystem();
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
 
-        directDepositHub.cull(ilk);
-        directDepositHub.cull(ilk);
+        d3mHub.cull(ilk);
+        d3mHub.cull(ilk);
     }
 
     function testFail_no_cull_no_ilk() public {
-        directDepositHub.cull("fake-ilk");
+        d3mHub.cull("fake-ilk");
     }
 
     function test_uncull() public {
         _windSystem();
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
 
-        directDepositHub.cull(ilk);
+        d3mHub.cull(ilk);
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
         assertEq(pink, 0);
         assertEq(part, 0);
         uint256 gemBefore = vat.gem(ilk, address(d3mTestPool));
         assertEq(gemBefore, 50 * WAD);
         uint256 sinBefore = vat.sin(vow);
-        (, , , uint256 culled, ) = directDepositHub.ilks(ilk);
+        (, , , uint256 culled, ) = d3mHub.ilks(ilk);
         assertEq(culled, 1);
 
         vat.cage();
-        directDepositHub.uncull(ilk);
+        d3mHub.uncull(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 50 * WAD);
@@ -933,38 +933,38 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(gemAfter, 0);
         // Sin should not change since we suck before grabbing
         assertEq(sinBefore, vat.sin(vow));
-        (, , , culled, ) = directDepositHub.ilks(ilk);
+        (, , , culled, ) = d3mHub.ilks(ilk);
         assertEq(culled, 0);
     }
 
     function testFail_no_uncull_not_culled() public {
         _windSystem();
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
 
         vat.cage();
-        directDepositHub.uncull(ilk);
+        d3mHub.uncull(ilk);
     }
 
     function testFail_no_uncull_mcd_live() public {
         _windSystem();
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
 
-        directDepositHub.cull(ilk);
+        d3mHub.cull(ilk);
 
-        directDepositHub.uncull(ilk);
+        d3mHub.uncull(ilk);
     }
 
     function test_quit_culled() public {
         _windSystem();
-        directDepositHub.cage(ilk);
+        d3mHub.cage(ilk);
 
-        directDepositHub.cull(ilk);
+        d3mHub.cull(ilk);
 
         uint256 balBefore = testGem.balanceOf(address(this));
         assertEq(50 * WAD, testGem.balanceOf(address(d3mTestPool)));
         assertEq(50 * WAD, vat.gem(ilk, address(d3mTestPool)));
 
-        directDepositHub.quit(ilk, address(this));
+        d3mHub.quit(ilk, address(this));
 
         assertEq(balBefore + 50 * WAD, testGem.balanceOf(address(this)));
         assertEq(0, testGem.balanceOf(address(d3mTestPool)));
@@ -973,7 +973,7 @@ contract DssDirectDepositHubTest is DSTest {
 
     function test_quit_not_culled() public {
         _windSystem();
-        vat.hope(address(directDepositHub));
+        vat.hope(address(d3mHub));
 
         uint256 balBefore = testGem.balanceOf(address(this));
         assertEq(50 * WAD, testGem.balanceOf(address(d3mTestPool)));
@@ -984,7 +984,7 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(tink, 0);
         assertEq(tart, 0);
 
-        directDepositHub.quit(ilk, address(this));
+        d3mHub.quit(ilk, address(this));
 
         assertEq(balBefore + 50 * WAD, testGem.balanceOf(address(this)));
         (uint256 joinInk, uint256 joinArt) = vat.urns(
@@ -1001,23 +1001,23 @@ contract DssDirectDepositHubTest is DSTest {
     function testFail_no_quit_not_culled_who_not_accepting() public {
         _windSystem();
 
-        directDepositHub.quit(ilk, address(this));
+        d3mHub.quit(ilk, address(this));
     }
 
     function testFail_no_quit_mcd_caged() public {
         _windSystem();
-        directDepositHub.cull(ilk);
+        d3mHub.cull(ilk);
 
         vat.cage();
-        directDepositHub.quit(ilk, address(this));
+        d3mHub.quit(ilk, address(this));
     }
 
     function testFail_no_quit_no_auth() public {
         _windSystem();
-        directDepositHub.cull(ilk);
+        d3mHub.cull(ilk);
 
-        directDepositHub.deny(address(this));
-        directDepositHub.quit(ilk, address(this));
+        d3mHub.deny(address(this));
+        d3mHub.quit(ilk, address(this));
     }
 
     function test_pool_upgrade_unwind_wind() public {
@@ -1025,12 +1025,12 @@ contract DssDirectDepositHubTest is DSTest {
 
         // Setup new pool
         D3MTestPool newPool = new D3MTestPool(
-            address(directDepositHub),
+            address(d3mHub),
             address(dai),
             address(testGem),
             address(rewardsClaimer)
         );
-        newPool.rely(address(directDepositHub));
+        newPool.rely(address(d3mHub));
         testGem.rely(address(newPool));
         testGem.giveAllowance(
             address(dai),
@@ -1048,7 +1048,7 @@ contract DssDirectDepositHubTest is DSTest {
         d3mTestPool.file("active_", false);
         assertTrue(d3mTestPool.active() == false);
 
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         // Ensure we unwound our position
         (uint256 opink, uint256 opart) = vat.urns(ilk, address(d3mTestPool));
@@ -1060,8 +1060,8 @@ contract DssDirectDepositHubTest is DSTest {
         d3mTestPool.file("preDebt", false); // reset preDebt
         d3mTestPool.file("postDebt", false); // reset postDebt
 
-        directDepositHub.file(ilk, "pool", address(newPool));
-        directDepositHub.exec(ilk);
+        d3mHub.file(ilk, "pool", address(newPool));
+        d3mHub.exec(ilk);
 
         // New Pool should get wound up to the original amount because plan didn't change
         (npink, npart) = vat.urns(ilk, address(newPool));
@@ -1083,12 +1083,12 @@ contract DssDirectDepositHubTest is DSTest {
 
         // Setup new pool
         D3MTestPool newPool = new D3MTestPool(
-            address(directDepositHub),
+            address(d3mHub),
             address(dai),
             address(testGem),
             address(rewardsClaimer)
         );
-        newPool.rely(address(directDepositHub));
+        newPool.rely(address(d3mHub));
         testGem.rely(address(newPool));
         testGem.giveAllowance(
             address(dai),
@@ -1104,7 +1104,7 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(newPool.postDebt() == false);
 
         // quit to new pool
-        directDepositHub.quit(ilk, address(newPool));
+        d3mHub.quit(ilk, address(newPool));
 
         // Ensure we quit our position
         (uint256 opink, uint256 opart) = vat.urns(ilk, address(d3mTestPool));
@@ -1121,11 +1121,11 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(newPool.postDebt() == false);
 
         // file new pool
-        directDepositHub.file(ilk, "pool", address(newPool));
+        d3mHub.file(ilk, "pool", address(newPool));
 
         // test unwind/wind
         d3mTestPlan.file("targetAssets", 45 * WAD);
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         (opink, opart) = vat.urns(ilk, address(d3mTestPool));
         assertEq(opink, 0);
@@ -1136,7 +1136,7 @@ contract DssDirectDepositHubTest is DSTest {
         assertEq(npart, 45 * WAD);
 
         d3mTestPlan.file("targetAssets", 100 * WAD);
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         (opink, opart) = vat.urns(ilk, address(d3mTestPool));
         assertEq(opink, 0);
@@ -1156,12 +1156,12 @@ contract DssDirectDepositHubTest is DSTest {
         newPlan.file("bar", 5);
         newPlan.file("targetAssets", 100 * WAD);
 
-        directDepositHub.file(ilk, "plan", address(newPlan));
+        d3mHub.file(ilk, "plan", address(newPlan));
 
-        (, ID3MPlan plan, , , ) = directDepositHub.ilks(ilk);
+        (, ID3MPlan plan, , , ) = d3mHub.ilks(ilk);
         assertEq(address(plan), address(newPlan));
         
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         // New Plan should determine the pool position
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
@@ -1175,7 +1175,7 @@ contract DssDirectDepositHubTest is DSTest {
         _windSystem(); // Tests that the current pool has ink/art
 
         // Setup New hub
-        DssDirectDepositHub newHub = new DssDirectDepositHub(address(vat), address(daiJoin));
+        D3MHub newHub = new D3MHub(address(vat), address(daiJoin));
         newHub.file("vow", vow);
         newHub.file("end", address(end));
 
@@ -1185,19 +1185,19 @@ contract DssDirectDepositHubTest is DSTest {
 
         // Update permissions on d3ms
         d3mTestPool.rely(address(newHub));
-        d3mTestPool.deny(address(directDepositHub));
+        d3mTestPool.deny(address(d3mHub));
         d3mTestPool.hope(address(newHub));
-        d3mTestPool.nope(address(directDepositHub));
+        d3mTestPool.nope(address(d3mHub));
         
         // Update Permissions in Vat
-        vat.deny(address(directDepositHub));
+        vat.deny(address(d3mHub));
         vat.rely(address(newHub));
-        directDepositHub.nope();
+        d3mHub.nope();
 
         // Clean up old hub
-        directDepositHub.file(ilk, "pool", address(0));
-        directDepositHub.file(ilk, "plan", address(0));
-        directDepositHub.file(ilk, "tau", 0);
+        d3mHub.file(ilk, "pool", address(0));
+        d3mHub.file(ilk, "plan", address(0));
+        d3mHub.file(ilk, "tau", 0);
 
         // Ensure new hub operation
         d3mTestPlan.file("bar", 10);
@@ -1215,7 +1215,7 @@ contract DssDirectDepositHubTest is DSTest {
         _windSystem(); // Tests that the current pool has ink/art
 
         // Setup New hub
-        DssDirectDepositHub newHub = new DssDirectDepositHub(address(vat), address(daiJoin));
+        D3MHub newHub = new D3MHub(address(vat), address(daiJoin));
         newHub.file("vow", vow);
         newHub.file("end", address(end));
 
@@ -1225,29 +1225,29 @@ contract DssDirectDepositHubTest is DSTest {
 
         // Update permissions on d3ms
         d3mTestPool.rely(address(newHub));
-        d3mTestPool.deny(address(directDepositHub));
+        d3mTestPool.deny(address(d3mHub));
         d3mTestPool.hope(address(newHub));
-        d3mTestPool.nope(address(directDepositHub));
+        d3mTestPool.nope(address(d3mHub));
         
         // Update Permissions in Vat
-        vat.deny(address(directDepositHub));
+        vat.deny(address(d3mHub));
         vat.rely(address(newHub));
-        directDepositHub.nope();
+        d3mHub.nope();
 
         // Clean up old hub
-        directDepositHub.file(ilk, "pool", address(0));
-        directDepositHub.file(ilk, "plan", address(0));
-        directDepositHub.file(ilk, "tau", 0);
+        d3mHub.file(ilk, "pool", address(0));
+        d3mHub.file(ilk, "plan", address(0));
+        d3mHub.file(ilk, "tau", 0);
 
         // Ensure old hub revert
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
     }
 
     function test_hub_upgrade_new_d3ms() public {
         _windSystem(); // Tests that the current pool has ink/art
 
         // Setup New hub and D3M
-        DssDirectDepositHub newHub = new DssDirectDepositHub(address(vat), address(daiJoin));
+        D3MHub newHub = new D3MHub(address(vat), address(daiJoin));
         newHub.file("vow", vow);
         newHub.file("end", address(end));
         vat.rely(address(newHub));
@@ -1276,7 +1276,7 @@ contract DssDirectDepositHubTest is DSTest {
         // Create D3M in New Hub
         newHub.file(ilk, "pool", address(newPool));
         newHub.file(ilk, "plan", address(newPlan));
-        (, , uint256 tau, , ) = directDepositHub.ilks(ilk);
+        (, , uint256 tau, , ) = d3mHub.ilks(ilk);
         newHub.file(ilk, "tau", tau);
 
         (uint256 npink, uint256 npart) = vat.urns(ilk, address(newPool));
@@ -1286,9 +1286,9 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(newPool.postDebt() == false);
 
         // Transition Balances
-        newPool.hope(address(directDepositHub));
-        directDepositHub.quit(ilk, address(newPool));
-        newPool.nope(address(directDepositHub));
+        newPool.hope(address(d3mHub));
+        d3mHub.quit(ilk, address(newPool));
+        newPool.nope(address(d3mHub));
 
         // Ensure we quit our position
         (uint256 opink, uint256 opart) = vat.urns(ilk, address(d3mTestPool));
@@ -1305,11 +1305,11 @@ contract DssDirectDepositHubTest is DSTest {
         assertTrue(newPool.postDebt() == false);
         
         // Clean up after transition
-        directDepositHub.cage(ilk);
-        d3mTestPool.deny(address(directDepositHub));
-        d3mTestPool.nope(address(directDepositHub));
-        vat.deny(address(directDepositHub));
-        directDepositHub.nope();
+        d3mHub.cage(ilk);
+        d3mTestPool.deny(address(d3mHub));
+        d3mTestPool.nope(address(d3mHub));
+        vat.deny(address(d3mHub));
+        d3mHub.nope();
 
         // Ensure new hub operation
         newPlan.file("bar", 10);
@@ -1329,53 +1329,53 @@ contract DssDirectDepositHubTest is DSTest {
 
     function test_exec_lock_protection() public {
         // Store memory slot 0x4
-        hevm.store(address(directDepositHub), bytes32(uint256(3)), bytes32(uint256(1)));
-        assertEq(directDepositHub.locked(), 1);
+        hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
+        assertEq(d3mHub.locked(), 1);
 
-        try directDepositHub.exec(ilk) {}
+        try d3mHub.exec(ilk) {}
         catch Error(string memory errmsg) {
-            bytes32 locked = hevm.load(address(directDepositHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
+            bytes32 locked = hevm.load(address(d3mHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
             assertTrue(uint256(locked) == 1);
-            assertTrue(cmpStr(errmsg, "DssDirectDepositHub/system-locked"));
+            assertTrue(cmpStr(errmsg, "D3MHub/system-locked"));
         }
     }
 
     function test_reap_lock_protection() public {
         // Store memory slot 0x4
-        hevm.store(address(directDepositHub), bytes32(uint256(3)), bytes32(uint256(1)));
-        assertEq(directDepositHub.locked(), 1);
+        hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
+        assertEq(d3mHub.locked(), 1);
 
-        try directDepositHub.reap(ilk) {}
+        try d3mHub.reap(ilk) {}
         catch Error(string memory errmsg) {
-            bytes32 locked = hevm.load(address(directDepositHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
+            bytes32 locked = hevm.load(address(d3mHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
             assertTrue(uint256(locked) == 1);
-            assertTrue(cmpStr(errmsg, "DssDirectDepositHub/system-locked"));
+            assertTrue(cmpStr(errmsg, "D3MHub/system-locked"));
         }
     }
 
     function test_exit_lock_protection() public {
         // Store memory slot 0x4
-        hevm.store(address(directDepositHub), bytes32(uint256(3)), bytes32(uint256(1)));
-        assertEq(directDepositHub.locked(), 1);
+        hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
+        assertEq(d3mHub.locked(), 1);
 
-        try directDepositHub.exit(ilk, address(this), 1) {}
+        try d3mHub.exit(ilk, address(this), 1) {}
         catch Error(string memory errmsg) {
-            bytes32 locked = hevm.load(address(directDepositHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
+            bytes32 locked = hevm.load(address(d3mHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
             assertTrue(uint256(locked) == 1);
-            assertTrue(cmpStr(errmsg, "DssDirectDepositHub/system-locked"));
+            assertTrue(cmpStr(errmsg, "D3MHub/system-locked"));
         }
     }
 
     function test_quit_lock_protection() public {
         // Store memory slot 0x4
-        hevm.store(address(directDepositHub), bytes32(uint256(3)), bytes32(uint256(1)));
-        assertEq(directDepositHub.locked(), 1);
+        hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
+        assertEq(d3mHub.locked(), 1);
 
-        try directDepositHub.quit(ilk, address(this)) {}
+        try d3mHub.quit(ilk, address(this)) {}
         catch Error(string memory errmsg) {
-            bytes32 locked = hevm.load(address(directDepositHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
+            bytes32 locked = hevm.load(address(d3mHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
             assertTrue(uint256(locked) == 1);
-            assertTrue(cmpStr(errmsg, "DssDirectDepositHub/system-locked"));
+            assertTrue(cmpStr(errmsg, "D3MHub/system-locked"));
         }
     }
 }
