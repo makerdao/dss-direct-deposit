@@ -33,6 +33,7 @@ interface D3mHubLike {
     function vat() external view returns (address);
 }
 
+// https://github.com/compound-finance/compound-protocol/blob/3affca87636eecd901eb43f81a4813186393905d/contracts/CErc20.sol#L14
 interface CErc20Like is TokenLike {
     function underlying()                           external view returns (address);
     function comptroller()                          external view returns (address);
@@ -45,6 +46,7 @@ interface CErc20Like is TokenLike {
     function exchangeRateCurrent()                  external returns (uint256);
 }
 
+// https://github.com/compound-finance/compound-protocol/blob/3affca87636eecd901eb43f81a4813186393905d/contracts/ComptrollerG7.sol#L15
 interface ComptrollerLike {
     function getCompAddress() external view returns (address);
     function claimComp(address[] memory holders, address[] memory cTokens, bool borrowers, bool suppliers) external;
@@ -127,6 +129,7 @@ contract D3MCompoundDaiPool is ID3MPool {
     function deposit(uint256 wad) external override auth returns (bool) {
         uint256 prev = cDai.balanceOf(address(this));
         require(cDai.mint(wad) == 0, "D3MCompoundDaiPool/mint-failure");
+        // As interest was accrued on `mint` we can use the non accruing `exchangeRateStored`
         require(
             cDai.balanceOf(address(this)) ==
             prev + _wdiv(wad, cDai.exchangeRateStored()), "D3MCompoundDaiPool/incorrect-cdai-credit"

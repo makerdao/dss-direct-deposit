@@ -46,6 +46,7 @@ pragma solidity ^0.8.14;
 
 import "./ID3MPlan.sol";
 
+// https://github.com/compound-finance/compound-protocol/blob/3affca87636eecd901eb43f81a4813186393905d/contracts/CErc20.sol#L14
 interface CErc20Like {
     function totalBorrows()           external view returns (uint256);
     function totalReserves()          external view returns (uint256);
@@ -54,6 +55,7 @@ interface CErc20Like {
     function underlying()             external view returns (address);
 }
 
+// https://github.com/compound-finance/compound-protocol/blob/3affca87636eecd901eb43f81a4813186393905d/contracts/BaseJumpRateModelV2.sol#L10
 interface InterestRateModelLike {
     function baseRatePerBlock()       external view returns (uint256);
     function kink()                   external view returns (uint256);
