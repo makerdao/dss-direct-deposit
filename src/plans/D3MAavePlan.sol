@@ -199,6 +199,11 @@ contract D3MAavePlan is ID3MPlan {
         return strategy == address(tack);
     }
 
+    function wild() public view override returns (bool) {
+        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, ,) = LendingPoolLike(pool).getReserveData(address(dai));
+        return (adai_ != address(adai) || stableDebt_ != address(stableDebt) || variableDebt_ != address(variableDebt));
+    }
+
     function disable() external override {
         require(
             wards[msg.sender] == 1 ||

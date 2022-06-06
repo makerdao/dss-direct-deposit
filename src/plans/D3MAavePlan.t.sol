@@ -210,6 +210,10 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
         assertTrue(D3MAavePlan(d3mTestPlan).active());
     }
 
+    function test_not_wild_no_change() public {
+        assertTrue(D3MAavePlan(d3mTestPlan).wild() == false);
+    }
+
     function test_implements_disable() public override {
         // disable_sets_bar_to_zero
         D3MAavePlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);

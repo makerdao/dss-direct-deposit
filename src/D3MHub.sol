@@ -540,6 +540,12 @@ contract D3MHub {
         require(vat.live() == 1, "D3MHub/no-cage-during-shutdown");
         require(ilks[ilk].tic == 0, "D3MHub/pool-already-caged");
 
+        require(
+            wards[msg.sender] == 1 ||
+            ilks[ilk].pool.wild() ||
+            ilks[ilk].plan.wild(),
+        "D3MHub/no-auth-to-cage");
+
         ilks[ilk].tic = block.timestamp + ilks[ilk].tau;
         emit Cage(ilk);
     }

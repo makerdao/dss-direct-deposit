@@ -108,6 +108,10 @@ interface ID3MPool {
     */
     function maxWithdraw() external view returns (uint256);
 
-    /// @notice Reports whether the plan is active
+    /// @notice Reports whether the pool is active
     function active() external view returns (bool);
+
+    /// @notice Reports whether the pool is out of prescribed bounds
+    function wild() external view returns (bool);
+
 }

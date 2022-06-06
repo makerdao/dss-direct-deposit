@@ -98,6 +98,10 @@ contract D3MPoolBase is ID3MPool {
     function active() external override pure returns(bool) {
         return true;
     }
+
+    function wild() external override view returns(bool) {
+        return false;
+    }
 }
 
 contract FakeVat {
@@ -236,5 +240,9 @@ contract D3MPoolBaseTest is DSTest {
 
     function test_implements_active() public view {
         D3MPoolBase(d3mTestPool).active();
+    }
+
+    function test_implements_wild() public view {
+        D3MPoolBase(d3mTestPool).wild();
     }
 }

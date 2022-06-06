@@ -192,6 +192,10 @@ contract D3MAavePool is ID3MPool {
         return true;
     }
 
+    function wild() external pure override returns (bool) {
+        return false;
+    }
+
     // --- Collect any rewards ---
     function collect() external returns (uint256 amt) {
         require(king != address(0), "D3MAavePool/king-not-set");

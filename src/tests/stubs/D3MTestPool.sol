@@ -38,6 +38,7 @@ contract D3MTestPool is ID3MPool {
     bool    public preDebt          = false;
     bool    public postDebt         = false;
     bool    public active_          = true;
+    bool    public wild_            = false;
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -66,6 +67,7 @@ contract D3MTestPool is ID3MPool {
         if (what == "preDebt") preDebt = data;
         else if (what == "postDebt") postDebt = data;
         else if (what == "active_") active_ = data;
+        else if (what == "wild_") wild_ = data;
         else revert("D3MTestPool/file-unrecognized-param");
     }
     function file(bytes32 what, uint256 data) external auth {
@@ -146,6 +148,10 @@ contract D3MTestPool is ID3MPool {
 
     function active() external view override returns (bool) {
         return active_;
+    }
+
+    function wild() external view override returns (bool) {
+        return wild_;
     }
 
     function collect() external auth returns (uint256 amt) {
