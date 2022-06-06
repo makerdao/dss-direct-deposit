@@ -430,7 +430,7 @@ contract D3MHubTest is DSTest {
         assertEq(art, 50 * WAD);
 
         // This should only fill another 10 because the debt ceiling
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         assertEq(d3mTestPool.assetBalance(), 10 * WAD);
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
@@ -790,7 +790,7 @@ contract D3MHubTest is DSTest {
         assertEq(art, 50 * WAD);
 
         // This should only fill another 10 because the debt ceiling
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         assertEq(d3mTestPool.assetBalance(), 10 * WAD);
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
@@ -799,7 +799,7 @@ contract D3MHubTest is DSTest {
 
         // Repay the bad debt
         uint256 vowSin = vat.sin(vow);
-        directDepositHub.rectify(ilk, type(uint256).max);
+        d3mHub.rectify(ilk, type(uint256).max);
 
         assertEq(d3mTestPool.assetBalance(), 10 * WAD);
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
@@ -808,7 +808,7 @@ contract D3MHubTest is DSTest {
         assertEq(vat.sin(vow), vowSin + 50 * RAD);
 
         // Refill back up to the target of 50
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         assertEq(d3mTestPool.assetBalance(), 50 * WAD);
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
@@ -838,7 +838,7 @@ contract D3MHubTest is DSTest {
         assertEq(art, 50 * WAD);
 
         // This should only fill another 10 because the debt ceiling
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         assertEq(d3mTestPool.assetBalance(), 10 * WAD);
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
@@ -847,7 +847,7 @@ contract D3MHubTest is DSTest {
 
         // Repay only part of the bad debt
         uint256 vowSin = vat.sin(vow);
-        directDepositHub.rectify(ilk, 20 * WAD);
+        d3mHub.rectify(ilk, 20 * WAD);
 
         assertEq(d3mTestPool.assetBalance(), 10 * WAD);
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
@@ -856,7 +856,7 @@ contract D3MHubTest is DSTest {
         assertEq(vat.sin(vow), vowSin + 20 * RAD);
 
         // Refill can only reach 30 as we still have bad debt to clear
-        directDepositHub.exec(ilk);
+        d3mHub.exec(ilk);
 
         assertEq(d3mTestPool.assetBalance(), 30 * WAD);
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
