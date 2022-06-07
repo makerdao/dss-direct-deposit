@@ -180,9 +180,9 @@ contract D3MAavePool is ID3MPool {
         return adai.transfer(dst, adai.balanceOf(address(this)));
     }
 
-    function preDebtChange(bytes32 what) external override {}
+    function preDebtChange(bytes32) external override {}
 
-    function postDebtChange(bytes32 what) external override {}
+    function postDebtChange(bytes32) external override {}
 
     // --- Balance of the underlying asset (Dai)
     function assetBalance() public view override returns (uint256) {
@@ -207,6 +207,10 @@ contract D3MAavePool is ID3MPool {
 
     function wild() external pure override returns (bool) {
         return false;
+    }
+
+    function redeemable() external view override returns (address) {
+        return address(adai);
     }
 
     // --- Collect any rewards ---

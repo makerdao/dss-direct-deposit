@@ -159,6 +159,10 @@ contract D3MTestPool is ID3MPool {
         return wild_;
     }
 
+    function redeemable() external view override returns (address) {
+        return address(share);
+    }
+
     function collect() external auth returns (uint256 amt) {
         require(king != address(0), "D3MTestPool/king-not-set");
 
