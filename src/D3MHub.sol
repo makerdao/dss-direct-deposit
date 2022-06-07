@@ -412,7 +412,7 @@ contract D3MHub {
                 Mode.MCD_CAGED,
                 currentAssets
             );
-        } else if (ilks[ilk].tic != 0 || !pool.active() || !ilks[ilk].plan.active()) {
+        } else if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) {
             // pool caged
             _unwind(
                 ilk,
@@ -492,7 +492,6 @@ contract D3MHub {
 
         require(vat.live() == 1, "D3MHub/no-reap-during-shutdown");
         require(ilks[ilk].tic == 0, "D3MHub/pool-not-live");
-        require(pool.active(), "D3MHub/pool-not-active");
         require(ilks[ilk].plan.active(), "D3MHub/plan-not-active");
 
         pool.preDebtChange("reap");

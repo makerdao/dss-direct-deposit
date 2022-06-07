@@ -39,7 +39,6 @@ contract D3MTestPool is ID3MPool {
     uint256        maxDepositAmount = type(uint256).max;
     bool    public preDebt          = false;
     bool    public postDebt         = false;
-    bool    public active_          = true;
     bool    public wild_            = false;
 
     // --- Events ---
@@ -68,7 +67,6 @@ contract D3MTestPool is ID3MPool {
     function file(bytes32 what, bool data) external auth {
         if (what == "preDebt") preDebt = data;
         else if (what == "postDebt") postDebt = data;
-        else if (what == "active_") active_ = data;
         else if (what == "wild_") wild_ = data;
         else if (what == "paused_") paused_ = data;
         else revert("D3MTestPool/file-unrecognized-param");
@@ -147,10 +145,6 @@ contract D3MTestPool is ID3MPool {
 
     function convertToAssets(uint256 shares) public pure returns (uint256) {
         return shares;
-    }
-
-    function active() external view override returns (bool) {
-        return active_;
     }
 
     function pause() external override {

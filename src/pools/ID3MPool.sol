@@ -109,9 +109,6 @@ interface ID3MPool {
     */
     function maxWithdraw() external view returns (uint256);
 
-    /// @notice Reports whether the pool is active
-    function active() external view returns (bool);
-
     /// @notice Set pause to true
     function pause() external;
     
