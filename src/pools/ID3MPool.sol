@@ -111,4 +111,7 @@ interface ID3MPool {
 
     /// @notice Reports whether the plan is active
     function active() external view returns (bool);
+
+    /// @notice returns address of redeemable tokens (if any)
+    function redeemable() external view returns (address);
 }

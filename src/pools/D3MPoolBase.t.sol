@@ -99,6 +99,10 @@ contract D3MPoolBase is ID3MPool {
     function active() external override pure returns(bool) {
         return true;
     }
+
+    function redeemable() external override pure returns(address) {
+        return address(0);
+    }
 }
 
 contract FakeVat {
