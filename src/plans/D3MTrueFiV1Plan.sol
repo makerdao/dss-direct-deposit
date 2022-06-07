@@ -29,7 +29,7 @@ interface PortfolioLike {
     function getStatus() external view returns (PortfolioStatus);
 }
 
-contract D3MTrueFiV1DaiPLan is ID3MPlan {
+contract D3MTrueFiV1Plan is ID3MPlan {
     PortfolioLike public immutable portfolio;
 
     uint256 public cap; // Target Deposit Amount

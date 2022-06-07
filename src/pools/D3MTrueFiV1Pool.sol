@@ -50,7 +50,7 @@ interface PortfolioLike is TokenLike {
     function liquidValue() external view returns (uint256);
 }
 
-contract D3mTrueFiV1DaiPool is ID3MPool {
+contract D3mTrueFiV1Pool is ID3MPool {
 
     TokenLike     public immutable dai;
     PortfolioLike public immutable portfolio;
