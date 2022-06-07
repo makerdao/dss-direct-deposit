@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -331,13 +332,6 @@ contract D3MHub {
         emit Unwind(ilk, amount, fees);
     }
 
-    /**
-        @notice remove nope on daiJoin to kill hub
-    */
-    function nope() external auth {
-        vat.nope(address(daiJoin));
-    }
-
     // Ilk Getters
     /**
         @notice Return pool of an ilk
@@ -614,37 +608,5 @@ contract D3MHub {
 
         ilks[ilk].culled = 0;
         emit Uncull(ilk, wad);
-    }
-
-    /**
-        @notice Emergency Quit Everything.
-        Transfer all the shares and either wipe out the gems (culled situation)
-        or fork the urn to the recipient.
-        @dev If called while not culled, it will require who to hope on the Hub
-        contract in the Vat.
-        @param ilk bytes32 of the D3M ilk name
-        @param who address of who will receive the shares and possibly the urn
-    */
-    function quit(bytes32 ilk, address who) external lock auth {
-        require(vat.live() == 1, "D3MHub/no-quit-during-shutdown");
-
-        ID3MPool pool = ilks[ilk].pool;
-
-        // Send all gem in the contract to who
-        require(pool.transferAll(who), "D3MHub/failed-transfer");
-
-        if (ilks[ilk].culled == 1) {
-            // Culled - just zero out the gems
-            uint256 wad = vat.gem(ilk, address(pool));
-            require(wad <= MAXINT256, "D3MHub/overflow");
-            vat.slip(ilk, address(pool), -int256(wad));
-        } else {
-            // Regular operation - transfer the debt position (requires who to accept the transfer)
-            (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
-            require(ink <= MAXINT256, "D3MHub/overflow");
-            require(art <= MAXINT256, "D3MHub/overflow");
-            vat.fork(ilk, address(pool), who, int256(ink), int256(art));
-        }
-        emit Quit(ilk, who);
     }
 }
