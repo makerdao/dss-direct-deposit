@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity ^0.8.14;
 
 import "./ID3MPlan.sol";
 
@@ -56,7 +56,7 @@ contract D3MTrueFiV1Plan is ID3MPlan {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(address portfolio_) public {
+    constructor(address portfolio_) {
         portfolio = PortfolioLike(portfolio_);
 
         wards[msg.sender] = 1;

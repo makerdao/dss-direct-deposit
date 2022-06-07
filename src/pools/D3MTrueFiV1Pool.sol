@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity ^0.8.14;
 
 import "./ID3MPool.sol";
 
@@ -52,7 +52,6 @@ interface PortfolioLike is TokenLike {
 
 contract D3mTrueFiV1Pool is ID3MPool {
 
-    TokenLike     public immutable dai;
     PortfolioLike public immutable portfolio;
 
     // --- Auth ---
@@ -68,9 +67,8 @@ contract D3mTrueFiV1Pool is ID3MPool {
     event Deny(address indexed usr);
     event Collect();
 
-    constructor(address dai_, address portfolio_) public {
+    constructor(address dai_, address portfolio_) {
         portfolio = PortfolioLike(portfolio_);
-        dai = TokenLike(dai_);
 
         TokenLike(dai_).approve(portfolio_, type(uint256).max);
 
@@ -98,13 +96,15 @@ contract D3mTrueFiV1Pool is ID3MPool {
     }
 
     // --- Integration ---
-    function deposit(uint256 amt) external override auth {
+    function deposit(uint256 amt) external override auth returns (bool) {
         portfolio.deposit(amt, "0x");
+        return true;
     }
 
-    function withdraw(uint256 amt) external override auth {
+    function withdraw(uint256 amt) external override auth returns (bool) {
         uint256 sharesAmount = portfolio.getAmountToMint(amt); // convert dai into portfolio shares
-        portfolio.withdraw(sharesAmount, "0x"); 
+        portfolio.withdraw(sharesAmount, "0x");
+        return true;
     }
 
     function transfer(address dst, uint256 amt) external override auth returns (bool) {
@@ -114,8 +114,6 @@ contract D3mTrueFiV1Pool is ID3MPool {
     function transferAll(address dst) external override auth returns (bool) {
         return portfolio.transfer(dst, assetBalance());
     }
-
-    function accrueIfNeeded() external override {} // there is no manual interest claiming in TrueFi
 
     function assetBalance() public view override returns (uint256) {
         return portfolio.balanceOf(address(this));
@@ -133,13 +131,17 @@ contract D3mTrueFiV1Pool is ID3MPool {
         }
     }
 
-    function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {
+    function recoverTokens(address token, address dst, uint256 amt) external auth returns (bool) {
         return TokenLike(token).transfer(dst, amt);
     }
 
-    function active() external view override returns (bool) {
+    function active() external pure override returns (bool) {
         return true;
     }
+
+    function preDebtChange(bytes32 what) external override {}
+
+    function postDebtChange(bytes32 what) external override {}
 
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
