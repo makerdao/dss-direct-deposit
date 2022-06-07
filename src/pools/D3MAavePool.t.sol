@@ -318,4 +318,16 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
     function test_maxDeposit_returns_max_uint() public {
         assertEq(D3MAavePool(d3mTestPool).maxDeposit(), type(uint256).max);
     }
+
+    function test_can_paused_unpause() public {
+        assertTrue(D3MAavePool(d3mTestPool).paused() == false);
+        
+        D3MAavePool(d3mTestPool).pause();
+
+        assertTrue(D3MAavePool(d3mTestPool).paused());
+
+        D3MAavePool(d3mTestPool).file("paused_", false);
+
+        assertTrue(D3MAavePool(d3mTestPool).paused() == false);
+    }
 }

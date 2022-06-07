@@ -83,6 +83,7 @@ contract D3MAavePool is ID3MPool {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
+    event File(bytes32 indexed what, bool data);
     event File(bytes32 indexed what, address data);
     event Collect(address indexed king, address indexed gift, uint256 amt);
 
@@ -131,6 +132,12 @@ contract D3MAavePool is ID3MPool {
         emit Deny(usr);
     }
 
+    function file(bytes32 what, bool data) external auth {
+        if (what == "paused_") paused_ = data;
+        else revert("D3MAavePool/file-unrecognized-param");
+        emit File(what, data);
+    }
+    
     function file(bytes32 what, address data) external auth {
         if (what == "king") king = data;
         else revert("D3MAavePool/file-unrecognized-param");

@@ -70,6 +70,7 @@ contract D3MTestPool is ID3MPool {
         else if (what == "postDebt") postDebt = data;
         else if (what == "active_") active_ = data;
         else if (what == "wild_") wild_ = data;
+        else if (what == "paused_") paused_ = data;
         else revert("D3MTestPool/file-unrecognized-param");
     }
     function file(bytes32 what, uint256 data) external auth {
