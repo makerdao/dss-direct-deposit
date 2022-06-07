@@ -70,6 +70,7 @@ interface VatLike {
     function frob(bytes32, address, address, address, int256, int256) external;
     function grab(bytes32, address, address, address, int256, int256) external;
     function fold(bytes32, address, int256) external;
+    function slip(bytes32, address, int256) external;
 }
 
 interface VowLike {
