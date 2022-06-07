@@ -20,7 +20,7 @@ import "ds-test/test.sol";
 import "../tests/interfaces/interfaces.sol";
 
 import { D3MPlanBaseTest }            from "./D3MPlanBase.t.sol";
-import { D3MCompoundDaiPlan } from "./D3MCompoundDaiPlan.sol";
+import { D3MCompoundPlan } from "./D3MCompoundPlan.sol";
 
 interface CErc20Like {
     function borrowRatePerBlock()               external view returns (uint256);
@@ -41,18 +41,18 @@ interface InterestRateModelLike {
     function utilizationRate(uint256 cash, uint256 borrows, uint256 reserves) external pure returns (uint256);
 }
 
-contract D3MCompoundDaiPlanWrapper is D3MCompoundDaiPlan {
-    constructor(address cdai_) D3MCompoundDaiPlan(cdai_) {}
+contract D3MCompoundPlanWrapper is D3MCompoundPlan {
+    constructor(address cdai_) D3MCompoundPlan(cdai_) {}
 
     function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
         return _calculateTargetSupply(targetInterestRate, cDai.totalBorrows());
     }
 }
 
-contract D3MCompoundDaiPlanTest is D3MPlanBaseTest {
-    CErc20Like                cDai;
-    InterestRateModelLike     model;
-    D3MCompoundDaiPlanWrapper plan;
+contract D3MCompoundPlanTest is D3MPlanBaseTest {
+    CErc20Like             cDai;
+    InterestRateModelLike  model;
+    D3MCompoundPlanWrapper plan;
 
     uint256 constant WAD = 10 ** 18;
 
@@ -109,8 +109,8 @@ contract D3MCompoundDaiPlanTest is D3MPlanBaseTest {
         cDai  = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
         model = InterestRateModelLike(cDai.interestRateModel());
 
-        d3mTestPlan = address(new D3MCompoundDaiPlanWrapper(address(cDai)));
-        plan = D3MCompoundDaiPlanWrapper(d3mTestPlan);
+        d3mTestPlan = address(new D3MCompoundPlanWrapper(address(cDai)));
+        plan = D3MCompoundPlanWrapper(d3mTestPlan);
     }
 
     function _targetRateForUtil(uint256 util) internal view returns (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) {

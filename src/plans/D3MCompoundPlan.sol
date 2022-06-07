@@ -63,7 +63,7 @@ interface InterestRateModelLike {
     function jumpMultiplierPerBlock() external view returns (uint256);
 }
 
-contract D3MCompoundDaiPlan is ID3MPlan {
+contract D3MCompoundPlan is ID3MPlan {
 
     mapping (address => uint256) public wards;
     InterestRateModelLike        public tack;
@@ -79,7 +79,7 @@ contract D3MCompoundDaiPlan is ID3MPlan {
 
     constructor(address cDai_) {
         address rateModel_ = CErc20Like(cDai_).interestRateModel();
-        require(rateModel_ != address(0), "D3MCompoundDaiPlan/invalid-rateModel");
+        require(rateModel_ != address(0), "D3MCompoundPlan/invalid-rateModel");
 
         cDai = CErc20Like(cDai_);
         tack = InterestRateModelLike(rateModel_);
@@ -89,7 +89,7 @@ contract D3MCompoundDaiPlan is ID3MPlan {
     }
 
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MCompoundDaiPlan/not-authorized");
+        require(wards[msg.sender] == 1, "D3MCompoundPlan/not-authorized");
         _;
     }
 
@@ -115,12 +115,12 @@ contract D3MCompoundDaiPlan is ID3MPlan {
     function file(bytes32 what, uint256 data) external auth {
         if (what == "barb") {
             barb = data;
-        } else revert("D3MCompoundDaiPlan/file-unrecognized-param");
+        } else revert("D3MCompoundPlan/file-unrecognized-param");
         emit File(what, data);
     }
     function file(bytes32 what, address data) external auth {
         if (what == "tack") tack = InterestRateModelLike(data);
-        else revert("D3MCompoundDaiPlan/file-unrecognized-param");
+        else revert("D3MCompoundPlan/file-unrecognized-param");
         emit File(what, data);
     }
 
@@ -179,7 +179,7 @@ contract D3MCompoundDaiPlan is ID3MPlan {
     }
 
     function disable() external override {
-        require(wards[msg.sender] == 1 || !active(), "D3MCompoundDaiPlan/not-authorized");
+        require(wards[msg.sender] == 1 || !active(), "D3MCompoundPlan/not-authorized");
         barb = 0;
         emit Disable();
     }

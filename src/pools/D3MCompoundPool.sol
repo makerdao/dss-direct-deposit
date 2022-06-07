@@ -52,7 +52,7 @@ interface ComptrollerLike {
     function claimComp(address[] memory holders, address[] memory cTokens, bool borrowers, bool suppliers) external;
 }
 
-contract D3MCompoundDaiPool is ID3MPool {
+contract D3MCompoundPool is ID3MPool {
 
     mapping (address => uint256) public wards;
     address                      public king; // Who gets the rewards
@@ -70,8 +70,8 @@ contract D3MCompoundDaiPool is ID3MPool {
     constructor(address hub_, address dai_, address cDai_) {
         address comptroller_ = CErc20Like(cDai_).comptroller();
 
-        require(comptroller_ != address(0), "D3MCompoundDaiPool/invalid-comptroller");
-        require(dai_         == CErc20Like(cDai_).underlying(), "D3MCompoundDaiPool/cdai-dai-mismatch");
+        require(comptroller_ != address(0), "D3MCompoundPool/invalid-comptroller");
+        require(dai_         == CErc20Like(cDai_).underlying(), "D3MCompoundPool/cdai-dai-mismatch");
 
         comptroller = ComptrollerLike(comptroller_);
         dai         = TokenLike(dai_);
@@ -86,7 +86,7 @@ contract D3MCompoundDaiPool is ID3MPool {
     }
 
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MCompoundDaiPool/not-authorized");
+        require(wards[msg.sender] == 1, "D3MCompoundPool/not-authorized");
         _;
     }
 
@@ -114,7 +114,7 @@ contract D3MCompoundDaiPool is ID3MPool {
 
     function file(bytes32 what, address data) external auth {
         if (what == "king") king = data;
-        else revert("D3MCompoundDaiPool/file-unrecognized-param");
+        else revert("D3MCompoundPool/file-unrecognized-param");
         emit File(what, data);
     }
 
@@ -128,17 +128,17 @@ contract D3MCompoundDaiPool is ID3MPool {
 
     function deposit(uint256 wad) external override auth returns (bool) {
         uint256 prev = cDai.balanceOf(address(this));
-        require(cDai.mint(wad) == 0, "D3MCompoundDaiPool/mint-failure");
+        require(cDai.mint(wad) == 0, "D3MCompoundPool/mint-failure");
         // As interest was accrued on `mint` we can use the non accruing `exchangeRateStored`
         require(
             cDai.balanceOf(address(this)) ==
-            prev + _wdiv(wad, cDai.exchangeRateStored()), "D3MCompoundDaiPool/incorrect-cdai-credit"
+            prev + _wdiv(wad, cDai.exchangeRateStored()), "D3MCompoundPool/incorrect-cdai-credit"
         );
         return true;
     }
 
     function withdraw(uint256 wad) external override auth returns (bool) {
-        require(cDai.redeemUnderlying(wad) == 0, "D3MCompoundDaiPool/redeemUnderlying-failure");
+        require(cDai.redeemUnderlying(wad) == 0, "D3MCompoundPool/redeemUnderlying-failure");
         dai.transfer(msg.sender, wad);
         return true;
     }
@@ -151,16 +151,16 @@ contract D3MCompoundDaiPool is ID3MPool {
         return cDai.transfer(dst, cDai.balanceOf(address(this)));
     }
 
-    function preDebtChange(bytes32 what) external override {
-        require(cDai.accrueInterest() == 0, "D3MCompoundDaiPool/accrueInterest-failure");
+    function preDebtChange(bytes32) external override {
+        require(cDai.accrueInterest() == 0, "D3MCompoundPool/accrueInterest-failure");
     }
 
-    function postDebtChange(bytes32 what) external override {}
+    function postDebtChange(bytes32) external override {}
 
     // Does not accrue interest (as opposed to cToken's balanceOfUnderlying() which is not a view function).
     function assetBalance() public view override returns (uint256) {
         (uint256 error, uint256 cTokenBalance,, uint256 exchangeRate) = cDai.getAccountSnapshot(address(this));
-        require(error == 0, "D3MCompoundDaiPool/getAccountSnapshot-failure");
+        require(error == 0, "D3MCompoundPool/getAccountSnapshot-failure");
         return _wmul(cTokenBalance, exchangeRate);
     }
 
@@ -178,7 +178,7 @@ contract D3MCompoundDaiPool is ID3MPool {
     }
 
     function collect() external {
-        require(king != address(0), "D3MCompoundDaiPool/king-not-set");
+        require(king != address(0), "D3MCompoundPool/king-not-set");
 
         address[] memory holders = new address[](1);
         holders[0] = address(this);
