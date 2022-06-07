@@ -37,6 +37,9 @@ interface ID3MPlan {
     /// @notice Reports whether the plan is active
     function active() external view returns (bool);
 
+    /// @notice Reports whether the plan is paused
+    function paused() external view returns (bool);
+
     /**
         @notice Disables the plan so that it would instruct the Hub to unwind
         its entire position.

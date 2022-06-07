@@ -71,7 +71,8 @@ interface RewardsClaimerLike {
 contract D3MAavePool is ID3MPool {
 
     mapping (address => uint256) public wards;
-    address                      public king;  // Who gets the rewards
+    address                      public king;            // Who gets the rewards
+    bool                         public paused_ = false;
 
     LendingPoolLike    public immutable pool;
     ATokenLike         public immutable stableDebt;
@@ -191,6 +192,10 @@ contract D3MAavePool is ID3MPool {
 
     function active() external pure override returns (bool) {
         return true;
+    }
+
+    function paused() external view override returns (bool) {
+        return paused_;
     }
 
     function wild() external pure override returns (bool) {

@@ -39,6 +39,7 @@ contract D3MTestPool is ID3MPool {
     bool    public preDebt          = false;
     bool    public postDebt         = false;
     bool    public active_          = true;
+    bool    public paused_          = false;
     bool    public wild_            = false;
 
     // --- Events ---
@@ -149,6 +150,10 @@ contract D3MTestPool is ID3MPool {
 
     function active() external view override returns (bool) {
         return active_;
+    }
+
+    function paused() external view override returns (bool) {
+        return paused_;
     }
 
     function wild() external view override returns (bool) {

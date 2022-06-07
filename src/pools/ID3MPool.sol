@@ -112,6 +112,9 @@ interface ID3MPool {
     /// @notice Reports whether the pool is active
     function active() external view returns (bool);
 
+    /// @notice Reports whether the pool is paused
+    function paused() external view returns (bool);
+
     /// @notice Reports whether the pool is out of prescribed bounds
     function wild() external view returns (bool);
 

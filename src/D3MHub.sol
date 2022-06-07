@@ -393,6 +393,11 @@ contract D3MHub {
 
         ID3MPool pool = ilks[ilk].pool;
 
+        if (pool.paused() || ilks[ilk].plan.paused()) {
+            emit Unwind(ilk, 0, 0);
+            return;
+        }
+
         pool.preDebtChange("exec");
         uint256 currentAssets = pool.assetBalance();
 

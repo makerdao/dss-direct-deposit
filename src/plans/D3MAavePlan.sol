@@ -54,7 +54,8 @@ contract D3MAavePlan is ID3MPlan {
 
     mapping (address => uint256) public wards;
     InterestRateStrategyLike     public tack;
-    uint256                      public bar;  // Target Interest Rate [ray]
+    uint256                      public bar;             // Target Interest Rate [ray]
+    bool                         public paused_ = false;
 
     LendingPoolLike public immutable pool;
     TokenLike       public immutable stableDebt;
@@ -198,6 +199,10 @@ contract D3MAavePlan is ID3MPlan {
         }
         (,,,,,,,,,, address strategy,) = pool.getReserveData(address(dai));
         return strategy == address(tack);
+    }
+
+    function paused() public view override returns (bool) {
+        return paused_;
     }
 
     function wild() public view override returns (bool) {

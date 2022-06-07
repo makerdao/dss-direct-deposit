@@ -30,6 +30,7 @@ contract D3MTestPlan is ID3MPlan {
     uint256        targetAssets;
     uint256        currentRate;
     bool    public active_ = true;
+    bool    public paused_ = false;
     bool    public wild_   = false;
 
     uint256 public bar;  // Target Interest Rate [ray]
@@ -92,6 +93,10 @@ contract D3MTestPlan is ID3MPlan {
 
     function active() external view override returns (bool) {
         return active_;
+    }
+
+    function paused() external view override returns (bool) {
+        return paused_;
     }
 
     function wild() external view override returns (bool) {
