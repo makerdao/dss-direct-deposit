@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -126,7 +127,7 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
     function test_can_file_interestStratgey() public {
         assertEq(address(D3MAavePlan(d3mTestPlan).tack()), address(interestStrategy));
 
-        D3MAavePlan(d3mTestPlan).file("interestStrategy", address(1));
+        D3MAavePlan(d3mTestPlan).file("tack", address(1));
 
         assertEq(address(D3MAavePlan(d3mTestPlan).tack()), address(1));
     }
@@ -189,7 +190,7 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
         D3MAavePlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
 
         // Simulate AAVE changing the strategy in the pool
-        D3MAavePlan(d3mTestPlan).file("interestStrategy", address(456));
+        D3MAavePlan(d3mTestPlan).file("tack", address(456));
         (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
 
         assertTrue(address(D3MAavePlan(d3mTestPlan).tack()) != poolStrategy);

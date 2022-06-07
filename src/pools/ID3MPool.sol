@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -47,11 +48,11 @@ interface ID3MPool {
 
      /**
         @notice Transfer shares.
-        @dev If the external pool/shares contract requires a different amount to be
-        passed in the conversion should occur here as the Hub passes Gem [wad]
+        @dev If the external pool/token contract requires a different amount to be
+        passed in the conversion should occur here as the Hub passes Dai [wad]
         amounts. msg.sender must be authorized.
-        @param dst address that should receive the shares
-        @param wad amount in Gem terms that we want to withdraw
+        @param dst address that should receive the redeemable tokens
+        @param wad amount in Dai terms that we want to withdraw
         @return bool whether the transfer was successful per ERC-20 standard
     */
     function transfer(address dst, uint256 wad) external returns (bool);
@@ -64,11 +65,17 @@ interface ID3MPool {
     */
     function transferAll(address dst) external returns (bool);
 
-    /// @notice Some external pools require actions before debt changes
-    function preDebtChange() external;
+    /**
+        @notice Some external pools require actions before debt changes
+        @param what which function is triggering the change
+    */
+    function preDebtChange(bytes32 what) external;
 
-    /// @notice Some external pools require actions after debt changes
-    function postDebtChange() external;
+    /**
+        @notice Some external pools require actions after debt changes
+        @param what which function is triggering the change
+    */
+    function postDebtChange(bytes32 what) external;
 
     /**
         @notice Balance of assets this pool "owns".
@@ -90,19 +97,9 @@ interface ID3MPool {
     */
     function maxWithdraw() external view returns (uint256);
 
-    /**
-        @notice Used to recover ERC-20 DAI accidentally sent to the pool.
-        --- YOU SHOULD NOT SEND ERC-20 DIRECTLY TO THIS CONTRACT ---
-        The presence of this function does not convey any right to recover tokens
-        sent to this contract. Maker Governance must evaluate and perform this
-        action at its sole discretion.
-        @dev msg.sender must be authorized.
-        @param dst address that should receive the shares
-        @param wad amount in wad terms that we want to withdraw
-        @return bool whether the transfer was successful per ERC-20 standard
-    */
-    function recoverDai(address dst, uint256 wad) external returns (bool);
-
     /// @notice Reports whether the plan is active
     function active() external view returns (bool);
+
+    /// @notice returns address of redeemable tokens (if any)
+    function redeemable() external view returns (address);
 }

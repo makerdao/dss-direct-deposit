@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -119,7 +120,7 @@ contract D3MAavePlan is ID3MPlan {
     }
 
     function file(bytes32 what, address data) external auth {
-        if (what == "interestStrategy") tack = InterestRateStrategyLike(data);
+        if (what == "tack") tack = InterestRateStrategyLike(data);
         else revert("D3MAavePlan/file-unrecognized-param");
         emit File(what, data);
     }
@@ -180,13 +181,13 @@ contract D3MAavePlan is ID3MPlan {
             return currentAssets + (targetTotalPoolSize - totalPoolSize);
         } else {
             // Decrease debt
-            uint256 decrease = totalPoolSize - targetTotalPoolSize;
-            if (currentAssets >= decrease) {
-                unchecked {
+            unchecked {
+                uint256 decrease = totalPoolSize - targetTotalPoolSize;
+                if (currentAssets >= decrease) {
                     return currentAssets - decrease;
+                } else {
+                    return 0;
                 }
-            } else {
-                return 0;
             }
         }
     }
