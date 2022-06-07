@@ -60,11 +60,11 @@ interface ID3MPool {
 
      /**
         @notice Transfer shares.
-        @dev If the external pool/shares contract requires a different amount to be
-        passed in the conversion should occur here as the Hub passes Gem [wad]
+        @dev If the external pool/token contract requires a different amount to be
+        passed in the conversion should occur here as the Hub passes Dai [wad]
         amounts. msg.sender must be authorized.
-        @param dst address that should receive the shares
-        @param wad amount in Gem terms that we want to withdraw
+        @param dst address that should receive the redeemable tokens
+        @param wad amount in Dai terms that we want to withdraw
         @return bool whether the transfer was successful per ERC-20 standard
     */
     function transfer(address dst, uint256 wad) external returns (bool);
