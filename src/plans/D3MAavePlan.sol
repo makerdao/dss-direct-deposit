@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import "./ID3MPlan.sol";
 
@@ -49,17 +50,17 @@ interface InterestRateStrategyLike {
     function getMaxVariableBorrowRate() external view returns (uint256);
 }
 
-contract D3MAaveDaiPlan is ID3MPlan {
+contract D3MAavePlan is ID3MPlan {
 
     mapping (address => uint256) public wards;
+    InterestRateStrategyLike     public tack;
+    uint256                      public bar;  // Target Interest Rate [ray]
 
-    LendingPoolLike          public immutable pool;
-    TokenLike                public immutable stableDebt;
-    TokenLike                public immutable variableDebt;
-    TokenLike                public immutable dai;
-    address                  public immutable adai;
-    InterestRateStrategyLike public           interestStrategy;
-    uint256                  public           bar;  // Target Interest Rate [ray]
+    LendingPoolLike public immutable pool;
+    TokenLike       public immutable stableDebt;
+    TokenLike       public immutable variableDebt;
+    TokenLike       public immutable dai;
+    address         public immutable adai;
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -67,48 +68,38 @@ contract D3MAaveDaiPlan is ID3MPlan {
     event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
 
-    constructor(address dai_, address pool_) public {
+    constructor(address dai_, address pool_) {
         dai = TokenLike(dai_);
         pool = LendingPoolLike(pool_);
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
-        require(adai_ != address(0), "D3MAaveDaiPlan/invalid-adai");
-        require(stableDebt_ != address(0), "D3MAaveDaiPlan/invalid-stableDebt");
-        require(variableDebt_ != address(0), "D3MAaveDaiPlan/invalid-variableDebt");
-        require(interestStrategy_ != address(0), "D3MAaveDaiPlan/invalid-interestStrategy");
+        require(adai_ != address(0), "D3MAavePlan/invalid-adai");
+        require(stableDebt_ != address(0), "D3MAavePlan/invalid-stableDebt");
+        require(variableDebt_ != address(0), "D3MAavePlan/invalid-variableDebt");
+        require(interestStrategy_ != address(0), "D3MAavePlan/invalid-interestStrategy");
 
         adai = adai_;
         stableDebt = TokenLike(stableDebt_);
         variableDebt = TokenLike(variableDebt_);
-        interestStrategy = InterestRateStrategyLike(interestStrategy_);
+        tack = InterestRateStrategyLike(interestStrategy_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
 
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MAaveDaiPlan/not-authorized");
+        require(wards[msg.sender] == 1, "D3MAavePlan/not-authorized");
         _;
     }
 
     // --- Math ---
     uint256 constant RAY  = 10 ** 27;
-
-    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "D3MAaveDaiPlan/overflow");
-    }
-    function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "D3MAaveDaiPlan/underflow");
-    }
-    function _mul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "D3MAaveDaiPlan/overflow");
-    }
     function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, y) / RAY;
+        z = (x * y) / RAY;
     }
     function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, RAY) / y;
+        z = (x * RAY) / y;
     }
 
     // --- Admin ---
@@ -123,50 +114,55 @@ contract D3MAaveDaiPlan is ID3MPlan {
 
     function file(bytes32 what, uint256 data) external auth {
         if (what == "bar") {
-            require(data <= _maxBar(), "D3MAaveDaiPlan/above-max-interest");
-
             bar = data;
-        } else revert("D3MAaveDaiPlan/file-unrecognized-param");
+        } else revert("D3MAavePlan/file-unrecognized-param");
         emit File(what, data);
     }
 
     function file(bytes32 what, address data) external auth {
-        if (what == "interestStrategy") interestStrategy = InterestRateStrategyLike(data);
-        else revert("D3MAaveDaiPlan/file-unrecognized-param");
+        if (what == "tack") tack = InterestRateStrategyLike(data);
+        else revert("D3MAavePlan/file-unrecognized-param");
         emit File(what, data);
     }
 
     function _maxBar() internal view returns (uint256) {
-        return interestStrategy.getMaxVariableBorrowRate();
+        return tack.getMaxVariableBorrowRate();
     }
 
     // --- Automated Rate targeting ---
-    function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
-        uint256 totalDebt = _add(stableDebt.totalSupply(), variableDebt.totalSupply());
-        return _calculateTargetSupply(targetInterestRate, totalDebt);
-    }
-
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 totalDebt) internal view returns (uint256) {
-        uint256 base = interestStrategy.baseVariableBorrowRate();
-        require(targetInterestRate > base, "D3MAaveDaiPlan/target-interest-base");
-        require(targetInterestRate <= _maxBar(), "D3MAaveDaiPlan/above-max-interest");
+        uint256 base = tack.baseVariableBorrowRate();
+        if (targetInterestRate <= base || targetInterestRate > _maxBar()) {
+            return 0;
+        }
 
         // Do inverse calculation of interestStrategy
-        uint256 variableRateSlope1 = interestStrategy.variableRateSlope1();
+        uint256 variableRateSlope1 = tack.variableRateSlope1();
         uint256 targetUtil;
-        if (targetInterestRate > _add(base, variableRateSlope1)) {
+        if (targetInterestRate > base + variableRateSlope1) {
             // Excess interest rate
-            uint256 r = targetInterestRate - base - variableRateSlope1;
-            targetUtil = _add(
-                            _rdiv(
-                                _rmul(interestStrategy.EXCESS_UTILIZATION_RATE(), r),
-                                interestStrategy.variableRateSlope2()
+            uint256 r;
+            unchecked {
+                r = targetInterestRate - base - variableRateSlope1;
+            }
+            targetUtil = _rdiv(
+                            _rmul(
+                                tack.EXCESS_UTILIZATION_RATE(),
+                                r
                             ),
-                            interestStrategy.OPTIMAL_UTILIZATION_RATE()
-                        );
+                            tack.variableRateSlope2()
+                         ) + tack.OPTIMAL_UTILIZATION_RATE();
         } else {
             // Optimal interest rate
-            targetUtil = _rdiv(_rmul(_sub(targetInterestRate, base), interestStrategy.OPTIMAL_UTILIZATION_RATE()), variableRateSlope1);
+            unchecked {
+                targetUtil = _rdiv(
+                                _rmul(
+                                    targetInterestRate - base, 
+                                    tack.OPTIMAL_UTILIZATION_RATE()
+                                ), 
+                                variableRateSlope1
+                             );
+            }
         }
         return _rdiv(totalDebt, targetUtil);
     }
@@ -175,38 +171,40 @@ contract D3MAaveDaiPlan is ID3MPlan {
         uint256 targetInterestRate = bar;
         if (targetInterestRate == 0) return 0;  // De-activated
 
-        uint256 totalDebt = _add(stableDebt.totalSupply(), variableDebt.totalSupply());
+        uint256 totalDebt = stableDebt.totalSupply() + variableDebt.totalSupply();
 
-        uint256 totalPoolSize = _add(
-                TokenLike(dai).balanceOf(adai),
-                totalDebt
-            );
+        uint256 totalPoolSize = dai.balanceOf(adai) + totalDebt;
 
         uint256 targetTotalPoolSize = _calculateTargetSupply(targetInterestRate, totalDebt);
         if (targetTotalPoolSize >= totalPoolSize) {
             // Increase debt (or same)
-            return _add(currentAssets, targetTotalPoolSize - totalPoolSize);
+            return currentAssets + (targetTotalPoolSize - totalPoolSize);
         } else {
             // Decrease debt
-            uint256 decrease = totalPoolSize - targetTotalPoolSize;
-            if (currentAssets >= decrease) {
-                return currentAssets - decrease;
-            } else {
-                return 0;
+            unchecked {
+                uint256 decrease = totalPoolSize - targetTotalPoolSize;
+                if (currentAssets >= decrease) {
+                    return currentAssets - decrease;
+                } else {
+                    return 0;
+                }
             }
         }
     }
 
     function active() public view override returns (bool) {
+        if (bar == 0) {
+            return false;
+        }
         (,,,,,,,,,, address strategy,) = pool.getReserveData(address(dai));
-        return strategy == address(interestStrategy);
+        return strategy == address(tack);
     }
 
     function disable() external override {
         require(
             wards[msg.sender] == 1 ||
             !active()
-        , "D3MAaveDaiPlan/not-authorized");
+        , "D3MAavePlan/not-authorized");
         bar = 0;
         emit Disable();
     }

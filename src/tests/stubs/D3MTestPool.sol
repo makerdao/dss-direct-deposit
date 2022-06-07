@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import { D3MTestGem } from "./D3MTestGem.sol";
 import "../../pools/ID3MPool.sol";
@@ -35,15 +36,16 @@ contract D3MTestPool is ID3MPool {
 
     // test helper variables
     uint256        maxDepositAmount = type(uint256).max;
-    bool    public accrued = false;
-    bool    public active_ = true;
+    bool    public preDebt          = false;
+    bool    public postDebt         = false;
+    bool    public active_          = true;
 
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event Collect(address indexed king, address[] assets, uint256 amt);
 
-    constructor(address hub_, address dai_, address share_, address _rewardsClaimer) public {
+    constructor(address hub_, address dai_, address share_, address _rewardsClaimer) {
         asset = TokenLike(dai_);
         share = share_;
 
@@ -60,10 +62,10 @@ contract D3MTestPool is ID3MPool {
         _;
     }
 
-
     // --- Testing Admin ---
     function file(bytes32 what, bool data) external auth {
-        if (what == "accrued") accrued = data;
+        if (what == "preDebt") preDebt = data;
+        else if (what == "postDebt") postDebt = data;
         else if (what == "active_") active_ = data;
         else revert("D3MTestPool/file-unrecognized-param");
     }
@@ -95,27 +97,32 @@ contract D3MTestPool is ID3MPool {
         CanLike(D3mHubLike(hub).vat()).nope(hub);
     }
 
-
-    function deposit(uint256 amt) external override {
-        D3MTestGem(share).mint(address(this), amt);
-        TokenLike(asset).transfer(share, amt);
+    function deposit(uint256 wad) external override returns (bool) {
+        D3MTestGem(share).mint(address(this), wad);
+        return TokenLike(asset).transfer(share, wad);
     }
 
-    function withdraw(uint256 amt) external override {
-        D3MTestGem(share).burn(address(this), amt);
-        TokenLike(asset).transferFrom(share, address(msg.sender), amt);
+    function withdraw(uint256 wad) external override returns (bool)  {
+        D3MTestGem(share).burn(address(this), wad);
+        return TokenLike(asset).transferFrom(share, address(msg.sender), wad);
     }
 
-    function transfer(address dst, uint256 amt) public override auth returns (bool) {
-        return TokenLike(share).transfer(dst, amt);
+    function transfer(address dst, uint256 wad) public override auth returns (bool) {
+        return TokenLike(share).transfer(dst, wad);
     }
 
     function transferAll(address dst) external override auth returns (bool) {
         return TokenLike(share).transfer(dst, shareBalance());
     }
 
-    function accrueIfNeeded() external override {
-        accrued = true;
+    function preDebtChange(bytes32 what) external override {
+        what;
+        preDebt = true;
+    }
+
+    function postDebtChange(bytes32 what) external override {
+        what;
+        postDebt = true;
     }
 
     function assetBalance() external view override returns (uint256) {
@@ -136,10 +143,6 @@ contract D3MTestPool is ID3MPool {
 
     function convertToAssets(uint256 shares) public pure returns (uint256) {
         return shares;
-    }
-
-    function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {
-        return TokenLike(token).transfer(dst, amt);
     }
 
     function active() external view override returns (bool) {

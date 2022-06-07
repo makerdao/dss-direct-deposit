@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 /**
     @title D3M Pool Interface
@@ -42,18 +43,20 @@ interface ID3MPool {
         @dev If the external pool requires a different amount to be passed in, the
         conversion should occur here as the Hub passes Dai [wad] amounts.
         msg.sender must be authorized.
-        @param amt amount in asset (Dai) terms that we want to deposit
+        @param wad amount in asset (Dai) terms that we want to deposit
+        @return bool whether the withdraw was successful
     */
-    function deposit(uint256 amt) external;
+    function deposit(uint256 wad) external returns (bool);
 
     /**
         @notice Withdraw assets (Dai) from the external pool.
         @dev If the external pool requires a different amount to be passed in
         the conversion should occur here as the Hub passes Dai [wad] amounts.
         msg.sender must be authorized.
-        @param amt amount in asset (Dai) terms that we want to withdraw
+        @param wad amount in asset (Dai) terms that we want to withdraw
+        @return bool whether the withdraw was successful
     */
-    function withdraw(uint256 amt) external;
+    function withdraw(uint256 wad) external returns (bool);
 
      /**
         @notice Transfer shares.
@@ -61,10 +64,10 @@ interface ID3MPool {
         passed in the conversion should occur here as the Hub passes Gem [wad]
         amounts. msg.sender must be authorized.
         @param dst address that should receive the shares
-        @param amt amount in Gem terms that we want to withdraw
+        @param wad amount in Gem terms that we want to withdraw
         @return bool whether the transfer was successful per ERC-20 standard
     */
-    function transfer(address dst, uint256 amt) external returns (bool);
+    function transfer(address dst, uint256 wad) external returns (bool);
 
     /**
         @notice Transfer all shares from this pool.
@@ -74,8 +77,17 @@ interface ID3MPool {
     */
     function transferAll(address dst) external returns (bool);
 
-    /// @notice Some external pools require manually accruing fees/interest
-    function accrueIfNeeded() external;
+    /**
+        @notice Some external pools require actions before debt changes
+        @param what which function is triggering the change
+    */
+    function preDebtChange(bytes32 what) external;
+
+    /**
+        @notice Some external pools require actions after debt changes
+        @param what which function is triggering the change
+    */
+    function postDebtChange(bytes32 what) external;
 
     /**
         @notice Balance of assets this pool "owns".
@@ -96,20 +108,6 @@ interface ID3MPool {
         @return uint256 number of assets in Dai [wad]
     */
     function maxWithdraw() external view returns (uint256);
-
-    /**
-        @notice Used to recover any ERC-20 accidentally sent to the pool.
-        --- YOU SHOULD NOT SEND ERC-20 DIRECTLY TO THIS CONTRACT ---
-        The presence of this function does not convey any right to recover tokens
-        sent to this contract. Maker Governance must evaluate and perform this
-        action at its sole discretion.
-        @dev msg.sender must be authorized.
-        @param token address of the ERC-20 token that will be transferred
-        @param dst address that should receive the shares
-        @param amt amount in Gem terms that we want to withdraw
-        @return bool whether the transfer was successful per ERC-20 standard
-    */
-    function recoverTokens(address token, address dst, uint256 amt) external returns (bool);
 
     /// @notice Reports whether the plan is active
     function active() external view returns (bool);

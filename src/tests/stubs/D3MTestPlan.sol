@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import "../../plans/ID3MPlan.sol";
 
@@ -36,7 +37,7 @@ contract D3MTestPlan is ID3MPlan {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(address dai_) public {
+    constructor(address dai_) {
         dai = dai_;
 
         wards[msg.sender] = 1;
