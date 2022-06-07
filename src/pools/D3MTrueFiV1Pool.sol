@@ -23,6 +23,7 @@ interface TokenLike {
     function transfer(address, uint256) external returns (bool);
     function transferFrom(address, address, uint256) external returns (bool);
     function balanceOf(address) external view returns (uint256);
+    function totalSupply() external view returns (uint256);
 }
 
 interface CanLike {
@@ -45,6 +46,7 @@ interface PortfolioLike is TokenLike {
     function withdraw(uint256 sharesAmount, bytes memory) external returns (uint256);
     function getAmountToMint(uint256 amount) external returns (uint256);
     function maxSize() external view returns (uint256);
+    function value() external view returns (uint256);
     function totalDeposited() external view returns (uint256);
     function getStatus() external view returns (PortfolioStatus);
     function liquidValue() external view returns (uint256);
@@ -116,7 +118,10 @@ contract D3mTrueFiV1Pool is ID3MPool {
     }
 
     function assetBalance() public view override returns (uint256) {
-        return portfolio.balanceOf(address(this));
+        uint256 shares = portfolio.balanceOf(address(this));
+        uint256 totalShares = portfolio.totalSupply();
+        uint256 portfolioValue = portfolio.value();
+        return shares * portfolioValue / totalShares;
     }
 
     function maxDeposit() external view override returns (uint256) {
