@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -50,7 +51,7 @@ contract D3MPoolBase is ID3MPool {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MAaveDaiPool/not-authorized");
+        require(wards[msg.sender] == 1, "D3MPoolBase/not-authorized");
         _;
     }
 
@@ -85,9 +86,9 @@ contract D3MPoolBase is ID3MPool {
         returns (bool)
     {}
 
-    function preDebtChange() external override {}
+    function preDebtChange(bytes32 what) external override {}
 
-    function postDebtChange() external override {}
+    function postDebtChange(bytes32 what) external override {}
 
     function assetBalance() external view override returns (uint256) {}
 
@@ -96,8 +97,6 @@ contract D3MPoolBase is ID3MPool {
     function maxDeposit() external view override returns (uint256) {}
 
     function maxWithdraw() external view override returns (uint256) {}
-
-    function recoverDai(address dst, uint256 wad) external override auth returns (bool) {}
 
     function active() external override pure returns(bool) {
         return true;
@@ -230,18 +229,12 @@ contract D3MPoolBaseTest is DSTest {
         D3MPoolBase(d3mTestPool).rely(address(this));
     }
 
-    function testFail_no_auth_cannot_recoverDai() public {
-        D3MPoolBase(d3mTestPool).deny(address(this));
-
-        D3MPoolBase(d3mTestPool).recoverDai(address(this), 10 * WAD);
-    }
-
     function test_implements_preDebtChange() public {
-        D3MPoolBase(d3mTestPool).preDebtChange();
+        D3MPoolBase(d3mTestPool).preDebtChange("test");
     }
 
     function test_implements_postDebtChange() public {
-        D3MPoolBase(d3mTestPool).postDebtChange();
+        D3MPoolBase(d3mTestPool).postDebtChange("test");
     }
 
     function test_implements_active() public view {

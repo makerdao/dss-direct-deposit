@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -34,10 +35,13 @@ interface D3mHubLike {
     function vat() external view returns (address);
 }
 
+// aDai: https://etherscan.io/address/0x028171bCA77440897B824Ca71D1c56caC55b68A3
 interface ATokenLike is TokenLike {
     function scaledBalanceOf(address) external view returns (uint256);
+    function getIncentivesController() external view returns (address);
 }
 
+// Aave Lending Pool v2: https://etherscan.io/address/0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9
 interface LendingPoolLike {
     function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
     function withdraw(address asset, uint256 amount, address to) external;
@@ -58,18 +62,18 @@ interface LendingPoolLike {
     );
 }
 
+// Aave Incentives Controller: https://etherscan.io/address/0xd784927ff2f95ba542bfc824c8a8a98f3495f6b5
 interface RewardsClaimerLike {
     function REWARD_TOKEN() external returns (address);
     function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
 }
 
-contract D3MAaveDaiPool is ID3MPool {
+contract D3MAavePool is ID3MPool {
 
     mapping (address => uint256) public wards;
     address                      public king;  // Who gets the rewards
 
     LendingPoolLike    public immutable pool;
-    RewardsClaimerLike public immutable rewardsClaimer;
     ATokenLike         public immutable stableDebt;
     ATokenLike         public immutable variableDebt;
     ATokenLike         public immutable adai;
@@ -81,19 +85,18 @@ contract D3MAaveDaiPool is ID3MPool {
     event File(bytes32 indexed what, address data);
     event Collect(address indexed king, address indexed gift, uint256 amt);
 
-    constructor(address hub_, address dai_, address pool_, address _rewardsClaimer) {
+    constructor(address hub_, address dai_, address pool_) {
         pool = LendingPoolLike(pool_);
         asset = TokenLike(dai_);
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, ,) = LendingPoolLike(pool_).getReserveData(dai_);
-        require(stableDebt_ != address(0), "D3MAaveDaiPool/invalid-stableDebt");
-        require(variableDebt_ != address(0), "D3MAaveDaiPool/invalid-variableDebt");
+        require(stableDebt_ != address(0), "D3MAavePool/invalid-stableDebt");
+        require(variableDebt_ != address(0), "D3MAavePool/invalid-variableDebt");
 
         adai = ATokenLike(adai_);
         stableDebt = ATokenLike(stableDebt_);
         variableDebt = ATokenLike(variableDebt_);
-        rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
 
         TokenLike(dai_).approve(pool_, type(uint256).max);
 
@@ -104,7 +107,7 @@ contract D3MAaveDaiPool is ID3MPool {
     }
 
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MAaveDaiPool/not-authorized");
+        require(wards[msg.sender] == 1, "D3MAavePool/not-authorized");
         _;
     }
 
@@ -129,7 +132,7 @@ contract D3MAaveDaiPool is ID3MPool {
 
     function file(bytes32 what, address data) external auth {
         if (what == "king") king = data;
-        else revert("D3MAaveDaiPool/file-unrecognized-param");
+        else revert("D3MAavePool/file-unrecognized-param");
         emit File(what, data);
     }
 
@@ -169,9 +172,9 @@ contract D3MAaveDaiPool is ID3MPool {
         return adai.transfer(dst, adai.balanceOf(address(this)));
     }
 
-    function preDebtChange() external override {}
+    function preDebtChange(bytes32 what) external override {}
 
-    function postDebtChange() external override {}
+    function postDebtChange(bytes32 what) external override {}
 
     // --- Balance of the underlying asset (Dai)
     function assetBalance() public view override returns (uint256) {
@@ -186,20 +189,18 @@ contract D3MAaveDaiPool is ID3MPool {
         return _min(asset.balanceOf(address(adai)), assetBalance());
     }
 
-    function recoverDai(address dst, uint256 wad) external override auth returns (bool) {
-        return TokenLike(asset).transfer(dst, wad);
-    }
-
     function active() external pure override returns (bool) {
         return true;
     }
 
     // --- Collect any rewards ---
     function collect() external returns (uint256 amt) {
-        require(king != address(0), "D3MAaveDaiPool/king-not-set");
+        require(king != address(0), "D3MAavePool/king-not-set");
 
         address[] memory assets = new address[](1);
         assets[0] = address(adai);
+
+        RewardsClaimerLike rewardsClaimer = RewardsClaimerLike(adai.getIncentivesController());
 
         amt = rewardsClaimer.claimRewards(assets, type(uint256).max, king);
         address gift = rewardsClaimer.REWARD_TOKEN();
