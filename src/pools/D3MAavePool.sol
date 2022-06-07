@@ -117,6 +117,11 @@ contract D3MAavePool is ID3MPool {
         _;
     }
 
+    modifier onlyHub {
+        require(msg.sender == hub, "D3MAavePool/only-hub");
+        _;
+    }
+
     // --- Math ---
     uint256 internal constant RAY  = 10 ** 27;
     function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
@@ -151,8 +156,7 @@ contract D3MAavePool is ID3MPool {
 
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
-    function deposit(uint256 wad) external override auth returns (bool) {
-        require(vat.live() == 1, "D3MAavePool/no-deposit-during-shutdown");
+    function deposit(uint256 wad) external override onlyHub returns (bool) {
         uint256 scaledPrev = adai.scaledBalanceOf(address(this));
 
         pool.deposit(address(asset), wad, address(this), 0);
@@ -165,14 +169,12 @@ contract D3MAavePool is ID3MPool {
 
     // Withdraws Dai from Aave in exchange for adai
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
-    function withdraw(uint256 wad) external override auth returns (bool) {
-        require(vat.live() == 1 || msg.sender == hub, "D3MAavePool/no-withdraw-during-shutdown-if-not-hub");
+    function withdraw(uint256 wad) external override onlyHub returns (bool) {
         pool.withdraw(address(asset), wad, address(msg.sender));
         return true;
     }
 
-    function transfer(address dst, uint256 wad) external override auth returns (bool) {
-        require(vat.live() == 1 || msg.sender == hub, "D3MAavePool/no-transfer-during-shutdown-if-not-hub");
+    function transfer(address dst, uint256 wad) external override onlyHub returns (bool) {
         return adai.transfer(dst, wad);
     }
 

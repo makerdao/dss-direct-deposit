@@ -191,12 +191,17 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
     function test_deposit_calls_lending_pool_deposit() public {
         D3MTestGem(address(adai)).rely(address(aavePool));
+        D3MAavePool(d3mTestPool).file("hub", address(this));
         D3MAavePool(d3mTestPool).deposit(1);
         (address asset, uint256 amt, address dst, uint256 code) = FakeLendingPool(address(aavePool)).lastDeposit();
         assertEq(asset, address(dai));
         assertEq(amt, 1);
         assertEq(dst, d3mTestPool);
         assertEq(code, 0);
+    }
+
+    function testFail_deposit_notHub() public {
+        D3MAavePool(d3mTestPool).deposit(1);
     }
 
     function testFail_deposit_requires_auth() public {
@@ -206,6 +211,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
     }
 
     function test_withdraw_calls_lending_pool_withdraw() public {
+        D3MAavePool(d3mTestPool).file("hub", address(this));
         D3MAavePool(d3mTestPool).withdraw(1);
         (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
         assertEq(asset, address(dai));
@@ -213,9 +219,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(dst, address(this));
     }
 
-    function testFail_withdraw_requires_auth() public {
-        D3MAavePool(d3mTestPool).deny(address(this));
-
+    function testFail_withdraw_not_hub() public {
         D3MAavePool(d3mTestPool).withdraw(1);
     }
 
@@ -246,23 +250,23 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
     function test_transfer_adai() public {
         uint256 tokens = adai.totalSupply();
+
         adai.transfer(d3mTestPool, tokens);
         assertEq(adai.balanceOf(address(this)), 0);
         assertEq(adai.balanceOf(d3mTestPool), tokens);
 
+        D3MAavePool(d3mTestPool).file("hub", address(this));
         D3MAavePool(d3mTestPool).transfer(address(this), tokens);
 
         assertEq(adai.balanceOf(address(this)), tokens);
         assertEq(adai.balanceOf(d3mTestPool), 0);
     }
 
-    function testFail_transfer_no_auth() public {
+    function testFail_transfer_not_hub() public {
         uint256 tokens = adai.totalSupply();
         adai.transfer(d3mTestPool, tokens);
         assertEq(adai.balanceOf(address(this)), 0);
         assertEq(adai.balanceOf(d3mTestPool), tokens);
-
-        D3MAavePool(d3mTestPool).deny(address(this));
 
         D3MAavePool(d3mTestPool).transfer(address(this), tokens);
     }

@@ -72,6 +72,11 @@ contract D3MTestPool is ID3MPool {
         _;
     }
 
+    modifier onlyHub {
+        require(msg.sender == hub, "D3MAavePool/only-hub");
+        _;
+    }
+
     // --- Testing Admin ---
     function file(bytes32 what, bool data) external auth {
         if (what == "preDebt") preDebt = data;
@@ -104,17 +109,17 @@ contract D3MTestPool is ID3MPool {
         else revert("D3MTestPool/file-unrecognized-param");
     }
 
-    function deposit(uint256 wad) external override returns (bool) {
+    function deposit(uint256 wad) external override onlyHub returns (bool) {
         D3MTestGem(share).mint(address(this), wad);
         return TokenLike(asset).transfer(share, wad);
     }
 
-    function withdraw(uint256 wad) external override returns (bool)  {
+    function withdraw(uint256 wad) external override onlyHub returns (bool)  {
         D3MTestGem(share).burn(address(this), wad);
         return TokenLike(asset).transferFrom(share, address(msg.sender), wad);
     }
 
-    function transfer(address dst, uint256 wad) public override auth returns (bool) {
+    function transfer(address dst, uint256 wad) public override onlyHub returns (bool) {
         return TokenLike(share).transfer(dst, wad);
     }
 
