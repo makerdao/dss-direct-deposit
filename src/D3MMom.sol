@@ -17,6 +17,10 @@
 
 pragma solidity ^0.8.14;
 
+interface PauseLike {
+    function pause() external;
+}
+
 interface DisableLike {
     function disable() external;
 }
@@ -32,6 +36,7 @@ contract D3MMom {
 
     event SetOwner(address indexed newOwner);
     event SetAuthority(address indexed newAuthority);
+    event Pause(address indexed who);
     event Disable(address indexed who);
 
     modifier onlyOwner {
@@ -72,7 +77,12 @@ contract D3MMom {
         emit SetAuthority(authority_);
     }
 
-    // Governance action without delay
+    // Governance actions without delay
+    function pause(address who) external auth {
+        PauseLike(who).pause();
+        emit Pause(who);
+    }
+    
     function disable(address who) external auth {
         DisableLike(who).disable();
         emit Disable(who);
