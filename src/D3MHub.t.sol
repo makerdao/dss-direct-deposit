@@ -1422,4 +1422,19 @@ contract D3MHubTest is DSTest {
         assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
         assertEq(d3mTestPool.assetBalance(), 50 * WAD);
     }
+
+    function test_plan_paused_no_exec() public {
+        _windSystem(); // winds to 50 * WAD
+
+        d3mTestPlan.file("targetAssets", 55 * WAD); // Increasing target in 5 WAD
+        d3mTestPlan.pause();
+
+        d3mHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+        assertEq(d3mTestPool.assetBalance(), 50 * WAD);
+    }
 }

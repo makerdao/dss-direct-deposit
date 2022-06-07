@@ -37,6 +37,9 @@ interface ID3MPlan {
     /// @notice Reports whether the plan is active
     function active() external view returns (bool);
 
+    /// @notice Set pause to true
+    function pause() external;
+
     /// @notice Reports whether the plan is paused
     function paused() external view returns (bool);
 

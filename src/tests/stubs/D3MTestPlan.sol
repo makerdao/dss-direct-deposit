@@ -95,6 +95,10 @@ contract D3MTestPlan is ID3MPlan {
         return active_;
     }
 
+    function pause() external override {
+        paused_ = true;
+    }
+
     function paused() external view override returns (bool) {
         return paused_;
     }

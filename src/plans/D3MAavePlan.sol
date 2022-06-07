@@ -201,6 +201,10 @@ contract D3MAavePlan is ID3MPlan {
         return strategy == address(tack);
     }
 
+    function pause() external override {
+        paused_ = true;
+    }
+
     function paused() public view override returns (bool) {
         return paused_;
     }

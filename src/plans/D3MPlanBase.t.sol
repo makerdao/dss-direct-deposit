@@ -71,6 +71,8 @@ contract D3MPlanBase is ID3MPlan {
         return true;
     }
 
+    function pause() external override {}
+
     function paused() external override pure returns(bool) {
         return false;
     }
