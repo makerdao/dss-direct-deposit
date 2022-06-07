@@ -223,7 +223,7 @@ contract D3MHub {
 
     // --- Deposit controls ---
     function _wind(bytes32 ilk, ID3MPool pool, uint256 amount) internal {
-        // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
+        // IMPORTANT: this function assumes Vat rate of D3M ilks will always be == 1 * RAY (no fees).
         // That's why this module converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
         if (amount == 0) {
@@ -233,7 +233,7 @@ contract D3MHub {
 
         vat.slip(ilk, address(pool), int256(amount));
         vat.frob(ilk, address(pool), address(pool), address(this), int256(amount), int256(amount));
-        // normalized debt == erc20 DAI (Vat rate for this ilk fixed to 1 RAY)
+        // normalized debt == erc20 DAI (Vat rate for D3M ilks fixed to 1 RAY)
         daiJoin.exit(address(pool), amount);
         require(pool.deposit(amount), "D3MHub/deposit-failed");
 
@@ -247,7 +247,7 @@ contract D3MHub {
                 Mode mode, 
                 uint256 assetBalance     // [wad]
              ) internal {
-        // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
+        // IMPORTANT: this function assumes Vat rate of D3M ilks will always be == 1 * RAY (no fees).
         // That's why it converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
 
@@ -312,7 +312,7 @@ contract D3MHub {
         require(pool.withdraw(total), "D3MHub/withdraw-failed");
         daiJoin.join(address(this), total);
 
-        // normalized debt == erc20 DAI to pool (Vat rate for this ilk fixed to 1 RAY)
+        // normalized debt == erc20 DAI to pool (Vat rate for D3M ilks fixed to 1 RAY)
 
         if (mode == Mode.NORMAL) {
             vat.frob(ilk, address(pool), address(pool), address(this), -int256(amount), -int256(amount));
