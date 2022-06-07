@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 interface DisableLike {
     function disable() external;
@@ -29,8 +30,8 @@ contract D3MMom {
     address public owner;
     address public authority;
 
-    event SetOwner(address indexed oldOwner, address indexed newOwner);
-    event SetAuthority(address indexed oldAuthority, address indexed newAuthority);
+    event SetOwner(address indexed newOwner);
+    event SetAuthority(address indexed newAuthority);
     event Disable(address indexed who);
 
     modifier onlyOwner {
@@ -43,9 +44,9 @@ contract D3MMom {
         _;
     }
 
-    constructor() public {
+    constructor() {
         owner = msg.sender;
-        emit SetOwner(address(0), msg.sender);
+        emit SetOwner(msg.sender);
     }
 
     function isAuthorized(address src, bytes4 sig) internal view returns (bool) {
@@ -62,13 +63,13 @@ contract D3MMom {
 
     // Governance actions with delay
     function setOwner(address owner_) external onlyOwner {
-        emit SetOwner(owner, owner_);
         owner = owner_;
+        emit SetOwner(owner_);
     }
 
     function setAuthority(address authority_) external onlyOwner {
-        emit SetAuthority(authority, authority_);
         authority = authority_;
+        emit SetAuthority(authority_);
     }
 
     // Governance action without delay

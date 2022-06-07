@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import "./D3MTestGem.sol";
 
@@ -23,7 +24,7 @@ contract D3MTestRewards {
     D3MTestGem public immutable rewards;
     address public immutable testGem;
 
-    constructor(address testGem_) public {
+    constructor(address testGem_) {
         rewards = new D3MTestGem(18);
         testGem = testGem_;
     }

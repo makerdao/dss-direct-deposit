@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 interface TokenLike {
     function approve(address, uint256) external returns (bool);
@@ -34,19 +35,11 @@ contract D3MTestGem {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(uint256 decimals_) public {
+    constructor(uint256 decimals_) {
         balanceOf[msg.sender] = totalSupply;
         decimals = decimals_;
 
         wards[msg.sender] = 1;
-    }
-
-    // --- Math ---
-    function add(uint x, uint y) internal pure returns (uint z) {
-        require((z = x + y) >= x);
-    }
-    function sub(uint x, uint y) internal pure returns (uint z) {
-        require((z = x - y) <= x);
     }
 
     // --- Auth ---
@@ -76,28 +69,28 @@ contract D3MTestGem {
 
     function transferFrom(address src, address dst, uint256 amt) public returns (bool) {
         require(balanceOf[src] >= amt, "TestGem/insufficient-balance");
-        if (src != msg.sender && allowance[src][msg.sender] != uint(-1)) {
+        if (src != msg.sender && allowance[src][msg.sender] != type(uint256).max) {
             require(allowance[src][msg.sender] >= amt, "TestGem/insufficient-allowance");
-            allowance[src][msg.sender] = sub(allowance[src][msg.sender], amt);
+            allowance[src][msg.sender] = allowance[src][msg.sender] - amt;
         }
-        balanceOf[src] = sub(balanceOf[src], amt);
-        balanceOf[dst] = add(balanceOf[dst], amt);
+        balanceOf[src] -= amt;
+        balanceOf[dst] += amt;
         return true;
     }
 
     function mint(address usr, uint wad) external auth {
-        balanceOf[usr] = add(balanceOf[usr], wad);
-        totalSupply    = add(totalSupply, wad);
+        balanceOf[usr] += wad;
+        totalSupply    += wad;
     }
 
     function burn(address usr, uint wad) external {
         require(balanceOf[usr] >= wad, "TestGem/insufficient-balance");
-        if (usr != msg.sender && allowance[usr][msg.sender] != uint(-1)) {
+        if (usr != msg.sender && allowance[usr][msg.sender] != type(uint256).max) {
             require(allowance[usr][msg.sender] >= wad, "TestGem/insufficient-allowance");
-            allowance[usr][msg.sender] = sub(allowance[usr][msg.sender], wad);
+            allowance[usr][msg.sender] -= wad;
         }
-        balanceOf[usr] = sub(balanceOf[usr], wad);
-        totalSupply    = sub(totalSupply, wad);
+        balanceOf[usr] -= wad;
+        totalSupply    -= wad;
     }
 
     function giveAllowance(address token, address dst, uint amt) external auth {

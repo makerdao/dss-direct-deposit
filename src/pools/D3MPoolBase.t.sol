@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.6.12;
+pragma solidity ^0.8.14;
 
 import "ds-test/test.sol";
 import {DaiLike, CanLike, D3mHubLike} from "../tests/interfaces/interfaces.sol";
@@ -48,7 +49,7 @@ contract D3MPoolBase is ID3MPool {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MAaveDaiPool/not-authorized");
+        require(wards[msg.sender] == 1, "D3MPoolBase/not-authorized");
         _;
     }
 
@@ -56,7 +57,7 @@ contract D3MPoolBase is ID3MPool {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
 
-    constructor(address hub_, address dai_) public {
+    constructor(address hub_, address dai_) {
         asset = DaiLike(dai_);
 
         CanLike(D3mHubLike(hub_).vat()).hope(hub_);
@@ -73,17 +74,19 @@ contract D3MPoolBase is ID3MPool {
         CanLike(D3mHubLike(hub).vat()).nope(hub);
     }
 
-    function deposit(uint256 amt) external override {}
+    function deposit(uint256 wad) external override returns (bool) {}
 
-    function withdraw(uint256 amt) external override {}
+    function withdraw(uint256 wad) external override returns (bool) {}
 
-    function transfer(address dst, uint256 amt)
+    function transfer(address dst, uint256 wad)
         external
         override
         returns (bool)
     {}
 
-    function accrueIfNeeded() external override {}
+    function preDebtChange(bytes32 what) external override {}
+
+    function postDebtChange(bytes32 what) external override {}
 
     function assetBalance() external view override returns (uint256) {}
 
@@ -93,9 +96,7 @@ contract D3MPoolBase is ID3MPool {
 
     function maxWithdraw() external view override returns (uint256) {}
 
-    function recoverTokens(address token, address dst, uint256 amt) external override auth returns (bool) {}
-
-    function active() external override view returns(bool) {
+    function active() external override pure returns(bool) {
         return true;
     }
 }
@@ -109,7 +110,7 @@ contract FakeVat {
 contract FakeHub {
     address public immutable vat;
 
-    constructor(address vat_) public {
+    constructor(address vat_) {
         vat = vat_;
     }
 }
@@ -226,14 +227,12 @@ contract D3MPoolBaseTest is DSTest {
         D3MPoolBase(d3mTestPool).rely(address(this));
     }
 
-    function testFail_no_auth_cannot_recoverTokens() public {
-        D3MPoolBase(d3mTestPool).deny(address(this));
-
-        D3MPoolBase(d3mTestPool).recoverTokens(address(dai), address(this), 10 * WAD);
+    function test_implements_preDebtChange() public {
+        D3MPoolBase(d3mTestPool).preDebtChange("test");
     }
 
-    function test_implements_accrueIfNeeded() public {
-        D3MPoolBase(d3mTestPool).accrueIfNeeded();
+    function test_implements_postDebtChange() public {
+        D3MPoolBase(d3mTestPool).postDebtChange("test");
     }
 
     function test_implements_active() public view {
