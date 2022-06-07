@@ -953,64 +953,47 @@ contract D3MHubTest is DSTest {
 
         d3mHub.cull(ilk);
 
-        uint256 balBefore = testGem.balanceOf(address(this));
+        address receiver = address(123);
+
+        uint256 balBefore = testGem.balanceOf(receiver);
         assertEq(50 * WAD, testGem.balanceOf(address(d3mTestPool)));
         assertEq(50 * WAD, vat.gem(ilk, address(d3mTestPool)));
 
-        d3mHub.quit(ilk, address(this));
+        d3mTestPool.transferAll(receiver);
+        vat.slip(ilk, address(d3mTestPool), -int256(vat.gem(ilk, address(d3mTestPool))));
 
-        assertEq(balBefore + 50 * WAD, testGem.balanceOf(address(this)));
+        assertEq(balBefore + 50 * WAD, testGem.balanceOf(receiver));
         assertEq(0, testGem.balanceOf(address(d3mTestPool)));
         assertEq(0, vat.gem(ilk, address(d3mTestPool)));
     }
 
     function test_quit_not_culled() public {
         _windSystem();
-        vat.hope(address(d3mHub));
 
-        uint256 balBefore = testGem.balanceOf(address(this));
+        address receiver = address(123);
+        uint256 balBefore = testGem.balanceOf(receiver);
         assertEq(50 * WAD, testGem.balanceOf(address(d3mTestPool)));
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
         assertEq(pink, 50 * WAD);
         assertEq(part, 50 * WAD);
-        (uint256 tink, uint256 tart) = vat.urns(ilk, address(this));
+        (uint256 tink, uint256 tart) = vat.urns(ilk, receiver);
         assertEq(tink, 0);
         assertEq(tart, 0);
 
-        d3mHub.quit(ilk, address(this));
+        d3mTestPool.transferAll(receiver);
+        vat.grab(ilk, address(d3mTestPool), receiver, receiver, -int256(pink), -int256(part));
+        vat.grab(ilk, receiver, receiver, receiver, int256(pink), int256(part));
 
-        assertEq(balBefore + 50 * WAD, testGem.balanceOf(address(this)));
+        assertEq(balBefore + 50 * WAD, testGem.balanceOf(receiver));
         (uint256 joinInk, uint256 joinArt) = vat.urns(
             ilk,
             address(d3mTestPool)
         );
         assertEq(joinInk, 0);
         assertEq(joinArt, 0);
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(this));
+        (uint256 ink, uint256 art) = vat.urns(ilk, receiver);
         assertEq(ink, 50 * WAD);
         assertEq(art, 50 * WAD);
-    }
-
-    function testFail_no_quit_not_culled_who_not_accepting() public {
-        _windSystem();
-
-        d3mHub.quit(ilk, address(this));
-    }
-
-    function testFail_no_quit_mcd_caged() public {
-        _windSystem();
-        d3mHub.cull(ilk);
-
-        vat.cage();
-        d3mHub.quit(ilk, address(this));
-    }
-
-    function testFail_no_quit_no_auth() public {
-        _windSystem();
-        d3mHub.cull(ilk);
-
-        d3mHub.deny(address(this));
-        d3mHub.quit(ilk, address(this));
     }
 
     function test_pool_upgrade_unwind_wind() public {
@@ -1089,6 +1072,9 @@ contract D3MHubTest is DSTest {
             type(uint256).max
         );
 
+        (uint256 opink, uint256 opart) = vat.urns(ilk, address(d3mTestPool));
+        assertGt(opink, 0);
+        assertGt(opart, 0);
 
         (uint256 npink, uint256 npart) = vat.urns(ilk, address(newPool));
         assertEq(npink, 0);
@@ -1097,10 +1083,12 @@ contract D3MHubTest is DSTest {
         assertTrue(newPool.postDebt() == false);
 
         // quit to new pool
-        d3mHub.quit(ilk, address(newPool));
+        d3mTestPool.transferAll(address(newPool));
+        vat.grab(ilk, address(d3mTestPool), address(newPool), address(newPool), -int256(opink), -int256(opart));
+        vat.grab(ilk, address(newPool), address(newPool), address(newPool), int256(opink), int256(opart));
 
         // Ensure we quit our position
-        (uint256 opink, uint256 opart) = vat.urns(ilk, address(d3mTestPool));
+        (opink, opart) = vat.urns(ilk, address(d3mTestPool));
         assertEq(opink, 0);
         assertEq(opart, 0);
         // quit does not call hooks
@@ -1270,6 +1258,10 @@ contract D3MHubTest is DSTest {
         (, , uint256 tau, , ) = d3mHub.ilks(ilk);
         newHub.file(ilk, "tau", tau);
 
+        (uint256 opink, uint256 opart) = vat.urns(ilk, address(d3mTestPool));
+        assertGt(opink, 0);
+        assertGt(opart, 0);
+
         (uint256 npink, uint256 npart) = vat.urns(ilk, address(newPool));
         assertEq(npink, 0);
         assertEq(npart, 0);
@@ -1277,12 +1269,12 @@ contract D3MHubTest is DSTest {
         assertTrue(newPool.postDebt() == false);
 
         // Transition Balances
-        newPool.hope(address(d3mHub));
-        d3mHub.quit(ilk, address(newPool));
-        newPool.nope(address(d3mHub));
+        d3mTestPool.transferAll(address(newPool));
+        vat.grab(ilk, address(d3mTestPool), address(newPool), address(newPool), -int256(opink), -int256(opart));
+        vat.grab(ilk, address(newPool), address(newPool), address(newPool), int256(opink), int256(opart));
 
         // Ensure we quit our position
-        (uint256 opink, uint256 opart) = vat.urns(ilk, address(d3mTestPool));
+        (opink, opart) = vat.urns(ilk, address(d3mTestPool));
         assertEq(opink, 0);
         assertEq(opart, 0);
         // quit does not call hooks
@@ -1349,19 +1341,6 @@ contract D3MHubTest is DSTest {
         assertEq(d3mHub.locked(), 1);
 
         try d3mHub.exit(ilk, address(this), 1) {}
-        catch Error(string memory errmsg) {
-            bytes32 locked = hevm.load(address(d3mHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
-            assertTrue(uint256(locked) == 1);
-            assertTrue(cmpStr(errmsg, "D3MHub/system-locked"));
-        }
-    }
-
-    function test_quit_lock_protection() public {
-        // Store memory slot 0x4
-        hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
-        assertEq(d3mHub.locked(), 1);
-
-        try d3mHub.quit(ilk, address(this)) {}
         catch Error(string memory errmsg) {
             bytes32 locked = hevm.load(address(d3mHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
             assertTrue(uint256(locked) == 1);
