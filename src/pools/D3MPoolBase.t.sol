@@ -100,6 +100,8 @@ contract D3MPoolBase is ID3MPool {
         return true;
     }
 
+    function pause() external override {}
+
     function paused() external override pure returns(bool) {
         return false;
     }

@@ -194,6 +194,10 @@ contract D3MAavePool is ID3MPool {
         return true;
     }
 
+    function pause() external override auth {
+        paused_ = true;
+    }
+    
     function paused() external view override returns (bool) {
         return paused_;
     }

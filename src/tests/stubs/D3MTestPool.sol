@@ -33,13 +33,13 @@ contract D3MTestPool is ID3MPool {
     address            public immutable share; // Token representing a share of the asset pool
     TokenLike          public immutable asset; // Dai
     address            public           king;  // Who gets the rewards
+    bool               public           paused_ = false;
 
     // test helper variables
     uint256        maxDepositAmount = type(uint256).max;
     bool    public preDebt          = false;
     bool    public postDebt         = false;
     bool    public active_          = true;
-    bool    public paused_          = false;
     bool    public wild_            = false;
 
     // --- Events ---
@@ -152,6 +152,10 @@ contract D3MTestPool is ID3MPool {
         return active_;
     }
 
+    function pause() external override {
+        paused_ = true;
+    }
+    
     function paused() external view override returns (bool) {
         return paused_;
     }
