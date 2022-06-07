@@ -119,7 +119,7 @@ contract D3MCompoundDaiPlan is ID3MPlan {
         emit File(what, data);
     }
     function file(bytes32 what, address data) external auth {
-        if (what == "rateModel") tack = InterestRateModelLike(data); // TODO: change "rateModel" to "tack" once changed on aave plan
+        if (what == "tack") tack = InterestRateModelLike(data);
         else revert("D3MCompoundDaiPlan/file-unrecognized-param");
         emit File(what, data);
     }
@@ -137,12 +137,13 @@ contract D3MCompoundDaiPlan is ID3MPlan {
             return currentAssets + targetTotalPoolSize - totalPoolSize;
         } else {
             // Decrease debt
-            uint256 decrease;
-            unchecked { decrease = totalPoolSize - targetTotalPoolSize; }
-            if (currentAssets >= decrease) {
-                unchecked { return currentAssets - decrease; }
-            } else {
-                return 0;
+            unchecked {
+                uint256 decrease = totalPoolSize - targetTotalPoolSize;
+                if (currentAssets >= decrease) {
+                    return currentAssets - decrease;
+                } else {
+                    return 0;
+                }
             }
         }
     }

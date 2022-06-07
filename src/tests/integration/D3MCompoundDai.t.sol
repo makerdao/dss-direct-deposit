@@ -19,7 +19,7 @@ pragma solidity ^0.8.14;
 import "ds-test/test.sol";
 import "../interfaces/interfaces.sol";
 
-import { DssDirectDepositHub } from "../../DssDirectDepositHub.sol";
+import { D3MHub } from "../../D3MHub.sol";
 import { D3MMom } from "../../D3MMom.sol";
 import { ValueStub } from "../stubs/ValueStub.sol";
 
@@ -89,7 +89,7 @@ contract D3MCompoundDaiTest is DSTest {
     address pauseProxy;
 
     bytes32 constant ilk = "DD-DAI-A";
-    DssDirectDepositHub directDepositHub;
+    D3MHub directDepositHub;
     D3MCompoundDaiPool d3mCompoundDaiPool;
     D3MCompoundDaiPlan d3mCompoundDaiPlan;
     D3MMom d3mMom;
@@ -119,7 +119,7 @@ contract D3MCompoundDaiTest is DSTest {
         _giveAuthAccess(address(end), address(this));
         _giveAuthAccess(address(spot), address(this));
 
-        directDepositHub = new DssDirectDepositHub(address(vat), address(daiJoin));
+        directDepositHub = new D3MHub(address(vat), address(daiJoin));
         d3mCompoundDaiPool = new D3MCompoundDaiPool(address(directDepositHub), address(dai), address(cDai));
         d3mCompoundDaiPool.rely(address(directDepositHub));
         d3mCompoundDaiPlan = new D3MCompoundDaiPlan(address(cDai));

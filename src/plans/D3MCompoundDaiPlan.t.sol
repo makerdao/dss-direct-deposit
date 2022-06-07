@@ -155,7 +155,7 @@ contract D3MCompoundDaiPlanTest is D3MPlanBaseTest {
     function test_can_file_rateModel() public {
         assertEq(address(plan.tack()), address(model));
 
-        plan.file("rateModel", address(1));
+        plan.file("tack", address(1));
 
         assertEq(address(plan.tack()), address(1));
     }
@@ -282,7 +282,7 @@ contract D3MCompoundDaiPlanTest is D3MPlanBaseTest {
 
     function test_rate_model_changed_not_active() public {
         // Simulate Compound changing the rate model in the pool
-        plan.file("rateModel", address(456));
+        plan.file("tack", address(456));
 
         assertTrue(address(plan.tack()) != cDai.interestRateModel());
         assertTrue(plan.active() == false);
