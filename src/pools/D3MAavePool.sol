@@ -82,7 +82,6 @@ contract D3MAavePool is ID3MPool {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
-    event File(bytes32 indexed what, bool data);
     event File(bytes32 indexed what, address data);
     event Collect(address indexed king, address indexed gift, uint256 amt);
 

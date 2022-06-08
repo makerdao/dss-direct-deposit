@@ -55,7 +55,6 @@ contract D3MAavePlan is ID3MPlan {
     mapping (address => uint256) public wards;
     InterestRateStrategyLike     public tack;
     uint256                      public bar;             // Target Interest Rate [ray]
-    bool                         public paused_ = false;
 
     LendingPoolLike public immutable pool;
     TokenLike       public immutable stableDebt;
@@ -66,7 +65,6 @@ contract D3MAavePlan is ID3MPlan {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
-    event File(bytes32 indexed what, bool data);
     event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
 
@@ -112,12 +110,6 @@ contract D3MAavePlan is ID3MPlan {
     function deny(address usr) external auth {
         wards[usr] = 0;
         emit Deny(usr);
-    }
-
-    function file(bytes32 what, bool data) external auth {
-        if (what == "paused_") paused_ = data;
-        else revert("D3MAavePlan/file-unrecognized-param");
-        emit File(what, data);
     }
 
     function file(bytes32 what, uint256 data) external auth {
