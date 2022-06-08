@@ -151,7 +151,9 @@ contract D3MHub {
         z = x >= y ? x : y;
     }
     function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = (x + (y - 1)) / y;
+        unchecked {
+            z = x != 0 ? ((x - 1) / y) + 1 : 0;
+        }
     }
 
     // --- Administration ---
