@@ -88,3 +88,53 @@ interface CanLike {
 interface D3mHubLike {
     function vat() external view returns (address);
 }
+
+/*************/
+/*** TrueFi ***/
+/*************/
+
+interface ERC20Like {
+    function balanceOf(address) external view returns (uint256);
+    function approve(address, uint256) external returns (bool);
+    function transfer(address, uint256) external returns (bool);
+    function totalSupply() external view returns (uint256);
+}
+
+interface IERC20WithDecimals is ERC20Like {}
+
+interface ILenderVerifier {
+    function isAllowed(
+        address lender,
+        uint256 amount,
+        bytes memory signature
+    ) external view returns (bool);
+}
+
+interface PortfolioLike {
+    enum PortfolioStatus {
+        Open,
+        Frozen,
+        Closed
+    }
+
+    function manager() external view returns (address);
+    function getAmountToMint(uint256 amount) external view returns (uint256);
+    function getStatus() external view returns (PortfolioStatus);
+}
+
+interface PortfolioFactoryLike {
+    function createPortfolio(
+        string memory name,
+        string memory symbol,
+        IERC20WithDecimals _underlyingToken,
+        ILenderVerifier _lenderVerifier,
+        uint256 _duration,
+        uint256 _maxSize,
+        uint256 _managerFee
+    ) external;
+
+    function setIsWhitelisted(address account, bool _isWhitelisted) external;
+    function isWhitelisted(address account) external view returns (bool);
+    function manager() external view returns (address);
+    function getPortfolios() external view returns (address[] memory);
+}

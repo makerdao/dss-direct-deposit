@@ -18,16 +18,7 @@ pragma solidity ^0.8.14;
 
 import "./ID3MPlan.sol";
 
-interface PortfolioLike {
-    enum PortfolioStatus {
-        Open,
-        Frozen,
-        Closed
-    }
-
-    function getAmountToMint(uint256 amount) external view returns (uint256);
-    function getStatus() external view returns (PortfolioStatus);
-}
+import { PortfolioLike } from "../tests/interfaces/interfaces.sol";
 
 contract D3MTrueFiV1Plan is ID3MPlan {
     PortfolioLike public immutable portfolio;

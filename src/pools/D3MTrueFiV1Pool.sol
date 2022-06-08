@@ -52,7 +52,7 @@ interface PortfolioLike is TokenLike {
     function liquidValue() external view returns (uint256);
 }
 
-contract D3mTrueFiV1Pool is ID3MPool {
+contract D3MTrueFiV1Pool is ID3MPool {
 
     PortfolioLike public immutable portfolio;
 
@@ -69,10 +69,12 @@ contract D3mTrueFiV1Pool is ID3MPool {
     event Deny(address indexed usr);
     event Collect();
 
-    constructor(address dai_, address portfolio_) {
+    constructor(address dai_, address portfolio_, address hub_) {
         portfolio = PortfolioLike(portfolio_);
 
         TokenLike(dai_).approve(portfolio_, type(uint256).max);
+
+        CanLike(D3mHubLike(hub_).vat()).hope(hub_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
