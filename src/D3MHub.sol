@@ -237,7 +237,7 @@ contract D3MHub {
         vat.frob(ilk, address(pool), address(pool), address(this), int256(amount), int256(amount));
         // normalized debt == erc20 DAI (Vat rate for D3M ilks fixed to 1 RAY)
         daiJoin.exit(address(pool), amount);
-        require(pool.deposit(amount), "D3MHub/deposit-failed");
+        pool.deposit(amount);
 
         emit Wind(ilk, amount);
     }
@@ -311,7 +311,7 @@ contract D3MHub {
 
         // To save gas you can bring the fees back with the unwind
         uint256 total = amount + fees;
-        require(pool.withdraw(total), "D3MHub/withdraw-failed");
+        pool.withdraw(total);
         daiJoin.join(address(this), total);
 
         // normalized debt == erc20 DAI to pool (Vat rate for D3M ilks fixed to 1 RAY)
@@ -499,7 +499,7 @@ contract D3MHub {
                 fees = assetBalance - daiDebt;
             }
             fees = _min(fees, pool.maxWithdraw());
-            require(pool.withdraw(fees), "D3MHub/withdraw-failed");
+            pool.withdraw(fees);
             daiJoin.join(vow, fees);
             emit Reap(ilk, fees);
         }

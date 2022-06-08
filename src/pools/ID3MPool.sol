@@ -44,9 +44,8 @@ interface ID3MPool {
         conversion should occur here as the Hub passes Dai [wad] amounts.
         msg.sender must be authorized.
         @param wad amount in asset (Dai) terms that we want to deposit
-        @return bool whether the withdraw was successful
     */
-    function deposit(uint256 wad) external returns (bool);
+    function deposit(uint256 wad) external;
 
     /**
         @notice Withdraw assets (Dai) from the external pool.
@@ -54,9 +53,8 @@ interface ID3MPool {
         the conversion should occur here as the Hub passes Dai [wad] amounts.
         msg.sender must be authorized.
         @param wad amount in asset (Dai) terms that we want to withdraw
-        @return bool whether the withdraw was successful
     */
-    function withdraw(uint256 wad) external returns (bool);
+    function withdraw(uint256 wad) external;
 
      /**
         @notice Transfer shares.
