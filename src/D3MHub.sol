@@ -151,7 +151,9 @@ contract D3MHub {
         z = x >= y ? x : y;
     }
     function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = (x + (y - 1)) / y;
+        unchecked {
+            z = x != 0 ? ((x - 1) / y) + 1 : 0;
+        }
     }
 
     // --- Administration ---
@@ -235,7 +237,7 @@ contract D3MHub {
         vat.frob(ilk, address(pool), address(pool), address(this), int256(amount), int256(amount));
         // normalized debt == erc20 DAI (Vat rate for D3M ilks fixed to 1 RAY)
         daiJoin.exit(address(pool), amount);
-        require(pool.deposit(amount), "D3MHub/deposit-failed");
+        pool.deposit(amount);
 
         emit Wind(ilk, amount);
     }
@@ -263,13 +265,13 @@ contract D3MHub {
             // We rebalance the CDP after grabbing in `cull` so the gems represents
             // the debt at time of cull
             daiDebt = vat.gem(ilk, address(pool));
-        } else {
+        } else if (mode == Mode.MCD_CAGED) {
             // MCD caged
             // debt is obtained from free collateral owned by the End module
             end_ = end;
             end_.skim(ilk, address(pool));
             daiDebt = vat.gem(ilk, address(end_));
-        }
+        } else revert("D3MHub/unknown-mode");
 
         uint256 availableAssets = pool.maxWithdraw();
 
@@ -309,7 +311,7 @@ contract D3MHub {
 
         // To save gas you can bring the fees back with the unwind
         uint256 total = amount + fees;
-        require(pool.withdraw(total), "D3MHub/withdraw-failed");
+        pool.withdraw(total);
         daiJoin.join(address(this), total);
 
         // normalized debt == erc20 DAI to pool (Vat rate for D3M ilks fixed to 1 RAY)
@@ -458,17 +460,15 @@ contract D3MHub {
                     toWind = _min(
                                 _min(
                                     _min(
-                                        _min(
-                                            targetAssets - currentAssets,
-                                            lineWad - Art
-                                        ),
-                                        (Line - debt) / RAY
+                                        targetAssets - currentAssets,
+                                        lineWad - Art
                                     ),
-                                    pool.maxDeposit() // Determine if the pool limits our total deposits
+                                    (Line - debt) / RAY
                                 ),
-                                MAXINT256
-                            );
+                                pool.maxDeposit() // Determine if the pool limits our total deposits
+                             );
                 }
+                require(lineWad + toWind < MAXINT256, "D3MHub/wind-overflow");
                 _wind(ilk, pool, toWind);
             }
         }
@@ -498,7 +498,7 @@ contract D3MHub {
                 fees = assetBalance - daiDebt;
             }
             fees = _min(fees, pool.maxWithdraw());
-            require(pool.withdraw(fees), "D3MHub/withdraw-failed");
+            pool.withdraw(fees);
             daiJoin.join(vow, fees);
             emit Reap(ilk, fees);
         }
