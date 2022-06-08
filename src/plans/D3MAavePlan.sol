@@ -119,7 +119,7 @@ contract D3MAavePlan is ID3MPlan {
         else revert("D3MAavePlan/file-unrecognized-param");
         emit File(what, data);
     }
-    
+
     function file(bytes32 what, uint256 data) external auth {
         if (what == "bar") bar = data;
         else revert("D3MAavePlan/file-unrecognized-param");
@@ -164,9 +164,9 @@ contract D3MAavePlan is ID3MPlan {
             unchecked {
                 targetUtil = _rdiv(
                                 _rmul(
-                                    targetInterestRate - base, 
+                                    targetInterestRate - base,
                                     tack.OPTIMAL_UTILIZATION_RATE()
-                                ), 
+                                ),
                                 variableRateSlope1
                              );
             }
@@ -203,21 +203,13 @@ contract D3MAavePlan is ID3MPlan {
         if (bar == 0) {
             return false;
         }
-        (,,,,,,,,,, address strategy,) = pool.getReserveData(address(dai));
-        return strategy == address(tack);
-    }
-
-    function pause() external override {
-        paused_ = true;
-    }
-
-    function paused() public view override returns (bool) {
-        return paused_;
-    }
-
-    function wild() public view override returns (bool) {
-        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, ,) = LendingPoolLike(pool).getReserveData(address(dai));
-        return (adai_ != address(adai) || stableDebt_ != address(stableDebt) || variableDebt_ != address(variableDebt));
+        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address strategy,) = pool.getReserveData(address(dai));
+        return (
+                    strategy == address(tack) &&
+                    adai_ == address(adai) &&
+                    stableDebt_ == address(stableDebt) &&
+                    variableDebt_ == address(variableDebt)
+               );
     }
 
     function disable() external override {

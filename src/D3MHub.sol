@@ -74,7 +74,7 @@ contract D3MHub {
 
     /// @notice maps ilk bytes32 to the D3M tracking struct.
     mapping (bytes32 => Ilk) public ilks;
-    
+
     VatLike     public immutable vat;
     DaiJoinLike public immutable daiJoin;
 
@@ -241,10 +241,10 @@ contract D3MHub {
     }
 
     function _unwind(
-                bytes32 ilk, 
-                ID3MPool pool, 
+                bytes32 ilk,
+                ID3MPool pool,
                 uint256 supplyReduction, // [wad]
-                Mode mode, 
+                Mode mode,
                 uint256 assetBalance     // [wad]
              ) internal {
         // IMPORTANT: this function assumes Vat rate of this ilk will always be == 1 * RAY (no fees).
@@ -393,11 +393,6 @@ contract D3MHub {
 
         ID3MPool pool = ilks[ilk].pool;
 
-        if (pool.paused() || ilks[ilk].plan.paused()) {
-            emit Unwind(ilk, 0, 0);
-            return;
-        }
-
         pool.preDebtChange("exec");
         uint256 currentAssets = pool.assetBalance();
 
@@ -466,11 +461,11 @@ contract D3MHub {
                                         _min(
                                             targetAssets - currentAssets,
                                             lineWad - Art
-                                        ), 
+                                        ),
                                         (Line - debt) / RAY
                                     ),
                                     pool.maxDeposit() // Determine if the pool limits our total deposits
-                                ), 
+                                ),
                                 MAXINT256
                             );
                 }
@@ -534,15 +529,9 @@ contract D3MHub {
         @dev msg.sender must be authorized.
         @param ilk bytes32 of the D3M ilk name
     */
-    function cage(bytes32 ilk) external {
+    function cage(bytes32 ilk) external auth {
         require(vat.live() == 1, "D3MHub/no-cage-during-shutdown");
         require(ilks[ilk].tic == 0, "D3MHub/pool-already-caged");
-
-        require(
-            wards[msg.sender] == 1 ||
-            ilks[ilk].pool.wild() ||
-            ilks[ilk].plan.wild(),
-        "D3MHub/no-auth-to-cage");
 
         ilks[ilk].tic = block.timestamp + ilks[ilk].tau;
         emit Cage(ilk);

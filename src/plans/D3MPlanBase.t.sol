@@ -71,16 +71,6 @@ contract D3MPlanBase is ID3MPlan {
         return true;
     }
 
-    function pause() external override {}
-
-    function paused() external override pure returns(bool) {
-        return false;
-    }
-
-    function wild() external override pure returns(bool) {
-        return false;
-    }
-
     function disable() external override {}
 }
 
@@ -137,10 +127,6 @@ contract D3MPlanBaseTest is DSTest {
 
     function test_implements_active() public view {
         D3MPlanBase(d3mTestPlan).active();
-    }
-
-    function test_implements_wild() public view {
-        D3MPlanBase(d3mTestPlan).wild();
     }
 
     function test_implements_disable() public virtual {

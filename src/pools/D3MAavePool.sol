@@ -137,7 +137,7 @@ contract D3MAavePool is ID3MPool {
         else revert("D3MAavePool/file-unrecognized-param");
         emit File(what, data);
     }
-    
+
     function file(bytes32 what, address data) external auth {
         if (what == "king") king = data;
         else revert("D3MAavePool/file-unrecognized-param");
@@ -195,18 +195,6 @@ contract D3MAavePool is ID3MPool {
 
     function maxWithdraw() external view override returns (uint256) {
         return _min(asset.balanceOf(address(adai)), assetBalance());
-    }
-
-    function pause() external override auth {
-        paused_ = true;
-    }
-    
-    function paused() external view override returns (bool) {
-        return paused_;
-    }
-
-    function wild() external pure override returns (bool) {
-        return false;
     }
 
     function redeemable() external view override returns (address) {

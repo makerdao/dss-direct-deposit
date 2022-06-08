@@ -54,22 +54,6 @@ contract D3MMomTest is DSTest {
         d3mTestPlan.rely(address(d3mMom));
     }
 
-    function test_can_pause_plan_owner() public {
-        assertTrue(d3mTestPlan.paused() == false);
-
-        d3mMom.pause(address(d3mTestPlan));
-
-        assertTrue(d3mTestPlan.paused());
-    }
-    
-    function testFail_pause_no_auth() public {
-        d3mMom.setOwner(address(0));
-        assertEq(d3mMom.authority(), address(0));
-        assertEq(d3mMom.owner(), address(0));
-
-        d3mMom.pause(address(d3mTestPlan));
-    }
-    
     function test_can_disable_plan_owner() public {
         assertEq(d3mTestPlan.bar(), type(uint256).max);
 

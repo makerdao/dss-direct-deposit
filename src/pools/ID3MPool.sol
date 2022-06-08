@@ -109,15 +109,6 @@ interface ID3MPool {
     */
     function maxWithdraw() external view returns (uint256);
 
-    /// @notice Set pause to true
-    function pause() external;
-    
-    /// @notice Reports whether the pool is paused
-    function paused() external view returns (bool);
-
-    /// @notice Reports whether the pool is out of prescribed bounds
-    function wild() external view returns (bool);
-
     /// @notice returns address of redeemable tokens (if any)
     function redeemable() external view returns (address);
 }

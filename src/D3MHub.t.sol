@@ -342,7 +342,7 @@ contract D3MHubTest is DSTest {
         vat.fold(ilk, vow, int(2 * RAY));
         d3mHub.exec(ilk);
     }
-    
+
     function test_wind_limited_ilk_line() public {
         d3mTestPlan.file("bar", 10);
         d3mTestPlan.file("targetAssets", 50 * WAD);
@@ -730,43 +730,13 @@ contract D3MHubTest is DSTest {
         assertEq(tic, block.timestamp + tau);
     }
 
-    function test_cage_d3m_with_wild_pool() public {
-        (, , uint256 tau, , uint256 tic) = d3mHub.ilks(ilk);
-        assertEq(tic, 0);
-
-        d3mHub.deny(address(this));
-        d3mTestPool.file("wild_", true);
-        assertTrue(d3mTestPool.wild());
-        assertTrue(d3mTestPlan.wild() == false);
-        d3mHub.cage(ilk);
-
-        (, , , , tic) = d3mHub.ilks(ilk);
-        assertEq(tic, block.timestamp + tau);
-    }
-
-    function test_cage_d3m_with_wild_plan() public {
-        (, , uint256 tau, , uint256 tic) = d3mHub.ilks(ilk);
-        assertEq(tic, 0);
-
-        d3mHub.deny(address(this));
-        d3mTestPlan.file("wild_", true);
-        assertTrue(d3mTestPool.wild() == false);
-        assertTrue(d3mTestPlan.wild());
-        d3mHub.cage(ilk);
-
-        (, , , , tic) = d3mHub.ilks(ilk);
-        assertEq(tic, block.timestamp + tau);
-    }
-
     function testFail_cage_d3m_mcd_caged() public {
         vat.cage();
         d3mHub.cage(ilk);
     }
-    
+
     function testFail_cage_d3m_no_auth() public {
         d3mHub.deny(address(this));
-        assertTrue(d3mTestPool.wild() == false);
-        assertTrue(d3mTestPlan.wild() == false);
         d3mHub.cage(ilk);
     }
 
@@ -1145,7 +1115,7 @@ contract D3MHubTest is DSTest {
 
         (, ID3MPlan plan, , , ) = d3mHub.ilks(ilk);
         assertEq(address(plan), address(newPlan));
-        
+
         d3mHub.exec(ilk);
 
         // New Plan should determine the pool position
@@ -1173,7 +1143,7 @@ contract D3MHubTest is DSTest {
         d3mTestPool.deny(address(d3mHub));
         d3mTestPool.hope(address(newHub));
         d3mTestPool.nope(address(d3mHub));
-        
+
         // Update Permissions in Vat
         vat.deny(address(d3mHub));
         vat.rely(address(newHub));
@@ -1212,7 +1182,7 @@ contract D3MHubTest is DSTest {
         d3mTestPool.deny(address(d3mHub));
         d3mTestPool.hope(address(newHub));
         d3mTestPool.nope(address(d3mHub));
-        
+
         // Update Permissions in Vat
         vat.deny(address(d3mHub));
         vat.rely(address(newHub));
@@ -1290,7 +1260,7 @@ contract D3MHubTest is DSTest {
         assertEq(npart, 50 * WAD);
         assertTrue(newPool.preDebt() == false);
         assertTrue(newPool.postDebt() == false);
-        
+
         // Clean up after transition
         d3mHub.cage(ilk);
         d3mTestPool.deny(address(d3mHub));
@@ -1380,85 +1350,5 @@ contract D3MHubTest is DSTest {
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 60 * WAD);
         assertEq(art, 60 * WAD);
-    }
-
-    function test_pool_paused_no_exec() public {
-        _windSystem(); // winds to 50 * WAD
-
-        d3mTestPlan.file("targetAssets", 55 * WAD); // Increasing target in 5 WAD
-        d3mTestPool.pause();
-
-        d3mHub.exec(ilk);
-
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 50 * WAD);
-        assertEq(art, 50 * WAD);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
-        assertEq(d3mTestPool.assetBalance(), 50 * WAD);
-    }
-
-    function test_plan_paused_no_exec() public {
-        _windSystem(); // winds to 50 * WAD
-
-        d3mTestPlan.file("targetAssets", 55 * WAD); // Increasing target in 5 WAD
-        d3mTestPlan.pause();
-
-        d3mHub.exec(ilk);
-
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 50 * WAD);
-        assertEq(art, 50 * WAD);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
-        assertEq(d3mTestPool.assetBalance(), 50 * WAD);
-    }
-
-    function test_resume_exec_after_pool_paused() public {
-        _windSystem(); // winds to 50 * WAD
-
-        d3mTestPlan.file("targetAssets", 55 * WAD); // Increasing target in 5 WAD
-        d3mTestPool.pause();
-
-        d3mHub.exec(ilk);
-
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 50 * WAD);
-        assertEq(art, 50 * WAD);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
-        assertEq(d3mTestPool.assetBalance(), 50 * WAD);
-
-        d3mTestPool.file("paused_", false);
-
-        d3mHub.exec(ilk);
-
-        (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 55 * WAD);
-        assertEq(art, 55 * WAD);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 55 * WAD);
-        assertEq(d3mTestPool.assetBalance(), 55 * WAD);
-    }
-
-    function test_resume_exec_after_plan_paused() public {
-        _windSystem(); // winds to 50 * WAD
-
-        d3mTestPlan.file("targetAssets", 55 * WAD); // Increasing target in 5 WAD
-        d3mTestPlan.pause();
-
-        d3mHub.exec(ilk);
-
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 50 * WAD);
-        assertEq(art, 50 * WAD);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
-        assertEq(d3mTestPool.assetBalance(), 50 * WAD);
-
-        d3mTestPlan.file("paused_", false);
-
-        d3mHub.exec(ilk);
-
-        (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 55 * WAD);
-        assertEq(art, 55 * WAD);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 55 * WAD);
-        assertEq(d3mTestPool.assetBalance(), 55 * WAD);
     }
 }

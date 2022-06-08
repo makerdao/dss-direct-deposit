@@ -147,18 +147,6 @@ contract D3MTestPool is ID3MPool {
         return shares;
     }
 
-    function pause() external override {
-        paused_ = true;
-    }
-    
-    function paused() external view override returns (bool) {
-        return paused_;
-    }
-
-    function wild() external view override returns (bool) {
-        return wild_;
-    }
-
     function redeemable() external view override returns (address) {
         return address(share);
     }
