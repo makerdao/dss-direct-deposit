@@ -54,7 +54,7 @@ contract D3MAavePlan is ID3MPlan {
 
     mapping (address => uint256) public wards;
     InterestRateStrategyLike     public tack;
-    uint256                      public bar;             // Target Interest Rate [ray]
+    uint256                      public bar;   // Target Interest Rate [ray]
 
     LendingPoolLike public immutable pool;
     TokenLike       public immutable stableDebt;
