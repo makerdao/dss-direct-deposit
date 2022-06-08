@@ -74,7 +74,7 @@ contract D3MHub {
 
     /// @notice maps ilk bytes32 to the D3M tracking struct.
     mapping (bytes32 => Ilk) public ilks;
-    
+
     VatLike     public immutable vat;
     DaiJoinLike public immutable daiJoin;
 
@@ -241,10 +241,10 @@ contract D3MHub {
     }
 
     function _unwind(
-                bytes32 ilk, 
-                ID3MPool pool, 
+                bytes32 ilk,
+                ID3MPool pool,
                 uint256 supplyReduction, // [wad]
-                Mode mode, 
+                Mode mode,
                 uint256 assetBalance     // [wad]
              ) internal {
         // IMPORTANT: this function assumes Vat rate of D3M ilks will always be == 1 * RAY (no fees).
@@ -458,17 +458,15 @@ contract D3MHub {
                     toWind = _min(
                                 _min(
                                     _min(
-                                        _min(
-                                            targetAssets - currentAssets,
-                                            lineWad - Art
-                                        ), 
-                                        (Line - debt) / RAY
+                                        targetAssets - currentAssets,
+                                        lineWad - Art
                                     ),
-                                    pool.maxDeposit() // Determine if the pool limits our total deposits
-                                ), 
-                                MAXINT256
-                            );
+                                    (Line - debt) / RAY
+                                ),
+                                pool.maxDeposit() // Determine if the pool limits our total deposits
+                             );
                 }
+                require(lineWad + toWind < MAXINT256, "D3MHub/wind-overflow");
                 _wind(ilk, pool, toWind);
             }
         }
