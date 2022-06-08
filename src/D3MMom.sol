@@ -72,7 +72,7 @@ contract D3MMom {
         emit SetAuthority(authority_);
     }
 
-    // Governance actions without delay
+    // Governance action without delay
     function disable(address who) external auth {
         DisableLike(who).disable();
         emit Disable(who);

@@ -30,16 +30,14 @@ contract D3MTestPool is ID3MPool {
     mapping (address => uint256) public wards;
 
     RewardsClaimerLike public immutable rewardsClaimer;
-    address            public immutable share; // Token representing a share of the asset pool
-    TokenLike          public immutable asset; // Dai
-    address            public           king;  // Who gets the rewards
-    bool               public           paused_ = false;
+    address            public immutable share;          // Token representing a share of the asset pool
+    TokenLike          public immutable asset;          // Dai
+    address            public           king;           // Who gets the rewards
 
     // test helper variables
     uint256        maxDepositAmount = type(uint256).max;
     bool    public preDebt          = false;
     bool    public postDebt         = false;
-    bool    public wild_            = false;
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -67,8 +65,6 @@ contract D3MTestPool is ID3MPool {
     function file(bytes32 what, bool data) external auth {
         if (what == "preDebt") preDebt = data;
         else if (what == "postDebt") postDebt = data;
-        else if (what == "wild_") wild_ = data;
-        else if (what == "paused_") paused_ = data;
         else revert("D3MTestPool/file-unrecognized-param");
     }
     function file(bytes32 what, uint256 data) external auth {

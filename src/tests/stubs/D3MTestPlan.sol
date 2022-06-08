@@ -30,8 +30,6 @@ contract D3MTestPlan is ID3MPlan {
     uint256        targetAssets;
     uint256        currentRate;
     bool    public active_ = true;
-    bool    public paused_ = false;
-    bool    public wild_   = false;
 
     uint256 public bar;  // Target Interest Rate [ray]
 
@@ -74,8 +72,6 @@ contract D3MTestPlan is ID3MPlan {
 
     function file(bytes32 what, bool data) external auth {
         if (what == "active_") active_ = data;
-        else if (what == "wild_") wild_ = data;
-        else if (what == "paused_") paused_ = data;
         else revert("D3MTestPlan/file-unrecognized-param");
     }
 

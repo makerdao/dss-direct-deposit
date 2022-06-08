@@ -71,8 +71,7 @@ interface RewardsClaimerLike {
 contract D3MAavePool is ID3MPool {
 
     mapping (address => uint256) public wards;
-    address                      public king;            // Who gets the rewards
-    bool                         public paused_ = false;
+    address                      public king;  // Who gets the rewards
 
     LendingPoolLike    public immutable pool;
     ATokenLike         public immutable stableDebt;
@@ -130,12 +129,6 @@ contract D3MAavePool is ID3MPool {
     function deny(address usr) external auth {
         wards[usr] = 0;
         emit Deny(usr);
-    }
-
-    function file(bytes32 what, bool data) external auth {
-        if (what == "paused_") paused_ = data;
-        else revert("D3MAavePool/file-unrecognized-param");
-        emit File(what, data);
     }
 
     function file(bytes32 what, address data) external auth {
