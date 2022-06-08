@@ -265,13 +265,13 @@ contract D3MHub {
             // We rebalance the CDP after grabbing in `cull` so the gems represents
             // the debt at time of cull
             daiDebt = vat.gem(ilk, address(pool));
-        } else {
+        } else if (mode == Mode.MCD_CAGED) {
             // MCD caged
             // debt is obtained from free collateral owned by the End module
             end_ = end;
             end_.skim(ilk, address(pool));
             daiDebt = vat.gem(ilk, address(end_));
-        }
+        } else revert("D3MHub/unknown-mode");
 
         uint256 availableAssets = pool.maxWithdraw();
 
