@@ -389,7 +389,7 @@ contract D3MHub {
     */
     function exec(bytes32 ilk) external lock {
         (uint256 Art, uint256 rate,, uint256 line,) = vat.ilks(ilk);
-        require(rate == 1 * RAY, "D3MHub/rate-not-one");
+        require(rate == RAY, "D3MHub/rate-not-one");
 
         ID3MPool pool = ilks[ilk].pool;
 
