@@ -253,7 +253,7 @@ contract D3MHub {
         // That's why it converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
         // This module will have an unintended behaviour if rate is changed to some other value.
 
-        EndLike end_;
+        EndLike _end;
         uint256 daiDebt;
         if (mode == Mode.NORMAL) {
             // Normal mode or module just caged (no culled)
@@ -268,9 +268,9 @@ contract D3MHub {
         } else if (mode == Mode.MCD_CAGED) {
             // MCD caged
             // debt is obtained from free collateral owned by the End module
-            end_ = end;
-            end_.skim(ilk, address(_pool));
-            daiDebt = vat.gem(ilk, address(end_));
+            _end = end;
+            _end.skim(ilk, address(_pool));
+            daiDebt = vat.gem(ilk, address(_end));
         } else revert("D3MHub/unknown-mode");
 
         uint256 availableAssets = _pool.maxWithdraw();
@@ -327,7 +327,7 @@ contract D3MHub {
             // This can be done with the assumption that the price of 1 collateral unit equals 1 DAI.
             // That way we know that the prev End.skim call kept its gap[ilk] emptied as the CDP was always collateralized.
             // Otherwise we couldn't just simply take away the collateral from the End module as the next line will be doing.
-            vat.slip(ilk, address(end_), -int256(amount));
+            vat.slip(ilk, address(_end), -int256(amount));
             vat.move(address(this), vow, total * RAY);
         }
 
@@ -592,11 +592,11 @@ contract D3MHub {
         require(ilks[ilk].culled == 1, "D3MHub/not-prev-culled");
         require(vat.live() == 0, "D3MHub/no-uncull-normal-operation");
 
-        address vow_ = vow;
+        address _vow = vow;
         uint256 wad = vat.gem(ilk, address(_pool));
         require(wad <= MAXINT256, "D3MHub/overflow");
-        vat.suck(vow_, vow_, wad * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
-        vat.grab(ilk, address(_pool), address(_pool), vow_, int256(wad), int256(wad));
+        vat.suck(_vow, _vow, wad * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+        vat.grab(ilk, address(_pool), address(_pool), _vow, int256(wad), int256(wad));
 
         ilks[ilk].culled = 0;
         emit Uncull(ilk, wad);
