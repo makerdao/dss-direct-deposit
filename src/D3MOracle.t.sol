@@ -1,5 +1,6 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2022 Dai Foundation
+// Copyright (C) 2021-2022 Dai Foundation
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -41,18 +42,18 @@ contract D3MTestVat {
 }
 
 contract D3MTestHub {
-    uint256 public culled = 0;
+    uint256 c = 0;
 
-    function ilkCulled(bytes32) external view returns (uint256) {
-        return culled;
+    function culled(bytes32) external view returns (uint256) {
+        return c;
     }
 
     function cull() external {
-        culled = 1;
+        c = 1;
     }
 
     function uncull() external {
-        culled = 0;
+        c = 0;
     }
 }
 

@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -96,14 +97,14 @@ contract D3MTestPool is ID3MPool {
         CanLike(D3mHubLike(hub).vat()).nope(hub);
     }
 
-    function deposit(uint256 wad) external override returns (bool) {
+    function deposit(uint256 wad) external override {
         D3MTestGem(share).mint(address(this), wad);
-        return TokenLike(asset).transfer(share, wad);
+        TokenLike(asset).transfer(share, wad);
     }
 
-    function withdraw(uint256 wad) external override returns (bool)  {
+    function withdraw(uint256 wad) external override {
         D3MTestGem(share).burn(address(this), wad);
-        return TokenLike(asset).transferFrom(share, address(msg.sender), wad);
+        TokenLike(asset).transferFrom(share, address(msg.sender), wad);
     }
 
     function transfer(address dst, uint256 wad) public override auth returns (bool) {
@@ -114,11 +115,13 @@ contract D3MTestPool is ID3MPool {
         return TokenLike(share).transfer(dst, shareBalance());
     }
 
-    function preDebtChange() external override {
+    function preDebtChange(bytes32 what) external override {
+        what;
         preDebt = true;
     }
 
-    function postDebtChange() external override {
+    function postDebtChange(bytes32 what) external override {
+        what;
         postDebt = true;
     }
 
@@ -142,12 +145,12 @@ contract D3MTestPool is ID3MPool {
         return shares;
     }
 
-    function recoverDai(address dst, uint256 wad) external override auth returns (bool) {
-        return TokenLike(asset).transfer(dst, wad);
-    }
-
     function active() external view override returns (bool) {
         return active_;
+    }
+
+    function redeemable() external view override returns (address) {
+        return address(share);
     }
 
     function collect() external auth returns (uint256 amt) {

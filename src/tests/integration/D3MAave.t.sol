@@ -1,5 +1,6 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2021 Dai Foundation
+// Copyright (C) 2021-2022 Dai Foundation
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -131,7 +132,7 @@ contract D3MAaveTest is DSTest {
         _giveAuthAccess(address(spot), address(this));
 
         d3mHub = new D3MHub(address(vat), address(daiJoin));
-        d3mAavePool = new D3MAavePool(address(d3mHub), address(dai), address(aavePool), address(rewardsClaimer));
+        d3mAavePool = new D3MAavePool(address(d3mHub), address(dai), address(aavePool));
         d3mAavePool.rely(address(d3mHub));
         d3mAavePlan = new D3MAavePlan(address(dai), address(aavePool));
 
@@ -968,8 +969,11 @@ contract D3MAaveTest is DSTest {
         assertGt(part, 0);
         assertGt(pbal, 0);
 
-        vat.hope(address(d3mHub));     // Need to approve urn transfer
-        d3mHub.quit(ilk, address(this));
+        address receiver = address(123);
+
+        d3mAavePool.transferAll(address(receiver));
+        vat.grab(ilk, address(d3mAavePool), address(receiver), address(receiver), -int256(pink), -int256(part));
+        vat.grab(ilk, address(receiver), address(receiver), address(receiver), int256(pink), int256(part));
 
         (uint256 nink, uint256 nart) = vat.urns(ilk, address(d3mAavePool));
         uint256 nbal = adai.balanceOf(address(d3mAavePool));
@@ -977,8 +981,8 @@ contract D3MAaveTest is DSTest {
         assertEq(nart, 0);
         assertEq(nbal, 0);
 
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(this));
-        uint256 bal = adai.balanceOf(address(this));
+        (uint256 ink, uint256 art) = vat.urns(ilk, receiver);
+        uint256 bal = adai.balanceOf(receiver);
         assertEq(ink, pink);
         assertEq(art, part);
         assertEq(bal, pbal);
@@ -1001,25 +1005,20 @@ contract D3MAaveTest is DSTest {
         assertGt(pgem, 0);
         assertGt(pbal, 0);
 
-        d3mHub.quit(ilk, address(this));
+        address receiver = address(123);
+
+        d3mAavePool.transferAll(address(receiver));
+        vat.slip(ilk, address(d3mAavePool), -int256(pgem));
 
         uint256 ngem = vat.gem(ilk, address(d3mAavePool));
         uint256 nbal = adai.balanceOf(address(d3mAavePool));
         assertEq(ngem, 0);
         assertEq(nbal, 0);
 
-        uint256 gem = vat.gem(ilk, address(this));
-        uint256 bal = adai.balanceOf(address(this));
+        uint256 gem = vat.gem(ilk, receiver);
+        uint256 bal = adai.balanceOf(receiver);
         assertEq(gem, 0);
         assertEq(bal, pbal);
-    }
-
-    function testFail_quit_mcd_caged() public {
-        _setRelBorrowTarget(7500);
-
-        vat.cage();
-
-        d3mHub.quit(ilk, address(this));
     }
 
     function testFail_reap_caged() public {

@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2021-2022 Dai Foundation
 //
@@ -73,9 +74,9 @@ contract D3MPoolBase is ID3MPool {
         CanLike(D3mHubLike(hub).vat()).nope(hub);
     }
 
-    function deposit(uint256 wad) external override returns (bool) {}
+    function deposit(uint256 wad) external override {}
 
-    function withdraw(uint256 wad) external override returns (bool) {}
+    function withdraw(uint256 wad) external override {}
 
     function transfer(address dst, uint256 wad)
         external
@@ -83,9 +84,9 @@ contract D3MPoolBase is ID3MPool {
         returns (bool)
     {}
 
-    function preDebtChange() external override {}
+    function preDebtChange(bytes32 what) external override {}
 
-    function postDebtChange() external override {}
+    function postDebtChange(bytes32 what) external override {}
 
     function assetBalance() external view override returns (uint256) {}
 
@@ -95,10 +96,12 @@ contract D3MPoolBase is ID3MPool {
 
     function maxWithdraw() external view override returns (uint256) {}
 
-    function recoverDai(address dst, uint256 wad) external override auth returns (bool) {}
-
     function active() external override pure returns(bool) {
         return true;
+    }
+
+    function redeemable() external override pure returns(address) {
+        return address(0);
     }
 }
 
@@ -228,18 +231,12 @@ contract D3MPoolBaseTest is DSTest {
         D3MPoolBase(d3mTestPool).rely(address(this));
     }
 
-    function testFail_no_auth_cannot_recoverDai() public {
-        D3MPoolBase(d3mTestPool).deny(address(this));
-
-        D3MPoolBase(d3mTestPool).recoverDai(address(this), 10 * WAD);
-    }
-
     function test_implements_preDebtChange() public {
-        D3MPoolBase(d3mTestPool).preDebtChange();
+        D3MPoolBase(d3mTestPool).preDebtChange("test");
     }
 
     function test_implements_postDebtChange() public {
-        D3MPoolBase(d3mTestPool).postDebtChange();
+        D3MPoolBase(d3mTestPool).postDebtChange("test");
     }
 
     function test_implements_active() public view {

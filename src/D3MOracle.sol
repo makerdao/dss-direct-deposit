@@ -1,5 +1,6 @@
+// SPDX-FileCopyrightText: © 2021-2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2022 Dai Foundation
+// Copyright (C) 2021-2022 Dai Foundation
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -21,7 +22,7 @@ interface VatLike {
 }
 
 interface HubLike {
-    function ilkCulled(bytes32) external view returns (uint256);
+    function culled(bytes32) external view returns (uint256);
 }
 
 contract D3MOracle {
@@ -108,7 +109,7 @@ contract D3MOracle {
         @return value always 1 WAD value
     */
     function read() external view returns (uint256) {
-        require(HubLike(hub).ilkCulled(ilk) == 0, "D3MOracle/ilk-is-culled");
+        require(HubLike(hub).culled(ilk) == 0, "D3MOracle/ilk-is-culled");
         return WAD;
     }
 }
