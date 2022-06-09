@@ -468,7 +468,7 @@ contract D3MHub {
                                 _pool.maxDeposit() // Determine if the pool limits our total deposits
                              );
                 }
-                require(lineWad + toWind < MAXINT256, "D3MHub/wind-overflow");
+                require(Art + toWind <= MAXINT256, "D3MHub/wind-overflow");
                 _wind(ilk, _pool, toWind);
             }
         }
@@ -486,7 +486,7 @@ contract D3MHub {
         ID3MPool _pool = ilks[ilk].pool;
 
         require(vat.live() == 1, "D3MHub/no-reap-during-shutdown");
-        require(ilks[ilk].tic == 0, "D3MHub/pool-not-live");
+        require(ilks[ilk].tic == 0, "D3MHub/d3m-not-live");
         require(_pool.active(), "D3MHub/pool-not-active");
         require(ilks[ilk].plan.active(), "D3MHub/plan-not-active");
 
@@ -518,7 +518,7 @@ contract D3MHub {
         require(wad <= MAXINT256, "D3MHub/overflow");
         vat.slip(ilk, msg.sender, -int256(wad));
         ID3MPool _pool = ilks[ilk].pool;
-        require(_pool.transfer(usr, wad), "D3MHub/failed-transfer");
+        _pool.transfer(usr, wad);
         emit Exit(ilk, usr, wad);
     }
 
