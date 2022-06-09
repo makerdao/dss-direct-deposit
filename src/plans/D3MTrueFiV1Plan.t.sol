@@ -46,8 +46,39 @@ contract D3MTrueFiV1PlanTest is AddressRegistry, D3MPlanBaseTest {
         d3mTestPlan = address(new D3MTrueFiV1Plan(address(portfolio)));
     }
 
-    function test_works() public {
-        assertEq(portfolio.manager(), address(this));
+    function test_sets_portfolio() public {
+        assertEq(address(D3MTrueFiV1Plan(d3mTestPlan).portfolio()), address(portfolio));
+    }
+
+    function test_creator_as_ward() public {
+        assertEq(D3MTrueFiV1Plan(d3mTestPlan).wards(address(this)), 1);
+    }
+    
+    function test_can_file_cap() public {
+        assertEq(D3MTrueFiV1Plan(d3mTestPlan).cap(), 0);
+
+        D3MTrueFiV1Plan(d3mTestPlan).file("cap", 1);
+
+        assertEq(D3MTrueFiV1Plan(d3mTestPlan).cap(), 1);
+    }
+
+    function testFail_cannot_file_unknown_uint_param() public {
+        D3MTrueFiV1Plan(d3mTestPlan).file("bad", 1);
+    }
+
+    function testFail_cannot_file_without_auth() public {
+        D3MTrueFiV1Plan(d3mTestPlan).deny(address(this));
+
+        D3MTrueFiV1Plan(d3mTestPlan).file("bar", 1);
+    }
+
+    function test_is_active_while_portfolio_is_open() public {
+        assertTrue(D3MTrueFiV1Plan(d3mTestPlan).active());
+    }
+
+    function test_is_inactive_while_portfolio_is_closed() public {
+        hevm.warp(block.timestamp + 30 days + 1 seconds);
+        assertTrue(!D3MTrueFiV1Plan(d3mTestPlan).active());
     }
 
     /*****************************/
@@ -72,7 +103,7 @@ contract D3MTrueFiV1PlanTest is AddressRegistry, D3MPlanBaseTest {
         hevm.store(MANAGED_PORTFOLIO_FACTORY_PROXY, bytes32(uint256(0)), bytes32(uint256(uint160(address(this)))));
         portfolioFactory.setIsWhitelisted(address(this), true);
 
-        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", IERC20WithDecimals(DAI), ILenderVerifier(GLOBAL_WHITELIST_LENDER_VERIFIER), 60 * 60 * 24 * 30, 1_000_000 ether, 20);
+        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", IERC20WithDecimals(DAI), ILenderVerifier(GLOBAL_WHITELIST_LENDER_VERIFIER), 30 days, 1_000_000 ether, 20);
         uint256 portfoliosCount = portfolioFactory.getPortfolios().length;
         portfolio = PortfolioLike(portfolioFactory.getPortfolios()[portfoliosCount - 1]);
     }
