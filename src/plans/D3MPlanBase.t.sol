@@ -71,9 +71,7 @@ contract D3MPlanBase is ID3MPlan {
         return true;
     }
 
-    function disable() external override {
-
-    }
+    function disable() external override {}
 }
 
 contract D3MPlanBaseTest is DSTest {
