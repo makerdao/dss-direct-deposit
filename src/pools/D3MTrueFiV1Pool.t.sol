@@ -26,8 +26,9 @@ import {
     PortfolioFactoryLike,
     PortfolioLike,
     IERC20WithDecimals,
-    ILenderVerifier,
-    VatLike
+    LenderVerifierLike,
+    VatLike,
+    TokenLike
 } from "../tests/interfaces/interfaces.sol";
 
 import { D3MTrueFiV1Plan } from "../plans/D3MTrueFiV1Plan.sol";
@@ -50,8 +51,9 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         d3mTestPool = address(new D3MTrueFiV1Pool(address(dai), address(portfolio), hub));
     }
 
-    function test_works() public {
-        assertEq(portfolio.manager(), address(this));
+    function test_deposit_transfers_funds() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1);
+        assertEq(uint256(PortfolioLike(portfolio).value()), 1);
     }
 
     /************************/
@@ -65,8 +67,22 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         hevm.store(MANAGED_PORTFOLIO_FACTORY_PROXY, bytes32(uint256(0)), bytes32(uint256(uint160(address(this)))));
         portfolioFactory.setIsWhitelisted(address(this), true);
 
-        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", IERC20WithDecimals(DAI), ILenderVerifier(GLOBAL_WHITELIST_LENDER_VERIFIER), 60 * 60 * 24 * 30, 1_000_000 ether, 20);
+        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", IERC20WithDecimals(DAI), LenderVerifierLike(WHITELIST_LENDER_VERIFIER), 60 * 60 * 24 * 30, 1_000_000 ether, 20);
         uint256 portfoliosCount = portfolioFactory.getPortfolios().length;
         portfolio = PortfolioLike(portfolioFactory.getPortfolios()[portfoliosCount - 1]);
+        LenderVerifierLike(WHITELIST_LENDER_VERIFIER).setLenderWhitelistStatus(address(portfolio), address(this), true);
+        _mintTokens(DAI, address(this), 100 ether);
+    }
+
+    function _mintTokens(address token, address account, uint256 amount) internal {
+        uint256 slot;
+
+        if      (token == DAI)  slot = 2;
+
+        hevm.store(
+            token,
+            keccak256(abi.encode(account, slot)),
+            bytes32(TokenLike(token).balanceOf(address(account)) + amount)
+        );
     }
 }

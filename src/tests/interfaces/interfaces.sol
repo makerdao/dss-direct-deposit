@@ -102,12 +102,18 @@ interface ERC20Like {
 
 interface IERC20WithDecimals is ERC20Like {}
 
-interface ILenderVerifier {
+interface LenderVerifierLike {
     function isAllowed(
         address lender,
         uint256 amount,
         bytes memory signature
     ) external view returns (bool);
+
+    function setLenderWhitelistStatus(
+        address portfolio,
+        address lender,
+        bool status
+    ) external;
 }
 
 interface PortfolioLike {
@@ -120,6 +126,7 @@ interface PortfolioLike {
     function manager() external view returns (address);
     function getAmountToMint(uint256 amount) external view returns (uint256);
     function getStatus() external view returns (PortfolioStatus);
+    function value() external view returns (uint256);
 }
 
 interface PortfolioFactoryLike {
@@ -127,7 +134,7 @@ interface PortfolioFactoryLike {
         string memory name,
         string memory symbol,
         IERC20WithDecimals _underlyingToken,
-        ILenderVerifier _lenderVerifier,
+        LenderVerifierLike _lenderVerifier,
         uint256 _duration,
         uint256 _maxSize,
         uint256 _managerFee
