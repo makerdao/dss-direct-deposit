@@ -195,9 +195,9 @@ contract D3MAavePlan is ID3MPlan {
         if (bar == 0) return false;
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address strategy,) = pool.getReserveData(address(dai));
         return (
-                    strategy == address(tack) &&
-                    adai_ == address(adai) &&
-                    stableDebt_ == address(stableDebt) &&
+                    strategy      == address(tack)         &&
+                    adai_         == address(adai)         &&
+                    stableDebt_   == address(stableDebt)   &&
                     variableDebt_ == address(variableDebt)
                );
     }
