@@ -100,16 +100,6 @@ interface ERC20Like {
     function totalSupply() external view returns (uint256);
 }
 
-interface IERC20WithDecimals is ERC20Like {}
-
-interface ILenderVerifier {
-    function isAllowed(
-        address lender,
-        uint256 amount,
-        bytes memory signature
-    ) external view returns (bool);
-}
-
 interface PortfolioLike {
     enum PortfolioStatus {
         Open,
@@ -120,14 +110,28 @@ interface PortfolioLike {
     function manager() external view returns (address);
     function getAmountToMint(uint256 amount) external view returns (uint256);
     function getStatus() external view returns (PortfolioStatus);
+    function createBulletLoan(uint256 loanDuration, address borrower, uint256 principalAmount, uint256 repaymentAmount) external;
+    function markLoanAsDefaulted(uint256 instrumentId) external;
+    function deposit(uint256 depositAmount, bytes memory metadata) external;
+    function getOpenLoanIds() external view returns (uint256[] memory);
+}
+
+interface WhitelistVerifierLike {
+    function isAllowed(
+        address lender,
+        uint256 amount,
+        bytes memory signature
+    ) external view returns (bool);
+    function setWhitelistStatus(address user, bool status) external;
+    function manager() external view returns (address);
 }
 
 interface PortfolioFactoryLike {
     function createPortfolio(
         string memory name,
         string memory symbol,
-        IERC20WithDecimals _underlyingToken,
-        ILenderVerifier _lenderVerifier,
+        ERC20Like _underlyingToken,
+        WhitelistVerifierLike _lenderVerifier,
         uint256 _duration,
         uint256 _maxSize,
         uint256 _managerFee

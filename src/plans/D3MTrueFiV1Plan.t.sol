@@ -25,8 +25,8 @@ import {
     DaiLike,
     PortfolioFactoryLike,
     PortfolioLike,
-    IERC20WithDecimals,
-    ILenderVerifier
+    ERC20Like,
+    WhitelistVerifierLike
 } from "../tests/interfaces/interfaces.sol";
 
 import { D3MTrueFiV1Plan } from "../plans/D3MTrueFiV1Plan.sol";
@@ -36,6 +36,7 @@ import { D3MPlanBaseTest, Hevm } from "./D3MPlanBase.t.sol";
 contract D3MTrueFiV1PlanTest is AddressRegistry, D3MPlanBaseTest {
     PortfolioFactoryLike portfolioFactory;
     PortfolioLike portfolio;
+    WhitelistVerifierLike lenderVerifier;
 
     function setUp() public override {
         hevm = Hevm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
@@ -81,6 +82,19 @@ contract D3MTrueFiV1PlanTest is AddressRegistry, D3MPlanBaseTest {
         assertTrue(!D3MTrueFiV1Plan(d3mTestPlan).active());
     }
 
+    function test_is_inactive_while_portfolio_is_frozen() public {
+        _mintDai(address(this), 2000 ether);
+        dai.approve(address(portfolio), 2000 ether);
+        portfolio.deposit(2000 ether, "0x");
+
+        portfolio.createBulletLoan(1 days, address(this), 1000 ether, 1100 ether);
+        uint256 loanId = portfolio.getOpenLoanIds()[0];
+        hevm.warp(block.timestamp + 1 days + 1 seconds);
+        portfolio.markLoanAsDefaulted(loanId);
+
+        assertTrue(!D3MTrueFiV1Plan(d3mTestPlan).active());
+    }
+
     /*****************************/
     /*** Overridden Base tests ***/
     /*****************************/
@@ -98,13 +112,26 @@ contract D3MTrueFiV1PlanTest is AddressRegistry, D3MPlanBaseTest {
 
     function _setUpTrueFiDaiPortfolio() internal {
         portfolioFactory = PortfolioFactoryLike(MANAGED_PORTFOLIO_FACTORY_PROXY);
+        lenderVerifier = WhitelistVerifierLike(GLOBAL_WHITELIST_LENDER_VERIFIER);
 
-        // Grant address(this) auth access to factory
+        // Grant address(this) auth access to factory and lender verifier
         hevm.store(MANAGED_PORTFOLIO_FACTORY_PROXY, bytes32(uint256(0)), bytes32(uint256(uint160(address(this)))));
         portfolioFactory.setIsWhitelisted(address(this), true);
+        hevm.store(GLOBAL_WHITELIST_LENDER_VERIFIER, bytes32(uint256(0)), bytes32(uint256(uint160(address(this)))));
+        lenderVerifier.setWhitelistStatus(address(this), true);
 
-        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", IERC20WithDecimals(DAI), ILenderVerifier(GLOBAL_WHITELIST_LENDER_VERIFIER), 30 days, 1_000_000 ether, 20);
+        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", ERC20Like(DAI), lenderVerifier, 30 days, 1_000_000 ether, 20);
         uint256 portfoliosCount = portfolioFactory.getPortfolios().length;
         portfolio = PortfolioLike(portfolioFactory.getPortfolios()[portfoliosCount - 1]);
+    }
+
+    function _mintDai(address account, uint256 amount) internal {
+        uint256 slot = 2;
+
+        hevm.store(
+            address(dai),
+            keccak256(abi.encode(account, slot)),
+            bytes32(dai.balanceOf(address(account)) + amount)
+        );
     }
 }

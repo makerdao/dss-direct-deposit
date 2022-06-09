@@ -25,8 +25,8 @@ import {
     DaiLike,
     PortfolioFactoryLike,
     PortfolioLike,
-    IERC20WithDecimals,
-    ILenderVerifier,
+    ERC20Like,
+    WhitelistVerifierLike,
     VatLike
 } from "../tests/interfaces/interfaces.sol";
 
@@ -69,7 +69,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         hevm.store(MANAGED_PORTFOLIO_FACTORY_PROXY, bytes32(uint256(0)), bytes32(uint256(uint160(address(this)))));
         portfolioFactory.setIsWhitelisted(address(this), true);
 
-        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", IERC20WithDecimals(DAI), ILenderVerifier(GLOBAL_WHITELIST_LENDER_VERIFIER), 60 * 60 * 24 * 30, 1_000_000 ether, 20);
+        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", ERC20Like(DAI), WhitelistVerifierLike(GLOBAL_WHITELIST_LENDER_VERIFIER), 60 * 60 * 24 * 30, 1_000_000 ether, 20);
         uint256 portfoliosCount = portfolioFactory.getPortfolios().length;
         portfolio = PortfolioLike(portfolioFactory.getPortfolios()[portfoliosCount - 1]);
     }
