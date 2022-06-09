@@ -63,17 +63,15 @@ interface ID3MPool {
         amounts. msg.sender must be authorized.
         @param dst address that should receive the redeemable tokens
         @param wad amount in Dai terms that we want to withdraw
-        @return bool whether the transfer was successful per ERC-20 standard
     */
-    function transfer(address dst, uint256 wad) external returns (bool);
+    function transfer(address dst, uint256 wad) external;
 
     /**
         @notice Transfer all shares from this pool.
         @dev msg.sender must be authorized.
         @param dst address that should receive the shares.
-        @return bool whether the transfer was successful per ERC-20 standard
     */
-    function transferAll(address dst) external returns (bool);
+    function transferAll(address dst) external;
 
     /**
         @notice Some external pools require actions before debt changes

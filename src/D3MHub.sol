@@ -518,7 +518,7 @@ contract D3MHub {
         require(wad <= MAXINT256, "D3MHub/overflow");
         vat.slip(ilk, msg.sender, -int256(wad));
         ID3MPool _pool = ilks[ilk].pool;
-        require(_pool.transfer(usr, wad), "D3MHub/failed-transfer");
+        _pool.transfer(usr, wad);
         emit Exit(ilk, usr, wad);
     }
 
