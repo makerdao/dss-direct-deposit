@@ -35,6 +35,22 @@ import { D3MTrueFiV1Plan } from "../plans/D3MTrueFiV1Plan.sol";
 import { AddressRegistry }   from "../tests/integration/AddressRegistry.sol";
 import { D3MPoolBaseTest, Hevm } from "./D3MPoolBase.t.sol";
 
+contract FakeLenderVerifier is LenderVerifierLike {
+    function isAllowed(
+        address lender,
+        uint256 amount,
+        bytes memory signature
+    ) external view returns (bool) {
+        return true;
+    }
+
+    function setLenderWhitelistStatus(
+        address portfolio,
+        address lender,
+        bool status
+    ) external {}
+}
+
 contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     PortfolioFactoryLike portfolioFactory;
     PortfolioLike portfolio;
@@ -56,6 +72,11 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         assertEq(uint256(PortfolioLike(portfolio).value()), 1);
     }
 
+    function test_deposit_returns_lp_tokens() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1);
+        assertEq(uint256(IERC20WithDecimals(portfolio).balanceOf(address(this))), 1);
+    }
+
     /************************/
     /*** Helper Functions ***/
     /************************/
@@ -67,10 +88,12 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         hevm.store(MANAGED_PORTFOLIO_FACTORY_PROXY, bytes32(uint256(0)), bytes32(uint256(uint160(address(this)))));
         portfolioFactory.setIsWhitelisted(address(this), true);
 
-        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", IERC20WithDecimals(DAI), LenderVerifierLike(WHITELIST_LENDER_VERIFIER), 60 * 60 * 24 * 30, 1_000_000 ether, 20);
+        LenderVerifierLike fakeLenderVerifier = new FakeLenderVerifier();
+        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", IERC20WithDecimals(DAI), fakeLenderVerifier, 60 * 60 * 24 * 30, 1_000_000 ether, 20);
         uint256 portfoliosCount = portfolioFactory.getPortfolios().length;
         portfolio = PortfolioLike(portfolioFactory.getPortfolios()[portfoliosCount - 1]);
-        LenderVerifierLike(WHITELIST_LENDER_VERIFIER).setLenderWhitelistStatus(address(portfolio), address(this), true);
+
+        // LenderVerifierLike(WHITELIST_LENDER_VERIFIER).setLenderWhitelistStatus(address(portfolio), address(this), true);
         _mintTokens(DAI, address(this), 100 ether);
     }
 

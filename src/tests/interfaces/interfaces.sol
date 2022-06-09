@@ -116,7 +116,7 @@ interface LenderVerifierLike {
     ) external;
 }
 
-interface PortfolioLike {
+interface PortfolioLike is IERC20WithDecimals {
     enum PortfolioStatus {
         Open,
         Frozen,
