@@ -50,12 +50,22 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         d3mTestPool = address(new D3MTrueFiV1Pool(address(dai), address(portfolio), hub));
     }
 
-    function test_works() public {
-        assertEq(portfolio.manager(), address(this));
-    }
-
     function test_active_returns_true() public {
         assertTrue(D3MTrueFiV1Pool(d3mTestPool).active());
+    }
+
+    function testFail_recoverTokens_requires_auth() public {
+        D3MTrueFiV1Pool(d3mTestPool).recoverTokens(address(dai), address(this), 1 ether);
+    }
+
+    function test_recovers_tokens() public {
+        ERC20Like wbtc = ERC20Like(WBTC);
+        _mintTokens(address(wbtc), d3mTestPool, 1 ether);
+        assertEq(wbtc.balanceOf(d3mTestPool), 1 ether);
+
+        D3MTrueFiV1Pool(d3mTestPool).recoverTokens(address(wbtc), address(this), 1 ether);
+        assertEq(wbtc.balanceOf(d3mTestPool), 0);
+        assertEq(wbtc.balanceOf(address(this)), 1 ether);
     }
 
     /************************/
@@ -72,5 +82,18 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", ERC20Like(DAI), WhitelistVerifierLike(GLOBAL_WHITELIST_LENDER_VERIFIER), 60 * 60 * 24 * 30, 1_000_000 ether, 20);
         uint256 portfoliosCount = portfolioFactory.getPortfolios().length;
         portfolio = PortfolioLike(portfolioFactory.getPortfolios()[portfoliosCount - 1]);
+    }
+
+    function _mintTokens(address token, address account, uint256 amount) internal {
+        uint256 slot;
+
+        if      (token == DAI)  slot = 2;
+        else if (token == WBTC) slot = 0;
+
+        hevm.store(
+            token,
+            keccak256(abi.encode(account, slot)),
+            bytes32(ERC20Like(token).balanceOf(address(account)) + amount)
+        );
     }
 }
