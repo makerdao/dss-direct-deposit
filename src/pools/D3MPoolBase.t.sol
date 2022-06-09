@@ -78,11 +78,7 @@ contract D3MPoolBase is ID3MPool {
 
     function withdraw(uint256 wad) external override {}
 
-    function transfer(address dst, uint256 wad)
-        external
-        override
-        returns (bool)
-    {}
+    function transfer(address dst, uint256 wad) external override {}
 
     function preDebtChange(bytes32 what) external override {}
 
@@ -90,7 +86,7 @@ contract D3MPoolBase is ID3MPool {
 
     function assetBalance() external view override returns (uint256) {}
 
-    function transferAll(address dst) external override returns (bool) {}
+    function transferAll(address dst) external override {}
 
     function maxDeposit() external view override returns (uint256) {}
 

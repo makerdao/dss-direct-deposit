@@ -105,12 +105,12 @@ contract D3MTestPool is ID3MPool {
         TokenLike(asset).transferFrom(share, address(msg.sender), wad);
     }
 
-    function transfer(address dst, uint256 wad) public override auth returns (bool) {
-        return TokenLike(share).transfer(dst, wad);
+    function transfer(address dst, uint256 wad) public override auth {
+        require(TokenLike(share).transfer(dst, wad), "D3MTestPool/transfer-failed");
     }
 
-    function transferAll(address dst) external override auth returns (bool) {
-        return TokenLike(share).transfer(dst, shareBalance());
+    function transferAll(address dst) external override auth {
+        require(TokenLike(share).transfer(dst, shareBalance()), "D3MTestPool/transfer-failed");
     }
 
     function preDebtChange(bytes32 what) external override {
