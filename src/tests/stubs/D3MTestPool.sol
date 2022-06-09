@@ -109,14 +109,14 @@ contract D3MTestPool is ID3MPool {
         else revert("D3MTestPool/file-unrecognized-param");
     }
 
-    function deposit(uint256 wad) external override onlyHub returns (bool) {
+    function deposit(uint256 wad) external override onlyHub {
         D3MTestGem(share).mint(address(this), wad);
-        return TokenLike(asset).transfer(share, wad);
+        TokenLike(asset).transfer(share, wad);
     }
 
-    function withdraw(uint256 wad) external override onlyHub returns (bool)  {
+    function withdraw(uint256 wad) external override onlyHub {
         D3MTestGem(share).burn(address(this), wad);
-        return TokenLike(asset).transferFrom(share, address(msg.sender), wad);
+        TokenLike(asset).transferFrom(share, address(msg.sender), wad);
     }
 
     function transfer(address dst, uint256 wad) public override onlyHub returns (bool) {

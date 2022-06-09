@@ -87,9 +87,9 @@ contract D3MPoolBase is ID3MPool {
         else revert("D3MPoolBase/file-unrecognized-param");
     }
 
-    function deposit(uint256 wad) external override returns (bool) {}
+    function deposit(uint256 wad) external override {}
 
-    function withdraw(uint256 wad) external override returns (bool) {}
+    function withdraw(uint256 wad) external override {}
 
     function transfer(address dst, uint256 wad)
         external
