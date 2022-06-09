@@ -54,6 +54,10 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         assertEq(portfolio.manager(), address(this));
     }
 
+    function test_active_returns_true() public {
+        assertTrue(D3MTrueFiV1Pool(d3mTestPool).active());
+    }
+
     /************************/
     /*** Helper Functions ***/
     /************************/
