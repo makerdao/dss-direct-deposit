@@ -76,9 +76,24 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         assertEq(fundsAfter, fundsBefore - 1 ether);
     }
 
-    function test_deposit_issues_lp_tokens() public {
+    function test_deposit_issues_shares() public {
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
         assertEq(uint256(ERC20Like(portfolio).balanceOf(address(this))), 1 ether);
+    }
+
+    function testFail_deposit_requires_auth() public {
+        D3MTrueFiV1Pool(d3mTestPool).deny(address(this));
+
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+    }
+
+    function test_max_deposit_equals_max_size() public {
+        assertEq(D3MTrueFiV1Pool(d3mTestPool).maxDeposit(), portfolio.maxSize());
+    }
+
+    function test_max_desposit_equals_value_minus_deposited_funds() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+        assertEq(D3MTrueFiV1Pool(d3mTestPool).maxDeposit(), portfolio.maxSize() - 1 ether);
     }
 
     function test_withdraw_returns_funds() public {
@@ -89,6 +104,23 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         uint256 fundsAfter = dai.balanceOf(address(this));
 
         assertEq(fundsAfter, fundsBefore + 1 ether);
+    }
+
+    function test_withdraw_burns_shares() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+
+        uint256 balanceBefore = ERC20Like(portfolio).balanceOf(address(this));
+        D3MTrueFiV1Pool(d3mTestPool).withdraw(1 ether);
+        uint256 balanceAfter = dai.balanceOf(address(this));
+
+        assertEq(balanceAfter, balanceBefore + 1 ether);
+    }
+
+    function testFail_withdraw_requires_auth() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+
+        D3MTrueFiV1Pool(d3mTestPool).deny(address(this));
+        D3MTrueFiV1Pool(d3mTestPool).withdraw(1 ether);
     }
 
     /************************/
