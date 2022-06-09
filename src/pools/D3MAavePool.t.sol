@@ -169,56 +169,6 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(address(D3MAavePool(d3mTestPool).asset()), address(dai));
     }
 
-    function test_can_rely_deny() public {
-        assertEq(D3MAavePool(d3mTestPool).wards(address(123)), 0);
-
-        D3MAavePool(d3mTestPool).rely(address(123));
-
-        assertEq(D3MAavePool(d3mTestPool).wards(address(123)), 1);
-
-        D3MAavePool(d3mTestPool).deny(address(123));
-
-        assertEq(D3MAavePool(d3mTestPool).wards(address(123)), 0);
-    }
-
-    function testFail_cannot_rely_no_auth() public {
-        D3MAavePool(d3mTestPool).deny(address(this));
-
-        D3MAavePool(d3mTestPool).rely(address(123));
-    }
-
-    function testFail_cannot_deny_no_auth() public {
-        D3MAavePool(d3mTestPool).deny(address(this));
-
-        D3MAavePool(d3mTestPool).deny(address(123));
-    }
-
-    function testFail_cannot_deny_vat_caged() public {
-        FakeVat(vat).cage();
-
-        D3MAavePool(d3mTestPool).deny(address(123));
-    }
-
-    function test_can_file_hub() public {
-        assertEq(D3MAavePool(d3mTestPool).hub(), hub);
-
-        D3MAavePool(d3mTestPool).file("hub", address(123));
-
-        assertEq(D3MAavePool(d3mTestPool).hub(), address(123));
-    }
-
-    function testFail_cannot_file_hub_no_auth() public {
-        D3MAavePool(d3mTestPool).deny(address(this));
-
-        D3MAavePool(d3mTestPool).file("hub", address(123));
-    }
-
-    function testFail_cannot_file_hub_vat_caged() public {
-        FakeVat(vat).cage();
-
-        D3MAavePool(d3mTestPool).file("hub", address(123));
-    }
-
     function test_can_file_king() public {
         assertEq(D3MAavePool(d3mTestPool).king(), address(0));
 

@@ -35,6 +35,7 @@ interface Hevm {
 }
 
 interface VatLike {
+    function live() external view returns (uint256);
     function hope(address) external;
     function nope(address) external;
 }
@@ -54,6 +55,7 @@ contract D3MPoolBase is ID3MPool {
         emit Rely(usr);
     }
     function deny(address usr) external auth {
+        require(vat.live() == 1, "D3MPoolBase/no-deny-during-shutdown");
         wards[usr] = 0;
         emit Deny(usr);
     }
@@ -79,6 +81,7 @@ contract D3MPoolBase is ID3MPool {
     }
 
     function file(bytes32 what, address data) external auth {
+        require(vat.live() == 1, "D3MPoolBase/no-file-during-shutdown");
         if (what == "hub") {
             vat.nope(hub);
             hub = data;
@@ -99,7 +102,10 @@ contract D3MPoolBase is ID3MPool {
 
     function assetBalance() external view override returns (uint256) {}
 
-    function transferAll(address dst) external override {}
+    function transferAll(address dst) external view override {
+        dst;
+        require(vat.live() == 1, "D3MAavePool/no-transferAll-during-shutdown");
+    }
 
     function maxDeposit() external view override returns (uint256) {}
 
@@ -195,7 +201,37 @@ contract D3MPoolBaseTest is DSTest {
         assertEq(CanLike(vat).can(d3mTestPool, hub), 1);
     }
 
-    function test_can_file() public {
+    function test_can_rely_deny() public {
+        assertEq(D3MPoolBase(d3mTestPool).wards(address(123)), 0);
+
+        D3MPoolBase(d3mTestPool).rely(address(123));
+
+        assertEq(D3MPoolBase(d3mTestPool).wards(address(123)), 1);
+
+        D3MPoolBase(d3mTestPool).deny(address(123));
+
+        assertEq(D3MPoolBase(d3mTestPool).wards(address(123)), 0);
+    }
+
+    function testFail_cannot_rely_no_auth() public {
+        D3MPoolBase(d3mTestPool).deny(address(this));
+
+        D3MPoolBase(d3mTestPool).rely(address(123));
+    }
+
+    function testFail_cannot_deny_no_auth() public {
+        D3MPoolBase(d3mTestPool).deny(address(this));
+
+        D3MPoolBase(d3mTestPool).deny(address(123));
+    }
+
+    function testFail_cannot_deny_vat_caged() public {
+        FakeVat(vat).cage();
+
+        D3MPoolBase(d3mTestPool).deny(address(123));
+    }
+
+    function test_can_file_hub() public {
         address newHub = address(new FakeHub(vat));
         assertEq(CanLike(vat).can(d3mTestPool, hub), 1);
         assertEq(CanLike(vat).can(d3mTestPool, newHub), 0);
@@ -204,33 +240,16 @@ contract D3MPoolBaseTest is DSTest {
         assertEq(CanLike(vat).can(d3mTestPool, newHub), 1);
     }
 
-    function testFail_cannot_file_without_auth() public {
-        D3MPoolBase(d3mTestPool).deny(address(this));
-        address newHub = address(new FakeHub(vat));
-        D3MPoolBase(d3mTestPool).file("hub", newHub);
-    }
-
-    function test_can_rely() public {
-        assertEq(D3MPoolBase(d3mTestPool).wards(address(123)), 0);
-
-        D3MPoolBase(d3mTestPool).rely(address(123));
-
-        assertEq(D3MPoolBase(d3mTestPool).wards(address(123)), 1);
-    }
-
-    function test_can_deny() public {
-        assertEq(D3MPoolBase(d3mTestPool).wards(address(this)), 1);
-
+    function testFail_cannot_file_hub_no_auth() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
 
-        assertEq(D3MPoolBase(d3mTestPool).wards(address(this)), 0);
+        D3MPoolBase(d3mTestPool).file("hub", address(123));
     }
 
-    function testFail_cannot_rely_without_auth() public {
-        assertEq(D3MPoolBase(d3mTestPool).wards(address(this)), 1);
+    function testFail_cannot_file_hub_vat_caged() public {
+        FakeVat(vat).cage();
 
-        D3MPoolBase(d3mTestPool).deny(address(this));
-        D3MPoolBase(d3mTestPool).rely(address(this));
+        D3MPoolBase(d3mTestPool).file("hub", address(123));
     }
 
     function test_implements_preDebtChange() public {
@@ -243,5 +262,11 @@ contract D3MPoolBaseTest is DSTest {
 
     function test_implements_active() public view {
         D3MPoolBase(d3mTestPool).active();
+    }
+
+    function testFail_cannot_transferAll_vat_caged() public {
+        FakeVat(vat).cage();
+
+        D3MPoolBase(d3mTestPool).transferAll(address(123));
     }
 }
