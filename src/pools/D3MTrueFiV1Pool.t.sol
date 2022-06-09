@@ -25,7 +25,7 @@ import {
     DaiLike,
     PortfolioFactoryLike,
     PortfolioLike,
-    IERC20WithDecimals,
+    ERC20Like,
     LenderVerifierLike,
     VatLike,
     TokenLike
@@ -68,13 +68,27 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     }
 
     function test_deposit_transfers_funds() public {
-        D3MTrueFiV1Pool(d3mTestPool).deposit(1);
-        assertEq(uint256(PortfolioLike(portfolio).value()), 1);
+        uint256 fundsBefore = dai.balanceOf(address(this));
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+        uint256 fundsAfter = dai.balanceOf(address(this));
+
+        assertEq(uint256(PortfolioLike(portfolio).value()), 1 ether);
+        assertEq(fundsAfter, fundsBefore - 1 ether);
     }
 
-    function test_deposit_returns_lp_tokens() public {
-        D3MTrueFiV1Pool(d3mTestPool).deposit(1);
-        assertEq(uint256(IERC20WithDecimals(portfolio).balanceOf(address(this))), 1);
+    function test_deposit_issues_lp_tokens() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+        assertEq(uint256(ERC20Like(portfolio).balanceOf(address(this))), 1 ether);
+    }
+
+    function test_withdraw_returns_funds() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+
+        uint256 fundsBefore = dai.balanceOf(address(this));
+        D3MTrueFiV1Pool(d3mTestPool).withdraw(1 ether);
+        uint256 fundsAfter = dai.balanceOf(address(this));
+
+        assertEq(fundsAfter, fundsBefore + 1 ether);
     }
 
     /************************/
@@ -89,7 +103,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         portfolioFactory.setIsWhitelisted(address(this), true);
 
         LenderVerifierLike fakeLenderVerifier = new FakeLenderVerifier();
-        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", IERC20WithDecimals(DAI), fakeLenderVerifier, 60 * 60 * 24 * 30, 1_000_000 ether, 20);
+        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", ERC20Like(DAI), fakeLenderVerifier, 60 * 60 * 24 * 30, 1_000_000 ether, 20);
         uint256 portfoliosCount = portfolioFactory.getPortfolios().length;
         portfolio = PortfolioLike(portfolioFactory.getPortfolios()[portfoliosCount - 1]);
 

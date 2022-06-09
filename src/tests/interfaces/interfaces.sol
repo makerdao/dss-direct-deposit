@@ -100,8 +100,6 @@ interface ERC20Like {
     function totalSupply() external view returns (uint256);
 }
 
-interface IERC20WithDecimals is ERC20Like {}
-
 interface LenderVerifierLike {
     function isAllowed(
         address lender,
@@ -116,7 +114,7 @@ interface LenderVerifierLike {
     ) external;
 }
 
-interface PortfolioLike is IERC20WithDecimals {
+interface PortfolioLike is ERC20Like {
     enum PortfolioStatus {
         Open,
         Frozen,
@@ -133,7 +131,7 @@ interface PortfolioFactoryLike {
     function createPortfolio(
         string memory name,
         string memory symbol,
-        IERC20WithDecimals _underlyingToken,
+        ERC20Like _underlyingToken,
         LenderVerifierLike _lenderVerifier,
         uint256 _duration,
         uint256 _maxSize,
