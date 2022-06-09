@@ -121,17 +121,29 @@ contract D3MOracleTest is DSTest {
         (value, ok) = oracle.peek();
         assertEq(value, WAD);
         assertTrue(ok);
+        vat.cage();
+        (value, ok) = oracle.peek();
+        assertEq(value, WAD);
+        assertTrue(!ok);
+        hub.uncull();
+        (value, ok) = oracle.peek();
+        assertEq(value, WAD);
+        assertTrue(ok);
     }
 
     function test_read() public {
         assertEq(oracle.read(), WAD);
         hub.cull();
+        assertEq(oracle.read(), WAD);
         hub.uncull();
+        assertEq(oracle.read(), WAD);
+        vat.cage();
         assertEq(oracle.read(), WAD);
     }
 
     function testFail_read() public {
         hub.cull();
+        vat.cage();
         oracle.read();
     }
 }

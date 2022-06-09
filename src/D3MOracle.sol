@@ -96,20 +96,22 @@ contract D3MOracle {
 
     /**
         @notice Return value and status of the oracle
-        @return value always 1 WAD
-        @return ok always true
+        @return val always 1 WAD
+        @return ok true if vat is live or ilk is not culled
     */
-    function peek() external pure returns (uint256, bool) {
-        return (WAD, true);
+    function peek() public view returns (uint256 val, bool ok) {
+        val = WAD;
+        ok = vat.live() == 1 || HubLike(hub).culled(ilk) == 0;
     }
 
     /**
         @notice Return value
-        @dev ilk must be unculled in hub.
-        @return value always 1 WAD value
+        @dev vat must be live or ilk must be unculled in hub.
+        @return val always 1 WAD value
     */
-    function read() external view returns (uint256) {
-        require(HubLike(hub).culled(ilk) == 0, "D3MOracle/ilk-is-culled");
-        return WAD;
+    function read() external view returns (uint256 val) {
+        bool ok;
+        (val, ok) = peek();
+        require(ok, "D3MOracle/ilk-is-culled");
     }
 }
