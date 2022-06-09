@@ -21,7 +21,7 @@ A "dumb" adapter which is responsible for depositing or withdrawing DAI from the
 
 ### D3MPlan
 
-The D3MPlan can be viewed as the controller for D3M instances. The plan is responsible for reading all relevant information (maybe nothing) from the protocol and condensing this down to a debt target. This desired target debt is forwarded to the Hub to take action to reach this target debt level asap.
+The D3MPlan can be viewed as the targeting logic for D3M instances. The plan is responsible for reading all relevant information from its state (i.e. the target rate) and possibly from the external protocol (i.e. current balance of supply and borrowing in the market) and condensing this down to a debt target. This desired target debt is forwarded to the Hub to take action to reach this target debt level asap.
 
 # Specific Implementations
 
