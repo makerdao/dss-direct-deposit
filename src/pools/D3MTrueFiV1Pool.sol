@@ -16,41 +16,14 @@
 
 pragma solidity ^0.8.14;
 
+
+import {
+    TokenLike,
+    CanLike,
+    D3mHubLike,
+    PortfolioLike
+} from "../tests/interfaces/interfaces.sol";
 import "./ID3MPool.sol";
-
-interface TokenLike {
-    function approve(address, uint256) external returns (bool);
-    function transfer(address, uint256) external returns (bool);
-    function transferFrom(address, address, uint256) external returns (bool);
-    function balanceOf(address) external view returns (uint256);
-    function totalSupply() external view returns (uint256);
-}
-
-interface CanLike {
-    function hope(address) external;
-    function nope(address) external;
-}
-
-interface D3mHubLike {
-    function vat() external view returns (address);
-}
-
-interface PortfolioLike is TokenLike {
-    enum PortfolioStatus {
-        Open,
-        Frozen,
-        Closed
-    }
-
-    function deposit(uint256 depositAmount, bytes memory metadata) external;
-    function withdraw(uint256 sharesAmount, bytes memory) external returns (uint256);
-    function getAmountToMint(uint256 amount) external returns (uint256);
-    function maxSize() external view returns (uint256);
-    function value() external view returns (uint256);
-    function totalDeposited() external view returns (uint256);
-    function getStatus() external view returns (PortfolioStatus);
-    function liquidValue() external view returns (uint256);
-}
 
 contract D3MTrueFiV1Pool is ID3MPool {
 

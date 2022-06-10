@@ -100,20 +100,24 @@ interface ERC20Like {
     function totalSupply() external view returns (uint256);
 }
 
-interface PortfolioLike {
+interface PortfolioLike is ERC20Like {
     enum PortfolioStatus {
         Open,
         Frozen,
         Closed
     }
-
     function manager() external view returns (address);
     function getAmountToMint(uint256 amount) external view returns (uint256);
     function getStatus() external view returns (PortfolioStatus);
+    function value() external view returns (uint256);
+    function maxSize() external view returns (uint256);
+    function liquidValue() external view returns (uint256);
     function createBulletLoan(uint256 loanDuration, address borrower, uint256 principalAmount, uint256 repaymentAmount) external;
     function markLoanAsDefaulted(uint256 instrumentId) external;
     function deposit(uint256 depositAmount, bytes memory metadata) external;
     function getOpenLoanIds() external view returns (uint256[] memory);
+    function withdraw(uint256 sharesAmount, bytes memory) external returns (uint256);
+    function totalDeposited() external view returns (uint256);
 }
 
 interface WhitelistVerifierLike {
