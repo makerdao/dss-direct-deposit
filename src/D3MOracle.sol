@@ -35,7 +35,7 @@ contract D3MOracle {
     mapping (address => uint256) public wards;
     address public hub;
 
-    VatLike public immutable vat;
+    address public immutable vat;
     bytes32 public immutable ilk;
 
     uint256 internal constant WAD = 10 ** 18;
@@ -46,7 +46,7 @@ contract D3MOracle {
     event File(bytes32 indexed what, address data);
 
     constructor(address vat_, bytes32 ilk_) {
-        vat = VatLike(vat_);
+        vat = vat_;
         ilk = ilk_;
 
         wards[msg.sender] = 1;
@@ -87,7 +87,7 @@ contract D3MOracle {
         @param data address we are setting it to
     */
     function file(bytes32 what, address data) external auth {
-        require(vat.live() == 1, "D3MOracle/no-file-during-shutdown");
+        require(VatLike(vat).live() == 1, "D3MOracle/no-file-during-shutdown");
 
         if (what == "hub") hub = data;
         else revert("D3MOracle/file-unrecognized-param");
@@ -101,7 +101,7 @@ contract D3MOracle {
     */
     function peek() public view returns (uint256 val, bool ok) {
         val = WAD;
-        ok = vat.live() == 1 || HubLike(hub).culled(ilk) == 0;
+        ok = VatLike(vat).live() == 1 || HubLike(hub).culled(ilk) == 0;
     }
 
     /**
