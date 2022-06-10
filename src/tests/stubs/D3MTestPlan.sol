@@ -60,13 +60,10 @@ contract D3MTestPlan is ID3MPlan {
     }
 
     function file(bytes32 what, uint256 data) external auth {
-        if (what == "maxBar_") {
-            maxBar_ = data;
-        } else if (what == "targetAssets") {
-            targetAssets = data;
-        } else if (what == "currentRate") {
-            currentRate = data;
-        } else if (what == "bar") {
+        if (what == "maxBar_") maxBar_ = data;
+        else if (what == "targetAssets") targetAssets = data;
+        else if (what == "currentRate") currentRate = data;
+        else if (what == "bar") {
             require(data <= maxBar(), "D3MTestPlan/above-max-interest");
 
             bar = data;
@@ -74,9 +71,8 @@ contract D3MTestPlan is ID3MPlan {
     }
 
     function file(bytes32 what, bool data) external auth {
-        if (what == "active_") {
-            active_ = data;
-        } else revert("D3MTestPlan/file-unrecognized-param");
+        if (what == "active_") active_ = data;
+        else revert("D3MTestPlan/file-unrecognized-param");
     }
 
     function maxBar() public view returns (uint256) {
