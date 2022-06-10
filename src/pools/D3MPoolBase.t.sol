@@ -92,10 +92,6 @@ contract D3MPoolBase is ID3MPool {
 
     function maxWithdraw() external view override returns (uint256) {}
 
-    function active() external override pure returns(bool) {
-        return true;
-    }
-
     function redeemable() external override pure returns(address) {
         return address(0);
     }
@@ -233,9 +229,5 @@ contract D3MPoolBaseTest is DSTest {
 
     function test_implements_postDebtChange() public {
         D3MPoolBase(d3mTestPool).postDebtChange("test");
-    }
-
-    function test_implements_active() public view {
-        D3MPoolBase(d3mTestPool).active();
     }
 }
