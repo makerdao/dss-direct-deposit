@@ -54,10 +54,10 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
 		borrower = new Borrower();
         d3mTestPool = address(new D3MTrueFiV1Pool(address(dai), address(portfolio), hub));
         hevm.store(GLOBAL_WHITELIST_LENDER_VERIFIER, keccak256(abi.encode(d3mTestPool, 2)), bytes32(uint256(1)));
+        _mintTokens(DAI, address(d3mTestPool), 5 ether);
     }
 
     function test_deposit_transfers_funds() public {
-        _mintTokens(DAI, address(d3mTestPool), 1 ether);
         uint256 fundsBefore = dai.balanceOf(d3mTestPool);
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
         uint256 fundsAfter = dai.balanceOf(d3mTestPool);
@@ -67,13 +67,11 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     }
 
     function test_deposit_issues_shares() public {
-        _mintTokens(DAI, address(d3mTestPool), 1 ether);
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
         assertEq(uint256(ERC20Like(portfolio).balanceOf(d3mTestPool)), 1 ether);
     }
 
     function testFail_deposit_requires_auth() public {
-        _mintTokens(DAI, address(d3mTestPool), 1 ether);
         D3MTrueFiV1Pool(d3mTestPool).deny(address(this));
 
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
@@ -84,13 +82,11 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     }
 
     function test_max_desposit_equals_value_minus_deposited_funds() public {
-        _mintTokens(DAI, address(d3mTestPool), 1 ether);
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
         assertEq(D3MTrueFiV1Pool(d3mTestPool).maxDeposit(), portfolio.maxSize() - 1 ether);
     }
 
     function test_withdraw_returns_funds() public {
-        _mintTokens(DAI, address(d3mTestPool), 1 ether);
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
 
         uint256 fundsBefore = dai.balanceOf(d3mTestPool);
@@ -102,7 +98,6 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     }
 
     function test_withdraw_burns_shares() public {
-        _mintTokens(DAI, address(d3mTestPool), 1 ether);
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
 
         hevm.warp(block.timestamp + 30 days + 1 days);
@@ -112,7 +107,6 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     }
 
     function testFail_withdraw_requires_auth() public {
-        _mintTokens(DAI, address(d3mTestPool), 1 ether);
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
 
         D3MTrueFiV1Pool(d3mTestPool).deny(address(this));
@@ -124,7 +118,6 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     }
 
     function test_max_withdraw_is_asset_balance() public {
-        _mintTokens(DAI, address(d3mTestPool), 1 ether);
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
 
         hevm.warp(block.timestamp + 30 days + 1 days);
@@ -132,7 +125,6 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     }
 
     function test_max_withdraw_is_liquid_value() public {
-        _mintTokens(DAI, address(d3mTestPool), 2 ether);
         D3MTrueFiV1Pool(d3mTestPool).deposit(2 ether);
 
         portfolio.createBulletLoan(30 days, address(borrower), 1 ether, 2 ether);
@@ -145,6 +137,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     }
 
     function testFail_recoverTokens_requires_auth() public {
+        D3MTrueFiV1Pool(d3mTestPool).deny(address(this));
         D3MTrueFiV1Pool(d3mTestPool).recoverTokens(address(dai), address(this), 1 ether);
     }
 
