@@ -72,7 +72,7 @@ contract D3MTestPool is ID3MPool {
     }
 
     modifier onlyHub {
-        require(msg.sender == hub, "D3MAavePool/only-hub");
+        require(msg.sender == hub, "D3MTestPool/only-hub");
         _;
     }
 
