@@ -121,6 +121,13 @@ interface PortfolioLike is ERC20Like {
         Closed
     }
 
+    function createBulletLoan(
+        uint256 loanDuration,
+        address borrower,
+        uint256 principalAmount,
+        uint256 repaymentAmount
+    ) external;
+
     function manager() external view returns (address);
     function getAmountToMint(uint256 amount) external view returns (uint256);
     function getStatus() external view returns (PortfolioStatus);
