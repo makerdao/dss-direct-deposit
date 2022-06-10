@@ -3,7 +3,7 @@
 
 The Dai Direct Deposit Module (D3M) is a tool for directly injecting DAI into third party protocols.
 
-![D3M](https://imgur.com/bheLc3d.png)
+![D3M](https://ipfs.io/ipfs/QmfAPBsAQbPoAiMB7vypuBwC41X5yrzYKNMUia4nGyoN23)
 
 As seen in the image above, external protocols are viewed under the simplified ERC-4626-like interface. Pool adapters are used to convert protocol complexity into simplified concepts of Excess Capacity + DAI liquidity + DAI outstanding. How DAI is converted between these states is completely protocol-specific and mostly irrelevant to the D3M.
 
