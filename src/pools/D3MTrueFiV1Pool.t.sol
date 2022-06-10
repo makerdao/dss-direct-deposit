@@ -26,9 +26,9 @@ import {
     PortfolioFactoryLike,
     PortfolioLike,
     ERC20Like,
-    LenderVerifierLike,
     VatLike,
-    TokenLike
+    TokenLike,
+    WhitelistVerifierLike
 } from "../tests/interfaces/interfaces.sol";
 
 import { D3MTrueFiV1Plan } from "../plans/D3MTrueFiV1Plan.sol";
@@ -36,22 +36,6 @@ import { AddressRegistry }   from "../tests/integration/AddressRegistry.sol";
 import { D3MPoolBaseTest, Hevm } from "./D3MPoolBase.t.sol";
 
 contract Borrower {}
-
-contract FakeLenderVerifier is LenderVerifierLike {
-    function isAllowed(
-        address lender,
-        uint256 amount,
-        bytes memory signature
-    ) external view returns (bool) {
-        return true;
-    }
-
-    function setLenderWhitelistStatus(
-        address portfolio,
-        address lender,
-        bool status
-    ) external {}
-}
 
 contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     PortfolioFactoryLike portfolioFactory;
@@ -69,6 +53,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
 
 		borrower = new Borrower();
         d3mTestPool = address(new D3MTrueFiV1Pool(address(dai), address(portfolio), hub));
+        hevm.store(GLOBAL_WHITELIST_LENDER_VERIFIER, keccak256(abi.encode(d3mTestPool, 2)), bytes32(uint256(1)));
     }
 
     function test_deposit_transfers_funds() public {
@@ -155,6 +140,24 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         assertEq(D3MTrueFiV1Pool(d3mTestPool).maxWithdraw(), portfolio.liquidValue());
     }
 
+    function test_active_returns_true() public {
+        assertTrue(D3MTrueFiV1Pool(d3mTestPool).active());
+    }
+
+    function testFail_recoverTokens_requires_auth() public {
+        D3MTrueFiV1Pool(d3mTestPool).recoverTokens(address(dai), address(this), 1 ether);
+    }
+
+    function test_recovers_tokens() public {
+        ERC20Like wbtc = ERC20Like(WBTC);
+        _mintTokens(address(wbtc), d3mTestPool, 1 ether);
+        assertEq(wbtc.balanceOf(d3mTestPool), 1 ether);
+
+        D3MTrueFiV1Pool(d3mTestPool).recoverTokens(address(wbtc), address(this), 1 ether);
+        assertEq(wbtc.balanceOf(d3mTestPool), 0);
+        assertEq(wbtc.balanceOf(address(this)), 1 ether);
+    }
+
     /************************/
     /*** Helper Functions ***/
     /************************/
@@ -162,27 +165,25 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     function _setUpTrueFiDaiPortfolio() internal {
         portfolioFactory = PortfolioFactoryLike(MANAGED_PORTFOLIO_FACTORY_PROXY);
 
-        // Grant address(this) auth access to factory
-        hevm.store(MANAGED_PORTFOLIO_FACTORY_PROXY, bytes32(uint256(0)), bytes32(uint256(uint160(address(this)))));
-        portfolioFactory.setIsWhitelisted(address(this), true);
+        // Whitelist this address in managed portfolio factory
+        hevm.store(MANAGED_PORTFOLIO_FACTORY_PROXY, keccak256(abi.encode(address(this), 6)), bytes32(uint256(1)));
 
-        LenderVerifierLike fakeLenderVerifier = new FakeLenderVerifier();
-        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", ERC20Like(DAI), fakeLenderVerifier, 30 days, 1_000_000 ether, 20);
+        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", ERC20Like(DAI), WhitelistVerifierLike(GLOBAL_WHITELIST_LENDER_VERIFIER), 30 days, 1_000_000 ether, 20);
+        
         uint256 portfoliosCount = portfolioFactory.getPortfolios().length;
         portfolio = PortfolioLike(portfolioFactory.getPortfolios()[portfoliosCount - 1]);
-
-        // LenderVerifierLike(WHITELIST_LENDER_VERIFIER).setLenderWhitelistStatus(address(portfolio), address(this), true);
     }
 
     function _mintTokens(address token, address account, uint256 amount) internal {
         uint256 slot;
 
-        if (token == DAI)  slot = 2;
+        if      (token == DAI)  slot = 2;
+        else if (token == WBTC) slot = 0;
 
         hevm.store(
             token,
             keccak256(abi.encode(account, slot)),
-            bytes32(TokenLike(token).balanceOf(address(account)) + amount)
+            bytes32(ERC20Like(token).balanceOf(address(account)) + amount)
         );
     }
 }
