@@ -106,7 +106,7 @@ contract D3MOracle {
 
     /**
         @notice Return value
-        @dev vat must be live or ilk must be unculled in hub.
+        @dev vat must be live or ilk must not be culled  in hub.
         @return val always 1 WAD value
     */
     function read() external view returns (uint256 val) {
