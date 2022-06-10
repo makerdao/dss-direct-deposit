@@ -50,6 +50,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         _setUpTrueFiDaiPortfolio();
 
         d3mTestPool = address(new D3MTrueFiV1Pool(address(dai), address(portfolio), hub));
+        // set address of d3mTestPool to true in whitelist mapping in global whitelist lender verifier
         hevm.store(GLOBAL_WHITELIST_LENDER_VERIFIER, keccak256(abi.encode(d3mTestPool, 2)), bytes32(uint256(1)));
         _mintTokens(DAI, address(d3mTestPool), 5 ether);
     }
@@ -155,7 +156,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     function _setUpTrueFiDaiPortfolio() internal {
         portfolioFactory = PortfolioFactoryLike(MANAGED_PORTFOLIO_FACTORY_PROXY);
 
-        // Whitelist this address in managed portfolio factory
+        // Whitelist this address in managed portfolio factory so we can create portfolio
         hevm.store(MANAGED_PORTFOLIO_FACTORY_PROXY, keccak256(abi.encode(address(this), 6)), bytes32(uint256(1)));
 
         portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", ERC20Like(DAI), WhitelistVerifierLike(GLOBAL_WHITELIST_LENDER_VERIFIER), 30 days, 1_000_000 ether, 20);
