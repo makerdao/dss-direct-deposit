@@ -19,16 +19,24 @@ pragma solidity ^0.8.14;
 
 import { D3MTestGem } from "./D3MTestGem.sol";
 import "../../pools/ID3MPool.sol";
-import { TokenLike, CanLike, D3mHubLike } from "../interfaces/interfaces.sol";
+import { TokenLike, D3mHubLike } from "../interfaces/interfaces.sol";
 
 interface RewardsClaimerLike {
     function claimRewards(address[] memory assets, uint256 amount, address to) external returns (uint256);
+}
+
+interface VatLike {
+    function hope(address) external;
+    function nope(address) external;
 }
 
 contract D3MTestPool is ID3MPool {
 
     mapping (address => uint256) public wards;
 
+    address public hub;
+
+    VatLike            public immutable vat;
     RewardsClaimerLike public immutable rewardsClaimer;
     address            public immutable share;          // Token representing a share of the asset pool
     TokenLike          public immutable asset;          // Dai
@@ -50,7 +58,9 @@ contract D3MTestPool is ID3MPool {
 
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
 
-        CanLike(D3mHubLike(hub_).vat()).hope(hub_);
+        hub = hub_;
+        vat = VatLike(D3mHubLike(hub_).vat());
+        VatLike(D3mHubLike(hub_).vat()).hope(hub_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -58,6 +68,11 @@ contract D3MTestPool is ID3MPool {
 
     modifier auth {
         require(wards[msg.sender] == 1, "D3MTestPool/not-authorized");
+        _;
+    }
+
+    modifier onlyHub {
+        require(msg.sender == hub, "D3MTestPool/only-hub");
         _;
     }
 
@@ -83,33 +98,30 @@ contract D3MTestPool is ID3MPool {
     }
 
     function file(bytes32 what, address data) external auth {
-        if (what == "king") king = data;
+        if (what == "hub") {
+            vat.nope(hub);
+            hub = data;
+            vat.hope(data);
+        }
+        else if (what == "king") king = data;
         else revert("D3MTestPool/file-unrecognized-param");
     }
 
-    function hope(address hub) external override auth{
-        CanLike(D3mHubLike(hub).vat()).hope(hub);
-    }
-
-    function nope(address hub) external override auth{
-        CanLike(D3mHubLike(hub).vat()).nope(hub);
-    }
-
-    function deposit(uint256 wad) external override {
+    function deposit(uint256 wad) external override onlyHub {
         D3MTestGem(share).mint(address(this), wad);
         TokenLike(asset).transfer(share, wad);
     }
 
-    function withdraw(uint256 wad) external override {
+    function withdraw(uint256 wad) external override onlyHub {
         D3MTestGem(share).burn(address(this), wad);
         TokenLike(asset).transferFrom(share, address(msg.sender), wad);
     }
 
-    function transfer(address dst, uint256 wad) public override auth {
+    function transfer(address dst, uint256 wad) public override onlyHub {
         require(TokenLike(share).transfer(dst, wad), "D3MTestPool/transfer-failed");
     }
 
-    function transferAll(address dst) external override auth {
+    function quit(address dst) external override auth {
         require(TokenLike(share).transfer(dst, shareBalance()), "D3MTestPool/transfer-failed");
     }
 

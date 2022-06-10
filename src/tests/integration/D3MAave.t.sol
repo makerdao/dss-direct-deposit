@@ -970,7 +970,7 @@ contract D3MAaveTest is DSTest {
 
         address receiver = address(123);
 
-        d3mAavePool.transferAll(address(receiver));
+        d3mAavePool.quit(address(receiver));
         vat.grab(ilk, address(d3mAavePool), address(receiver), address(receiver), -int256(pink), -int256(part));
         vat.grab(ilk, address(receiver), address(receiver), address(receiver), int256(pink), int256(part));
 
@@ -1006,7 +1006,7 @@ contract D3MAaveTest is DSTest {
 
         address receiver = address(123);
 
-        d3mAavePool.transferAll(address(receiver));
+        d3mAavePool.quit(address(receiver));
         vat.slip(ilk, address(d3mAavePool), -int256(pgem));
 
         uint256 ngem = vat.gem(ilk, address(d3mAavePool));
