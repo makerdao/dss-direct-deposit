@@ -21,6 +21,7 @@ import "ds-test/test.sol";
 import "./tests/interfaces/interfaces.sol";
 
 import {D3MHub} from "./D3MHub.sol";
+import {D3MOracle} from "./D3MOracle.sol";
 import "./pools/ID3MPool.sol";
 import "./plans/ID3MPlan.sol";
 
@@ -28,7 +29,6 @@ import {D3MTestPool} from "./tests/stubs/D3MTestPool.sol";
 import {D3MTestPlan} from "./tests/stubs/D3MTestPlan.sol";
 import {D3MTestGem} from "./tests/stubs/D3MTestGem.sol";
 import {D3MTestRewards} from "./tests/stubs/D3MTestRewards.sol";
-import {ValueStub} from "./tests/stubs/ValueStub.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -65,7 +65,7 @@ contract D3MHubTest is DSTest {
     D3MHub d3mHub;
     D3MTestPool d3mTestPool;
     D3MTestPlan d3mTestPlan;
-    ValueStub pip;
+    D3MOracle pip;
 
     function setUp() public {
         hevm = Hevm(
@@ -116,8 +116,8 @@ contract D3MHubTest is DSTest {
         d3mHub.file(ilk, "tau", 7 days);
 
         // Init new collateral
-        pip = new ValueStub();
-        pip.poke(bytes32(WAD));
+        pip = new D3MOracle(address(vat), ilk);
+        pip.file("hub", address(d3mHub));
         spot.file(ilk, "pip", address(pip));
         spot.file(ilk, "mat", RAY);
         spot.poke(ilk);
@@ -1349,5 +1349,22 @@ contract D3MHubTest is DSTest {
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 60 * WAD);
         assertEq(art, 60 * WAD);
+    }
+
+    function test_cage_ilk_after_uncull() public {
+        _windSystem();
+        d3mHub.cage(ilk);
+        d3mHub.cull(ilk);
+        end.cage();
+        d3mHub.uncull(ilk);
+        end.cage(ilk);
+    }
+
+    function testFail_cage_ilk_before_uncull() public {
+        _windSystem();
+        d3mHub.cage(ilk);
+        d3mHub.cull(ilk);
+        end.cage();
+        end.cage(ilk);
     }
 }
