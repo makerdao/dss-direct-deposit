@@ -30,7 +30,7 @@ interface ID3MPool {
         @notice Deposit assets (Dai) in the external pool.
         @dev If the external pool requires a different amount to be passed in, the
         conversion should occur here as the Hub passes Dai [wad] amounts.
-        msg.sender must be authorized.
+        msg.sender must be the hub.
         @param wad amount in asset (Dai) terms that we want to deposit
     */
     function deposit(uint256 wad) external;
@@ -39,7 +39,7 @@ interface ID3MPool {
         @notice Withdraw assets (Dai) from the external pool.
         @dev If the external pool requires a different amount to be passed in
         the conversion should occur here as the Hub passes Dai [wad] amounts.
-        msg.sender must be authorized.
+        msg.sender must be the hub.
         @param wad amount in asset (Dai) terms that we want to withdraw
     */
     function withdraw(uint256 wad) external;
@@ -48,7 +48,7 @@ interface ID3MPool {
         @notice Transfer shares.
         @dev If the external pool/token contract requires a different amount to be
         passed in the conversion should occur here as the Hub passes Dai [wad]
-        amounts. msg.sender must be authorized.
+        amounts. msg.sender must be the hub.
         @param dst address that should receive the redeemable tokens
         @param wad amount in Dai terms that we want to withdraw
     */
