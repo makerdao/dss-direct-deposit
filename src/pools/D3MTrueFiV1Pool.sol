@@ -120,8 +120,11 @@ contract D3MTrueFiV1Pool is ID3MPool {
     }
 
     function assetBalance() public view override returns (uint256) {
-        uint256 shares = portfolio.balanceOf(address(this));
         uint256 totalShares = portfolio.totalSupply();
+        if (totalShares == 0) {
+            return 0;
+        }
+        uint256 shares = portfolio.balanceOf(address(this));
         uint256 portfolioValue = portfolio.value();
         return shares * portfolioValue / totalShares;
     }
