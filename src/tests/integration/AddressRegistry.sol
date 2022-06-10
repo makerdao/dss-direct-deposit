@@ -16,7 +16,7 @@ contract AddressRegistry {
     /***********************/
 
     address constant MANAGED_PORTFOLIO_FACTORY_PROXY      = 0x17b7b75FD4288197cFd99D20e13B0dD9da1FF3E7;
-    address constant WHITELIST_LENDER_VERIFIER     = 0x06D5718c2bB342bf8ad93165578c06C7F1ac0464;
+    address constant GLOBAL_WHITELIST_LENDER_VERIFIER     = 0xAe48bea8F3FC1696DC8ec75183705CeE1D071B05;
 
     /***********************/
     /*** Maker Contracts ***/
