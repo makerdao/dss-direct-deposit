@@ -38,7 +38,6 @@ interface ID3MPlan {
     function active() external view returns (bool);
 
     /**
-
         @notice Disables the plan so that it would instruct the Hub to unwind
         its entire position.
         @dev Implementation should be permissioned.

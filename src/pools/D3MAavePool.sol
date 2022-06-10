@@ -199,10 +199,6 @@ contract D3MAavePool is ID3MPool {
         return _min(asset.balanceOf(address(adai)), assetBalance());
     }
 
-    function active() external pure override returns (bool) {
-        return true;
-    }
-
     function redeemable() external view override returns (address) {
         return address(adai);
     }

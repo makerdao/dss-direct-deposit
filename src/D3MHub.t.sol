@@ -342,7 +342,7 @@ contract D3MHubTest is DSTest {
         vat.fold(ilk, vow, int(2 * RAY));
         d3mHub.exec(ilk);
     }
-    
+
     function test_wind_limited_ilk_line() public {
         d3mTestPlan.file("bar", 10);
         d3mTestPlan.file("targetAssets", 50 * WAD);
@@ -393,22 +393,6 @@ contract D3MHubTest is DSTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 50 * WAD);
         assertEq(art, 50 * WAD);
-        assertTrue(d3mTestPool.preDebt());
-        assertTrue(d3mTestPool.postDebt());
-    }
-
-    function test_unwind_pool_not_active() public {
-        _windSystem();
-
-        // Temporarily disable the module
-        d3mTestPool.file("active_", false);
-        d3mHub.exec(ilk);
-
-        // Ensure we unwound our position
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 0);
-        assertEq(art, 0);
-        // Make sure pre/post functions get called
         assertTrue(d3mTestPool.preDebt());
         assertTrue(d3mTestPool.postDebt());
     }
@@ -701,19 +685,6 @@ contract D3MHubTest is DSTest {
         d3mHub.reap(ilk);
     }
 
-    function testFail_no_reap_pool_inactive() public {
-        _windSystem();
-        // interest is determined by the difference in gem balance to dai debt
-        // by giving extra gems to the Join we simulate interest
-        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
-        testGem.transfer(address(d3mTestPool), 10 * WAD);
-
-        // pool inactive
-        d3mTestPool.file("active_", false);
-
-        d3mHub.reap(ilk);
-    }
-
     function testFail_no_reap_plan_inactive() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
@@ -749,7 +720,7 @@ contract D3MHubTest is DSTest {
         assertEq(testGem.balanceOf(address(this)), prevBalance + 50 * WAD);
     }
 
-    function test_cage_pool() public {
+    function test_cage_d3m_with_auth() public {
         (, , uint256 tau, , uint256 tic) = d3mHub.ilks(ilk);
         assertEq(tic, 0);
 
@@ -759,17 +730,17 @@ contract D3MHubTest is DSTest {
         assertEq(tic, block.timestamp + tau);
     }
 
-    function testFail_cage_pool_mcd_caged() public {
+    function testFail_cage_d3m_mcd_caged() public {
         vat.cage();
         d3mHub.cage(ilk);
     }
-    
-    function testFail_cage_pool_no_auth() public {
+
+    function testFail_cage_d3m_no_auth() public {
         d3mHub.deny(address(this));
         d3mHub.cage(ilk);
     }
 
-    function testFail_cage_pool_already_caged() public {
+    function testFail_cage_d3m_already_caged() public {
         d3mHub.cage(ilk);
         d3mHub.cage(ilk);
     }
@@ -1020,9 +991,9 @@ contract D3MHubTest is DSTest {
         assertTrue(newPool.preDebt() == false);
         assertTrue(newPool.postDebt() == false);
 
-        // Pool Inactive
-        d3mTestPool.file("active_", false);
-        assertTrue(d3mTestPool.active() == false);
+        // Plan Inactive
+        d3mTestPlan.file("active_", false);
+        assertTrue(d3mTestPlan.active() == false);
 
         d3mHub.exec(ilk);
 
@@ -1037,14 +1008,17 @@ contract D3MHubTest is DSTest {
         d3mTestPool.file("postDebt", false); // reset postDebt
 
         d3mHub.file(ilk, "pool", address(newPool));
+        // Reactivate Plan
+        d3mTestPlan.file("active_", true);
+        assertTrue(d3mTestPlan.active());
         d3mHub.exec(ilk);
 
         // New Pool should get wound up to the original amount because plan didn't change
         (npink, npart) = vat.urns(ilk, address(newPool));
         assertEq(npink, 50 * WAD);
         assertEq(npart, 50 * WAD);
-        assertTrue(newPool.preDebt() == true);
-        assertTrue(newPool.postDebt() == true);
+        assertTrue(newPool.preDebt());
+        assertTrue(newPool.postDebt());
 
         (opink, opart) = vat.urns(ilk, address(d3mTestPool));
         assertEq(opink, 0);
@@ -1141,7 +1115,7 @@ contract D3MHubTest is DSTest {
 
         (, ID3MPlan plan, , , ) = d3mHub.ilks(ilk);
         assertEq(address(plan), address(newPlan));
-        
+
         d3mHub.exec(ilk);
 
         // New Plan should determine the pool position
@@ -1168,7 +1142,7 @@ contract D3MHubTest is DSTest {
         d3mTestPool.rely(address(newHub));
         d3mTestPool.deny(address(d3mHub));
         d3mTestPool.file("hub", address(newHub));
-        
+
         // Update Permissions in Vat
         vat.deny(address(d3mHub));
         vat.rely(address(newHub));
@@ -1206,7 +1180,7 @@ contract D3MHubTest is DSTest {
         d3mTestPool.rely(address(newHub));
         d3mTestPool.deny(address(d3mHub));
         d3mTestPool.file("hub", address(newHub));
-        
+
         // Update Permissions in Vat
         vat.deny(address(d3mHub));
         vat.rely(address(newHub));
@@ -1286,7 +1260,7 @@ contract D3MHubTest is DSTest {
         assertEq(npart, 50 * WAD);
         assertTrue(newPool.preDebt() == false);
         assertTrue(newPool.postDebt() == false);
-        
+
         // Clean up after transition
         d3mHub.cage(ilk);
         d3mTestPool.deny(address(d3mHub));
@@ -1309,7 +1283,7 @@ contract D3MHubTest is DSTest {
     }
 
     function test_exec_lock_protection() public {
-        // Store memory slot 0x4
+        // Store memory slot 0x3
         hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
         assertEq(d3mHub.locked(), 1);
 
@@ -1322,7 +1296,7 @@ contract D3MHubTest is DSTest {
     }
 
     function test_reap_lock_protection() public {
-        // Store memory slot 0x4
+        // Store memory slot 0x3
         hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
         assertEq(d3mHub.locked(), 1);
 
@@ -1335,7 +1309,7 @@ contract D3MHubTest is DSTest {
     }
 
     function test_exit_lock_protection() public {
-        // Store memory slot 0x4
+        // Store memory slot 0x3
         hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
         assertEq(d3mHub.locked(), 1);
 
