@@ -149,6 +149,11 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         assertEq(wbtc.balanceOf(address(this)), 1 ether);
     }
 
+    function testFail_cannot_transfer_LP_tokens() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+        portfolio.transfer(BORROWER, 1 ether);
+    }
+
     /************************/
     /*** Helper Functions ***/
     /************************/
