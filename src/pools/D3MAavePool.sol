@@ -148,8 +148,7 @@ contract D3MAavePool is ID3MPool {
             vat.nope(hub);
             hub = data;
             vat.hope(data);
-        }
-        else if (what == "king") king = data;
+        } else if (what == "king") king = data;
         else revert("D3MAavePool/file-unrecognized-param");
         emit File(what, data);
     }
