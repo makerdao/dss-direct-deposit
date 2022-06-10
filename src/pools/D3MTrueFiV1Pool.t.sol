@@ -35,12 +35,10 @@ import { D3MTrueFiV1Plan } from "../plans/D3MTrueFiV1Plan.sol";
 import { AddressRegistry }   from "../tests/integration/AddressRegistry.sol";
 import { D3MPoolBaseTest, Hevm } from "./D3MPoolBase.t.sol";
 
-contract Borrower {}
-
 contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     PortfolioFactoryLike portfolioFactory;
     PortfolioLike portfolio;
-    Borrower borrower;
+    address constant BORROWER = 0x4E02FBA7b1ad4E54F6e5Edd8Fee6D7e67E4a214a; // random address
 
     function setUp() public override {
         hevm = Hevm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
@@ -51,7 +49,6 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
 
         _setUpTrueFiDaiPortfolio();
 
-		borrower = new Borrower();
         d3mTestPool = address(new D3MTrueFiV1Pool(address(dai), address(portfolio), hub));
         hevm.store(GLOBAL_WHITELIST_LENDER_VERIFIER, keccak256(abi.encode(d3mTestPool, 2)), bytes32(uint256(1)));
         _mintTokens(DAI, address(d3mTestPool), 5 ether);
@@ -127,7 +124,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     function test_max_withdraw_is_liquid_value() public {
         D3MTrueFiV1Pool(d3mTestPool).deposit(2 ether);
 
-        portfolio.createBulletLoan(30 days, address(borrower), 1 ether, 2 ether);
+        portfolio.createBulletLoan(30 days, BORROWER, 1 ether, 2 ether);
         hevm.warp(block.timestamp + 30 days + 1 days);
         assertEq(D3MTrueFiV1Pool(d3mTestPool).maxWithdraw(), portfolio.liquidValue());
     }
