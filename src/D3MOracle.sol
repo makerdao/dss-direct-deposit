@@ -81,7 +81,7 @@ contract D3MOracle {
     }
 
     /**
-        @notice update vow or end addresses.
+        @notice update an address.
         @dev msg.sender must be authorized.
         @param what name of what we are updating.
         @param data address we are setting it to
