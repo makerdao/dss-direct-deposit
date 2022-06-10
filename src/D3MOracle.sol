@@ -83,7 +83,7 @@ contract D3MOracle {
     /**
         @notice update vow or end addresses.
         @dev msg.sender must be authorized.
-        @param what name of what we are updating bytes32("vow"|"end")
+        @param what name of what we are updating.
         @param data address we are setting it to
     */
     function file(bytes32 what, address data) external auth {
