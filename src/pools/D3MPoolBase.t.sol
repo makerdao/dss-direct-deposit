@@ -101,9 +101,9 @@ contract D3MPoolBase is ID3MPool {
 
     function assetBalance() external view override returns (uint256) {}
 
-    function transferAll(address dst) external view override {
+    function quit(address dst) external view override {
         dst;
-        require(vat.live() == 1, "D3MAavePool/no-transferAll-during-shutdown");
+        require(vat.live() == 1, "D3MAavePool/no-quit-during-shutdown");
     }
 
     function maxDeposit() external view override returns (uint256) {}
@@ -249,9 +249,9 @@ contract D3MPoolBaseTest is DSTest {
         D3MPoolBase(d3mTestPool).postDebtChange("test");
     }
 
-    function testFail_cannot_transferAll_vat_caged() public {
+    function testFail_cannot_quit_vat_caged() public {
         FakeVat(vat).cage();
 
-        D3MPoolBase(d3mTestPool).transferAll(address(123));
+        D3MPoolBase(d3mTestPool).quit(address(123));
     }
 }

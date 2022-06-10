@@ -59,7 +59,7 @@ interface ID3MPool {
         @dev msg.sender must be authorized.
         @param dst address that should receive the shares.
     */
-    function transferAll(address dst) external;
+    function quit(address dst) external;
 
     /**
         @notice Some external pools require actions before debt changes

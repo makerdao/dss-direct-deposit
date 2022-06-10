@@ -930,7 +930,7 @@ contract D3MHubTest is DSTest {
         assertEq(50 * WAD, testGem.balanceOf(address(d3mTestPool)));
         assertEq(50 * WAD, vat.gem(ilk, address(d3mTestPool)));
 
-        d3mTestPool.transferAll(receiver);
+        d3mTestPool.quit(receiver);
         vat.slip(ilk, address(d3mTestPool), -int256(vat.gem(ilk, address(d3mTestPool))));
 
         assertEq(balBefore + 50 * WAD, testGem.balanceOf(receiver));
@@ -951,7 +951,7 @@ contract D3MHubTest is DSTest {
         assertEq(tink, 0);
         assertEq(tart, 0);
 
-        d3mTestPool.transferAll(receiver);
+        d3mTestPool.quit(receiver);
         vat.grab(ilk, address(d3mTestPool), receiver, receiver, -int256(pink), -int256(part));
         vat.grab(ilk, receiver, receiver, receiver, int256(pink), int256(part));
 
@@ -1057,7 +1057,7 @@ contract D3MHubTest is DSTest {
         assertTrue(newPool.postDebt() == false);
 
         // quit to new pool
-        d3mTestPool.transferAll(address(newPool));
+        d3mTestPool.quit(address(newPool));
         vat.grab(ilk, address(d3mTestPool), address(newPool), address(newPool), -int256(opink), -int256(opart));
         vat.grab(ilk, address(newPool), address(newPool), address(newPool), int256(opink), int256(opart));
 
@@ -1243,7 +1243,7 @@ contract D3MHubTest is DSTest {
         newPool.file("hub", address(newHub));
 
         // Transition Balances
-        d3mTestPool.transferAll(address(newPool));
+        d3mTestPool.quit(address(newPool));
         vat.grab(ilk, address(d3mTestPool), address(newPool), address(newPool), -int256(opink), -int256(opart));
         vat.grab(ilk, address(newPool), address(newPool), address(newPool), int256(opink), int256(opart));
 

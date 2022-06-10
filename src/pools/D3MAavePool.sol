@@ -174,8 +174,8 @@ contract D3MAavePool is ID3MPool {
         require(adai.transfer(dst, wad), "D3MAavePool/transfer-failed");
     }
 
-    function transferAll(address dst) external override auth {
-        require(vat.live() == 1, "D3MAavePool/no-transferAll-during-shutdown");
+    function quit(address dst) external override auth {
+        require(vat.live() == 1, "D3MAavePool/no-quit-during-shutdown");
         require(adai.transfer(dst, adai.balanceOf(address(this))));
     }
 

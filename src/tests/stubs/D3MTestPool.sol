@@ -121,7 +121,7 @@ contract D3MTestPool is ID3MPool {
         require(TokenLike(share).transfer(dst, wad), "D3MTestPool/transfer-failed");
     }
 
-    function transferAll(address dst) external override auth {
+    function quit(address dst) external override auth {
         require(TokenLike(share).transfer(dst, shareBalance()), "D3MTestPool/transfer-failed");
     }
 
