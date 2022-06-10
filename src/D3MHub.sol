@@ -409,7 +409,7 @@ contract D3MHub {
                 Mode.MCD_CAGED,
                 currentAssets
             );
-        } else if (ilks[ilk].tic != 0 || !_pool.active() || !ilks[ilk].plan.active()) {
+        } else if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) {
             // pool caged
             _unwind(
                 ilk,
@@ -468,7 +468,7 @@ contract D3MHub {
                                 _pool.maxDeposit() // Determine if the pool limits our total deposits
                              );
                 }
-                require(lineWad + toWind < MAXINT256, "D3MHub/wind-overflow");
+                require(Art + toWind <= MAXINT256, "D3MHub/wind-overflow");
                 _wind(ilk, _pool, toWind);
             }
         }
@@ -487,7 +487,6 @@ contract D3MHub {
 
         require(vat.live() == 1, "D3MHub/no-reap-during-shutdown");
         require(ilks[ilk].tic == 0, "D3MHub/pool-not-live");
-        require(_pool.active(), "D3MHub/pool-not-active");
         require(ilks[ilk].plan.active(), "D3MHub/plan-not-active");
 
         _pool.preDebtChange("reap");
@@ -518,7 +517,7 @@ contract D3MHub {
         require(wad <= MAXINT256, "D3MHub/overflow");
         vat.slip(ilk, msg.sender, -int256(wad));
         ID3MPool _pool = ilks[ilk].pool;
-        require(_pool.transfer(usr, wad), "D3MHub/failed-transfer");
+        _pool.transfer(usr, wad);
         emit Exit(ilk, usr, wad);
     }
 

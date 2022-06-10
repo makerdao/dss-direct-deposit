@@ -163,12 +163,12 @@ contract D3MAavePool is ID3MPool {
         pool.withdraw(address(asset), wad, address(msg.sender));
     }
 
-    function transfer(address dst, uint256 wad) external override auth returns (bool) {
-        return adai.transfer(dst, wad);
+    function transfer(address dst, uint256 wad) external override auth {
+        require(adai.transfer(dst, wad), "D3MAavePool/transfer-failed");
     }
 
-    function transferAll(address dst) external override auth returns (bool) {
-        return adai.transfer(dst, adai.balanceOf(address(this)));
+    function transferAll(address dst) external override auth {
+        require(adai.transfer(dst, adai.balanceOf(address(this))));
     }
 
     function preDebtChange(bytes32) external override {}
@@ -186,10 +186,6 @@ contract D3MAavePool is ID3MPool {
 
     function maxWithdraw() external view override returns (uint256) {
         return _min(asset.balanceOf(address(adai)), assetBalance());
-    }
-
-    function active() external pure override returns (bool) {
-        return true;
     }
 
     function redeemable() external view override returns (address) {

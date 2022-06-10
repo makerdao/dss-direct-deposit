@@ -30,15 +30,14 @@ contract D3MTestPool is ID3MPool {
     mapping (address => uint256) public wards;
 
     RewardsClaimerLike public immutable rewardsClaimer;
-    address            public immutable share; // Token representing a share of the asset pool
-    TokenLike          public immutable asset; // Dai
-    address            public           king;  // Who gets the rewards
+    address            public immutable share;          // Token representing a share of the asset pool
+    TokenLike          public immutable asset;          // Dai
+    address            public           king;           // Who gets the rewards
 
     // test helper variables
     uint256        maxDepositAmount = type(uint256).max;
     bool    public preDebt          = false;
     bool    public postDebt         = false;
-    bool    public active_          = true;
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -66,7 +65,6 @@ contract D3MTestPool is ID3MPool {
     function file(bytes32 what, bool data) external auth {
         if (what == "preDebt") preDebt = data;
         else if (what == "postDebt") postDebt = data;
-        else if (what == "active_") active_ = data;
         else revert("D3MTestPool/file-unrecognized-param");
     }
     function file(bytes32 what, uint256 data) external auth {
@@ -107,12 +105,12 @@ contract D3MTestPool is ID3MPool {
         TokenLike(asset).transferFrom(share, address(msg.sender), wad);
     }
 
-    function transfer(address dst, uint256 wad) public override auth returns (bool) {
-        return TokenLike(share).transfer(dst, wad);
+    function transfer(address dst, uint256 wad) public override auth {
+        require(TokenLike(share).transfer(dst, wad), "D3MTestPool/transfer-failed");
     }
 
-    function transferAll(address dst) external override auth returns (bool) {
-        return TokenLike(share).transfer(dst, shareBalance());
+    function transferAll(address dst) external override auth {
+        require(TokenLike(share).transfer(dst, shareBalance()), "D3MTestPool/transfer-failed");
     }
 
     function preDebtChange(bytes32 what) external override {
@@ -143,10 +141,6 @@ contract D3MTestPool is ID3MPool {
 
     function convertToAssets(uint256 shares) public pure returns (uint256) {
         return shares;
-    }
-
-    function active() external view override returns (bool) {
-        return active_;
     }
 
     function redeemable() external view override returns (address) {
