@@ -136,7 +136,6 @@ contract D3MAavePool is ID3MPool {
         emit Rely(usr);
     }
     function deny(address usr) external auth {
-        require(vat.live() == 1, "D3MAavePool/no-deny-during-shutdown");
         wards[usr] = 0;
         emit Deny(usr);
     }

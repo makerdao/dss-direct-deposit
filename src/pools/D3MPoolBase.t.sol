@@ -55,7 +55,6 @@ contract D3MPoolBase is ID3MPool {
         emit Rely(usr);
     }
     function deny(address usr) external auth {
-        require(vat.live() == 1, "D3MPoolBase/no-deny-during-shutdown");
         wards[usr] = 0;
         emit Deny(usr);
     }
@@ -217,12 +216,6 @@ contract D3MPoolBaseTest is DSTest {
 
     function testFail_cannot_deny_no_auth() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
-
-        D3MPoolBase(d3mTestPool).deny(address(123));
-    }
-
-    function testFail_cannot_deny_vat_caged() public {
-        FakeVat(vat).cage();
 
         D3MPoolBase(d3mTestPool).deny(address(123));
     }
