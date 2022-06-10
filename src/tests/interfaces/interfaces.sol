@@ -133,6 +133,7 @@ interface PortfolioLike is ERC20Like {
     function getStatus() external view returns (PortfolioStatus);
     function value() external view returns (uint256);
     function maxSize() external view returns (uint256);
+    function liquidValue() external view returns (uint256);
 }
 
 interface PortfolioFactoryLike {
