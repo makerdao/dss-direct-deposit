@@ -189,10 +189,6 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         D3MAavePool(d3mTestPool).file("king", address(123));
     }
 
-    function testFail_cannot_file_unknown_param() public {
-        D3MAavePool(d3mTestPool).file("fail", address(123));
-    }
-
     function test_deposit_calls_lending_pool_deposit() public {
         D3MTestGem(address(adai)).rely(address(aavePool));
         D3MAavePool(d3mTestPool).file("hub", address(this));
@@ -202,16 +198,6 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(amt, 1);
         assertEq(dst, d3mTestPool);
         assertEq(code, 0);
-    }
-
-    function testFail_deposit_notHub() public {
-        D3MAavePool(d3mTestPool).deposit(1);
-    }
-
-    function testFail_deposit_requires_auth() public {
-        D3MAavePool(d3mTestPool).deny(address(this));
-
-        D3MAavePool(d3mTestPool).deposit(1);
     }
 
     function test_withdraw_calls_lending_pool_withdraw() public {
@@ -231,10 +217,6 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(asset, address(dai));
         assertEq(amt, 1);
         assertEq(dst, address(this));
-    }
-
-    function testFail_withdraw_not_hub() public {
-        D3MAavePool(d3mTestPool).withdraw(1);
     }
 
     function test_collect_claims_for_king() public {
@@ -289,13 +271,6 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(adai.balanceOf(d3mTestPool), 0);
     }
 
-    function testFail_transfer_not_hub() public {
-        uint256 tokens = adai.totalSupply();
-        adai.transfer(d3mTestPool, tokens);
-
-        D3MAavePool(d3mTestPool).transfer(address(this), tokens);
-    }
-
     function test_quit_moves_balance() public {
         uint256 tokens = adai.totalSupply();
         adai.transfer(d3mTestPool, tokens);
@@ -306,24 +281,6 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
         assertEq(adai.balanceOf(address(this)), tokens);
         assertEq(adai.balanceOf(d3mTestPool), 0);
-    }
-
-    function testFail_quit_no_auth() public {
-        uint256 tokens = adai.totalSupply();
-        adai.transfer(d3mTestPool, tokens);
-
-        D3MAavePool(d3mTestPool).deny(address(this));
-
-        D3MAavePool(d3mTestPool).quit(address(this));
-    }
-
-    function testFail_quit_vat_caged() public {
-        uint256 tokens = adai.totalSupply();
-        adai.transfer(d3mTestPool, tokens);
-
-        FakeVat(vat).cage();
-
-        D3MAavePool(d3mTestPool).quit(address(this));
     }
 
     function test_assetBalance_gets_adai_balanceOf_pool() public {

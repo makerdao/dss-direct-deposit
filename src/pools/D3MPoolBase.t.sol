@@ -63,6 +63,11 @@ contract D3MPoolBase is ID3MPool {
         _;
     }
 
+    modifier onlyHub {
+        require(msg.sender == hub, "D3MPoolBase/only-hub");
+        _;
+    }
+
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
@@ -89,11 +94,11 @@ contract D3MPoolBase is ID3MPool {
         else revert("D3MPoolBase/file-unrecognized-param");
     }
 
-    function deposit(uint256 wad) external override {}
+    function deposit(uint256 wad) external onlyHub override {}
 
-    function withdraw(uint256 wad) external override {}
+    function withdraw(uint256 wad) external onlyHub override {}
 
-    function transfer(address dst, uint256 wad) external override {}
+    function transfer(address dst, uint256 wad) onlyHub external override {}
 
     function preDebtChange(bytes32 what) external override {}
 
@@ -101,7 +106,7 @@ contract D3MPoolBase is ID3MPool {
 
     function assetBalance() external view override returns (uint256) {}
 
-    function quit(address dst) external view override {
+    function quit(address dst) external auth view override {
         dst;
         require(vat.live() == 1, "D3MAavePool/no-quit-during-shutdown");
     }
@@ -241,17 +246,37 @@ contract D3MPoolBaseTest is DSTest {
         D3MPoolBase(d3mTestPool).file("hub", address(123));
     }
 
+    function testFail_cannot_file_unknown_param() public {
+        D3MPoolBase(d3mTestPool).file("fail", address(123));
+    }
+
+    function testFail_deposit_not_hub() public {
+        D3MPoolBase(d3mTestPool).deposit(1);
+    }
+
+    function testFail_withdraw_not_hub() public {
+        D3MPoolBase(d3mTestPool).withdraw(1);
+    }
+
+    function testFail_transfer_not_hub() public {
+        D3MPoolBase(d3mTestPool).transfer(address(this), 0);
+    }
+
+    function testFail_quit_no_auth() public {
+        D3MPoolBase(d3mTestPool).deny(address(this));
+        D3MPoolBase(d3mTestPool).quit(address(this));
+    }
+
+    function testFail_quit_vat_caged() public {
+        FakeVat(vat).cage();
+        D3MPoolBase(d3mTestPool).quit(address(this));
+    }
+
     function test_implements_preDebtChange() public {
         D3MPoolBase(d3mTestPool).preDebtChange("test");
     }
 
     function test_implements_postDebtChange() public {
         D3MPoolBase(d3mTestPool).postDebtChange("test");
-    }
-
-    function testFail_cannot_quit_vat_caged() public {
-        FakeVat(vat).cage();
-
-        D3MPoolBase(d3mTestPool).quit(address(123));
     }
 }
