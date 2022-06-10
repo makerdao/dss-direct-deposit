@@ -104,7 +104,6 @@ contract D3MAavePool is ID3MPool {
         TokenLike(dai_).approve(pool_, type(uint256).max);
 
         hub = hub_;
-
         VatLike vat_ = vat = VatLike(D3mHubLike(hub_).vat());
         vat_.hope(hub_);
 
