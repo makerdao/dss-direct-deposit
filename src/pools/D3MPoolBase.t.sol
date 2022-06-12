@@ -36,7 +36,17 @@ interface Hevm {
     function roll(uint256) external;
 }
 
+interface VatLike {
+    function live() external view returns (uint256);
+    function hope(address) external;
+    function nope(address) external;
+}
+
 contract D3MPoolBase is ID3MPool {
+
+    address public hub;
+
+    VatLike public immutable vat;
 
     DaiLike public immutable asset; // Dai
 
@@ -55,6 +65,11 @@ contract D3MPoolBase is ID3MPool {
         _;
     }
 
+    modifier onlyHub {
+        require(msg.sender == hub, "D3MPoolBase/only-hub");
+        _;
+    }
+
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
@@ -62,29 +77,30 @@ contract D3MPoolBase is ID3MPool {
     constructor(address hub_, address dai_) {
         asset = DaiLike(dai_);
 
+        hub = hub_;
+        vat = VatLike(D3mHubLike(hub_).vat());
+
         CanLike(D3mHubLike(hub_).vat()).hope(hub_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
 
-    function hope(address hub) external override auth{
-        CanLike(D3mHubLike(hub).vat()).hope(hub);
+    function file(bytes32 what, address data) external auth {
+        require(vat.live() == 1, "D3MPoolBase/no-file-during-shutdown");
+        if (what == "hub") {
+            vat.nope(hub);
+            hub = data;
+            vat.hope(data);
+        }
+        else revert("D3MPoolBase/file-unrecognized-param");
     }
 
-    function nope(address hub) external override auth{
-        CanLike(D3mHubLike(hub).vat()).nope(hub);
-    }
+    function deposit(uint256 wad) external onlyHub override {}
 
-    function deposit(uint256 wad) external override returns (bool) {}
+    function withdraw(uint256 wad) external onlyHub override {}
 
-    function withdraw(uint256 wad) external override returns (bool) {}
-
-    function transfer(address dst, uint256 wad)
-        external
-        override
-        returns (bool)
-    {}
+    function transfer(address dst, uint256 wad) onlyHub external override {}
 
     function preDebtChange(bytes32 what) external override {}
 
@@ -92,19 +108,24 @@ contract D3MPoolBase is ID3MPool {
 
     function assetBalance() external view override returns (uint256) {}
 
-    function transferAll(address dst) external override returns (bool) {}
+    function quit(address dst) external auth view override {
+        dst;
+        require(vat.live() == 1, "D3MAavePool/no-quit-during-shutdown");
+    }
 
     function maxDeposit() external view override returns (uint256) {}
 
     function maxWithdraw() external view override returns (uint256) {}
 
-    function active() external override pure returns(bool) {
-        return true;
+    function redeemable() external override pure returns(address) {
+        return address(0);
     }
 }
 
 contract FakeVat {
+    uint256 public live = 1;
     mapping(address => mapping (address => uint)) public can;
+    function cage() external { live = 0; }
     function hope(address usr) external { can[msg.sender][usr] = 1; }
     function nope(address usr) external { can[msg.sender][usr] = 0; }
 }
@@ -182,51 +203,75 @@ contract D3MPoolBaseTest is DSTest {
         assertEq(CanLike(vat).can(d3mTestPool, hub), 1);
     }
 
-    function test_can_hope() public {
-        address newHub = address(new FakeHub(vat));
-        assertEq(CanLike(vat).can(d3mTestPool, newHub), 0);
-        D3MPoolBase(d3mTestPool).hope(newHub);
-        assertEq(CanLike(vat).can(d3mTestPool, newHub), 1);
-    }
-
-    function test_can_nope() public {
-        assertEq(CanLike(vat).can(d3mTestPool, hub), 1);
-        D3MPoolBase(d3mTestPool).nope(hub);
-        assertEq(CanLike(vat).can(d3mTestPool, hub), 0);
-    }
-
-    function testFail_cannot_hope_without_auth() public {
-        D3MPoolBase(d3mTestPool).deny(address(this));
-        address newHub = address(new FakeHub(vat));
-        D3MPoolBase(d3mTestPool).hope(newHub);
-    }
-
-    function testFail_cannot_nope_without_auth() public {
-        D3MPoolBase(d3mTestPool).deny(address(this));
-        D3MPoolBase(d3mTestPool).nope(hub);
-    }
-
-    function test_can_rely() public {
+    function test_can_rely_deny() public {
         assertEq(D3MPoolBase(d3mTestPool).wards(address(123)), 0);
 
         D3MPoolBase(d3mTestPool).rely(address(123));
 
         assertEq(D3MPoolBase(d3mTestPool).wards(address(123)), 1);
+
+        D3MPoolBase(d3mTestPool).deny(address(123));
+
+        assertEq(D3MPoolBase(d3mTestPool).wards(address(123)), 0);
     }
 
-    function test_can_deny() public {
-        assertEq(D3MPoolBase(d3mTestPool).wards(address(this)), 1);
-
+    function testFail_cannot_rely_no_auth() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
 
-        assertEq(D3MPoolBase(d3mTestPool).wards(address(this)), 0);
+        D3MPoolBase(d3mTestPool).rely(address(123));
     }
 
-    function testFail_cannot_rely_without_auth() public {
-        assertEq(D3MPoolBase(d3mTestPool).wards(address(this)), 1);
-
+    function testFail_cannot_deny_no_auth() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
-        D3MPoolBase(d3mTestPool).rely(address(this));
+
+        D3MPoolBase(d3mTestPool).deny(address(123));
+    }
+
+    function test_can_file_hub() public {
+        address newHub = address(new FakeHub(vat));
+        assertEq(CanLike(vat).can(d3mTestPool, hub), 1);
+        assertEq(CanLike(vat).can(d3mTestPool, newHub), 0);
+        D3MPoolBase(d3mTestPool).file("hub", newHub);
+        assertEq(CanLike(vat).can(d3mTestPool, hub), 0);
+        assertEq(CanLike(vat).can(d3mTestPool, newHub), 1);
+    }
+
+    function testFail_cannot_file_hub_no_auth() public {
+        D3MPoolBase(d3mTestPool).deny(address(this));
+
+        D3MPoolBase(d3mTestPool).file("hub", address(123));
+    }
+
+    function testFail_cannot_file_hub_vat_caged() public {
+        FakeVat(vat).cage();
+
+        D3MPoolBase(d3mTestPool).file("hub", address(123));
+    }
+
+    function testFail_cannot_file_unknown_param() public {
+        D3MPoolBase(d3mTestPool).file("fail", address(123));
+    }
+
+    function testFail_deposit_not_hub() public {
+        D3MPoolBase(d3mTestPool).deposit(1);
+    }
+
+    function testFail_withdraw_not_hub() public {
+        D3MPoolBase(d3mTestPool).withdraw(1);
+    }
+
+    function testFail_transfer_not_hub() public {
+        D3MPoolBase(d3mTestPool).transfer(address(this), 0);
+    }
+
+    function testFail_quit_no_auth() public {
+        D3MPoolBase(d3mTestPool).deny(address(this));
+        D3MPoolBase(d3mTestPool).quit(address(this));
+    }
+
+    function testFail_quit_vat_caged() public {
+        FakeVat(vat).cage();
+        D3MPoolBase(d3mTestPool).quit(address(this));
     }
 
     function test_implements_preDebtChange() public {
@@ -235,9 +280,5 @@ contract D3MPoolBaseTest is DSTest {
 
     function test_implements_postDebtChange() public {
         D3MPoolBase(d3mTestPool).postDebtChange("test");
-    }
-
-    function test_implements_active() public view {
-        D3MPoolBase(d3mTestPool).active();
     }
 }

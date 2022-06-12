@@ -26,7 +26,8 @@ interface TokenLike {
     function balanceOf(address) external view returns (uint256);
 }
 
-interface CanLike {
+interface VatLike {
+    function live() external view returns (uint256);
     function hope(address) external;
     function nope(address) external;
 }
@@ -71,8 +72,10 @@ interface RewardsClaimerLike {
 contract D3MAavePool is ID3MPool {
 
     mapping (address => uint256) public wards;
+    address                      public hub;
     address                      public king;  // Who gets the rewards
 
+    VatLike            public immutable vat;
     LendingPoolLike    public immutable pool;
     ATokenLike         public immutable stableDebt;
     ATokenLike         public immutable variableDebt;
@@ -100,7 +103,9 @@ contract D3MAavePool is ID3MPool {
 
         TokenLike(dai_).approve(pool_, type(uint256).max);
 
-        CanLike(D3mHubLike(hub_).vat()).hope(hub_);
+        hub = hub_;
+        vat = VatLike(D3mHubLike(hub_).vat());
+        vat.hope(hub_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -108,6 +113,11 @@ contract D3MAavePool is ID3MPool {
 
     modifier auth {
         require(wards[msg.sender] == 1, "D3MAavePool/not-authorized");
+        _;
+    }
+
+    modifier onlyHub {
+        require(msg.sender == hub, "D3MAavePool/only-hub");
         _;
     }
 
@@ -131,22 +141,19 @@ contract D3MAavePool is ID3MPool {
     }
 
     function file(bytes32 what, address data) external auth {
-        if (what == "king") king = data;
+        require(vat.live() == 1, "D3MAavePool/no-file-during-shutdown");
+        if (what == "hub") {
+            vat.nope(hub);
+            hub = data;
+            vat.hope(data);
+        } else if (what == "king") king = data;
         else revert("D3MAavePool/file-unrecognized-param");
         emit File(what, data);
     }
 
-    function hope(address hub) external override auth {
-        CanLike(D3mHubLike(hub).vat()).hope(hub);
-    }
-
-    function nope(address hub) external override auth {
-        CanLike(D3mHubLike(hub).vat()).nope(hub);
-    }
-
     // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
-    function deposit(uint256 wad) external override auth returns (bool) {
+    function deposit(uint256 wad) external override onlyHub {
         uint256 scaledPrev = adai.scaledBalanceOf(address(this));
 
         pool.deposit(address(asset), wad, address(this), 0);
@@ -154,27 +161,27 @@ contract D3MAavePool is ID3MPool {
         // Verify the correct amount of adai shows up
         uint256 interestIndex = pool.getReserveNormalizedIncome(address(asset));
         uint256 scaledAmount = _rdiv(wad, interestIndex);
-        return adai.scaledBalanceOf(address(this)) >= (scaledPrev + scaledAmount);
+        require(adai.scaledBalanceOf(address(this)) >= (scaledPrev + scaledAmount), "D3MAavePool/incorrect-adai-balance-received");
     }
 
     // Withdraws Dai from Aave in exchange for adai
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
-    function withdraw(uint256 wad) external override auth returns (bool) {
+    function withdraw(uint256 wad) external override onlyHub {
         pool.withdraw(address(asset), wad, address(msg.sender));
-        return true;
     }
 
-    function transfer(address dst, uint256 wad) external override auth returns (bool) {
-        return adai.transfer(dst, wad);
+    function transfer(address dst, uint256 wad) external override onlyHub {
+        require(adai.transfer(dst, wad), "D3MAavePool/transfer-failed");
     }
 
-    function transferAll(address dst) external override auth returns (bool) {
-        return adai.transfer(dst, adai.balanceOf(address(this)));
+    function quit(address dst) external override auth {
+        require(vat.live() == 1, "D3MAavePool/no-quit-during-shutdown");
+        require(adai.transfer(dst, adai.balanceOf(address(this))));
     }
 
-    function preDebtChange(bytes32 what) external override {}
+    function preDebtChange(bytes32) external override {}
 
-    function postDebtChange(bytes32 what) external override {}
+    function postDebtChange(bytes32) external override {}
 
     // --- Balance of the underlying asset (Dai)
     function assetBalance() public view override returns (uint256) {
@@ -189,8 +196,8 @@ contract D3MAavePool is ID3MPool {
         return _min(asset.balanceOf(address(adai)), assetBalance());
     }
 
-    function active() external pure override returns (bool) {
-        return true;
+    function redeemable() external view override returns (address) {
+        return address(adai);
     }
 
     // --- Collect any rewards ---

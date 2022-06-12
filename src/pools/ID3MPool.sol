@@ -27,55 +27,39 @@ pragma solidity ^0.8.14;
 */
 interface ID3MPool {
     /**
-        @notice Hopes on an address in the Vat.
-        @param hub address you want to hope on
-    */
-    function hope(address hub) external;
-
-    /**
-        @notice Nopes on an address in the Vat.
-        @param hub address you want to nope on
-    */
-    function nope(address hub) external;
-
-    /**
         @notice Deposit assets (Dai) in the external pool.
         @dev If the external pool requires a different amount to be passed in, the
         conversion should occur here as the Hub passes Dai [wad] amounts.
-        msg.sender must be authorized.
+        msg.sender must be the hub.
         @param wad amount in asset (Dai) terms that we want to deposit
-        @return bool whether the withdraw was successful
     */
-    function deposit(uint256 wad) external returns (bool);
+    function deposit(uint256 wad) external;
 
     /**
         @notice Withdraw assets (Dai) from the external pool.
         @dev If the external pool requires a different amount to be passed in
         the conversion should occur here as the Hub passes Dai [wad] amounts.
-        msg.sender must be authorized.
+        msg.sender must be the hub.
         @param wad amount in asset (Dai) terms that we want to withdraw
-        @return bool whether the withdraw was successful
     */
-    function withdraw(uint256 wad) external returns (bool);
+    function withdraw(uint256 wad) external;
 
      /**
         @notice Transfer shares.
-        @dev If the external pool/shares contract requires a different amount to be
-        passed in the conversion should occur here as the Hub passes Gem [wad]
-        amounts. msg.sender must be authorized.
-        @param dst address that should receive the shares
-        @param wad amount in Gem terms that we want to withdraw
-        @return bool whether the transfer was successful per ERC-20 standard
+        @dev If the external pool/token contract requires a different amount to be
+        passed in the conversion should occur here as the Hub passes Dai [wad]
+        amounts. msg.sender must be the hub.
+        @param dst address that should receive the redeemable tokens
+        @param wad amount in Dai terms that we want to withdraw
     */
-    function transfer(address dst, uint256 wad) external returns (bool);
+    function transfer(address dst, uint256 wad) external;
 
     /**
         @notice Transfer all shares from this pool.
         @dev msg.sender must be authorized.
         @param dst address that should receive the shares.
-        @return bool whether the transfer was successful per ERC-20 standard
     */
-    function transferAll(address dst) external returns (bool);
+    function quit(address dst) external;
 
     /**
         @notice Some external pools require actions before debt changes
@@ -109,6 +93,6 @@ interface ID3MPool {
     */
     function maxWithdraw() external view returns (uint256);
 
-    /// @notice Reports whether the plan is active
-    function active() external view returns (bool);
+    /// @notice returns address of redeemable tokens (if any)
+    function redeemable() external view returns (address);
 }
