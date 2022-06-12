@@ -110,14 +110,13 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
     }
 
     function testFail_cannot_file_king_no_auth() public {
-        assertEq(address(pool.king()), address(0));
-
         pool.deny(address(this));
         pool.file("king", address(123));
     }
 
-    function testFail_cannot_file_unknown_param() public {
-        pool.file("fail", address(123));
+    function testFail_cannot_file_king_vat_caged() public {
+        FakeVat(vat).cage();
+        pool.file("king", address(123));
     }
 
     function test_deposit_calls_cdai_deposit() public {
@@ -125,6 +124,7 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         assertEq(cDai.balanceOf(address(pool)), 0);
         uint256 poolBefore = dai.balanceOf(address(pool));
 
+        pool.file("hub", address(this));
         pool.deposit(1 * WAD);
 
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 1 * WAD);
@@ -133,17 +133,28 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         assertEq(poolBefore - dai.balanceOf(address(pool)), 1 * WAD);
     }
 
-    function testFail_deposit_requires_auth() public {
-        pool.deny(address(this));
-        pool.deposit(1);
-    }
-
     function test_withdraw_calls_cdai_withdraw() public {
+        pool.file("hub", address(this));
         pool.deposit(1 * WAD);
 
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 1 * WAD);
         uint256 before = dai.balanceOf(address(this));
 
+        pool.withdraw(1 * WAD);
+
+        _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 0);
+        assertEq(dai.balanceOf(address(this)) - before, 1 * WAD);
+    }
+
+    function test_withdraw_calls_cdai_withdraw_vat_caged() public {
+        pool.file("hub", address(this));
+        pool.deposit(1 * WAD);
+
+        _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 1 * WAD);
+        uint256 before = dai.balanceOf(address(this));
+
+        pool.file("hub", address(this));
+        FakeVat(vat).cage();
         pool.withdraw(1 * WAD);
 
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 0);
@@ -164,6 +175,7 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         address king = address(123);
         pool.file("king", king);
 
+        pool.file("hub", address(this));
         pool.deposit(100 * WAD);
 
         uint256 compBefore = comp.balanceOf(king);
@@ -183,7 +195,12 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         pool.collect();
     }
 
+    function test_redeemable_returns_cdai() public {
+        assertEq(pool.redeemable(), address(cDai));
+    }
+
     function test_transfer_cdai() public {
+        pool.file("hub", address(this));
         pool.deposit(100 * WAD);
 
         uint256 balanceCdai = cDai.balanceOf(address(pool));
@@ -195,37 +212,42 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         assertEq(cDai.balanceOf(address(123)), balanceCdai / 2);
     }
 
-    function testFail_transfer_no_auth() public {
+    function test_transfer_cdai_vat_caged() public {
+        pool.file("hub", address(this));
         pool.deposit(100 * WAD);
-        pool.deny(address(this));
+
+        uint256 balanceCdai = cDai.balanceOf(address(pool));
+        assertGt(balanceCdai, 2);
+
+        FakeVat(vat).cage();
         pool.transfer(address(123), 50 * WAD);
+
+        assertEq(balanceCdai - cDai.balanceOf(address(pool)), balanceCdai / 2);
+        assertEq(cDai.balanceOf(address(123)), balanceCdai / 2);
     }
 
-    function test_transferAll_moves_balance() public {
+    function test_quit_moves_balance() public {
+        pool.file("hub", address(this));
         pool.deposit(100 * WAD);
 
         uint256 balanceCdai = cDai.balanceOf(address(pool));
         assertGt(balanceCdai, 0);
 
-        pool.transferAll(address(123));
+        pool.quit(address(123));
 
         assertEq(cDai.balanceOf(address(pool)), 0);
         assertEq(cDai.balanceOf(address(123)), balanceCdai);
     }
 
-    function testFail_transferAll_no_auth() public {
-        pool.deposit(100 * WAD);
-        pool.deny(address(this));
-        pool.transferAll(address(123));
-    }
-
     function test_assetBalance_gets_dai_balanceOf_pool() public {
         uint256 before = pool.assetBalance();
+        pool.file("hub", address(this));
         pool.deposit(1 * WAD);
         _assertEqApprox(pool.assetBalance() - before, 1 * WAD);
     }
 
     function test_maxWithdraw_gets_available_assets() public {
+        pool.file("hub", address(this));
         pool.deposit(1 * WAD);
         _assertEqApprox(pool.assetBalance(), pool.maxWithdraw());
     }

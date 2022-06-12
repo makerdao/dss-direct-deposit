@@ -114,9 +114,8 @@ contract D3MCompoundPlan is ID3MPlan {
     }
 
     function file(bytes32 what, uint256 data) external auth {
-        if (what == "barb") {
-            barb = data;
-        } else revert("D3MCompoundPlan/file-unrecognized-param");
+        if (what == "barb") barb = data;
+        else revert("D3MCompoundPlan/file-unrecognized-param");
         emit File(what, data);
     }
     function file(bytes32 what, address data) external auth {
@@ -176,12 +175,12 @@ contract D3MCompoundPlan is ID3MPlan {
 
     function active() public view override returns (bool) {
         if (barb == 0) return false;
-        return CErc20Like(cDai).interestRateModel() == address(tack);
+        return (CErc20Like(cDai).interestRateModel() == address(tack)); // TODO: add more checks like in aave
     }
 
     function disable() external override {
         require(wards[msg.sender] == 1 || !active(), "D3MCompoundPlan/not-authorized");
-        barb = 0;
+        barb = 0; // TODO: explain what we are doing here
         emit Disable();
     }
 }

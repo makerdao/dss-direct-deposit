@@ -25,7 +25,8 @@ interface TokenLike {
     function transfer(address, uint256) external returns (bool);
 }
 
-interface CanLike {
+interface VatLike {
+    function live() external view returns (uint256);
     function hope(address) external;
     function nope(address) external;
 }
@@ -56,8 +57,10 @@ interface ComptrollerLike {
 contract D3MCompoundPool is ID3MPool {
 
     mapping (address => uint256) public wards;
+    address                      public hub;
     address                      public king; // Who gets the rewards
 
+    VatLike         public immutable vat;
     ComptrollerLike public immutable comptroller;
     TokenLike       public immutable dai;
     CErc20Like      public immutable cDai;
@@ -80,7 +83,9 @@ contract D3MCompoundPool is ID3MPool {
 
         TokenLike(dai_).approve(cDai_, type(uint256).max);
 
-        CanLike(D3mHubLike(hub_).vat()).hope(hub_);
+        hub = hub_;
+        vat = VatLike(D3mHubLike(hub_).vat());
+        vat.hope(hub_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -88,6 +93,11 @@ contract D3MCompoundPool is ID3MPool {
 
     modifier auth {
         require(wards[msg.sender] == 1, "D3MCompoundPool/not-authorized");
+        _;
+    }
+
+    modifier onlyHub {
+        require(msg.sender == hub, "D3MCompoundPool/only-hub");
         _;
     }
 
@@ -114,20 +124,17 @@ contract D3MCompoundPool is ID3MPool {
     }
 
     function file(bytes32 what, address data) external auth {
-        if (what == "king") king = data;
+        require(vat.live() == 1, "D3MCompoundPool/no-file-during-shutdown");
+        if (what == "hub") {
+            vat.nope(hub);
+            hub = data;
+            vat.hope(data);
+        } else if (what == "king") king = data;
         else revert("D3MCompoundPool/file-unrecognized-param");
         emit File(what, data);
     }
 
-    function hope(address hub) external override auth {
-        CanLike(D3mHubLike(hub).vat()).hope(hub);
-    }
-
-    function nope(address hub) external override auth {
-        CanLike(D3mHubLike(hub).vat()).nope(hub);
-    }
-
-    function deposit(uint256 wad) external override auth returns (bool) {
+    function deposit(uint256 wad) external override onlyHub {
         uint256 prev = cDai.balanceOf(address(this));
         require(cDai.mint(wad) == 0, "D3MCompoundPool/mint-failure");
         // As interest was accrued on `mint` we can use the non accruing `exchangeRateStored`
@@ -135,21 +142,20 @@ contract D3MCompoundPool is ID3MPool {
             cDai.balanceOf(address(this)) ==
             prev + _wdiv(wad, cDai.exchangeRateStored()), "D3MCompoundPool/incorrect-cdai-credit"
         );
-        return true;
     }
 
-    function withdraw(uint256 wad) external override auth returns (bool) {
+    function withdraw(uint256 wad) external override onlyHub {
         require(cDai.redeemUnderlying(wad) == 0, "D3MCompoundPool/redeemUnderlying-failure");
         dai.transfer(msg.sender, wad);
-        return true;
     }
 
-    function transfer(address dst, uint256 wad) external override auth returns (bool) {
-        return cDai.transfer(dst, _wdiv(wad, cDai.exchangeRateCurrent()));
+    function transfer(address dst, uint256 wad) external override onlyHub {
+        require(cDai.transfer(dst, _wdiv(wad, cDai.exchangeRateCurrent())), "D3MCompoundPool/transfer-failed");
     }
 
-    function transferAll(address dst) external override auth returns (bool) {
-        return cDai.transfer(dst, cDai.balanceOf(address(this)));
+    function quit(address dst) external override auth {
+        require(vat.live() == 1, "D3MCompoundPool/no-quit-during-shutdown");
+        require(cDai.transfer(dst, cDai.balanceOf(address(this))), "D3MCompoundPool/transfer-failed");
     }
 
     function preDebtChange(bytes32) external override {
@@ -173,9 +179,8 @@ contract D3MCompoundPool is ID3MPool {
         return _min(cDai.getCash(), assetBalance());
     }
 
-    // TODO: remove active from pool and rely just on active in plan? - once supported in the interface
-    function active() external pure override returns (bool) {
-        return true;
+    function redeemable() external view override returns (address) {
+        return address(cDai);
     }
 
     function collect() external {
@@ -194,6 +199,4 @@ contract D3MCompoundPool is ID3MPool {
 
         emit Collect(king, address(comp), amt);
     }
-
-    // TODO: add utility function for what token we move on transfer() - once supported in the interface
 }
