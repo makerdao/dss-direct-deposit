@@ -80,7 +80,7 @@ contract D3MAavePool is ID3MPool {
     ATokenLike         public immutable stableDebt;
     ATokenLike         public immutable variableDebt;
     ATokenLike         public immutable adai;
-    TokenLike          public immutable asset; // Dai
+    TokenLike          public immutable dai; // Asset
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -90,7 +90,7 @@ contract D3MAavePool is ID3MPool {
 
     constructor(address hub_, address dai_, address pool_) {
         pool = LendingPoolLike(pool_);
-        asset = TokenLike(dai_);
+        dai = TokenLike(dai_);
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, ,) = LendingPoolLike(pool_).getReserveData(dai_);
@@ -156,10 +156,10 @@ contract D3MAavePool is ID3MPool {
     function deposit(uint256 wad) external override onlyHub {
         uint256 scaledPrev = adai.scaledBalanceOf(address(this));
 
-        pool.deposit(address(asset), wad, address(this), 0);
+        pool.deposit(address(dai), wad, address(this), 0);
 
         // Verify the correct amount of adai shows up
-        uint256 interestIndex = pool.getReserveNormalizedIncome(address(asset));
+        uint256 interestIndex = pool.getReserveNormalizedIncome(address(dai));
         uint256 scaledAmount = _rdiv(wad, interestIndex);
         require(adai.scaledBalanceOf(address(this)) >= (scaledPrev + scaledAmount), "D3MAavePool/incorrect-adai-balance-received");
     }
@@ -167,7 +167,7 @@ contract D3MAavePool is ID3MPool {
     // Withdraws Dai from Aave in exchange for adai
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
     function withdraw(uint256 wad) external override onlyHub {
-        pool.withdraw(address(asset), wad, address(msg.sender));
+        pool.withdraw(address(dai), wad, address(msg.sender));
     }
 
     function transfer(address dst, uint256 wad) external override onlyHub {
@@ -193,7 +193,7 @@ contract D3MAavePool is ID3MPool {
     }
 
     function maxWithdraw() external view override returns (uint256) {
-        return _min(asset.balanceOf(address(adai)), assetBalance());
+        return _min(dai.balanceOf(address(adai)), assetBalance());
     }
 
     function redeemable() external view override returns (address) {
