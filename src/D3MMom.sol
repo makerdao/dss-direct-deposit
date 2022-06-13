@@ -35,12 +35,12 @@ contract D3MMom {
     event Disable(address indexed who);
 
     modifier onlyOwner {
-        require(msg.sender == owner, "DirectDepositMom/only-owner");
+        require(msg.sender == owner, "D3MMom/only-owner");
         _;
     }
 
     modifier auth {
-        require(isAuthorized(msg.sender, msg.sig), "DirectDepositMom/not-authorized");
+        require(isAuthorized(msg.sender, msg.sig), "D3MMom/not-authorized");
         _;
     }
 

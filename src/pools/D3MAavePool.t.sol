@@ -179,16 +179,14 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(D3MAavePool(d3mTestPool).king(), address(123));
     }
 
-    function testFail_cannot_file_king_no_auth() public {
+    function test_cannot_file_king_no_auth() public {
         D3MAavePool(d3mTestPool).deny(address(this));
-
-        D3MAavePool(d3mTestPool).file("king", address(123));
+        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", "king", address(123)), "D3MAavePool/not-authorized");
     }
 
-    function testFail_cannot_file_king_vat_caged() public {
+    function test_cannot_file_king_vat_caged() public {
         FakeVat(vat).cage();
-
-        D3MAavePool(d3mTestPool).file("king", address(123));
+        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", "king", address(123)), "D3MAavePool/no-file-during-shutdown");
     }
 
     function test_deposit_calls_lending_pool_deposit() public {
@@ -236,10 +234,9 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(dst, king);
     }
 
-    function testFail_collect_no_king() public {
+    function test_collect_no_king() public {
         assertEq(D3MAavePool(d3mTestPool).king(), address(0));
-
-        D3MAavePool(d3mTestPool).collect();
+        assertRevert(d3mTestPool, abi.encodeWithSignature("collect()"), "D3MAavePool/king-not-set");
     }
 
     function test_redeemable_returns_adai() public {

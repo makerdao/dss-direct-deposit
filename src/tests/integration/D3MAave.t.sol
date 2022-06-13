@@ -17,7 +17,7 @@
 
 pragma solidity ^0.8.14;
 
-import "ds-test/test.sol";
+import "../../tests/DssTest.sol";
 import "../interfaces/interfaces.sol";
 
 import { D3MHub } from "../../D3MHub.sol";
@@ -77,7 +77,7 @@ interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 }
 
-contract D3MAaveTest is DSTest {
+contract D3MAaveTest is DssTest {
     uint256 constant WAD = 10 ** 18;
     uint256 constant RAY = 10 ** 27;
     uint256 constant RAD = 10 ** 45;
@@ -701,7 +701,7 @@ contract D3MAaveTest is DSTest {
         assertGe(vat.dai(vow), prevDai); // As also probably accrues interest from aDai
     }
 
-    function testFail_unwind_mcd_caged_wait_done() public {
+    function test_unwind_mcd_caged_wait_done() public {
         uint256 currentLiquidity = dai.balanceOf(address(adai));
 
         // Lower by 50%
@@ -732,8 +732,7 @@ contract D3MAaveTest is DSTest {
 
         end.thaw();
 
-        // Unwind via exec should fail with error "D3MAave/end-debt-already-set"
-        d3mHub.exec(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", ilk), "D3MHub/end-debt-already-set");
     }
 
     function test_unwind_culled_then_mcd_caged() public {
@@ -856,20 +855,18 @@ contract D3MAaveTest is DSTest {
         assertEqApprox(vat.dai(vow), originalDai - originalSin + daiEarned * RAY, RAY);
     }
 
-    function testFail_uncull_not_culled() public {
+    function test_uncull_not_culled() public {
         // Lower by 50%
         _setRelBorrowTarget(5000);
         d3mHub.cage(ilk);
 
         // MCD shutdowns
         end.cage();
-        end.cage(ilk);
 
-        // uncull should fail with error "D3MAave/not-prev-culled"
-        d3mHub.uncull(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("uncull(bytes32)", ilk), "D3MHub/not-prev-culled");
     }
 
-    function testFail_uncull_not_shutdown() public {
+    function test_uncull_not_shutdown() public {
         // Lower by 50%
         _setRelBorrowTarget(5000);
         d3mHub.cage(ilk);
@@ -879,8 +876,7 @@ contract D3MAaveTest is DSTest {
 
         d3mHub.cull(ilk);
 
-        // uncull should fail with error "D3MAave/no-uncull-normal-operation"
-        d3mHub.uncull(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("uncull(bytes32)", ilk), "D3MHub/no-uncull-normal-operation");
     }
 
     function test_collect_stkaave() public {
@@ -912,7 +908,7 @@ contract D3MAaveTest is DSTest {
         assertEq(rewardsClaimer.getRewardsBalance(tokens, address(d3mHub)), 0);
     }
 
-    function testFail_collect_stkaave_king_not_set() public {
+    function test_collect_stkaave_king_not_set() public {
         _setRelBorrowTarget(7500);
 
         hevm.warp(block.timestamp + 1 days);
@@ -924,7 +920,7 @@ contract D3MAaveTest is DSTest {
 
         assertEq(d3mAavePool.king(), address(0));
 
-        d3mAavePool.collect();
+        assertRevert(address(d3mAavePool), abi.encodeWithSignature("collect()"), "D3MAavePool/king-not-set");
     }
 
     function test_cage_exit() public {
@@ -942,7 +938,7 @@ contract D3MAaveTest is DSTest {
     }
 
 
-    function testFail_shutdown_cant_cull() public {
+    function test_shutdown_cant_cull() public {
         _setRelBorrowTarget(7500);
 
         d3mHub.cage(ilk);
@@ -953,7 +949,7 @@ contract D3MAaveTest is DSTest {
         (, , uint256 tau, , ) = d3mHub.ilks(ilk);
         hevm.warp(block.timestamp + tau);
 
-        d3mHub.cull(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("cull(bytes32)", ilk), "D3MHub/no-cull-during-shutdown");
     }
 
     function test_quit_no_cull() public {
@@ -1021,15 +1017,14 @@ contract D3MAaveTest is DSTest {
         assertEq(bal, pbal);
     }
 
-    function testFail_reap_caged() public {
+    function test_reap_caged() public {
         _setRelBorrowTarget(7500);
 
         d3mHub.cage(ilk);
 
         hevm.warp(block.timestamp + 1 days);    // Accrue some interest
 
-        // reap should fail with error "D3MAave/no-reap-during-cage"
-        d3mHub.reap(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("reap(bytes32)", ilk), "D3MHub/pool-not-live");
     }
 
     function test_direct_deposit_mom() public {

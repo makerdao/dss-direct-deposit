@@ -17,7 +17,7 @@
 
 pragma solidity ^0.8.14;
 
-import "ds-test/test.sol";
+import "./tests/DssTest.sol";
 import "./tests/interfaces/interfaces.sol";
 
 import {D3MMom} from "./D3MMom.sol";
@@ -35,7 +35,7 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
-contract D3MMomTest is DSTest {
+contract D3MMomTest is DssTest {
     Hevm hevm;
 
     D3MTestPlan d3mTestPlan;
@@ -62,11 +62,11 @@ contract D3MMomTest is DSTest {
         assertEq(d3mTestPlan.bar(), 0);
     }
 
-    function testFail_disable_no_auth() public {
+    function test_disable_no_auth() public {
         d3mMom.setOwner(address(0));
         assertEq(d3mMom.authority(), address(0));
         assertEq(d3mMom.owner(), address(0));
 
-        d3mMom.disable(address(d3mTestPlan));
+        assertRevert(address(d3mMom), abi.encodeWithSignature("disable(address)", address(d3mTestPlan)), "D3MMom/not-authorized");
     }
 }
