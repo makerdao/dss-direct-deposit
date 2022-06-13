@@ -23,7 +23,6 @@ import "./plans/ID3MPlan.sol";
 interface VatLike {
     function debt() external view returns (uint256);
     function hope(address) external;
-    function nope(address) external;
     function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
     function Line() external view returns (uint256);
     function urns(bytes32, address) external view returns (uint256, uint256);
@@ -33,7 +32,6 @@ interface VatLike {
     function move(address, address, uint256) external;
     function frob(bytes32, address, address, address, int256, int256) external;
     function grab(bytes32, address, address, address, int256, int256) external;
-    function fork(bytes32, address, address, int256, int256) external;
     function suck(address, address, uint256) external;
 }
 
@@ -105,11 +103,10 @@ contract D3MHub {
     event Wind(bytes32 indexed ilk, uint256 amount);
     event Unwind(bytes32 indexed ilk, uint256 amount, uint256 fees);
     event Reap(bytes32 indexed ilk, uint256 amt);
+    event Exit(bytes32 indexed ilk, address indexed usr, uint256 amt);
     event Cage(bytes32 indexed ilk);
     event Cull(bytes32 indexed ilk, uint256 ink, uint256 art);
     event Uncull(bytes32 indexed ilk, uint256 wad);
-    event Quit(bytes32 indexed ilk, address indexed usr);
-    event Exit(bytes32 indexed ilk, address indexed usr, uint256 amt);
 
     /**
         @dev sets msg.sender as authed.

@@ -22,7 +22,6 @@ import "./ID3MPool.sol";
 interface TokenLike {
     function approve(address, uint256) external returns (bool);
     function transfer(address, uint256) external returns (bool);
-    function transferFrom(address, address, uint256) external returns (bool);
     function balanceOf(address) external view returns (uint256);
 }
 
@@ -176,7 +175,7 @@ contract D3MAavePool is ID3MPool {
 
     function quit(address dst) external override auth {
         require(vat.live() == 1, "D3MAavePool/no-quit-during-shutdown");
-        require(adai.transfer(dst, adai.balanceOf(address(this))));
+        require(adai.transfer(dst, adai.balanceOf(address(this))), "D3MAavePool/transfer-failed");
     }
 
     function preDebtChange(bytes32) external override {}
