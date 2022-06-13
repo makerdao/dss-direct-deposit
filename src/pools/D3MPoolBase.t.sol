@@ -220,13 +220,13 @@ contract D3MPoolBaseTest is DssTest {
     function test_cannot_rely_no_auth() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
 
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("rely(address)", address(123)), contractName, "not-authorized");
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("rely(address)", address(123)), string(abi.encodePacked(contractName, "/not-authorized")));
     }
 
     function test_cannot_deny_no_auth() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
 
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("deny(address)", address(123)), contractName, "not-authorized");
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("deny(address)", address(123)), string(abi.encodePacked(contractName, "/not-authorized")));
     }
 
     function test_can_file_hub() public {
@@ -241,39 +241,39 @@ contract D3MPoolBaseTest is DssTest {
     function test_cannot_file_hub_no_auth() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
 
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", "hub", address(123)), contractName, "not-authorized");
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", "hub", address(123)), string(abi.encodePacked(contractName, "/not-authorized")));
     }
 
     function test_cannot_file_hub_vat_caged() public {
         FakeVat(vat).cage();
 
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", "hub", address(123)), contractName, "no-file-during-shutdown");
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", "hub", address(123)), string(abi.encodePacked(contractName, "/no-file-during-shutdown")));
     }
 
     function test_cannot_file_unknown_param() public {
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", "fail", address(123)), contractName, "file-unrecognized-param");
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", "fail", address(123)), string(abi.encodePacked(contractName, "/file-unrecognized-param")));
     }
 
     function test_deposit_not_hub() public {
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("deposit(uint256)", uint256(1)), contractName, "only-hub");
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("deposit(uint256)", uint256(1)), string(abi.encodePacked(contractName, "/only-hub")));
     }
 
     function test_withdraw_not_hub() public {
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("withdraw(uint256)", uint256(1)), contractName, "only-hub");
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("withdraw(uint256)", uint256(1)), string(abi.encodePacked(contractName, "/only-hub")));
     }
 
     function test_transfer_not_hub() public {
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("transfer(address,uint256)", address(this), uint256(0)), contractName, "only-hub");
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("transfer(address,uint256)", address(this), uint256(0)), string(abi.encodePacked(contractName, "/only-hub")));
     }
 
     function test_quit_no_auth() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("quit(address)", address(this)), contractName, "not-authorized");
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("quit(address)", address(this)), string(abi.encodePacked(contractName, "/not-authorized")));
     }
 
     function test_quit_vat_caged() public {
         FakeVat(vat).cage();
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("quit(address)", address(this)), contractName, "no-quit-during-shutdown");
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("quit(address)", address(this)), string(abi.encodePacked(contractName, "/no-quit-during-shutdown")));
     }
 
     function test_implements_preDebtChange() public {

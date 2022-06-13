@@ -119,7 +119,7 @@ contract D3MPlanBaseTest is DssTest {
         assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
 
         D3MPlanBase(d3mTestPlan).deny(address(this));
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("rely(address)", address(this)), contractName, "not-authorized");
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("rely(address)", address(this)), string(abi.encodePacked(contractName, "/not-authorized")));
     }
 
     function test_implements_getTargetAssets() public virtual {

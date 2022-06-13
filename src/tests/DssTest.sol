@@ -20,10 +20,6 @@ pragma solidity ^0.8.14;
 import "ds-test/test.sol";
 
 contract DssTest is DSTest{
-    function assertRevert(address target, bytes memory data, string memory contractName, string memory expectedMessage) internal {
-        assertRevert(target, data, 0, string(abi.encodePacked(contractName, "/", expectedMessage)));
-    }
-
     function assertRevert(address target, bytes memory data, string memory expectedMessage) internal {
         assertRevert(target, data, 0, expectedMessage);
     }
