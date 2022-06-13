@@ -53,7 +53,7 @@ interface CErc20Like {
     function totalReserves()          external view returns (uint256);
     function interestRateModel()      external view returns (address);
     function getCash()                external view returns (uint256);
-    function underlying()             external view returns (address);
+    function implementation()         external view returns (address);
 }
 
 // https://github.com/compound-finance/compound-protocol/blob/3affca87636eecd901eb43f81a4813186393905d/contracts/BaseJumpRateModelV2.sol#L10
@@ -68,7 +68,8 @@ contract D3MCompoundPlan is ID3MPlan {
 
     mapping (address => uint256) public wards;
     InterestRateModelLike        public tack;
-    uint256                      public barb; // target Interest Rate Per Block [wad] (0)
+    address                      public delegate; // cDai implementation
+    uint256                      public barb;     // target Interest Rate Per Block [wad] (0)
 
     CErc20Like public immutable cDai;
 
@@ -82,8 +83,9 @@ contract D3MCompoundPlan is ID3MPlan {
         address rateModel_ = CErc20Like(cDai_).interestRateModel();
         require(rateModel_ != address(0), "D3MCompoundPlan/invalid-rateModel");
 
-        cDai = CErc20Like(cDai_);
-        tack = InterestRateModelLike(rateModel_);
+        cDai     = CErc20Like(cDai_);
+        tack     = InterestRateModelLike(rateModel_);
+        delegate = cDai.implementation();
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -120,6 +122,7 @@ contract D3MCompoundPlan is ID3MPlan {
     }
     function file(bytes32 what, address data) external auth {
         if (what == "tack") tack = InterestRateModelLike(data);
+        else if (what == "delegate") delegate = data;
         else revert("D3MCompoundPlan/file-unrecognized-param");
         emit File(what, data);
     }
@@ -175,12 +178,13 @@ contract D3MCompoundPlan is ID3MPlan {
 
     function active() public view override returns (bool) {
         if (barb == 0) return false;
-        return (CErc20Like(cDai).interestRateModel() == address(tack)); // TODO: add more checks like in aave
+        return cDai.interestRateModel() == address(tack) &&
+               cDai.implementation() == delegate;
     }
 
     function disable() external override {
         require(wards[msg.sender] == 1 || !active(), "D3MCompoundPlan/not-authorized");
-        barb = 0; // TODO: explain what we are doing here
+        barb = 0; // ensure deactivation even if active conditions return later
         emit Disable();
     }
 }

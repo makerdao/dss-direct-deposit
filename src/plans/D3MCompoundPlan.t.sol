@@ -29,6 +29,7 @@ interface CErc20Like {
     function totalBorrows()                     external view returns (uint256);
     function totalReserves()                    external view returns (uint256);
     function interestRateModel()                external view returns (address);
+    function implementation()                   external view returns (address);
     function accrueInterest()                   external returns (uint256);
 }
 
@@ -161,6 +162,14 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
         assertEq(address(plan.tack()), address(1));
     }
 
+    function test_can_file_delegate() public {
+        assert(plan.delegate() != address(1));
+
+        plan.file("delegate", address(1));
+
+        assertEq(plan.delegate(), address(1));
+    }
+
     function testFail_cannot_file_unknown_address_param() public {
         plan.file("bad", address(1));
     }
@@ -286,6 +295,15 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
         plan.file("tack", address(456));
 
         assertTrue(address(plan.tack()) != cDai.interestRateModel());
+        assertTrue(plan.active() == false);
+    }
+
+    function test_delegate_changed_not_active() public {
+        // Simulate Compound changing the cDai implementation
+        assertTrue(address(plan.delegate()) == cDai.implementation());
+        plan.file("delegate", address(456));
+
+        assertTrue(address(plan.delegate()) != cDai.implementation());
         assertTrue(plan.active() == false);
     }
 
