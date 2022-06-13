@@ -136,7 +136,7 @@ contract FakeHub {
     }
 }
 
-contract D3MPoolBaseTest is DSTest {
+abstract contract D3MPoolBaseTest is DSTest {
     uint256 constant WAD = 10**18;
 
     Hevm hevm;
@@ -250,27 +250,15 @@ contract D3MPoolBaseTest is DSTest {
         D3MPoolBase(d3mTestPool).file("fail", address(123));
     }
 
-    function testFail_deposit_not_hub() public {
-        D3MPoolBase(d3mTestPool).deposit(1);
-    }
+    function testFail_deposit_not_hub() public virtual;
 
-    function testFail_withdraw_not_hub() public {
-        D3MPoolBase(d3mTestPool).withdraw(1);
-    }
+    function testFail_withdraw_not_hub() public virtual;
 
-    function testFail_transfer_not_hub() public {
-        D3MPoolBase(d3mTestPool).transfer(address(this), 0);
-    }
+    function testFail_transfer_not_hub() public virtual;
 
-    function testFail_quit_no_auth() public {
-        D3MPoolBase(d3mTestPool).deny(address(this));
-        D3MPoolBase(d3mTestPool).quit(address(this));
-    }
+    function testFail_quit_no_auth() public virtual;
 
-    function testFail_quit_vat_caged() public {
-        FakeVat(vat).cage();
-        D3MPoolBase(d3mTestPool).quit(address(this));
-    }
+    function testFail_quit_vat_caged() public virtual;
 
     function test_implements_preDebtChange() public {
         D3MPoolBase(d3mTestPool).preDebtChange("test");

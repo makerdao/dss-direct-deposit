@@ -200,6 +200,11 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(code, 0);
     }
 
+    function testFail_deposit_not_hub() public override {
+        D3MTestGem(address(adai)).rely(address(aavePool));
+        D3MAavePool(d3mTestPool).deposit(1);
+    }
+
     function test_withdraw_calls_lending_pool_withdraw() public {
         D3MAavePool(d3mTestPool).file("hub", address(this));
         D3MAavePool(d3mTestPool).withdraw(1);
@@ -207,6 +212,10 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(asset, address(dai));
         assertEq(amt, 1);
         assertEq(dst, address(this));
+    }
+
+    function testFail_withdraw_not_hub() public override {
+        D3MAavePool(d3mTestPool).withdraw(1);
     }
 
     function test_withdraw_calls_lending_pool_withdraw_vat_caged() public {
@@ -257,6 +266,12 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(adai.balanceOf(d3mTestPool), 0);
     }
 
+    function testFail_transfer_not_hub() public override {
+        uint256 tokens = adai.totalSupply();
+        adai.transfer(d3mTestPool, tokens);
+        D3MAavePool(d3mTestPool).transfer(address(this), tokens);
+    }
+
     function test_transfer_adai_vat_caged() public {
         uint256 tokens = adai.totalSupply();
         adai.transfer(d3mTestPool, tokens);
@@ -281,6 +296,20 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
         assertEq(adai.balanceOf(address(this)), tokens);
         assertEq(adai.balanceOf(d3mTestPool), 0);
+    }
+
+    function testFail_quit_no_auth() public override {
+        uint256 tokens = adai.totalSupply();
+        adai.transfer(d3mTestPool, tokens);
+        D3MAavePool(d3mTestPool).deny(address(this));
+        D3MAavePool(d3mTestPool).quit(address(this));
+    }
+
+    function testFail_quit_vat_caged() public override {
+        uint256 tokens = adai.totalSupply();
+        adai.transfer(d3mTestPool, tokens);
+        FakeVat(vat).cage();
+        D3MAavePool(d3mTestPool).quit(address(this));
     }
 
     function test_assetBalance_gets_adai_balanceOf_pool() public {
