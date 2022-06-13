@@ -19,7 +19,7 @@ pragma solidity ^0.8.14;
 
 import {DSSTest} from "dss-test/DSSTest.sol";
 
-import {D3MOracle} from "./D3MOracle.sol";
+import {D3MOracle} from "../D3MOracle.sol";
 
 interface Hevm {
     function warp(uint256) external;

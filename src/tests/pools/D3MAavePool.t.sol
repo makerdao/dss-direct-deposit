@@ -18,10 +18,10 @@
 pragma solidity ^0.8.14;
 
 import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat } from "./D3MPoolBase.t.sol";
-import { DaiLike, TokenLike } from "../tests/interfaces/interfaces.sol";
-import { D3MTestGem } from "../tests/stubs/D3MTestGem.sol";
+import { DaiLike, TokenLike } from "../interfaces/interfaces.sol";
+import { D3MTestGem } from "../stubs/D3MTestGem.sol";
 
-import { D3MAavePool, LendingPoolLike } from "./D3MAavePool.sol";
+import { D3MAavePool, LendingPoolLike } from "../../pools/D3MAavePool.sol";
 
 interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);

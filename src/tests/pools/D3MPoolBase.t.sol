@@ -18,9 +18,9 @@
 pragma solidity ^0.8.14;
 
 import {DSSTest} from "dss-test/DSSTest.sol";
-import {DaiLike, CanLike, D3mHubLike} from "../tests/interfaces/interfaces.sol";
+import {DaiLike, CanLike, D3mHubLike} from "../interfaces/interfaces.sol";
 
-import "./ID3MPool.sol";
+import "../../pools/ID3MPool.sol";
 
 interface Hevm {
     function warp(uint256) external;

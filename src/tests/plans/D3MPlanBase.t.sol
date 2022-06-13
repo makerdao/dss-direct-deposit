@@ -18,9 +18,9 @@
 pragma solidity ^0.8.14;
 
 import {DSSTest} from "dss-test/DSSTest.sol";
-import "../tests/interfaces/interfaces.sol";
+import "../interfaces/interfaces.sol";
 
-import "./ID3MPlan.sol";
+import "../../plans/ID3MPlan.sol";
 
 interface Hevm {
     function warp(uint256) external;

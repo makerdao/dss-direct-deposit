@@ -18,9 +18,9 @@
 pragma solidity ^0.8.14;
 
 import { Hevm, D3MPlanBaseTest } from "./D3MPlanBase.t.sol";
-import { DaiLike, TokenLike } from "../tests/interfaces/interfaces.sol";
+import { DaiLike, TokenLike } from "../interfaces/interfaces.sol";
 
-import { D3MAavePlan, LendingPoolLike } from "./D3MAavePlan.sol";
+import { D3MAavePlan, LendingPoolLike } from "../../plans/D3MAavePlan.sol";
 
 interface InterestRateStrategyLike {
     function baseVariableBorrowRate() external view returns (uint256);
