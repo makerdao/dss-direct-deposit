@@ -536,6 +536,70 @@ contract D3MHubTest is DSSTest {
         assertEq(poolShareBalance, 100 * WAD);
     }
 
+    function test_wind_after_debt_paid_back() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(pink, 50 * WAD);
+        assertEq(part, 40 * WAD);
+        uint256 gemBefore = vat.gem(ilk, address(end));
+        assertEq(gemBefore, 0);
+        uint256 sinBefore = vat.sin(vow);
+        uint256 vowDaiBefore = vat.dai(vow);
+        uint256 shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 50 * WAD);
+        uint256 poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 50 * WAD);
+
+        // Does not affect future execs unless our target changes
+        d3mHub.exec(ilk);
+
+        (pink, part) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(pink, 50 * WAD);
+        assertEq(part, 40 * WAD);
+        gemBefore = vat.gem(ilk, address(end));
+        assertEq(gemBefore, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        assertEq(vowDaiBefore, vat.dai(vow));
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 50 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 50 * WAD);
+
+        // can re-wind and have the correct amount of debt (art)
+        d3mTestPlan.file("targetAssets", 75 * WAD);
+
+        d3mHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 75 * WAD);
+        assertEq(art, 65 * WAD);
+        uint256 gemAfter = vat.gem(ilk, address(end));
+        assertEq(gemAfter, 0);
+        uint256 daiAfter = vat.dai(address(d3mHub));
+        assertEq(daiAfter, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        // should not change wind does not collect fees
+        assertEq(vat.dai(vow), vowDaiBefore);
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 75 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 75 * WAD);
+    }
+
     function test_wind_fully_unwind_wind_debt_paid_back() public {
         _windSystem();
 
