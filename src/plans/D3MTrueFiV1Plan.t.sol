@@ -112,9 +112,9 @@ contract D3MTrueFiV1PlanTest is AddressRegistry, D3MPlanBaseTest {
     function _setUpTrueFiDaiPortfolio() internal {
         portfolioFactory = PortfolioFactoryLike(MANAGED_PORTFOLIO_FACTORY_PROXY);
 
-        // Grant address(this) auth access to factory and lender verifier
-        hevm.store(MANAGED_PORTFOLIO_FACTORY_PROXY, bytes32(uint256(0)), bytes32(uint256(uint160(address(this)))));
-        portfolioFactory.setIsWhitelisted(address(this), true);
+                // Whitelist this address in managed portfolio factory so we can create portfolio
+        hevm.store(MANAGED_PORTFOLIO_FACTORY_PROXY, keccak256(abi.encode(address(this), 6)), bytes32(uint256(1)));
+        hevm.store(GLOBAL_WHITELIST_LENDER_VERIFIER, keccak256(abi.encode(address(this), 2)), bytes32(uint256(1)));
 
         portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", ERC20Like(DAI), WhitelistVerifierLike(GLOBAL_WHITELIST_LENDER_VERIFIER), 30 days, 1_000_000 ether, 20);
 
