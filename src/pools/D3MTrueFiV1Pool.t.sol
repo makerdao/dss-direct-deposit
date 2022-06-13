@@ -26,8 +26,9 @@ import {
     PortfolioFactoryLike,
     PortfolioLike,
     ERC20Like,
-    WhitelistVerifierLike,
-    VatLike
+    VatLike,
+    TokenLike,
+    WhitelistVerifierLike
 } from "../tests/interfaces/interfaces.sol";
 
 import { D3MTrueFiV1Plan } from "../plans/D3MTrueFiV1Plan.sol";
@@ -37,6 +38,7 @@ import { D3MPoolBaseTest, Hevm } from "./D3MPoolBase.t.sol";
 contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     PortfolioFactoryLike portfolioFactory;
     PortfolioLike portfolio;
+    address constant BORROWER = 0x4E02FBA7b1ad4E54F6e5Edd8Fee6D7e67E4a214a; // random address
 
     function setUp() public override {
         hevm = Hevm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
@@ -48,6 +50,84 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         _setUpTrueFiDaiPortfolio();
 
         d3mTestPool = address(new D3MTrueFiV1Pool(address(dai), address(portfolio), hub));
+        // set address of d3mTestPool to true in whitelist mapping in global whitelist lender verifier
+        hevm.store(GLOBAL_WHITELIST_LENDER_VERIFIER, keccak256(abi.encode(d3mTestPool, 2)), bytes32(uint256(1)));
+        _mintTokens(DAI, address(d3mTestPool), 5 ether);
+    }
+
+    function test_deposit_transfers_funds() public {
+        uint256 fundsBefore = dai.balanceOf(d3mTestPool);
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+        uint256 fundsAfter = dai.balanceOf(d3mTestPool);
+
+        assertEq(portfolio.value(), 1 ether);
+        assertEq(fundsAfter, fundsBefore - 1 ether);
+    }
+
+    function test_deposit_issues_shares() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+        assertEq(uint256(ERC20Like(portfolio).balanceOf(d3mTestPool)), 1 ether);
+    }
+
+    function testFail_deposit_requires_auth() public {
+        D3MTrueFiV1Pool(d3mTestPool).deny(address(this));
+
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+    }
+
+    function test_max_deposit_equals_max_size() public {
+        assertEq(D3MTrueFiV1Pool(d3mTestPool).maxDeposit(), portfolio.maxSize());
+    }
+
+    function test_max_desposit_equals_value_minus_deposited_funds() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+        assertEq(D3MTrueFiV1Pool(d3mTestPool).maxDeposit(), portfolio.maxSize() - 1 ether);
+    }
+
+    function test_withdraw_returns_funds() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+
+        uint256 fundsBefore = dai.balanceOf(d3mTestPool);
+        hevm.warp(block.timestamp + 30 days + 1 days);
+        D3MTrueFiV1Pool(d3mTestPool).withdraw(1 ether);
+        uint256 fundsAfter = dai.balanceOf(d3mTestPool);
+
+        assertEq(fundsAfter, fundsBefore + 1 ether);
+    }
+
+    function test_withdraw_burns_shares() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+
+        hevm.warp(block.timestamp + 30 days + 1 days);
+        D3MTrueFiV1Pool(d3mTestPool).withdraw(1 ether);
+
+        assertEq(ERC20Like(portfolio).balanceOf(d3mTestPool), 0);
+    }
+
+    function testFail_withdraw_requires_auth() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+
+        D3MTrueFiV1Pool(d3mTestPool).deny(address(this));
+        D3MTrueFiV1Pool(d3mTestPool).withdraw(1 ether);
+    }
+
+    function test_max_withdraw_is_0_when_portfolio_not_closed() public {
+        assertEq(D3MTrueFiV1Pool(d3mTestPool).maxWithdraw(), 0);
+    }
+
+    function test_max_withdraw_is_asset_balance() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+
+        hevm.warp(block.timestamp + 30 days + 1 days);
+        assertEq(D3MTrueFiV1Pool(d3mTestPool).maxWithdraw(), 1 ether);
+    }
+
+    function test_max_withdraw_is_liquid_value() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(2 ether);
+
+        portfolio.createBulletLoan(30 days, BORROWER, 1 ether, 2 ether);
+        hevm.warp(block.timestamp + 30 days + 1 days);
+        assertEq(D3MTrueFiV1Pool(d3mTestPool).maxWithdraw(), portfolio.liquidValue());
     }
 
     function test_active_returns_true() public {
@@ -55,6 +135,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     }
 
     function testFail_recoverTokens_requires_auth() public {
+        D3MTrueFiV1Pool(d3mTestPool).deny(address(this));
         D3MTrueFiV1Pool(d3mTestPool).recoverTokens(address(dai), address(this), 1 ether);
     }
 
@@ -75,11 +156,11 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     function _setUpTrueFiDaiPortfolio() internal {
         portfolioFactory = PortfolioFactoryLike(MANAGED_PORTFOLIO_FACTORY_PROXY);
 
-        // Grant address(this) auth access to factory
-        hevm.store(MANAGED_PORTFOLIO_FACTORY_PROXY, bytes32(uint256(0)), bytes32(uint256(uint160(address(this)))));
-        portfolioFactory.setIsWhitelisted(address(this), true);
+        // Whitelist this address in managed portfolio factory so we can create portfolio
+        hevm.store(MANAGED_PORTFOLIO_FACTORY_PROXY, keccak256(abi.encode(address(this), 6)), bytes32(uint256(1)));
 
-        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", ERC20Like(DAI), WhitelistVerifierLike(GLOBAL_WHITELIST_LENDER_VERIFIER), 60 * 60 * 24 * 30, 1_000_000 ether, 20);
+        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", ERC20Like(DAI), WhitelistVerifierLike(GLOBAL_WHITELIST_LENDER_VERIFIER), 30 days, 1_000_000 ether, 20);
+        
         uint256 portfoliosCount = portfolioFactory.getPortfolios().length;
         portfolio = PortfolioLike(portfolioFactory.getPortfolios()[portfoliosCount - 1]);
     }
