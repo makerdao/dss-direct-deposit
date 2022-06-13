@@ -1063,4 +1063,95 @@ contract D3MAaveTest is DSSTest {
         // We should be able to close out the vault completely even though ink and art do not match
         _setRelBorrowTarget(0);
     }
+
+    function test_wind_partial_unwind_wind_debt_paid_back() public {
+        uint256 initialRate = _setRelBorrowTarget(5000);
+        d3mHub.reap(ilk); // Clear out fees at the start
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAavePool));
+        uint256 gemBefore = vat.gem(ilk, address(end));
+        uint256 vowDaiBefore = vat.dai(vow);
+        uint256 adaiDaiBalanceBefore = dai.balanceOf(address(adai));
+        uint256 poolAdaiBalanceBefore = adai.balanceOf(address(d3mAavePool));
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mAavePool),
+            address(d3mAavePool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mAavePool));
+        assertEq(ink, pink);
+        assertEq(art, part - 10 * WAD);
+        assertEq(ink - art, 10 * WAD);
+        assertEq(gemBefore, vat.gem(ilk, address(end)));
+        assertEq(vowDaiBefore, vat.dai(vow));
+        assertEq(adaiDaiBalanceBefore, dai.balanceOf(address(adai)));
+        assertEq(poolAdaiBalanceBefore, adai.balanceOf(address(d3mAavePool)));
+
+        // Does not affect future execs unless our target changes
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mAavePool));
+        assertEq(ink, pink);
+        assertEq(art, part - 10 * WAD);
+        assertEq(ink - art, 10 * WAD);
+        assertEq(gemBefore, vat.gem(ilk, address(end)));
+        assertEq(vowDaiBefore, vat.dai(vow));
+        assertEq(adaiDaiBalanceBefore, dai.balanceOf(address(adai)));
+        assertEq(poolAdaiBalanceBefore, adai.balanceOf(address(d3mAavePool)));
+
+        // Raise target a little to trigger unwind
+        _setRelBorrowTarget(12500);
+
+        (ink, art) = vat.urns(ilk, address(d3mAavePool));
+        assertLt(ink, pink);
+        assertLt(art, part - 10 * WAD);
+        assertEq(ink - art, 10 * WAD);
+        assertEq(gemBefore, vat.gem(ilk, address(end)));
+        // Debt paid back gets collected as fees
+        assertEq(vowDaiBefore + 10 * RAD, vat.dai(vow));
+        assertLt(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
+        assertLt(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
+
+        // middle values
+        (uint256 mink, uint256 mart) = vat.urns(ilk, address(d3mAavePool));
+        uint256 gemMiddle = vat.gem(ilk, address(end));
+        uint256 adaiDaiBalanceMiddle = dai.balanceOf(address(adai));
+        uint256 poolAdaiBalanceMiddle = adai.balanceOf(address(d3mAavePool));
+
+        // calling exec again targets correct art
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mAavePool));
+        assertEq(mink + 10 * WAD, ink);
+        assertEq(mart + 10 * WAD, art);
+        assertEq(ink - art, 10 * WAD);
+        assertEq(gemMiddle, vat.gem(ilk, address(end)));
+        // No fees to collect this time
+        assertEq(vowDaiBefore + 10 * RAD, vat.dai(vow));
+        // in rebalancing the art we are adding 10 more collateral
+        assertEq(adaiDaiBalanceMiddle + 10 * WAD, dai.balanceOf(address(adai)));
+        assertEq(poolAdaiBalanceMiddle + 10 * WAD, adai.balanceOf(address(d3mAavePool)));
+
+        // can re-wind and have the correct amount of debt
+        d3mAavePlan.file("bar", initialRate);
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mAavePool));
+        assertEq(ink, pink + 10 * WAD);
+        assertEq(art, part);
+        assertEq(ink - art, 10 * WAD);
+        assertEq(gemBefore, vat.gem(ilk, address(end)));
+        assertEq(vowDaiBefore + 10 * RAD, vat.dai(vow));
+        assertEq(adaiDaiBalanceBefore, dai.balanceOf(address(adai)));
+        assertEq(poolAdaiBalanceBefore, adai.balanceOf(address(d3mAavePool)));
+    }
 }

@@ -58,6 +58,7 @@ interface VatLike {
     function can(address, address) external returns (uint256);
     function hope(address) external;
     function nope(address) external;
+    function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
     function urns(bytes32, address) external view returns (uint256, uint256);
     function gem(bytes32, address) external view returns (uint256);
     function dai(address) external view returns (uint256);

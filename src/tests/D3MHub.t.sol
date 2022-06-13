@@ -167,7 +167,11 @@ contract D3MHubTest is DSSTest {
         _giveTokens(token, address(this), amount);
     }
 
-    function _giveTokens(TokenLike token, address usr, uint256 amount) internal {
+    function _giveTokens(
+        TokenLike token,
+        address usr,
+        uint256 amount
+    ) internal {
         // Edge case - balance is already set for some reason
         if (token.balanceOf(address(usr)) == amount) return;
 
@@ -390,6 +394,386 @@ contract D3MHubTest is DSSTest {
         assertTrue(d3mTestPool.postDebt());
     }
 
+    function test_wind_partial_unwind_wind_debt_paid_back() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(pink, 50 * WAD);
+        assertEq(part, 40 * WAD);
+        uint256 gemBefore = vat.gem(ilk, address(end));
+        assertEq(gemBefore, 0);
+        uint256 sinBefore = vat.sin(vow);
+        uint256 vowDaiBefore = vat.dai(vow);
+        uint256 shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 50 * WAD);
+        uint256 poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 50 * WAD);
+
+        // Does not affect future execs unless our target changes
+        d3mHub.exec(ilk);
+
+        (pink, part) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(pink, 50 * WAD);
+        assertEq(part, 40 * WAD);
+        gemBefore = vat.gem(ilk, address(end));
+        assertEq(gemBefore, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        assertEq(vowDaiBefore, vat.dai(vow));
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 50 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 50 * WAD);
+
+        // can reduce and have the correct amount of locked collateral (ink)
+        d3mTestPlan.file("targetAssets", 25 * WAD);
+
+        d3mHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 25 * WAD);
+        assertEq(art, 15 * WAD);
+        uint256 gemAfter = vat.gem(ilk, address(end));
+        assertEq(gemAfter, 0);
+        uint256 daiAfter = vat.dai(address(d3mHub));
+        assertEq(daiAfter, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        // This comes back to us as fees at this point
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 15 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 15 * WAD);
+
+        // calling exec again targets correct art
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 35 * WAD);
+        assertEq(art, 25 * WAD);
+        gemAfter = vat.gem(ilk, address(end));
+        assertEq(gemAfter, 0);
+        daiAfter = vat.dai(address(d3mHub));
+        assertEq(daiAfter, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        // should not change again
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 25 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 25 * WAD);
+
+        // can re-wind and have the correct amount of debt (art)
+        d3mTestPlan.file("targetAssets", 75 * WAD);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 85 * WAD);
+        assertEq(art, 75 * WAD);
+        gemAfter = vat.gem(ilk, address(end));
+        assertEq(gemAfter, 0);
+        daiAfter = vat.dai(address(d3mHub));
+        assertEq(daiAfter, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        // should not change again
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 75 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 75 * WAD);
+
+        // can unwind below amount of debt paid back. correct art
+        d3mTestPlan.file("targetAssets", 5 * WAD);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 15 * WAD);
+        assertEq(art, 5 * WAD);
+        gemAfter = vat.gem(ilk, address(end));
+        assertEq(gemAfter, 0);
+        daiAfter = vat.dai(address(d3mHub));
+        assertEq(daiAfter, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        // should not change again
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 5 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 5 * WAD);
+
+        // can wind again. correct art
+        d3mTestPlan.file("targetAssets", 100 * WAD);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 110 * WAD);
+        assertEq(art, 100 * WAD);
+        gemAfter = vat.gem(ilk, address(end));
+        assertEq(gemAfter, 0);
+        daiAfter = vat.dai(address(d3mHub));
+        assertEq(daiAfter, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        // should not change again
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 100 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 100 * WAD);
+    }
+
+    function test_wind_fully_unwind_wind_debt_paid_back() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(pink, 50 * WAD);
+        assertEq(part, 40 * WAD);
+        uint256 gemBefore = vat.gem(ilk, address(end));
+        assertEq(gemBefore, 0);
+        uint256 sinBefore = vat.sin(vow);
+        uint256 vowDaiBefore = vat.dai(vow);
+        uint256 shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 50 * WAD);
+        uint256 poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 50 * WAD);
+
+        // fully unwind
+        d3mTestPlan.file("targetAssets", 0);
+
+        d3mHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 10 * WAD);
+        assertEq(art, 0 * WAD);
+        uint256 gemAfter = vat.gem(ilk, address(end));
+        assertEq(gemAfter, 0);
+        uint256 daiAfter = vat.dai(address(d3mHub));
+        assertEq(daiAfter, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        // This comes back to us as fees at this point
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 0 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 0 * WAD);
+
+        // can re-wind and have the correct amount of debt (art)
+        d3mTestPlan.file("targetAssets", 75 * WAD);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 85 * WAD);
+        assertEq(art, 75 * WAD);
+        gemAfter = vat.gem(ilk, address(end));
+        assertEq(gemAfter, 0);
+        daiAfter = vat.dai(address(d3mHub));
+        assertEq(daiAfter, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        // No further change
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 75 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 75 * WAD);
+
+        // can do a partial unwind
+        d3mTestPlan.file("targetAssets", 35 * WAD);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 45 * WAD);
+        assertEq(art, 35 * WAD);
+        gemAfter = vat.gem(ilk, address(end));
+        assertEq(gemAfter, 0);
+        daiAfter = vat.dai(address(d3mHub));
+        assertEq(daiAfter, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        // No further change
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 35 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 35 * WAD);
+    }
+
+    function test_wind_unwind_line_limited_debt_paid_back() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(pink, 50 * WAD);
+        assertEq(part, 40 * WAD);
+        (uint256 Part, , , , ) = vat.ilks(ilk);
+        assertEq(Part, 40 * WAD);
+        uint256 gemBefore = vat.gem(ilk, address(end));
+        assertEq(gemBefore, 0);
+        uint256 sinBefore = vat.sin(vow);
+        uint256 vowDaiBefore = vat.dai(vow);
+        uint256 shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 50 * WAD);
+        uint256 poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 50 * WAD);
+
+        // limit wind with debt ceiling
+        d3mTestPlan.file("targetAssets", 500 * WAD);
+        vat.file(ilk, "line", 60 * RAD);
+        d3mHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 70 * WAD);
+        assertEq(art, 60 * WAD);
+        (uint256 Art, , , , ) = vat.ilks(ilk);
+        assertEq(Art, 60 * WAD);
+        uint256 gemAfter = vat.gem(ilk, address(end));
+        assertEq(gemAfter, 0);
+        uint256 daiAfter = vat.dai(address(d3mHub));
+        assertEq(daiAfter, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        // We are not collecting fees at this point since we are winding
+        assertEq(vat.dai(vow), vowDaiBefore);
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 70 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 70 * WAD);
+
+        // unwind due to debt ceiling
+        vat.file(ilk, "line", 20 * RAD);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 30 * WAD);
+        assertEq(art, 20 * WAD);
+        (Art, , , , ) = vat.ilks(ilk);
+        assertEq(Art, 20 * WAD);
+        gemAfter = vat.gem(ilk, address(end));
+        assertEq(gemAfter, 0);
+        daiAfter = vat.dai(address(d3mHub));
+        assertEq(daiAfter, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        // we unwind and collect fees
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 20 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 20 * WAD);
+    }
+
+    function test_reap_debt_paid_back() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 5 * WAD);
+        testGem.transfer(address(d3mTestPool), 5 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 55 * WAD);
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(pink, 50 * WAD);
+        assertEq(part, 40 * WAD);
+        (uint256 Part, , , , ) = vat.ilks(ilk);
+        assertEq(Part, 40 * WAD);
+        uint256 gemBefore = vat.gem(ilk, address(end));
+        assertEq(gemBefore, 0);
+        uint256 sinBefore = vat.sin(vow);
+        uint256 vowDaiBefore = vat.dai(vow);
+        uint256 shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 50 * WAD);
+        uint256 poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 55 * WAD);
+
+        d3mHub.reap(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 40 * WAD);
+        (uint256 Art, , , , ) = vat.ilks(ilk);
+        assertEq(Art, 40 * WAD);
+        uint256 gemAfter = vat.gem(ilk, address(end));
+        assertEq(gemAfter, 0);
+        uint256 daiAfter = vat.dai(address(d3mHub));
+        assertEq(daiAfter, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        // Both the debt donation and fees go to vow
+        assertEq(vat.dai(vow), vowDaiBefore + 15 * RAD);
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 35 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 40 * WAD);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 60 * WAD);
+        assertEq(art, 50 * WAD);
+        (Art, , , , ) = vat.ilks(ilk);
+        assertEq(Art, 50 * WAD);
+        gemAfter = vat.gem(ilk, address(end));
+        assertEq(gemAfter, 0);
+        daiAfter = vat.dai(address(d3mHub));
+        assertEq(daiAfter, 0);
+        assertEq(sinBefore, vat.sin(vow));
+        // Both the debt donation and fees go to vow
+        assertEq(vat.dai(vow), vowDaiBefore + 15 * RAD);
+        shareDaiBalance = dai.balanceOf(address(testGem));
+        assertEq(shareDaiBalance, 45 * WAD);
+        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        assertEq(poolShareBalance, 50 * WAD);
+    }
+
     function test_unwind_plan_not_active() public {
         _windSystem();
 
@@ -478,10 +862,17 @@ contract D3MHubTest is DSSTest {
         _windSystem();
 
         // Someone pays back our debt
-        _giveTokens(TokenLike(address(dai)), 10 * WAD);
+        _giveTokens(dai, 10 * WAD);
         dai.approve(address(daiJoin), type(uint256).max);
         daiJoin.join(address(this), 10 * WAD);
-        vat.frob(ilk, address(d3mTestPool), address(d3mTestPool), address(this), 0, -int256(10 * WAD));
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
 
         // MCD shuts down
         end.cage();
@@ -765,10 +1156,17 @@ contract D3MHubTest is DSSTest {
         _windSystem();
 
         // Someone pays back our debt
-        _giveTokens(TokenLike(address(dai)), 10 * WAD);
+        _giveTokens(dai, 10 * WAD);
         dai.approve(address(daiJoin), type(uint256).max);
         daiJoin.join(address(this), 10 * WAD);
-        vat.frob(ilk, address(d3mTestPool), address(d3mTestPool), address(this), 0, -int256(10 * WAD));
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
 
         d3mHub.cage(ilk);
 
@@ -924,7 +1322,11 @@ contract D3MHubTest is DSSTest {
         assertEq(50 * WAD, vat.gem(ilk, address(d3mTestPool)));
 
         d3mTestPool.quit(receiver);
-        vat.slip(ilk, address(d3mTestPool), -int256(vat.gem(ilk, address(d3mTestPool))));
+        vat.slip(
+            ilk,
+            address(d3mTestPool),
+            -int256(vat.gem(ilk, address(d3mTestPool)))
+        );
 
         assertEq(balBefore + 50 * WAD, testGem.balanceOf(receiver));
         assertEq(0, testGem.balanceOf(address(d3mTestPool)));
@@ -945,7 +1347,14 @@ contract D3MHubTest is DSSTest {
         assertEq(tart, 0);
 
         d3mTestPool.quit(receiver);
-        vat.grab(ilk, address(d3mTestPool), receiver, receiver, -int256(pink), -int256(part));
+        vat.grab(
+            ilk,
+            address(d3mTestPool),
+            receiver,
+            receiver,
+            -int256(pink),
+            -int256(part)
+        );
         vat.grab(ilk, receiver, receiver, receiver, int256(pink), int256(part));
 
         assertEq(balBefore + 50 * WAD, testGem.balanceOf(receiver));
@@ -1051,8 +1460,22 @@ contract D3MHubTest is DSSTest {
 
         // quit to new pool
         d3mTestPool.quit(address(newPool));
-        vat.grab(ilk, address(d3mTestPool), address(newPool), address(newPool), -int256(opink), -int256(opart));
-        vat.grab(ilk, address(newPool), address(newPool), address(newPool), int256(opink), int256(opart));
+        vat.grab(
+            ilk,
+            address(d3mTestPool),
+            address(newPool),
+            address(newPool),
+            -int256(opink),
+            -int256(opart)
+        );
+        vat.grab(
+            ilk,
+            address(newPool),
+            address(newPool),
+            address(newPool),
+            int256(opink),
+            int256(opart)
+        );
 
         // Ensure we quit our position
         (opink, opart) = vat.urns(ilk, address(d3mTestPool));
@@ -1237,8 +1660,22 @@ contract D3MHubTest is DSSTest {
 
         // Transition Balances
         d3mTestPool.quit(address(newPool));
-        vat.grab(ilk, address(d3mTestPool), address(newPool), address(newPool), -int256(opink), -int256(opart));
-        vat.grab(ilk, address(newPool), address(newPool), address(newPool), int256(opink), int256(opart));
+        vat.grab(
+            ilk,
+            address(d3mTestPool),
+            address(newPool),
+            address(newPool),
+            -int256(opink),
+            -int256(opart)
+        );
+        vat.grab(
+            ilk,
+            address(newPool),
+            address(newPool),
+            address(newPool),
+            int256(opink),
+            int256(opart)
+        );
 
         // Ensure we quit our position
         (opink, opart) = vat.urns(ilk, address(d3mTestPool));
@@ -1271,8 +1708,13 @@ contract D3MHubTest is DSSTest {
         assertTrue(newPool.postDebt());
     }
 
-    function cmpStr(string memory a, string memory b) internal pure returns (bool) {
-        return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
+    function cmpStr(string memory a, string memory b)
+        internal
+        pure
+        returns (bool)
+    {
+        return (keccak256(abi.encodePacked((a))) ==
+            keccak256(abi.encodePacked((b))));
     }
 
     function test_exec_lock_protection() public {
@@ -1280,8 +1722,7 @@ contract D3MHubTest is DSSTest {
         hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
         assertEq(d3mHub.locked(), 1);
 
-        try d3mHub.exec(ilk) {}
-        catch Error(string memory errmsg) {
+        try d3mHub.exec(ilk) {} catch Error(string memory errmsg) {
             bytes32 locked = hevm.load(address(d3mHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
             assertTrue(uint256(locked) == 1);
             assertTrue(cmpStr(errmsg, "D3MHub/system-locked"));
@@ -1293,8 +1734,7 @@ contract D3MHubTest is DSSTest {
         hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
         assertEq(d3mHub.locked(), 1);
 
-        try d3mHub.reap(ilk) {}
-        catch Error(string memory errmsg) {
+        try d3mHub.reap(ilk) {} catch Error(string memory errmsg) {
             bytes32 locked = hevm.load(address(d3mHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
             assertTrue(uint256(locked) == 1);
             assertTrue(cmpStr(errmsg, "D3MHub/system-locked"));
@@ -1306,8 +1746,9 @@ contract D3MHubTest is DSSTest {
         hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
         assertEq(d3mHub.locked(), 1);
 
-        try d3mHub.exit(ilk, address(this), 1) {}
-        catch Error(string memory errmsg) {
+        try d3mHub.exit(ilk, address(this), 1) {} catch Error(
+            string memory errmsg
+        ) {
             bytes32 locked = hevm.load(address(d3mHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
             assertTrue(uint256(locked) == 1);
             assertTrue(cmpStr(errmsg, "D3MHub/system-locked"));
