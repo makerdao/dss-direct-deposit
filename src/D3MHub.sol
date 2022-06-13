@@ -387,8 +387,9 @@ contract D3MHub {
         @param ilk bytes32 of the D3M ilk name
     */
     function exec(bytes32 ilk) external lock {
-        (uint256 Art, uint256 rate,, uint256 line,) = vat.ilks(ilk);
+        (uint256 Art, uint256 rate, uint spot, uint256 line,) = vat.ilks(ilk);
         require(rate == RAY, "D3MHub/rate-not-one");
+        require(spot == RAY, "D3MHub/spot-not-one");
 
         ID3MPool _pool = ilks[ilk].pool;
 

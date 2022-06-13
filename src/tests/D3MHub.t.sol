@@ -336,6 +336,11 @@ contract D3MHubTest is DSSTest {
         assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", ilk), "D3MHub/rate-not-one");
     }
 
+    function test_exec_spot_not_one() public {
+        vat.file(ilk, "spot", 2 * RAY);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", ilk), "D3MHub/spot-not-one");
+    }
+
     function test_wind_limited_ilk_line() public {
         d3mTestPlan.file("bar", 10);
         d3mTestPlan.file("targetAssets", 50 * WAD);
