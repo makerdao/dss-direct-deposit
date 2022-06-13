@@ -17,7 +17,7 @@
 
 pragma solidity ^0.8.14;
 
-import "./tests/DssTest.sol";
+import {DSSTest} from "dss-test/DSSTest.sol";
 
 import {D3MOracle} from "./D3MOracle.sol";
 
@@ -57,16 +57,14 @@ contract D3MTestHub {
     }
 }
 
-contract D3MOracleTest is DssTest {
+contract D3MOracleTest is DSSTest {
     Hevm hevm;
 
     D3MTestVat vat;
     D3MTestHub hub;
     D3MOracle oracle;
 
-    uint256 internal constant WAD = 10 ** 18;
-
-    function setUp() public {
+    function setUp() public override {
         hevm = Hevm(
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );

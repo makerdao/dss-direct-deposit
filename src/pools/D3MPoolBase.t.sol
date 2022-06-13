@@ -17,7 +17,7 @@
 
 pragma solidity ^0.8.14;
 
-import "../tests/DssTest.sol";
+import {DSSTest} from "dss-test/DSSTest.sol";
 import {DaiLike, CanLike, D3mHubLike} from "../tests/interfaces/interfaces.sol";
 
 import "./ID3MPool.sol";
@@ -136,9 +136,7 @@ contract FakeHub {
     }
 }
 
-contract D3MPoolBaseTest is DssTest {
-    uint256 constant WAD = 10**18;
-
+contract D3MPoolBaseTest is DSSTest {
     Hevm hevm;
 
     string contractName;
@@ -149,7 +147,7 @@ contract D3MPoolBaseTest is DssTest {
     address hub;
     address vat;
 
-    function setUp() public virtual {
+    function setUp() public virtual override {
         hevm = Hevm(
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );

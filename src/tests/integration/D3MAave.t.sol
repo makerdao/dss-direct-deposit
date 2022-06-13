@@ -17,7 +17,7 @@
 
 pragma solidity ^0.8.14;
 
-import "../../tests/DssTest.sol";
+import {DSSTest} from "dss-test/DSSTest.sol";
 import "../interfaces/interfaces.sol";
 
 import { D3MHub } from "../../D3MHub.sol";
@@ -77,11 +77,7 @@ interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 }
 
-contract D3MAaveTest is DssTest {
-    uint256 constant WAD = 10 ** 18;
-    uint256 constant RAY = 10 ** 27;
-    uint256 constant RAD = 10 ** 45;
-
+contract D3MAaveTest is DSSTest {
     Hevm hevm;
 
     VatLike vat;
@@ -109,7 +105,7 @@ contract D3MAaveTest is DssTest {
     uint256 constant INTEREST_RATE_TOLERANCE = RAY / 10000;
     uint256 constant EPSILON_TOLERANCE = 4;
 
-    function setUp() public {
+    function setUp() public override {
         hevm = Hevm(address(bytes20(uint160(uint256(keccak256('hevm cheat code'))))));
 
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);

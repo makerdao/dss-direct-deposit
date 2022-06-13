@@ -17,7 +17,7 @@
 
 pragma solidity ^0.8.14;
 
-import "../tests/DssTest.sol";
+import {DSSTest} from "dss-test/DSSTest.sol";
 import "../tests/interfaces/interfaces.sol";
 
 import "./ID3MPlan.sol";
@@ -74,7 +74,7 @@ contract D3MPlanBase is ID3MPlan {
     function disable() external override {}
 }
 
-contract D3MPlanBaseTest is DssTest {
+contract D3MPlanBaseTest is DSSTest {
     Hevm hevm;
 
     string contractName;
@@ -83,7 +83,7 @@ contract D3MPlanBaseTest is DssTest {
 
     address d3mTestPlan;
 
-    function setUp() virtual public {
+    function setUp() public virtual override {
         hevm = Hevm(
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );

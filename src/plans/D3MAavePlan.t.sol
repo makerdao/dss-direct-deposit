@@ -50,8 +50,6 @@ contract D3MAavePlanWrapper is D3MAavePlan {
 }
 
 contract D3MAavePlanTest is D3MPlanBaseTest {
-    uint256 constant RAY = 10 ** 27;
-
     LendingPoolLike aavePool;
     InterestRateStrategyLike interestStrategy;
     TokenLike adai;

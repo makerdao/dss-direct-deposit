@@ -17,7 +17,7 @@
 
 pragma solidity ^0.8.14;
 
-import "./tests/DssTest.sol";
+import {DSSTest} from "dss-test/DSSTest.sol";
 import "./tests/interfaces/interfaces.sol";
 
 import {D3MHub} from "./D3MHub.sol";
@@ -42,11 +42,7 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
-contract D3MHubTest is DssTest {
-    uint256 constant WAD = 10**18;
-    uint256 constant RAY = 10**27;
-    uint256 constant RAD = 10**45;
-
+contract D3MHubTest is DSSTest {
     Hevm hevm;
 
     VatLike vat;
@@ -67,7 +63,7 @@ contract D3MHubTest is DssTest {
     D3MTestPlan d3mTestPlan;
     D3MOracle pip;
 
-    function setUp() public {
+    function setUp() public override {
         hevm = Hevm(
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );

@@ -17,7 +17,7 @@
 
 pragma solidity ^0.8.14;
 
-import "./tests/DssTest.sol";
+import {DSSTest} from "dss-test/DSSTest.sol";
 import "./tests/interfaces/interfaces.sol";
 
 import {D3MMom} from "./D3MMom.sol";
@@ -35,13 +35,13 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
-contract D3MMomTest is DssTest {
+contract D3MMomTest is DSSTest {
     Hevm hevm;
 
     D3MTestPlan d3mTestPlan;
     D3MMom d3mMom;
 
-    function setUp() public {
+    function setUp() public override {
         hevm = Hevm(
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );
