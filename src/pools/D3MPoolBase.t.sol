@@ -17,7 +17,7 @@
 
 pragma solidity ^0.8.14;
 
-import "ds-test/test.sol";
+import "../tests/DssTest.sol";
 import {DaiLike, CanLike, D3mHubLike} from "../tests/interfaces/interfaces.sol";
 
 import "./ID3MPool.sol";
@@ -108,7 +108,7 @@ contract D3MPoolBase is ID3MPool {
 
     function quit(address dst) external auth view override {
         dst;
-        require(vat.live() == 1, "D3MAavePool/no-quit-during-shutdown");
+        require(vat.live() == 1, "D3MPoolBase/no-quit-during-shutdown");
     }
 
     function maxDeposit() external view override returns (uint256) {}
@@ -136,10 +136,12 @@ contract FakeHub {
     }
 }
 
-contract D3MPoolBaseTest is DSTest {
+contract D3MPoolBaseTest is DssTest {
     uint256 constant WAD = 10**18;
 
     Hevm hevm;
+
+    string contractName;
 
     DaiLike dai;
 
@@ -151,6 +153,8 @@ contract D3MPoolBaseTest is DSTest {
         hevm = Hevm(
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );
+
+        contractName = "D3MPoolBase";
 
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
 
@@ -213,16 +217,16 @@ contract D3MPoolBaseTest is DSTest {
         assertEq(D3MPoolBase(d3mTestPool).wards(address(123)), 0);
     }
 
-    function testFail_cannot_rely_no_auth() public {
+    function test_cannot_rely_no_auth() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
 
-        D3MPoolBase(d3mTestPool).rely(address(123));
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("rely(address)", address(123)), contractName, "not-authorized");
     }
 
-    function testFail_cannot_deny_no_auth() public {
+    function test_cannot_deny_no_auth() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
 
-        D3MPoolBase(d3mTestPool).deny(address(123));
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("deny(address)", address(123)), contractName, "not-authorized");
     }
 
     function test_can_file_hub() public {
@@ -234,42 +238,42 @@ contract D3MPoolBaseTest is DSTest {
         assertEq(CanLike(vat).can(d3mTestPool, newHub), 1);
     }
 
-    function testFail_cannot_file_hub_no_auth() public {
+    function test_cannot_file_hub_no_auth() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
 
-        D3MPoolBase(d3mTestPool).file("hub", address(123));
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", "hub", address(123)), contractName, "not-authorized");
     }
 
-    function testFail_cannot_file_hub_vat_caged() public {
+    function test_cannot_file_hub_vat_caged() public {
         FakeVat(vat).cage();
 
-        D3MPoolBase(d3mTestPool).file("hub", address(123));
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", "hub", address(123)), contractName, "no-file-during-shutdown");
     }
 
-    function testFail_cannot_file_unknown_param() public {
-        D3MPoolBase(d3mTestPool).file("fail", address(123));
+    function test_cannot_file_unknown_param() public {
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", "fail", address(123)), contractName, "file-unrecognized-param");
     }
 
-    function testFail_deposit_not_hub() public {
-        D3MPoolBase(d3mTestPool).deposit(1);
+    function test_deposit_not_hub() public {
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("deposit(uint256)", uint256(1)), contractName, "only-hub");
     }
 
-    function testFail_withdraw_not_hub() public {
-        D3MPoolBase(d3mTestPool).withdraw(1);
+    function test_withdraw_not_hub() public {
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("withdraw(uint256)", uint256(1)), contractName, "only-hub");
     }
 
-    function testFail_transfer_not_hub() public {
-        D3MPoolBase(d3mTestPool).transfer(address(this), 0);
+    function test_transfer_not_hub() public {
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("transfer(address,uint256)", address(this), uint256(0)), contractName, "only-hub");
     }
 
-    function testFail_quit_no_auth() public {
+    function test_quit_no_auth() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
-        D3MPoolBase(d3mTestPool).quit(address(this));
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("quit(address)", address(this)), contractName, "not-authorized");
     }
 
-    function testFail_quit_vat_caged() public {
+    function test_quit_vat_caged() public {
         FakeVat(vat).cage();
-        D3MPoolBase(d3mTestPool).quit(address(this));
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("quit(address)", address(this)), contractName, "no-quit-during-shutdown");
     }
 
     function test_implements_preDebtChange() public {

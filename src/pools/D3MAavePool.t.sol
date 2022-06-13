@@ -154,6 +154,8 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );
 
+        contractName = "D3MAavePool";
+
         dai = DaiLike(address(new D3MTestGem(18)));
         adai = new AToken(18);
         aavePool = LendingPoolLike(address(new FakeLendingPool(address(adai))));
