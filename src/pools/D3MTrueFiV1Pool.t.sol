@@ -53,6 +53,11 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         // set address of d3mTestPool to true in whitelist mapping in global whitelist lender verifier
         hevm.store(GLOBAL_WHITELIST_LENDER_VERIFIER, keccak256(abi.encode(d3mTestPool, 2)), bytes32(uint256(1)));
         _mintTokens(DAI, address(d3mTestPool), 5 ether);
+
+        // set address of second lender to true in whitelist mapping in global whitelist lender verifier
+        hevm.store(GLOBAL_WHITELIST_LENDER_VERIFIER, keccak256(abi.encode(this, 2)), bytes32(uint256(1)));
+        _mintTokens(DAI, address(this), 10 ether);
+        dai.approve(address(portfolio), 10 ether);
     }
 
     function test_deposit_transfers_funds() public {
@@ -151,6 +156,38 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
 
     function test_asset_balance_initially_zero() public {
         assertEq(D3MTrueFiV1Pool(d3mTestPool).assetBalance(), 0);
+    }
+
+    function test_asset_balance_is_correct_with_1_lender() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(2 ether);
+        assertEq(D3MTrueFiV1Pool(d3mTestPool).assetBalance(), 2 ether);
+    }
+
+    function test_asset_balance_is_correct_with_2_lender() public {
+        portfolio.deposit(6 ether, "0x");
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+        assertEq(D3MTrueFiV1Pool(d3mTestPool).assetBalance(), 1 ether);
+    }
+
+    function test_asset_balance_is_0_when_someone_else_deposited() public {
+        portfolio.deposit(6 ether, "0x");
+        assertEq(D3MTrueFiV1Pool(d3mTestPool).assetBalance(), 0);
+    }
+
+    function test_asset_balance_is_correct_after_withdraw() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(3 ether);
+
+        hevm.warp(block.timestamp + 40 days);
+        
+        D3MTrueFiV1Pool(d3mTestPool).withdraw(1 ether);
+        assertEq(D3MTrueFiV1Pool(d3mTestPool).assetBalance(), 2 ether);
+    }
+
+    function test_asset_balance_is_correct_after_multiple_deposits() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
+        D3MTrueFiV1Pool(d3mTestPool).deposit(2 ether);
+        assertEq(D3MTrueFiV1Pool(d3mTestPool).assetBalance(), 4 ether);
     }
 
     /************************/
