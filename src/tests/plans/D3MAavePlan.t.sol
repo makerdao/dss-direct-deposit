@@ -18,9 +18,9 @@
 pragma solidity ^0.8.14;
 
 import { Hevm, D3MPlanBaseTest } from "./D3MPlanBase.t.sol";
-import { DaiLike, TokenLike } from "../tests/interfaces/interfaces.sol";
+import { DaiLike, TokenLike } from "../interfaces/interfaces.sol";
 
-import { D3MAavePlan, LendingPoolLike } from "./D3MAavePlan.sol";
+import { D3MAavePlan, LendingPoolLike } from "../../plans/D3MAavePlan.sol";
 
 interface InterestRateStrategyLike {
     function baseVariableBorrowRate() external view returns (uint256);
@@ -50,8 +50,6 @@ contract D3MAavePlanWrapper is D3MAavePlan {
 }
 
 contract D3MAavePlanTest is D3MPlanBaseTest {
-    uint256 constant RAY = 10 ** 27;
-
     LendingPoolLike aavePool;
     InterestRateStrategyLike interestStrategy;
     TokenLike adai;
@@ -63,6 +61,8 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
         hevm = Hevm(
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );
+
+        contractName = "D3MAavePlan";
 
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
@@ -120,8 +120,8 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
         assertEq(D3MAavePlan(d3mTestPlan).bar(), 1);
     }
 
-    function testFail_cannot_file_unknown_uint_param() public {
-        D3MAavePlan(d3mTestPlan).file("bad", 1);
+    function test_cannot_file_unknown_uint_param() public {
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", "bad", uint256(1)), "D3MAavePlan/file-unrecognized-param");
     }
 
     function test_can_file_interestStratgey() public {
@@ -132,14 +132,13 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
         assertEq(address(D3MAavePlan(d3mTestPlan).tack()), address(1));
     }
 
-    function testFail_cannot_file_unknown_address_param() public {
-        D3MAavePlan(d3mTestPlan).file("bad", address(1));
+    function test_cannot_file_unknown_address_param() public {
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,address)", "bad", address(1)), "D3MAavePlan/file-unrecognized-param");
     }
 
-    function testFail_cannot_file_without_auth() public {
+    function test_cannot_file_without_auth() public {
         D3MAavePlan(d3mTestPlan).deny(address(this));
-
-        D3MAavePlan(d3mTestPlan).file("bar", 1);
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", "bar", uint256(1)), "D3MAavePlan/not-authorized");
     }
 
     function test_set_bar_too_high_unwinds() public {
@@ -222,12 +221,12 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
         assertEq(D3MAavePlan(d3mTestPlan).bar(), 0);
     }
 
-    function testFail_disable_without_auth() public {
+    function test_disable_without_auth() public {
         D3MAavePlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
         (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
         assertEq(address(D3MAavePlan(d3mTestPlan).tack()), poolStrategy);
         D3MAavePlan(d3mTestPlan).deny(address(this));
 
-        D3MAavePlan(d3mTestPlan).disable();
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("disable()"), "D3MAavePlan/not-authorized");
     }
 }

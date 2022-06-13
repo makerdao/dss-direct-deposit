@@ -17,10 +17,10 @@
 
 pragma solidity ^0.8.14;
 
-import "ds-test/test.sol";
-import "../tests/interfaces/interfaces.sol";
+import {DSSTest} from "dss-test/DSSTest.sol";
+import "../interfaces/interfaces.sol";
 
-import "./ID3MPlan.sol";
+import "../../plans/ID3MPlan.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -74,18 +74,21 @@ contract D3MPlanBase is ID3MPlan {
     function disable() external override {}
 }
 
-contract D3MPlanBaseTest is DSTest {
-
+contract D3MPlanBaseTest is DSSTest {
     Hevm hevm;
+
+    string contractName;
 
     DaiLike dai;
 
     address d3mTestPlan;
 
-    function setUp() virtual public {
+    function setUp() public virtual override {
         hevm = Hevm(
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );
+
+        contractName = "D3MPlanBase";
 
         dai = DaiLike(address(123));
 
@@ -112,11 +115,11 @@ contract D3MPlanBaseTest is DSTest {
         assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 0);
     }
 
-    function testFail_cannot_rely_without_auth() public {
+    function test_cannot_rely_without_auth() public {
         assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
 
         D3MPlanBase(d3mTestPlan).deny(address(this));
-        D3MPlanBase(d3mTestPlan).rely(address(this));
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("rely(address)", address(this)), string(abi.encodePacked(contractName, "/not-authorized")));
     }
 
     function test_implements_getTargetAssets() public virtual {

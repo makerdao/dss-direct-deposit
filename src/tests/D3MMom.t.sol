@@ -17,12 +17,12 @@
 
 pragma solidity ^0.8.14;
 
-import "ds-test/test.sol";
-import "./tests/interfaces/interfaces.sol";
+import {DSSTest} from "dss-test/DSSTest.sol";
+import "./interfaces/interfaces.sol";
 
-import {D3MMom} from "./D3MMom.sol";
+import {D3MMom} from "../D3MMom.sol";
 
-import {D3MTestPlan} from "./tests/stubs/D3MTestPlan.sol";
+import {D3MTestPlan} from "./stubs/D3MTestPlan.sol";
 interface Hevm {
     function warp(uint256) external;
 
@@ -35,13 +35,13 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
-contract D3MMomTest is DSTest {
+contract D3MMomTest is DSSTest {
     Hevm hevm;
 
     D3MTestPlan d3mTestPlan;
     D3MMom d3mMom;
 
-    function setUp() public {
+    function setUp() public override {
         hevm = Hevm(
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );
@@ -62,11 +62,11 @@ contract D3MMomTest is DSTest {
         assertEq(d3mTestPlan.bar(), 0);
     }
 
-    function testFail_disable_no_auth() public {
+    function test_disable_no_auth() public {
         d3mMom.setOwner(address(0));
         assertEq(d3mMom.authority(), address(0));
         assertEq(d3mMom.owner(), address(0));
 
-        d3mMom.disable(address(d3mTestPlan));
+        assertRevert(address(d3mMom), abi.encodeWithSignature("disable(address)", address(d3mTestPlan)), "D3MMom/not-authorized");
     }
 }
