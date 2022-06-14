@@ -241,17 +241,17 @@ contract D3MPoolBaseTest is DSSTest {
     function test_cannot_file_hub_no_auth() public {
         D3MPoolBase(d3mTestPool).deny(address(this));
 
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", "hub", address(123)), string(abi.encodePacked(contractName, "/not-authorized")));
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", bytes32("hub"), address(123)), string(abi.encodePacked(contractName, "/not-authorized")));
     }
 
     function test_cannot_file_hub_vat_caged() public {
         FakeVat(vat).cage();
 
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", "hub", address(123)), string(abi.encodePacked(contractName, "/no-file-during-shutdown")));
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", bytes32("hub"), address(123)), string(abi.encodePacked(contractName, "/no-file-during-shutdown")));
     }
 
     function test_cannot_file_unknown_param() public {
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", "fail", address(123)), string(abi.encodePacked(contractName, "/file-unrecognized-param")));
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("file(bytes32,address)", bytes32("fail"), address(123)), string(abi.encodePacked(contractName, "/file-unrecognized-param")));
     }
 
     function test_deposit_not_hub() public {
