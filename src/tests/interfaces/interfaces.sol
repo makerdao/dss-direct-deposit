@@ -43,6 +43,10 @@ interface EndLike {
     function cage(bytes32) external;
     function skim(bytes32, address) external;
     function thaw() external;
+    function gap(bytes32) external returns (uint256);
+    function cash(bytes32, uint256) external;
+    function pack(uint256) external;
+    function flow(bytes32) external;
 }
 
 interface SpotLike {

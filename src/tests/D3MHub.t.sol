@@ -838,9 +838,9 @@ contract D3MHubTest is DSSTest {
         _windSystem();
 
         // Someone pays back our debt
-        _giveTokens(dai, 10 * WAD);
+        _giveTokens(dai, 20 * WAD);
         dai.approve(address(daiJoin), type(uint256).max);
-        daiJoin.join(address(this), 10 * WAD);
+        daiJoin.join(address(this), 20 * WAD);
         vat.frob(
             ilk,
             address(d3mTestPool),
@@ -887,6 +887,31 @@ contract D3MHubTest is DSSTest {
         assertEq(vat.dai(vow), daiBefore + 60 * RAD);
         assertEq(dai.balanceOf(address(testGem)), 0);
         assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
+
+        assertEq(end.gap(ilk), 0);
+
+        hevm.warp(block.timestamp + end.wait());
+
+        // Force remove all the dai from vow so it can call end.thaw()
+        hevm.store(
+            address(vat),
+            keccak256(abi.encode(address(vow), uint256(5))),
+            bytes32(0)
+        );
+
+        end.thaw();
+        end.flow(ilk);
+
+        assertEq(vat.dai(address(this)), 10 * RAD);
+        vat.hope(address(end));
+        end.pack(10 * WAD);
+        assertEq(vat.dai(address(this)), 0);
+        end.cash(ilk, 10 * WAD);
+        // see that we get some gems for our bag
+        assertLt(vat.gem(ilk, address(end)), 10 * WAD);
+        assertGt(vat.gem(ilk, address(this)), 0);
+
+        assertRevert(address(d3mHub), abi.encodeWithSignature("exit(bytes32,address,uint256)", ilk, address(this), vat.gem(ilk, address(this))), "TestGem/insufficient-balance");
     }
 
     function test_unwind_pool_caged() public {
