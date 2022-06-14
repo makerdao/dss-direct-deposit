@@ -82,7 +82,7 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         vat = address(new FakeVat());
         hub = address(new FakeHub(vat));
 
-        d3mTestPool = address(new D3MCompoundPool(hub, address(dai), address(cDai)));
+        d3mTestPool = address(new D3MCompoundPool(hub, address(cDai)));
         pool = D3MCompoundPool(d3mTestPool);
 
         // allocate some dai for the pool

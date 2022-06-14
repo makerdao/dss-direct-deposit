@@ -121,7 +121,7 @@ contract D3MCompoundTest is DSTest {
         _giveAuthAccess(address(spot), address(this));
 
         d3mHub = new D3MHub(address(vat), address(daiJoin));
-        d3mCompoundPool = new D3MCompoundPool(address(d3mHub), address(dai), address(cDai));
+        d3mCompoundPool = new D3MCompoundPool(address(d3mHub), address(cDai));
         d3mCompoundPool.rely(address(d3mHub));
         d3mCompoundPlan = new D3MCompoundPlan(address(cDai));
 

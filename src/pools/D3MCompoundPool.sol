@@ -62,6 +62,7 @@ contract D3MCompoundPool is ID3MPool {
 
     VatLike         public immutable vat;
     ComptrollerLike public immutable comptroller;
+    TokenLike       public immutable comp;
     TokenLike       public immutable dai;
     CErc20Like      public immutable cDai;
 
@@ -71,21 +72,19 @@ contract D3MCompoundPool is ID3MPool {
     event File(bytes32 indexed what, address data);
     event Collect(address indexed king, address indexed gift, uint256 amt);
 
-    constructor(address hub_, address dai_, address cDai_) {
-        address comptroller_ = CErc20Like(cDai_).comptroller();
-
-        require(comptroller_ != address(0), "D3MCompoundPool/invalid-comptroller");
-        require(dai_         == CErc20Like(cDai_).underlying(), "D3MCompoundPool/cdai-dai-mismatch");
-
-        comptroller = ComptrollerLike(comptroller_);
-        dai         = TokenLike(dai_);
+    constructor(address hub_, address cDai_) {
         cDai        = CErc20Like(cDai_);
+        dai         = TokenLike(cDai.underlying());
+        comptroller = ComptrollerLike(cDai.comptroller());
+        comp        = TokenLike(comptroller.getCompAddress());
 
-        TokenLike(dai_).approve(cDai_, type(uint256).max);
+        require(address(comp) != address(0), "D3MCompoundPool/invalid-comp");
+
+        dai.approve(cDai_, type(uint256).max);
 
         hub = hub_;
-        vat = VatLike(D3mHubLike(hub_).vat());
-        vat.hope(hub_);
+        vat = VatLike(D3mHubLike(hub).vat());
+        vat.hope(hub);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -192,8 +191,6 @@ contract D3MCompoundPool is ID3MPool {
         cTokens[0] = address(cDai);
 
         comptroller.claimComp(holders, cTokens, false, true);
-
-        TokenLike comp = TokenLike(comptroller.getCompAddress());
         uint256 amt = comp.balanceOf(address(this));
         comp.transfer(king, amt);
 
