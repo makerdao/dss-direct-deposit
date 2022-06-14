@@ -834,6 +834,61 @@ contract D3MHubTest is DSSTest {
         assertEq(vat.sin(vow), sinBefore + 40 * RAD);
     }
 
+    function test_mcd_caged_debt_paid_back_can_fix() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        // MCD shuts down
+        end.cage();
+        end.cage(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 40 * WAD);
+        assertEq(vat.gem(ilk, address(end)), 0);
+        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+        uint256 sinBefore = vat.sin(vow);
+        uint256 daiBefore = vat.dai(vow);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 10 * WAD);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(end)), 0);
+        assertEq(vat.dai(address(d3mHub)), 0);
+        assertEq(vat.sin(vow), sinBefore + 40 * RAD);
+        assertEq(vat.dai(vow), daiBefore + 50 * RAD);
+        assertEq(dai.balanceOf(address(testGem)), 0);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
+
+        d3mHub.fix(ilk);
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(end)), 10 * WAD);
+        assertEq(vat.dai(address(d3mHub)), 0);
+        assertEq(vat.sin(vow), sinBefore + 50 * RAD);
+        assertEq(vat.dai(vow), daiBefore + 60 * RAD);
+        assertEq(dai.balanceOf(address(testGem)), 0);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
+    }
+
     function test_unwind_pool_caged() public {
         _windSystem();
 
