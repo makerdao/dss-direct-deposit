@@ -121,7 +121,7 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
     }
 
     function test_cannot_file_unknown_uint_param() public {
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", "bad", uint256(1)), "D3MAavePlan/file-unrecognized-param");
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", bytes32("bad"), uint256(1)), "D3MAavePlan/file-unrecognized-param");
     }
 
     function test_can_file_interestStratgey() public {
@@ -133,12 +133,12 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
     }
 
     function test_cannot_file_unknown_address_param() public {
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,address)", "bad", address(1)), "D3MAavePlan/file-unrecognized-param");
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,address)", bytes32("bad"), address(1)), "D3MAavePlan/file-unrecognized-param");
     }
 
     function test_cannot_file_without_auth() public {
         D3MAavePlan(d3mTestPlan).deny(address(this));
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", "bar", uint256(1)), "D3MAavePlan/not-authorized");
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", bytes32("bar"), uint256(1)), "D3MAavePlan/not-authorized");
     }
 
     function test_set_bar_too_high_unwinds() public {

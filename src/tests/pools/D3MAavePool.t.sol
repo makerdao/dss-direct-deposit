@@ -181,12 +181,12 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
     function test_cannot_file_king_no_auth() public {
         D3MAavePool(d3mTestPool).deny(address(this));
-        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", "king", address(123)), "D3MAavePool/not-authorized");
+        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAavePool/not-authorized");
     }
 
     function test_cannot_file_king_vat_caged() public {
         FakeVat(vat).cage();
-        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", "king", address(123)), "D3MAavePool/no-file-during-shutdown");
+        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAavePool/no-file-during-shutdown");
     }
 
     function test_deposit_calls_lending_pool_deposit() public {

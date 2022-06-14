@@ -103,12 +103,12 @@ contract D3MOracleTest is DSSTest {
 
     function test_unauth_file_hub() public {
         oracle.deny(address(this));
-        assertRevert(address(oracle), abi.encodeWithSignature("file(bytes32,address)", "hub", address(123)), "D3MOracle/not-authorized");
+        assertRevert(address(oracle), abi.encodeWithSignature("file(bytes32,address)", bytes32("hub"), address(123)), "D3MOracle/not-authorized");
     }
 
     function test_vat_caged_file_hub() public {
         vat.cage();
-        assertRevert(address(oracle), abi.encodeWithSignature("file(bytes32,address)", "hub", address(123)), "D3MOracle/no-file-during-shutdown");
+        assertRevert(address(oracle), abi.encodeWithSignature("file(bytes32,address)", bytes32("hub"), address(123)), "D3MOracle/no-file-during-shutdown");
     }
 
     function test_peek() public {
