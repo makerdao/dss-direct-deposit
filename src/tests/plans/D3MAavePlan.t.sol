@@ -121,7 +121,7 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
     }
 
     function test_cannot_file_unknown_uint_param() public {
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", "bad", uint256(1)), "D3MAavePlan/file-unrecognized-param");
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", bytes32("bad"), uint256(1)), "D3MAavePlan/file-unrecognized-param");
     }
 
     function test_can_file_interestStratgey() public {

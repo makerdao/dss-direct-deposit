@@ -17,11 +17,11 @@
 
 pragma solidity ^0.8.14;
 
-import "ds-test/test.sol";
-import "../tests/interfaces/interfaces.sol";
+import {DSSTest} from "dss-test/DSSTest.sol";
+import "../interfaces/interfaces.sol";
 
-import { D3MPlanBaseTest }            from "./D3MPlanBase.t.sol";
-import { D3MCompoundPlan } from "./D3MCompoundPlan.sol";
+import { D3MPlanBaseTest } from "./D3MPlanBase.t.sol";
+import { D3MCompoundPlan } from "../../plans/D3MCompoundPlan.sol";
 
 interface CErc20Like {
     function borrowRatePerBlock()               external view returns (uint256);
@@ -55,8 +55,6 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
     CErc20Like             cDai;
     InterestRateModelLike  model;
     D3MCompoundPlanWrapper plan;
-
-    uint256 constant WAD = 10 ** 18;
 
     function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x, "overflow");
@@ -107,6 +105,9 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
     }
 
     function setUp() public override {
+
+        contractName = "D3MCompoundPlan";
+
         dai   = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         cDai  = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
         model = InterestRateModelLike(cDai.interestRateModel());
@@ -150,12 +151,12 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
         assertEq(plan.barb(), 0.0005e16);
     }
 
-    function testFail_barb_too_high() public {
-        plan.file("barb", 0.0005e16 + 1);
+    function test_sets_barb_too_high() public {
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", bytes32("barb"), uint256(0.0005e16 + 1)), "D3MCompoundPlan/barb-too-high");
     }
 
-    function testFail_cannot_file_unknown_uint_param() public {
-        plan.file("bad", 1);
+    function test_cannot_file_unknown_uint_param() public {
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", bytes32("bad"), uint256(1)), "D3MCompoundPlan/file-unrecognized-param");
     }
 
     function test_can_file_rateModel() public {

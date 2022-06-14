@@ -18,8 +18,8 @@
 pragma solidity ^0.8.14;
 
 import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat } from "./D3MPoolBase.t.sol";
-import { DaiLike, TokenLike }    from "../tests/interfaces/interfaces.sol";
-import { D3MCompoundPool }    from "./D3MCompoundPool.sol";
+import { DaiLike, TokenLike } from "../interfaces/interfaces.sol";
+import { D3MCompoundPool } from "../../pools/D3MCompoundPool.sol";
 
 interface CErc20Like {
     function balanceOf(address owner) external view returns (uint256);
@@ -72,6 +72,8 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         hevm = Hevm(
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );
+
+        contractName = "D3MCompoundPool";
 
         dai         = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         cDai        = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);

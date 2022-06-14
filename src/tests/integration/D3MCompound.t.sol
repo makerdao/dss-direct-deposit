@@ -17,7 +17,7 @@
 
 pragma solidity ^0.8.14;
 
-import "ds-test/test.sol";
+import {DSSTest} from "dss-test/DSSTest.sol";
 import "../interfaces/interfaces.sol";
 
 import { D3MHub } from "../../D3MHub.sol";
@@ -69,11 +69,7 @@ interface InterestRateModelLike {
     function utilizationRate(uint256 cash, uint256 borrows, uint256 reserves) external pure returns (uint256);
 }
 
-contract D3MCompoundTest is DSTest {
-    uint256 constant WAD = 10 ** 18;
-    uint256 constant RAY = 10 ** 27;
-    uint256 constant RAD = 10 ** 45;
-
+contract D3MCompoundTest is DSSTest {
     Hevm hevm;
 
     VatLike vat;
@@ -100,7 +96,7 @@ contract D3MCompoundTest is DSTest {
     // Note that here the rate is in WAD resolution
     uint256 constant INTEREST_RATE_TOLERANCE = WAD / 10000;
 
-    function setUp() public {
+    function setUp() public override {
         hevm = Hevm(address(bytes20(uint160(uint256(keccak256('hevm cheat code'))))));
 
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
