@@ -111,14 +111,14 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         assertEq(address(pool.king()), address(123));
     }
 
-    function testFail_cannot_file_king_no_auth() public {
+    function test_cannot_file_king_no_auth() public {
         pool.deny(address(this));
-        pool.file("king", address(123));
+        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MCompoundPool/not-authorized");
     }
 
-    function testFail_cannot_file_king_vat_caged() public {
+    function test_cannot_file_king_vat_caged() public {
         FakeVat(vat).cage();
-        pool.file("king", address(123));
+        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MCompoundPool/no-file-during-shutdown");
     }
 
     function test_deposit_calls_cdai_deposit() public {
@@ -161,12 +161,6 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
 
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 0);
         assertEq(dai.balanceOf(address(this)) - before, 1 * WAD);
-    }
-
-    function testFail_withdraw_requires_auth() public {
-        pool.deposit(1 * WAD);
-        pool.deny(address(this));
-        pool.withdraw(1 * WAD);
     }
 
     function test_collect_claims_for_king() public {
@@ -219,10 +213,10 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         assertEq(comp.balanceOf(address(king)), kingBalance);
     }
 
-    function testFail_collect_no_king() public {
+    function test_collect_no_king() public {
         assertEq(pool.king(), address(0));
 
-        pool.collect(true);
+        assertRevert(d3mTestPool, abi.encodeWithSignature("collect(bool)", true), "D3MCompoundPool/king-not-set");
     }
 
     function test_redeemable_returns_cdai() public {

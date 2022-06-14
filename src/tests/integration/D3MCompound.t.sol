@@ -711,7 +711,7 @@ contract D3MCompoundTest is DSSTest {
         assertGe(vat.dai(vow), prevDai); // As also probably accrues interest from aDai
     }
 
-    function testFail_unwind_mcd_caged_wait_done() public {
+    function test_unwind_mcd_caged_wait_done() public {
         uint256 currentLiquidity = dai.balanceOf(address(cDai));
 
         // Lower by 50%
@@ -744,8 +744,7 @@ contract D3MCompoundTest is DSSTest {
 
         end.thaw();
 
-        // Unwind via exec should fail with error "D3MCompound/end-debt-already-set"
-        d3mHub.exec(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", ilk), "D3MHub/end-debt-already-set");
     }
 
     function test_unwind_culled_then_mcd_caged() public {
@@ -871,7 +870,7 @@ contract D3MCompoundTest is DSSTest {
         assertEqVatDai(vat.dai(vow), originalDai - originalSin + daiEarned * RAY);
     }
 
-    function testFail_uncull_not_culled() public {
+    function test_uncull_not_culled() public {
         // Lower by 50%
         _setRelBorrowTarget(5000);
         d3mHub.cage(ilk);
@@ -880,11 +879,10 @@ contract D3MCompoundTest is DSSTest {
         end.cage();
         end.cage(ilk);
 
-        // uncull should fail with error "D3MCompound/not-prev-culled"
-        d3mHub.uncull(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("uncull(bytes32)", ilk), "D3MHub/not-prev-culled");
     }
 
-    function testFail_uncull_not_shutdown() public {
+    function test_uncull_not_shutdown() public {
         // Lower by 50%
         _setRelBorrowTarget(5000);
         d3mHub.cage(ilk);
@@ -894,8 +892,7 @@ contract D3MCompoundTest is DSSTest {
 
         d3mHub.cull(ilk);
 
-        // uncull should fail with error "D3MCompound/no-uncull-normal-operation"
-        d3mHub.uncull(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("uncull(bytes32)", ilk), "D3MHub/no-uncull-normal-operation");
     }
 
     function test_collect_comp() public {
@@ -920,14 +917,13 @@ contract D3MCompoundTest is DSSTest {
         assertGt(comp.balanceOf(address(pauseProxy)), compBefore);
     }
 
-    function testFail_collect_comp_king_not_set() public {
+    function test_collect_comp_king_not_set() public {
         _setRelBorrowTarget(7500);
 
         hevm.roll(block.number + 5760);
         if (ComptrollerLike(cDai.comptroller()).compBorrowSpeeds(address(cDai)) == 0) return; // Rewards are turned off
 
-        // Collect some stake rewards into the pause proxy
-        d3mCompoundPool.collect(true);
+        assertRevert(address(d3mCompoundPool), abi.encodeWithSignature("collect(bool)", true), "D3MCompoundPool/king-not-set");
     }
 
     function test_cage_exit() public {
@@ -949,7 +945,7 @@ contract D3MCompoundTest is DSSTest {
         assertEqRounding(100 * 1e18, cDai.balanceOfUnderlying(address(this)));
     }
 
-    function testFail_shutdown_cant_cull() public {
+    function test_shutdown_cant_cull() public {
         _setRelBorrowTarget(7500);
 
         d3mHub.cage(ilk);
@@ -960,7 +956,7 @@ contract D3MCompoundTest is DSSTest {
         (, , uint256 tau, , ) = d3mHub.ilks(ilk);
         hevm.warp(block.timestamp + tau);
 
-        d3mHub.cull(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("cull(bytes32)", ilk), "D3MHub/no-cull-during-shutdown");
     }
 
     function test_quit_no_cull() public {
@@ -1029,15 +1025,14 @@ contract D3MCompoundTest is DSSTest {
         assertEq(bal, pbal);
     }
 
-    function testFail_reap_caged() public {
+    function test_reap_caged() public {
         _setRelBorrowTarget(7500);
 
         d3mHub.cage(ilk);
 
         hevm.warp(block.timestamp + 1 days);    // Accrue some interest
 
-        // reap should fail with error "D3MCompound/no-reap-during-cage"
-        d3mHub.reap(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("reap(bytes32)", ilk), "D3MHub/pool-not-live");
     }
 
     function test_direct_deposit_mom() public {

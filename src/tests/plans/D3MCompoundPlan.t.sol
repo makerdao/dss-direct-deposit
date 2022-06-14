@@ -175,14 +175,13 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
         assertEq(plan.delegate(), address(1));
     }
 
-    function testFail_cannot_file_unknown_address_param() public {
-        plan.file("bad", address(1));
+    function test_cannot_file_unknown_address_param() public {
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,address)", bytes32("bad"), address(1)), "D3MCompoundPlan/file-unrecognized-param");
     }
 
-    function testFail_cannot_file_without_auth() public {
+    function test_cannot_file_without_auth() public {
         plan.deny(address(this));
-
-        plan.file("bar", 1);
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", bytes32("barb"), uint256(1)), "D3MCompoundPlan/not-authorized");
     }
 
     function test_calculate_current_rate() public {
@@ -332,12 +331,12 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
         assertEq(plan.barb(), 0);
     }
 
-    function testFail_disable_without_auth() public {
+    function test_disable_without_auth() public {
         plan.file("barb", 123);
         assertEq(address(plan.tack()), address(model));
         plan.deny(address(this));
 
-        plan.disable();
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("disable()"), "D3MCompoundPlan/not-authorized");
     }
 }
 
