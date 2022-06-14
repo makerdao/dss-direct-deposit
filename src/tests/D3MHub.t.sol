@@ -231,15 +231,15 @@ contract D3MHubTest is DSSTest {
 
     function test_unauth_file_tau() public {
         d3mHub.deny(address(this));
-        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,uint256)", ilk, "tau", uint256(1 days)), "D3MHub/not-authorized");
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,uint256)", ilk, bytes32("tau"), uint256(1 days)), "D3MHub/not-authorized");
     }
 
     function test_unknown_uint256_file() public {
-        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,uint256)", ilk, "unknown", uint256(1)), "D3MHub/file-unrecognized-param");
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,uint256)", ilk, bytes32("unknown"), uint256(1)), "D3MHub/file-unrecognized-param");
     }
 
     function test_unknown_address_file() public {
-        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, "unknown", address(this)), "D3MHub/file-unrecognized-param");
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, bytes32("unknown"), address(this)), "D3MHub/file-unrecognized-param");
     }
 
     function test_can_file_pool() public {
@@ -296,22 +296,22 @@ contract D3MHubTest is DSSTest {
         end.cage();
         end.cage(ilk);
 
-        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,address)", "end", address(123)), "D3MHub/no-file-during-shutdown");
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,address)", bytes32("end"), address(123)), "D3MHub/no-file-during-shutdown");
     }
 
     function test_unauth_file_pool() public {
         d3mHub.deny(address(this));
-        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, "pool", address(this)), "D3MHub/not-authorized");
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, bytes32("pool"), address(this)), "D3MHub/not-authorized");
     }
 
     function test_hub_not_live_pool_file() public {
         // Cage Pool
         d3mHub.cage(ilk);
-        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, "pool", address(123)), "D3MHub/pool-not-live");
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, bytes32("pool"), address(123)), "D3MHub/pool-not-live");
     }
 
     function test_unknown_ilk_address_file() public {
-        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, "unknown", address(123)), "D3MHub/file-unrecognized-param");
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, bytes32("unknown"), address(123)), "D3MHub/file-unrecognized-param");
     }
 
     function test_vat_not_live_ilk_address_file() public {
@@ -324,11 +324,11 @@ contract D3MHubTest is DSSTest {
         end.cage();
         end.cage(ilk);
 
-        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, "pool", address(123)), "D3MHub/no-file-during-shutdown");
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, bytes32("pool"), address(123)), "D3MHub/no-file-during-shutdown");
     }
 
     function test_exec_no_ilk() public {
-        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", "fake-ilk"), "D3MHub/rate-not-one");
+        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", bytes32("fake-ilk")), "D3MHub/rate-not-one");
     }
 
     function test_exec_rate_not_one() public {
@@ -868,7 +868,7 @@ contract D3MHubTest is DSSTest {
     }
 
     function test_no_cull_no_ilk() public {
-        assertRevert(address(d3mHub), abi.encodeWithSignature("cull(bytes32)", "fake-ilk"), "D3MHub/pool-live");
+        assertRevert(address(d3mHub), abi.encodeWithSignature("cull(bytes32)", bytes32("fake-ilk")), "D3MHub/pool-live");
     }
 
     function test_uncull() public {
