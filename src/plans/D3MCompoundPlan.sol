@@ -73,6 +73,9 @@ contract D3MCompoundPlan is ID3MPlan {
 
     CErc20Like public immutable cDai;
 
+    // https://github.com/compound-finance/compound-protocol/blob/a3214f67b73310d547e00fc578e8355911c9d376/contracts/CTokenInterfaces.sol#L31
+    uint256 internal constant MAX_BORROW_RATE = 0.0005e16;
+
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
@@ -116,8 +119,10 @@ contract D3MCompoundPlan is ID3MPlan {
     }
 
     function file(bytes32 what, uint256 data) external auth {
-        if (what == "barb") barb = data;
-        else revert("D3MCompoundPlan/file-unrecognized-param");
+        if (what == "barb") {
+            require(data <= MAX_BORROW_RATE, "D3MCompoundPlan/barb-too-high");
+            barb = data;
+        } else revert("D3MCompoundPlan/file-unrecognized-param");
         emit File(what, data);
     }
     function file(bytes32 what, address data) external auth {

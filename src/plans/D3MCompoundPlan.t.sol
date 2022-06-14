@@ -145,9 +145,13 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
     function test_can_file_barb() public {
         assertEq(plan.barb(), 0);
 
-        plan.file("barb", 1);
+        plan.file("barb", 0.0005e16);
 
-        assertEq(plan.barb(), 1);
+        assertEq(plan.barb(), 0.0005e16);
+    }
+
+    function testFail_barb_too_high() public {
+        plan.file("barb", 0.0005e16 + 1);
     }
 
     function testFail_cannot_file_unknown_uint_param() public {
