@@ -116,7 +116,7 @@ contract D3MHub {
     constructor(address daiJoin_) {
         daiJoin = DaiJoinLike(daiJoin_);
         vat = VatLike(daiJoin.vat());
-        TokenLike(DaiJoinLike(daiJoin_).dai()).approve(daiJoin_, type(uint256).max);
+        TokenLike(daiJoin.dai()).approve(daiJoin_, type(uint256).max);
         vat.hope(daiJoin_);
 
         wards[msg.sender] = 1;
@@ -258,7 +258,7 @@ contract D3MHub {
             (,daiDebt) = vat.urns(ilk, address(_pool));
         } else if (mode == Mode.D3M_CULLED) {
             // Module shutdown and culled
-            // debt is obtained from free collateral owned by this contract
+            // debt is obtained from free collateral owned by the pool contract
             // We rebalance the CDP after grabbing in `cull` so the gems represents
             // the debt at time of cull
             daiDebt = vat.gem(ilk, address(_pool));
@@ -514,8 +514,7 @@ contract D3MHub {
     function exit(bytes32 ilk, address usr, uint256 wad) external lock {
         require(wad <= MAXINT256, "D3MHub/overflow");
         vat.slip(ilk, msg.sender, -int256(wad));
-        ID3MPool _pool = ilks[ilk].pool;
-        _pool.transfer(usr, wad);
+        ilks[ilk].pool.transfer(usr, wad);
         emit Exit(ilk, usr, wad);
     }
 
