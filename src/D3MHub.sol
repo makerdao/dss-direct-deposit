@@ -76,7 +76,7 @@ contract D3MHub {
     VatLike     public immutable vat;
     DaiJoinLike public immutable daiJoin;
 
-    enum Mode { NORMAL, MODULE_CULLED, MCD_CAGED }
+    enum Mode { NORMAL, D3M_CULLED, MCD_CAGED }
 
     /**
         @notice Tracking struct for each of the D3M ilks.
@@ -256,7 +256,7 @@ contract D3MHub {
             // Normal mode or module just caged (no culled)
             // debt is obtained from CDP art
             (,daiDebt) = vat.urns(ilk, address(_pool));
-        } else if (mode == Mode.MODULE_CULLED) {
+        } else if (mode == Mode.D3M_CULLED) {
             // Module shutdown and culled
             // debt is obtained from free collateral owned by this contract
             // We rebalance the CDP after grabbing in `cull` so the gems represents
@@ -317,7 +317,7 @@ contract D3MHub {
             vat.frob(ilk, address(_pool), address(_pool), address(this), -int256(amount), -int256(amount));
             vat.slip(ilk, address(_pool), -int256(amount));
             vat.move(address(this), vow, fees * RAY);
-        } else if (mode == Mode.MODULE_CULLED) {
+        } else if (mode == Mode.D3M_CULLED) {
             vat.slip(ilk, address(_pool), -int256(amount));
             vat.move(address(this), vow, total * RAY);
         } else {
@@ -414,7 +414,7 @@ contract D3MHub {
                 _pool,
                 type(uint256).max,
                 ilks[ilk].culled == 1
-                ? Mode.MODULE_CULLED
+                ? Mode.D3M_CULLED
                 : Mode.NORMAL,
                 currentAssets
             );
