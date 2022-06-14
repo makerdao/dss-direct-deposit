@@ -440,32 +440,22 @@ contract D3MHubTest is DSSTest {
         // can reduce and have the correct amount of locked collateral (ink)
         d3mTestPlan.file("targetAssets", 25 * WAD);
 
+        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", ilk), "D3MHub/position-needs-to-be-fixed");
+
+        d3mHub.fix(ilk);
+
+        (pink, part) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(pink, 50 * WAD);
+        assertEq(part, 50 * WAD);
+
         d3mHub.exec(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 25 * WAD);
-        assertEq(art, 15 * WAD);
+        assertEq(art, 25 * WAD);
         uint256 gemAfter = vat.gem(ilk, address(end));
         assertEq(gemAfter, 0);
         uint256 daiAfter = vat.dai(address(d3mHub));
-        assertEq(daiAfter, 0);
-        assertEq(sinBefore, vat.sin(vow));
-        // This comes back to us as fees at this point
-        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        shareDaiBalance = dai.balanceOf(address(testGem));
-        assertEq(shareDaiBalance, 15 * WAD);
-        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
-        assertEq(poolShareBalance, 15 * WAD);
-
-        // calling exec again targets correct art
-        d3mHub.exec(ilk);
-
-        (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 35 * WAD);
-        assertEq(art, 25 * WAD);
-        gemAfter = vat.gem(ilk, address(end));
-        assertEq(gemAfter, 0);
-        daiAfter = vat.dai(address(d3mHub));
         assertEq(daiAfter, 0);
         assertEq(sinBefore, vat.sin(vow));
         // should not change again
@@ -481,7 +471,7 @@ contract D3MHubTest is DSSTest {
         d3mHub.exec(ilk);
 
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 85 * WAD);
+        assertEq(ink, 75 * WAD);
         assertEq(art, 75 * WAD);
         gemAfter = vat.gem(ilk, address(end));
         assertEq(gemAfter, 0);
@@ -500,40 +490,40 @@ contract D3MHubTest is DSSTest {
 
         d3mHub.exec(ilk);
 
-        (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 15 * WAD);
-        assertEq(art, 5 * WAD);
-        gemAfter = vat.gem(ilk, address(end));
-        assertEq(gemAfter, 0);
-        daiAfter = vat.dai(address(d3mHub));
-        assertEq(daiAfter, 0);
-        assertEq(sinBefore, vat.sin(vow));
-        // should not change again
-        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        shareDaiBalance = dai.balanceOf(address(testGem));
-        assertEq(shareDaiBalance, 5 * WAD);
-        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
-        assertEq(poolShareBalance, 5 * WAD);
+        // (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        // assertEq(ink, 15 * WAD);
+        // assertEq(art, 5 * WAD);
+        // gemAfter = vat.gem(ilk, address(end));
+        // assertEq(gemAfter, 0);
+        // daiAfter = vat.dai(address(d3mHub));
+        // assertEq(daiAfter, 0);
+        // assertEq(sinBefore, vat.sin(vow));
+        // // should not change again
+        // assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        // shareDaiBalance = dai.balanceOf(address(testGem));
+        // assertEq(shareDaiBalance, 5 * WAD);
+        // poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        // assertEq(poolShareBalance, 5 * WAD);
 
-        // can wind again. correct art
-        d3mTestPlan.file("targetAssets", 100 * WAD);
+        // // can wind again. correct art
+        // d3mTestPlan.file("targetAssets", 100 * WAD);
 
-        d3mHub.exec(ilk);
+        // d3mHub.exec(ilk);
 
-        (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 110 * WAD);
-        assertEq(art, 100 * WAD);
-        gemAfter = vat.gem(ilk, address(end));
-        assertEq(gemAfter, 0);
-        daiAfter = vat.dai(address(d3mHub));
-        assertEq(daiAfter, 0);
-        assertEq(sinBefore, vat.sin(vow));
-        // should not change again
-        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        shareDaiBalance = dai.balanceOf(address(testGem));
-        assertEq(shareDaiBalance, 100 * WAD);
-        poolShareBalance = testGem.balanceOf(address(d3mTestPool));
-        assertEq(poolShareBalance, 100 * WAD);
+        // (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        // assertEq(ink, 110 * WAD);
+        // assertEq(art, 100 * WAD);
+        // gemAfter = vat.gem(ilk, address(end));
+        // assertEq(gemAfter, 0);
+        // daiAfter = vat.dai(address(d3mHub));
+        // assertEq(daiAfter, 0);
+        // assertEq(sinBefore, vat.sin(vow));
+        // // should not change again
+        // assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        // shareDaiBalance = dai.balanceOf(address(testGem));
+        // assertEq(shareDaiBalance, 100 * WAD);
+        // poolShareBalance = testGem.balanceOf(address(d3mTestPool));
+        // assertEq(poolShareBalance, 100 * WAD);
     }
 
     function test_wind_after_debt_paid_back() public {
