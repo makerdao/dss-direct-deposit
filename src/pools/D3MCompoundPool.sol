@@ -34,8 +34,7 @@ interface VatLike {
 interface D3mHubLike {
     function vat() external view returns (address);
 }
-
-// https://github.com/compound-finance/compound-protocol/blob/3affca87636eecd901eb43f81a4813186393905d/contracts/CErc20.sol#L14
+// cDai - https://etherscan.io/token/0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643
 interface CErc20Like is TokenLike {
     function underlying()                           external view returns (address);
     function comptroller()                          external view returns (address);
@@ -48,7 +47,7 @@ interface CErc20Like is TokenLike {
     function exchangeRateCurrent()                  external returns (uint256);
 }
 
-// https://github.com/compound-finance/compound-protocol/blob/3affca87636eecd901eb43f81a4813186393905d/contracts/ComptrollerG7.sol#L15
+// Comptroller - https://etherscan.io/address/0x3d9819210a31b4961b30ef54be2aed79b9c9cd3b
 interface ComptrollerLike {
     function getCompAddress() external view returns (address);
     function claimComp(address[] memory holders, address[] memory cTokens, bool borrowers, bool suppliers) external;
