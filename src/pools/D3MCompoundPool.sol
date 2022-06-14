@@ -182,15 +182,17 @@ contract D3MCompoundPool is ID3MPool {
         return address(cDai);
     }
 
-    function collect() external {
+    function collect(bool claim) external {
         require(king != address(0), "D3MCompoundPool/king-not-set");
 
-        address[] memory holders = new address[](1);
-        holders[0] = address(this);
-        address[] memory cTokens = new address[](1);
-        cTokens[0] = address(cDai);
+        if (claim) {
+            address[] memory holders = new address[](1);
+            holders[0] = address(this);
+            address[] memory cTokens = new address[](1);
+            cTokens[0] = address(cDai);
+            comptroller.claimComp(holders, cTokens, false, true);
+        }
 
-        comptroller.claimComp(holders, cTokens, false, true);
         uint256 amt = comp.balanceOf(address(this));
         comp.transfer(king, amt);
 

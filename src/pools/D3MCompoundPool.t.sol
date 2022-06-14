@@ -184,15 +184,43 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         (,,,uint256 expected) = lens.getCompBalanceMetadataExt(address(comp), address(comptroller), address(pool));
         assertGt(expected, 0);
 
-        pool.collect();
+        pool.collect(true);
 
         assertEq(comp.balanceOf(address(king)), compBefore + expected);
+    }
+
+    function test_collect_without_claim() public {
+
+        // Return if rewards are turned off - this is still an acceptable state
+        if (ComptrollerLike(cDai.comptroller()).compBorrowSpeeds(address(cDai)) == 0) return;
+
+        address king = address(this);
+        pool.file("king", king);
+
+        pool.file("hub", address(this));
+        pool.deposit(100 * WAD);
+        hevm.roll(block.number + 5760);
+        pool.collect(true);
+
+        uint256 kingBalance = comp.balanceOf(address(king));
+        assertGt(kingBalance, 0);
+
+        // Since COMP can be claimed to the pool directly through Compound by a 3rd party make sure it can be recovered
+        // later even if comptroller would revert for some reason.
+        assertEq(comp.balanceOf(address(pool)), 0);
+        comp.transfer(address(pool), 1);
+        assertEq(comp.balanceOf(address(pool)), 1);
+        assertEq(comp.balanceOf(address(king)), kingBalance - 1);
+
+        pool.collect(false);
+        assertEq(comp.balanceOf(address(pool)), 0);
+        assertEq(comp.balanceOf(address(king)), kingBalance);
     }
 
     function testFail_collect_no_king() public {
         assertEq(pool.king(), address(0));
 
-        pool.collect();
+        pool.collect(true);
     }
 
     function test_redeemable_returns_cdai() public {

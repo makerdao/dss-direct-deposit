@@ -913,14 +913,14 @@ contract D3MCompoundTest is DSTest {
         if (ComptrollerLike(cDai.comptroller()).compBorrowSpeeds(address(cDai)) == 0) return;
 
         uint256 compBefore = comp.balanceOf(address(pauseProxy));
-        d3mCompoundPool.collect();
+        d3mCompoundPool.collect(true);
         assertGt(comp.balanceOf(address(pauseProxy)), compBefore);
 
         hevm.roll(block.number + 5760);
 
         // Collect some more rewards
         compBefore = comp.balanceOf(address(pauseProxy));
-        d3mCompoundPool.collect();
+        d3mCompoundPool.collect(true);
         assertGt(comp.balanceOf(address(pauseProxy)), compBefore);
     }
 
@@ -931,7 +931,7 @@ contract D3MCompoundTest is DSTest {
         if (ComptrollerLike(cDai.comptroller()).compBorrowSpeeds(address(cDai)) == 0) return; // Rewards are turned off
 
         // Collect some stake rewards into the pause proxy
-        d3mCompoundPool.collect();
+        d3mCompoundPool.collect(true);
     }
 
     function test_cage_exit() public {
