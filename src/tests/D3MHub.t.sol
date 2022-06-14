@@ -83,7 +83,7 @@ contract D3MHubTest is DSSTest {
         _giveAuthAccess(address(spot), address(this));
 
         testGem = new D3MTestGem(18);
-        d3mHub = new D3MHub(address(vat), address(daiJoin));
+        d3mHub = new D3MHub(address(daiJoin));
 
         rewardsClaimer = new D3MTestRewards(address(testGem));
         d3mTestPool = new D3MTestPool(
@@ -1128,7 +1128,7 @@ contract D3MHubTest is DSSTest {
         _windSystem(); // Tests that the current pool has ink/art
 
         // Setup New hub
-        D3MHub newHub = new D3MHub(address(vat), address(daiJoin));
+        D3MHub newHub = new D3MHub(address(daiJoin));
         newHub.file("vow", vow);
         newHub.file("end", address(end));
 
@@ -1166,7 +1166,7 @@ contract D3MHubTest is DSSTest {
         _windSystem(); // Tests that the current pool has ink/art
 
         // Setup New hub
-        D3MHub newHub = new D3MHub(address(vat), address(daiJoin));
+        D3MHub newHub = new D3MHub(address(daiJoin));
         newHub.file("vow", vow);
         newHub.file("end", address(end));
 
@@ -1196,7 +1196,7 @@ contract D3MHubTest is DSSTest {
         _windSystem(); // Tests that the current pool has ink/art
 
         // Setup New hub and D3M
-        D3MHub newHub = new D3MHub(address(vat), address(daiJoin));
+        D3MHub newHub = new D3MHub(address(daiJoin));
         newHub.file("vow", vow);
         newHub.file("end", address(end));
         vat.rely(address(newHub));

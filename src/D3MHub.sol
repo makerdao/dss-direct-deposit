@@ -41,6 +41,7 @@ interface EndLike {
 }
 
 interface DaiJoinLike {
+    function vat() external view returns (address);
     function dai() external view returns (address);
     function join(address, uint256) external;
     function exit(address, uint256) external;
@@ -110,14 +111,13 @@ contract D3MHub {
 
     /**
         @dev sets msg.sender as authed.
-        @param vat_     address of the DSS vat contract
         @param daiJoin_ address of the DSS Dai Join contract
     */
-    constructor(address vat_, address daiJoin_) {
-        vat = VatLike(vat_);
+    constructor(address daiJoin_) {
         daiJoin = DaiJoinLike(daiJoin_);
+        vat = VatLike(daiJoin.vat());
         TokenLike(DaiJoinLike(daiJoin_).dai()).approve(daiJoin_, type(uint256).max);
-        VatLike(vat_).hope(daiJoin_);
+        vat.hope(daiJoin_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
