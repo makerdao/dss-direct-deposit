@@ -1061,7 +1061,14 @@ contract D3MAaveTest is DSSTest {
         vat.frob(ilk, address(address(d3mAavePool)), address(this), address(this), 0, -100); // Some small amount of dai repaid
 
         // We should be able to close out the vault completely even though ink and art do not match
-        _setRelBorrowTarget(0);
+        // _setRelBorrowTarget(0);
+        d3mAavePlan.file("bar", 0);
+
+        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", ilk), "D3MHub/position-needs-to-be-fixed");
+
+        d3mHub.fix(ilk);
+
+        d3mHub.exec(ilk);
     }
 
     function test_wind_partial_unwind_wind_debt_paid_back() public {
