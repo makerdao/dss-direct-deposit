@@ -1129,39 +1129,18 @@ contract D3MAaveTest is DSSTest {
         assertEq(adaiDaiBalanceBefore, dai.balanceOf(address(adai)));
         assertEq(poolAdaiBalanceBefore, adai.balanceOf(address(d3mAavePool)));
 
-        // // middle values
-        // (uint256 mink, uint256 mart) = vat.urns(ilk, address(d3mAavePool));
-        // uint256 gemMiddle = vat.gem(ilk, address(end));
-        // uint256 adaiDaiBalanceMiddle = dai.balanceOf(address(adai));
-        // uint256 poolAdaiBalanceMiddle = adai.balanceOf(address(d3mAavePool));
+        // can re-wind and have the correct amount of debt
+        d3mAavePlan.file("bar", initialRate);
+        d3mHub.exec(ilk);
 
-        // // calling exec again targets correct art
-        // d3mHub.exec(ilk);
-
-        // (ink, art) = vat.urns(ilk, address(d3mAavePool));
-        // assertEq(mink + 10 * WAD, ink);
-        // assertEq(mart + 10 * WAD, art);
-        // assertEq(ink, art);
-        // assertEq(gemMiddle, vat.gem(ilk, address(end)));
-        // // No fees to collect this time
-        // // assertEq(vat.sin(vow), sinBefore);
-        // assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        // // in rebalancing the art we are adding 10 more collateral
-        // assertEq(adaiDaiBalanceMiddle + 10 * WAD, dai.balanceOf(address(adai)));
-        // assertEq(poolAdaiBalanceMiddle + 10 * WAD, adai.balanceOf(address(d3mAavePool)));
-
-        // // can re-wind and have the correct amount of debt
-        // d3mAavePlan.file("bar", initialRate);
-        // d3mHub.exec(ilk);
-
-        // (ink, art) = vat.urns(ilk, address(d3mAavePool));
-        // assertEq(ink, pink);
-        // assertEq(art, part);
-        // assertEq(ink, art);
-        // assertEq(gemBefore, vat.gem(ilk, address(end)));
-        // // assertEq(vat.sin(vow), sinBefore);
-        // assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        // assertEq(adaiDaiBalanceBefore, dai.balanceOf(address(adai)));
-        // assertEq(poolAdaiBalanceBefore, adai.balanceOf(address(d3mAavePool)));
+        (ink, art) = vat.urns(ilk, address(d3mAavePool));
+        assertEq(ink, pink);
+        assertEq(art, part);
+        assertEq(ink, art);
+        assertEq(gemBefore, vat.gem(ilk, address(end)));
+        // assertEq(vat.sin(vow), sinBefore);
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        assertEq(adaiDaiBalanceBefore, dai.balanceOf(address(adai)));
+        assertEq(poolAdaiBalanceBefore, adai.balanceOf(address(d3mAavePool)));
     }
 }
