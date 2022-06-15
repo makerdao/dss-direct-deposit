@@ -389,6 +389,8 @@ contract D3MHub {
         @param ilk bytes32 of the D3M ilk name
     */
     function fix(bytes32 ilk) external lock {
+        require(vat.live() == 1, "D3MHub/no-fix-during-shutdown");
+
         address _pool = address(ilks[ilk].pool);
         (uint256 ink, uint256 art) = vat.urns(ilk, _pool);
         if (art < ink) {

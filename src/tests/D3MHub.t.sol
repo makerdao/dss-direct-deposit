@@ -834,7 +834,7 @@ contract D3MHubTest is DSSTest {
         assertEq(vat.sin(vow), sinBefore + 40 * RAD);
     }
 
-    function test_mcd_caged_debt_paid_back_can_fix() public {
+    function test_mcd_caged_cant_fix() public {
         _windSystem();
 
         // Someone pays back our debt
@@ -875,43 +875,7 @@ contract D3MHubTest is DSSTest {
         assertEq(dai.balanceOf(address(testGem)), 0);
         assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
 
-        d3mHub.fix(ilk);
-        d3mHub.exec(ilk);
-
-        (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 0);
-        assertEq(art, 0);
-        assertEq(vat.gem(ilk, address(end)), 10 * WAD);
-        assertEq(vat.dai(address(d3mHub)), 0);
-        assertEq(vat.sin(vow), sinBefore + 50 * RAD);
-        assertEq(vat.dai(vow), daiBefore + 60 * RAD);
-        assertEq(dai.balanceOf(address(testGem)), 0);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
-
-        assertEq(end.gap(ilk), 0);
-
-        hevm.warp(block.timestamp + end.wait());
-
-        // Force remove all the dai from vow so it can call end.thaw()
-        hevm.store(
-            address(vat),
-            keccak256(abi.encode(address(vow), uint256(5))),
-            bytes32(0)
-        );
-
-        end.thaw();
-        end.flow(ilk);
-
-        assertEq(vat.dai(address(this)), 10 * RAD);
-        vat.hope(address(end));
-        end.pack(10 * WAD);
-        assertEq(vat.dai(address(this)), 0);
-        end.cash(ilk, 10 * WAD);
-        // see that we get some gems for our bag
-        assertLt(vat.gem(ilk, address(end)), 10 * WAD);
-        assertGt(vat.gem(ilk, address(this)), 0);
-
-        assertRevert(address(d3mHub), abi.encodeWithSignature("exit(bytes32,address,uint256)", ilk, address(this), vat.gem(ilk, address(this))), "TestGem/insufficient-balance");
+        assertRevert(address(d3mHub), abi.encodeWithSignature("fix(bytes32)", ilk), "D3MHub/no-fix-during-shutdown");
     }
 
     function test_unwind_pool_caged() public {
