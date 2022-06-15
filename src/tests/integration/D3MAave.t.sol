@@ -127,7 +127,7 @@ contract D3MAaveTest is DSSTest {
         _giveAuthAccess(address(end), address(this));
         _giveAuthAccess(address(spot), address(this));
 
-        d3mHub = new D3MHub(address(vat), address(daiJoin));
+        d3mHub = new D3MHub(address(daiJoin));
         d3mAavePool = new D3MAavePool(address(d3mHub), address(dai), address(aavePool));
         d3mAavePool.rely(address(d3mHub));
         d3mAavePlan = new D3MAavePlan(address(dai), address(aavePool));
