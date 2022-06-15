@@ -399,7 +399,7 @@ contract D3MHubTest is DSSTest {
         assertTrue(d3mTestPool.postDebt());
     }
 
-    function test_unwind_blocked_after_debt_paid_back_until_fix() public {
+    function test_unwind_fixes_after_debt_paid_back() public {
         _windSystem();
 
         // Someone pays back our debt
@@ -419,46 +419,37 @@ contract D3MHubTest is DSSTest {
         assertEq(ink, 50 * WAD);
         assertEq(art, 40 * WAD);
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        uint256 viceBefore = vat.vice();
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
         assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
         assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
 
-        // Does not affect future execs unless our target changes
+        // It will just fix the position and send the DAI to the surplus buffer
         d3mHub.exec(ilk);
 
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 50 * WAD);
-        assertEq(art, 40 * WAD);
+        assertEq(art, 50 * WAD);
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
-        assertEq(vat.dai(vow), vowDaiBefore);
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
         assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
         assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
 
         // can reduce and have the correct amount of locked collateral
         d3mTestPlan.file("targetAssets", 25 * WAD);
 
-        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", ilk), "D3MHub/position-needs-to-be-fixed");
-
-        d3mHub.fix(ilk);
-
-        (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 50 * WAD);
-        assertEq(art, 50 * WAD);
-        assertEq(vat.sin(vow), sinBefore);
-        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-
-        // Now we can exec and unwind
+        // exec and unwind
         d3mHub.exec(ilk);
 
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 25 * WAD);
         assertEq(art, 25 * WAD);
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
-        assertEq(vat.dai(address(d3mHub)), 0);
+        assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
-        // should not change again
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
         assertEq(dai.balanceOf(address(testGem)), 25 * WAD);
         assertEq(testGem.balanceOf(address(d3mTestPool)), 25 * WAD);
@@ -484,20 +475,9 @@ contract D3MHubTest is DSSTest {
         assertEq(ink, 50 * WAD);
         assertEq(art, 40 * WAD);
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        uint256 viceBefore = vat.vice();
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
-
-        // Does not affect future execs unless our target changes
-        d3mHub.exec(ilk);
-
-        (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 50 * WAD);
-        assertEq(art, 40 * WAD);
-        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
-        assertEq(vat.sin(vow), sinBefore);
-        assertEq(vat.dai(vow), vowDaiBefore);
         assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
         assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
 
@@ -508,12 +488,11 @@ contract D3MHubTest is DSSTest {
 
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 75 * WAD);
-        assertEq(art, 65 * WAD);
+        assertEq(art, 75 * WAD);
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
-        assertEq(vat.dai(address(d3mHub)), 0);
+        assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
-        // should not change wind does not collect fees
-        assertEq(vat.dai(vow), vowDaiBefore);
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
         assertEq(dai.balanceOf(address(testGem)), 75 * WAD);
         assertEq(testGem.balanceOf(address(d3mTestPool)), 75 * WAD);
     }
@@ -538,6 +517,7 @@ contract D3MHubTest is DSSTest {
         assertEq(ink, 50 * WAD);
         assertEq(art, 40 * WAD);
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        uint256 viceBefore = vat.vice();
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
         assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
@@ -546,28 +526,13 @@ contract D3MHubTest is DSSTest {
         // fully unwind
         d3mTestPlan.file("targetAssets", 0);
 
-        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", ilk), "D3MHub/position-needs-to-be-fixed");
-
-        d3mHub.fix(ilk);
-
-        (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 50 * WAD);
-        assertEq(art, 50 * WAD);
-        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
-        assertEq(vat.dai(address(d3mHub)), 0);
-        assertEq(vat.sin(vow), sinBefore);
-        // This comes back to us as fees at this point
-        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
-
         d3mHub.exec(ilk);
 
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 0 * WAD);
         assertEq(art, 0 * WAD);
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
-        assertEq(vat.dai(address(d3mHub)), 0);
+        assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         // This comes back to us as fees at this point
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
@@ -597,6 +562,7 @@ contract D3MHubTest is DSSTest {
         (uint256 Art, , , , ) = vat.ilks(ilk);
         assertEq(Art, 40 * WAD);
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        uint256 viceBefore = vat.vice();
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
         assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
@@ -609,34 +575,19 @@ contract D3MHubTest is DSSTest {
         d3mHub.exec(ilk);
 
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 70 * WAD);
+        assertEq(ink, 60 * WAD);
         assertEq(art, 60 * WAD);
         (Art, , , , ) = vat.ilks(ilk);
         assertEq(Art, 60 * WAD);
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
-        assertEq(vat.dai(vow), vowDaiBefore);
-        assertEq(dai.balanceOf(address(testGem)), 70 * WAD);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 70 * WAD);
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        assertEq(dai.balanceOf(address(testGem)), 60 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
 
         // unwind due to debt ceiling
         vat.file(ilk, "line", 20 * RAD);
-
-        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", ilk), "D3MHub/position-needs-to-be-fixed");
-
-        d3mHub.fix(ilk);
-
-        // Note: fix in this case puts the position over the line
-        (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 70 * WAD);
-        assertEq(art, 70 * WAD);
-        (Art, , , , ) = vat.ilks(ilk);
-        assertEq(Art, 70 * WAD);
-        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
-        assertEq(vat.sin(vow), sinBefore);
-        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(testGem)), 70 * WAD);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 70 * WAD);
 
         // we can now execute the unwind to respect the line again
         d3mHub.exec(ilk);
@@ -647,6 +598,7 @@ contract D3MHubTest is DSSTest {
         (Art, , , , ) = vat.ilks(ilk);
         assertEq(Art, 20 * WAD);
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         // we unwind and collect fees
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
@@ -682,24 +634,9 @@ contract D3MHubTest is DSSTest {
         (uint256 Art, , , , ) = vat.ilks(ilk);
         assertEq(Art, 40 * WAD);
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        uint256 viceBefore = vat.vice();
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 55 * WAD);
-
-        assertRevert(address(d3mHub), abi.encodeWithSignature("reap(bytes32)", ilk), "D3MHub/position-needs-to-be-fixed");
-
-        d3mHub.fix(ilk);
-
-        (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 50 * WAD);
-        assertEq(art, 50 * WAD);
-        (Art, , , , ) = vat.ilks(ilk);
-        assertEq(Art, 50 * WAD);
-        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
-        assertEq(vat.dai(address(d3mHub)), 0);
-        assertEq(vat.sin(vow), sinBefore);
-        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
         assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
         assertEq(testGem.balanceOf(address(d3mTestPool)), 55 * WAD);
 
@@ -712,6 +649,7 @@ contract D3MHubTest is DSSTest {
         assertEq(Art, 50 * WAD);
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
         assertEq(vat.dai(address(d3mHub)), 0);
+        assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         // Both the debt donation and fees go to vow
         assertEq(vat.dai(vow), vowDaiBefore + 15 * RAD);
@@ -839,50 +777,6 @@ contract D3MHubTest is DSSTest {
         assertEq(vat.sin(vow), sinBefore + 40 * RAD);
     }
 
-    function test_mcd_caged_cant_fix() public {
-        _windSystem();
-
-        // Someone pays back our debt
-        _giveTokens(dai, 10 * WAD);
-        dai.approve(address(daiJoin), type(uint256).max);
-        daiJoin.join(address(this), 10 * WAD);
-        vat.frob(
-            ilk,
-            address(d3mTestPool),
-            address(d3mTestPool),
-            address(this),
-            0,
-            -int256(10 * WAD)
-        );
-
-        // MCD shuts down
-        end.cage();
-        end.cage(ilk);
-
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 50 * WAD);
-        assertEq(art, 40 * WAD);
-        assertEq(vat.gem(ilk, address(end)), 0);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
-        uint256 sinBefore = vat.sin(vow);
-        uint256 daiBefore = vat.dai(vow);
-
-        d3mHub.exec(ilk);
-
-        (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 10 * WAD);
-        assertEq(art, 0);
-        assertEq(vat.gem(ilk, address(end)), 0);
-        assertEq(vat.dai(address(d3mHub)), 0);
-        assertEq(vat.sin(vow), sinBefore + 40 * RAD);
-        assertEq(vat.dai(vow), daiBefore + 50 * RAD);
-        assertEq(dai.balanceOf(address(testGem)), 0);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
-
-        assertRevert(address(d3mHub), abi.encodeWithSignature("fix(bytes32)", ilk), "D3MHub/no-fix-during-shutdown");
-    }
-
     function test_unwind_pool_caged() public {
         _windSystem();
 
@@ -925,22 +819,9 @@ contract D3MHubTest is DSSTest {
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
         assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
         assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+        uint256 viceBefore = vat.vice();
         uint256 sinBefore = vat.sin(vow);
         uint256 daiBefore = vat.dai(vow);
-
-        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", bytes32(ilk)), "D3MHub/position-needs-to-be-fixed");
-
-        d3mHub.fix(ilk);
-
-        (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 50 * WAD);
-        assertEq(art, 50 * WAD);
-        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
-        assertEq(vat.dai(address(d3mHub)), 0);
-        assertEq(vat.sin(vow), sinBefore);
-        assertEq(vat.dai(vow), daiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
 
         d3mHub.exec(ilk);
 
@@ -949,6 +830,7 @@ contract D3MHubTest is DSSTest {
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
         assertEq(vat.dai(address(d3mHub)), 0);
+        assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), daiBefore + 10 * RAD);
         assertEq(dai.balanceOf(address(testGem)), 0);

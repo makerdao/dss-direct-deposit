@@ -333,6 +333,16 @@ contract D3MHub {
         emit Unwind(ilk, amount, fees);
     }
 
+    function _fix(bytes32 ilk, address _pool) internal returns (uint256 diff) {
+        (uint256 ink, uint256 art) = vat.urns(ilk, _pool);
+        if (art < ink) {
+            address _vow = vow;
+            diff = _min(ink - art, MAXINT256);
+            vat.suck(_vow, _vow, diff * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+            vat.grab(ilk, _pool, _pool, _vow, 0, int256(diff));
+        }
+    }
+
     // Ilk Getters
     /**
         @notice Return pool of an ilk
@@ -380,25 +390,6 @@ contract D3MHub {
     }
 
     /**
-        @notice Rebalance position if someone permissionlesly paid part of the debt
-        @dev This function will regenerate the debt of the position in case art < ink
-        and send the fresh DAI generated to the surplus buffer.
-        @param ilk bytes32 of the D3M ilk name
-    */
-    function fix(bytes32 ilk) external lock {
-        require(vat.live() == 1, "D3MHub/no-fix-during-shutdown");
-
-        address _pool = address(ilks[ilk].pool);
-        (uint256 ink, uint256 art) = vat.urns(ilk, _pool);
-        if (art < ink) {
-            address _vow = vow;
-            uint256 diff = _min(ink - art, MAXINT256);
-            vat.suck(_vow, _vow, diff * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
-            vat.grab(ilk, _pool, _pool, _vow, 0, int256(diff));
-        }
-    }
-
-    /**
         @notice Main function for updating a D3M position.
         Determines the current state and either winds or unwinds as necessary.
         @dev Winding the target position will be constrained by the Ilk debt
@@ -429,6 +420,8 @@ contract D3MHub {
                 currentAssets
             );
         } else if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) {
+            _fix(ilk, address(_pool));
+
             // pool caged
             _unwind(
                 ilk,
@@ -440,6 +433,8 @@ contract D3MHub {
                 currentAssets
             );
         } else {
+            Art += _fix(ilk, address(_pool));
+
             // Determine if it needs to unwind due to debt ceilings
             uint256 lineWad = line / RAY; // Round down to always be under the actual limit
             uint256 Line = vat.Line();
@@ -510,8 +505,8 @@ contract D3MHub {
 
         _pool.preDebtChange("reap");
         uint256 assetBalance = _pool.assetBalance();
-        (uint256 ink, uint256 daiDebt) = vat.urns(ilk, address(_pool));
-        require(ink == daiDebt, "D3MHub/position-needs-to-be-fixed");
+        (, uint256 daiDebt) = vat.urns(ilk, address(_pool));
+        daiDebt += _fix(ilk, address(_pool));
 
         if (assetBalance > daiDebt) {
             uint256 fees;
