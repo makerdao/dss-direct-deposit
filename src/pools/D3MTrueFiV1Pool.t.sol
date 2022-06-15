@@ -60,7 +60,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         dai.approve(address(portfolio), 10 ether);
     }
 
-    function test_deposit_transfers_funds() public {
+    function test_deposit_transfers_funds_from_pool_to_portfolio() public {
         uint256 fundsBefore = dai.balanceOf(d3mTestPool);
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
         uint256 fundsAfter = dai.balanceOf(d3mTestPool);
@@ -71,7 +71,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
 
     function test_deposit_transfers_funds_signature_only() public {
         // deploy portfolio with signature only lender verifier
-        portfolioFactory.createPortfolio("TrueFi-D3M-DAI-SIGNATURE", "TDS", ERC20Like(DAI), WhitelistVerifierLike(SIGNATURE_ONLY_LENDER_VERIFIER), 30 days, 1_000_000 ether, 20);
+        portfolioFactory.createPortfolio("TrueFi-D3M-DAI-SIGNATURE", "TDS", ERC20Like(DAI), WhitelistVerifierLike(SIGNATURE_ONLY_LENDER_VERIFIER), 750 days, 1_000_000 ether, 20);
         uint256 portfoliosCount = portfolioFactory.getPortfolios().length;
         PortfolioLike portfolioSignatureOnly = PortfolioLike(portfolioFactory.getPortfolios()[portfoliosCount - 1]);
 
@@ -98,11 +98,11 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
     }
 
-    function test_max_deposit_equals_max_size() public {
+    function test_max_deposit_initially_equals_max_size() public {
         assertEq(D3MTrueFiV1Pool(d3mTestPool).maxDeposit(), portfolio.maxSize());
     }
 
-    function test_max_desposit_equals_value_minus_deposited_funds() public {
+    function test_max_deposit_equals_value_minus_deposited_funds() public {
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
         assertEq(D3MTrueFiV1Pool(d3mTestPool).maxDeposit(), portfolio.maxSize() - 1 ether);
     }
@@ -111,7 +111,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
 
         uint256 fundsBefore = dai.balanceOf(d3mTestPool);
-        hevm.warp(block.timestamp + 30 days + 1 days);
+        hevm.warp(block.timestamp + 750 days);
         D3MTrueFiV1Pool(d3mTestPool).withdraw(1 ether);
         uint256 fundsAfter = dai.balanceOf(d3mTestPool);
 
@@ -121,7 +121,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     function test_withdraw_burns_shares() public {
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
 
-        hevm.warp(block.timestamp + 30 days + 1 days);
+        hevm.warp(block.timestamp + 750 days);
         D3MTrueFiV1Pool(d3mTestPool).withdraw(1 ether);
 
         assertEq(ERC20Like(portfolio).balanceOf(d3mTestPool), 0);
@@ -141,7 +141,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
     function test_max_withdraw_is_asset_balance() public {
         D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
 
-        hevm.warp(block.timestamp + 30 days + 1 days);
+        hevm.warp(block.timestamp + 750 days);
         assertEq(D3MTrueFiV1Pool(d3mTestPool).maxWithdraw(), 1 ether);
     }
 
@@ -149,7 +149,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         D3MTrueFiV1Pool(d3mTestPool).deposit(2 ether);
 
         portfolio.createBulletLoan(30 days, BORROWER, 1 ether, 2 ether);
-        hevm.warp(block.timestamp + 30 days + 1 days);
+        hevm.warp(block.timestamp + 750 days);
         assertEq(D3MTrueFiV1Pool(d3mTestPool).maxWithdraw(), portfolio.liquidValue());
     }
 
@@ -186,36 +186,40 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         assertEq(D3MTrueFiV1Pool(d3mTestPool).assetBalance(), 0);
     }
 
-    function test_asset_balance_is_correct_with_1_lender() public {
+    function test_asset_balance_is_exactly_deposited_amount_before_borrow() public {
         D3MTrueFiV1Pool(d3mTestPool).deposit(2 ether);
         assertEq(D3MTrueFiV1Pool(d3mTestPool).assetBalance(), 2 ether);
     }
 
-    function test_asset_balance_is_correct_with_2_lender() public {
-        portfolio.deposit(6 ether, "0x");
-        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
-        assertEq(D3MTrueFiV1Pool(d3mTestPool).assetBalance(), 1 ether);
+    function test_asset_balance_grows_over_time_after_borrow() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(2 ether);
+
+        portfolio.createBulletLoan(365 days, BORROWER, 1 ether, 2 ether);
+        uint256 fee = 1 ether / 100; // 1% fee
+        hevm.warp(block.timestamp + 182.5 days);
+
+        assertEq(D3MTrueFiV1Pool(d3mTestPool).assetBalance(), 2 ether + 0.5 ether - fee);
     }
 
-    function test_asset_balance_is_0_when_someone_else_deposited() public {
-        portfolio.deposit(6 ether, "0x");
-        assertEq(D3MTrueFiV1Pool(d3mTestPool).assetBalance(), 0);
+    function test_asset_balance_decreases_after_default() public {
+        D3MTrueFiV1Pool(d3mTestPool).deposit(2 ether);
+
+        portfolio.createBulletLoan(365 days, BORROWER, 1 ether, 2 ether);
+        uint256 loanId = portfolio.getOpenLoanIds()[0];
+        uint256 fee = 1 ether / 100; // 1% fee
+        hevm.warp(block.timestamp + 365 days + 1 days);
+        portfolio.markLoanAsDefaulted(loanId);
+
+        assertEq(D3MTrueFiV1Pool(d3mTestPool).assetBalance(), 1 ether - fee);
     }
 
-    function test_asset_balance_is_correct_after_withdraw() public {
+    function test_asset_balance_decreases_with_withdraw() public {
         D3MTrueFiV1Pool(d3mTestPool).deposit(3 ether);
 
-        hevm.warp(block.timestamp + 40 days);
+        hevm.warp(block.timestamp + 750 days);
         
         D3MTrueFiV1Pool(d3mTestPool).withdraw(1 ether);
         assertEq(D3MTrueFiV1Pool(d3mTestPool).assetBalance(), 2 ether);
-    }
-
-    function test_asset_balance_is_correct_after_multiple_deposits() public {
-        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
-        D3MTrueFiV1Pool(d3mTestPool).deposit(1 ether);
-        D3MTrueFiV1Pool(d3mTestPool).deposit(2 ether);
-        assertEq(D3MTrueFiV1Pool(d3mTestPool).assetBalance(), 4 ether);
     }
 
     /************************/
@@ -229,7 +233,7 @@ contract D3MTrueFiV1PoolTest is AddressRegistry, D3MPoolBaseTest {
         hevm.store(MANAGED_PORTFOLIO_FACTORY_PROXY, keccak256(abi.encode(address(this), 6)), bytes32(uint256(1)));
 
         // deploy portfolio with global whitelist lender verifier
-        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", ERC20Like(DAI), WhitelistVerifierLike(GLOBAL_WHITELIST_LENDER_VERIFIER), 30 days, 1_000_000 ether, 20);
+        portfolioFactory.createPortfolio("TrueFi-D3M-DAI", "TDD", ERC20Like(DAI), WhitelistVerifierLike(GLOBAL_WHITELIST_LENDER_VERIFIER), 730 days, 1_000_000 ether, 50);
         
         uint256 portfoliosCount = portfolioFactory.getPortfolios().length;
         portfolio = PortfolioLike(portfolioFactory.getPortfolios()[portfoliosCount - 1]);
