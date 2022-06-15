@@ -553,7 +553,7 @@ contract D3MHubTest is DSSTest {
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 50 * WAD);
         assertEq(art, 50 * WAD);
-        assertEq(vat.gem(ilk, address(end)), 0);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
         assertEq(vat.dai(address(d3mHub)), 0);
         assertEq(vat.sin(vow), sinBefore);
         // This comes back to us as fees at this point
@@ -566,7 +566,7 @@ contract D3MHubTest is DSSTest {
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 0 * WAD);
         assertEq(art, 0 * WAD);
-        assertEq(vat.gem(ilk, address(end)), 0);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
         assertEq(vat.dai(address(d3mHub)), 0);
         assertEq(vat.sin(vow), sinBefore);
         // This comes back to us as fees at this point
@@ -922,7 +922,7 @@ contract D3MHubTest is DSSTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 50 * WAD);
         assertEq(art, 40 * WAD);
-        assertEq(vat.gem(ilk, address(end)), 0);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
         assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
         assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
         uint256 sinBefore = vat.sin(vow);
@@ -932,12 +932,22 @@ contract D3MHubTest is DSSTest {
 
         d3mHub.fix(ilk);
 
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        assertEq(vat.dai(address(d3mHub)), 0);
+        assertEq(vat.sin(vow), sinBefore);
+        assertEq(vat.dai(vow), daiBefore + 10 * RAD);
+        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+
         d3mHub.exec(ilk);
 
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 0);
         assertEq(art, 0);
-        assertEq(vat.gem(ilk, address(end)), 0);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
         assertEq(vat.dai(address(d3mHub)), 0);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), daiBefore + 10 * RAD);
