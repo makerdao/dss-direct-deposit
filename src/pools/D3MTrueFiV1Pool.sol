@@ -114,6 +114,12 @@ contract D3MTrueFiV1Pool is ID3MPool {
         }
     }
 
+    function isValidSignature(bytes32, bytes memory) external pure returns (bytes4) {
+        // return the "magic value" specified in EIP-1271: Standard Signature Validation Method for Contracts
+        // the "magic value" is bytes4(keccak256("isValidSignature(bytes32,bytes)")
+        return 0x1626ba7e;
+    }
+
     function recoverTokens(address token, address dst, uint256 amt) external auth returns (bool) {
         return TokenLike(token).transfer(dst, amt);
     }
