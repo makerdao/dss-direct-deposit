@@ -843,9 +843,9 @@ contract D3MHubTest is DSSTest {
         _windSystem();
 
         // Someone pays back our debt
-        _giveTokens(dai, 20 * WAD);
+        _giveTokens(dai, 10 * WAD);
         dai.approve(address(daiJoin), type(uint256).max);
-        daiJoin.join(address(this), 20 * WAD);
+        daiJoin.join(address(this), 10 * WAD);
         vat.frob(
             ilk,
             address(d3mTestPool),
@@ -898,6 +898,51 @@ contract D3MHubTest is DSSTest {
         // Make sure pre/post functions get called
         assertTrue(d3mTestPool.preDebt());
         assertTrue(d3mTestPool.postDebt());
+    }
+
+    function test_unwind_pool_caged_debt_paid_back() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        // Module caged
+        d3mHub.cage(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 40 * WAD);
+        assertEq(vat.gem(ilk, address(end)), 0);
+        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+        uint256 sinBefore = vat.sin(vow);
+        uint256 daiBefore = vat.dai(vow);
+
+        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", bytes32(ilk)), "D3MHub/position-needs-to-be-fixed");
+
+        d3mHub.fix(ilk);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(end)), 0);
+        assertEq(vat.dai(address(d3mHub)), 0);
+        assertEq(vat.sin(vow), sinBefore);
+        assertEq(vat.dai(vow), daiBefore + 10 * RAD);
+        assertEq(dai.balanceOf(address(testGem)), 0);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
     }
 
     function test_unwind_target_less_amount() public {
