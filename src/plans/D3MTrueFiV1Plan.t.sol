@@ -137,8 +137,6 @@ contract D3MTrueFiV1PlanTest is AddressRegistry, D3MPlanBaseTest {
     /***************************/
 
     function assertFalse(bool condition) internal {
-        if (condition) {
-            revert("Assertion failed");
-        }
+        assertTrue(!condition);
     }
 }
