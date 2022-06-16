@@ -18,10 +18,10 @@
 pragma solidity ^0.8.14;
 
 import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat } from "./D3MPoolBase.t.sol";
-import { DaiLike, TokenLike } from "../tests/interfaces/interfaces.sol";
-import { D3MTestGem } from "../tests/stubs/D3MTestGem.sol";
+import { DaiLike, TokenLike } from "../interfaces/interfaces.sol";
+import { D3MTestGem } from "../stubs/D3MTestGem.sol";
 
-import { D3MAavePool, LendingPoolLike } from "./D3MAavePool.sol";
+import { D3MAavePool, LendingPoolLike } from "../../pools/D3MAavePool.sol";
 
 interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
@@ -154,6 +154,8 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );
 
+        contractName = "D3MAavePool";
+
         dai = DaiLike(address(new D3MTestGem(18)));
         adai = new AToken(18);
         aavePool = LendingPoolLike(address(new FakeLendingPool(address(adai))));
@@ -166,7 +168,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
     }
 
     function test_sets_dai_value() public {
-        assertEq(address(D3MAavePool(d3mTestPool).asset()), address(dai));
+        assertEq(address(D3MAavePool(d3mTestPool).dai()), address(dai));
     }
 
     function test_can_file_king() public {
@@ -177,16 +179,14 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(D3MAavePool(d3mTestPool).king(), address(123));
     }
 
-    function testFail_cannot_file_king_no_auth() public {
+    function test_cannot_file_king_no_auth() public {
         D3MAavePool(d3mTestPool).deny(address(this));
-
-        D3MAavePool(d3mTestPool).file("king", address(123));
+        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAavePool/not-authorized");
     }
 
-    function testFail_cannot_file_king_vat_caged() public {
+    function test_cannot_file_king_vat_caged() public {
         FakeVat(vat).cage();
-
-        D3MAavePool(d3mTestPool).file("king", address(123));
+        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAavePool/no-file-during-shutdown");
     }
 
     function test_deposit_calls_lending_pool_deposit() public {
@@ -234,10 +234,9 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(dst, king);
     }
 
-    function testFail_collect_no_king() public {
+    function test_collect_no_king() public {
         assertEq(D3MAavePool(d3mTestPool).king(), address(0));
-
-        D3MAavePool(d3mTestPool).collect();
+        assertRevert(d3mTestPool, abi.encodeWithSignature("collect()"), "D3MAavePool/king-not-set");
     }
 
     function test_redeemable_returns_adai() public {

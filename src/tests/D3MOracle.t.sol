@@ -17,9 +17,9 @@
 
 pragma solidity ^0.8.14;
 
-import "ds-test/test.sol";
+import {DSSTest} from "dss-test/DSSTest.sol";
 
-import {D3MOracle} from "./D3MOracle.sol";
+import {D3MOracle} from "../D3MOracle.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -57,16 +57,14 @@ contract D3MTestHub {
     }
 }
 
-contract D3MOracleTest is DSTest {
+contract D3MOracleTest is DSSTest {
     Hevm hevm;
 
     D3MTestVat vat;
     D3MTestHub hub;
     D3MOracle oracle;
 
-    uint256 internal constant WAD = 10 ** 18;
-
-    function setUp() public {
+    function setUp() public override {
         hevm = Hevm(
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );
@@ -86,15 +84,15 @@ contract D3MOracleTest is DSTest {
         assertEq(oracle.wards(address(123)), 0);
     }
 
-    function testFail_unauth_rely() public {
+    function test_unauth_rely() public {
         oracle.deny(address(this));
-        oracle.rely(address(123));
+        assertRevert(address(oracle), abi.encodeWithSignature("rely(address)", address(123)), "D3MOracle/not-authorized");
     }
 
-    function testFail_unauth_deny() public {
+    function test_unauth_deny() public {
         oracle.rely(address(123));
         oracle.deny(address(this));
-        oracle.deny(address(123));
+        assertRevert(address(oracle), abi.encodeWithSignature("deny(address)", address(123)), "D3MOracle/not-authorized");
     }
 
     function test_file_hub() public {
@@ -103,14 +101,14 @@ contract D3MOracleTest is DSTest {
         assertEq(oracle.hub(), address(123));
     }
 
-    function testFail_unauth_file_hub() public {
+    function test_unauth_file_hub() public {
         oracle.deny(address(this));
-        oracle.file("hub", address(123));
+        assertRevert(address(oracle), abi.encodeWithSignature("file(bytes32,address)", bytes32("hub"), address(123)), "D3MOracle/not-authorized");
     }
 
-    function testFail_vat_caged_file_hub() public {
+    function test_vat_caged_file_hub() public {
         vat.cage();
-        oracle.file("hub", address(123));
+        assertRevert(address(oracle), abi.encodeWithSignature("file(bytes32,address)", bytes32("hub"), address(123)), "D3MOracle/no-file-during-shutdown");
     }
 
     function test_peek() public {
@@ -139,11 +137,8 @@ contract D3MOracleTest is DSTest {
         assertEq(oracle.read(), WAD);
         vat.cage();
         assertEq(oracle.read(), WAD);
-    }
-
-    function testFail_read() public {
         hub.cull();
         vat.cage();
-        oracle.read();
+        assertRevert(address(oracle), abi.encodeWithSignature("read()"), "D3MOracle/ilk-culled-in-shutdown");
     }
 }

@@ -17,18 +17,18 @@
 
 pragma solidity ^0.8.14;
 
-import "ds-test/test.sol";
-import "./tests/interfaces/interfaces.sol";
+import {DSSTest} from "dss-test/DSSTest.sol";
+import "./interfaces/interfaces.sol";
 
-import {D3MHub} from "./D3MHub.sol";
-import {D3MOracle} from "./D3MOracle.sol";
-import "./pools/ID3MPool.sol";
-import "./plans/ID3MPlan.sol";
+import {D3MHub} from "../D3MHub.sol";
+import {D3MOracle} from "../D3MOracle.sol";
+import "../pools/ID3MPool.sol";
+import "../plans/ID3MPlan.sol";
 
-import {D3MTestPool} from "./tests/stubs/D3MTestPool.sol";
-import {D3MTestPlan} from "./tests/stubs/D3MTestPlan.sol";
-import {D3MTestGem} from "./tests/stubs/D3MTestGem.sol";
-import {D3MTestRewards} from "./tests/stubs/D3MTestRewards.sol";
+import {D3MTestPool} from "./stubs/D3MTestPool.sol";
+import {D3MTestPlan} from "./stubs/D3MTestPlan.sol";
+import {D3MTestGem} from "./stubs/D3MTestGem.sol";
+import {D3MTestRewards} from "./stubs/D3MTestRewards.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -42,11 +42,7 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
-contract D3MHubTest is DSTest {
-    uint256 constant WAD = 10**18;
-    uint256 constant RAY = 10**27;
-    uint256 constant RAD = 10**45;
-
+contract D3MHubTest is DSSTest {
     Hevm hevm;
 
     VatLike vat;
@@ -67,7 +63,7 @@ contract D3MHubTest is DSTest {
     D3MTestPlan d3mTestPlan;
     D3MOracle pip;
 
-    function setUp() public {
+    function setUp() public override {
         hevm = Hevm(
             address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
         );
@@ -87,7 +83,7 @@ contract D3MHubTest is DSTest {
         _giveAuthAccess(address(spot), address(this));
 
         testGem = new D3MTestGem(18);
-        d3mHub = new D3MHub(address(vat), address(daiJoin));
+        d3mHub = new D3MHub(address(daiJoin));
 
         rewardsClaimer = new D3MTestRewards(address(testGem));
         d3mTestPool = new D3MTestPool(
@@ -233,18 +229,17 @@ contract D3MHubTest is DSTest {
         assertEq(tau, 1 days);
     }
 
-    function testFail_unauth_file_tau() public {
+    function test_unauth_file_tau() public {
         d3mHub.deny(address(this));
-
-        d3mHub.file(ilk, "tau", 1 days);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,uint256)", ilk, bytes32("tau"), uint256(1 days)), "D3MHub/not-authorized");
     }
 
-    function testFail_unknown_uint256_file() public {
-        d3mHub.file(ilk, "unknown", 1);
+    function test_unknown_uint256_file() public {
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,uint256)", ilk, bytes32("unknown"), uint256(1)), "D3MHub/file-unrecognized-param");
     }
 
-    function testFail_unknown_address_file() public {
-        d3mHub.file("unknown", address(this));
+    function test_unknown_address_file() public {
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, bytes32("unknown"), address(this)), "D3MHub/file-unrecognized-param");
     }
 
     function test_can_file_pool() public {
@@ -291,7 +286,7 @@ contract D3MHubTest is DSTest {
         assertEq(setEnd, address(this));
     }
 
-    function testFail_vat_not_live_address_file() public {
+    function test_vat_not_live_address_file() public {
         d3mHub.file("end", address(this));
         address hubEnd = address(d3mHub.end());
 
@@ -301,27 +296,25 @@ contract D3MHubTest is DSTest {
         end.cage();
         end.cage(ilk);
 
-        d3mHub.file("end", address(123));
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,address)", bytes32("end"), address(123)), "D3MHub/no-file-during-shutdown");
     }
 
-    function testFail_unauth_file_pool() public {
+    function test_unauth_file_pool() public {
         d3mHub.deny(address(this));
-
-        d3mHub.file(ilk, "pool", address(this));
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, bytes32("pool"), address(this)), "D3MHub/not-authorized");
     }
 
-    function testFail_hub_not_live_pool_file() public {
+    function test_hub_not_live_pool_file() public {
         // Cage Pool
         d3mHub.cage(ilk);
-
-        d3mHub.file(ilk, "pool", address(123));
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, bytes32("pool"), address(123)), "D3MHub/pool-not-live");
     }
 
-    function testFail_unknown_ilk_address_file() public {
-        d3mHub.file(ilk, "unknown", address(123));
+    function test_unknown_ilk_address_file() public {
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, bytes32("unknown"), address(123)), "D3MHub/file-unrecognized-param");
     }
 
-    function testFail_vat_not_live_ilk_address_file() public {
+    function test_vat_not_live_ilk_address_file() public {
         d3mHub.file(ilk, "pool", address(this));
         (ID3MPool pool, , , , ) = d3mHub.ilks(ilk);
 
@@ -331,16 +324,21 @@ contract D3MHubTest is DSTest {
         end.cage();
         end.cage(ilk);
 
-        d3mHub.file(ilk, "pool", address(123));
+        assertRevert(address(d3mHub), abi.encodeWithSignature("file(bytes32,bytes32,address)", ilk, bytes32("pool"), address(123)), "D3MHub/no-file-during-shutdown");
     }
 
-    function testFail_exec_no_ilk() public {
-        d3mHub.exec("fake-ilk");
+    function test_exec_no_ilk() public {
+        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", bytes32("fake-ilk")), "D3MHub/rate-not-one");
     }
 
-    function testFail_exec_rate_not_one() public {
+    function test_exec_rate_not_one() public {
         vat.fold(ilk, vow, int(2 * RAY));
-        d3mHub.exec(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", ilk), "D3MHub/rate-not-one");
+    }
+
+    function test_exec_spot_not_one() public {
+        vat.file(ilk, "spot", 2 * RAY);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", ilk), "D3MHub/spot-not-one");
     }
 
     function test_wind_limited_ilk_line() public {
@@ -658,7 +656,7 @@ contract D3MHubTest is DSTest {
         assertTrue(d3mTestPool.postDebt());
     }
 
-    function testFail_no_reap_mcd_caged() public {
+    function test_no_reap_mcd_caged() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
@@ -669,10 +667,10 @@ contract D3MHubTest is DSTest {
         end.cage();
         end.cage(ilk);
 
-        d3mHub.reap(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("reap(bytes32)", ilk), "D3MHub/no-reap-during-shutdown");
     }
 
-    function testFail_no_reap_pool_caged() public {
+    function test_no_reap_pool_caged() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
@@ -682,10 +680,10 @@ contract D3MHubTest is DSTest {
         // module caged
         d3mHub.cage(ilk);
 
-        d3mHub.reap(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("reap(bytes32)", ilk), "D3MHub/pool-not-live");
     }
 
-    function testFail_no_reap_plan_inactive() public {
+    function test_no_reap_plan_inactive() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
@@ -695,7 +693,7 @@ contract D3MHubTest is DSTest {
         // pool inactive
         d3mTestPlan.file("active_", false);
 
-        d3mHub.reap(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("reap(bytes32)", ilk), "D3MHub/plan-not-active");
     }
 
     function test_exit() public {
@@ -730,19 +728,19 @@ contract D3MHubTest is DSTest {
         assertEq(tic, block.timestamp + tau);
     }
 
-    function testFail_cage_d3m_mcd_caged() public {
+    function test_cage_d3m_mcd_caged() public {
         vat.cage();
-        d3mHub.cage(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("cage(bytes32)", ilk), "D3MHub/no-cage-during-shutdown");
     }
 
-    function testFail_cage_d3m_no_auth() public {
+    function test_cage_d3m_no_auth() public {
         d3mHub.deny(address(this));
-        d3mHub.cage(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("cage(bytes32)", ilk), "D3MHub/not-authorized");
     }
 
-    function testFail_cage_d3m_already_caged() public {
+    function test_cage_d3m_already_caged() public {
         d3mHub.cage(ilk);
-        d3mHub.cage(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("cage(bytes32)", ilk), "D3MHub/pool-already-caged");
     }
 
     function test_cull() public {
@@ -838,39 +836,39 @@ contract D3MHubTest is DSTest {
         assertEq(culled, 1);
     }
 
-    function testFail_no_cull_mcd_caged() public {
+    function test_no_cull_mcd_caged() public {
         _windSystem();
         d3mHub.cage(ilk);
         vat.cage();
 
-        d3mHub.cull(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("cull(bytes32)", ilk), "D3MHub/no-cull-during-shutdown");
     }
 
-    function testFail_no_cull_pool_live() public {
+    function test_no_cull_pool_live() public {
         _windSystem();
 
-        d3mHub.cull(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("cull(bytes32)", ilk), "D3MHub/pool-live");
     }
 
-    function testFail_no_cull_unauth_too_soon() public {
+    function test_no_cull_unauth_too_soon() public {
         _windSystem();
         d3mHub.cage(ilk);
         d3mHub.deny(address(this));
         hevm.warp(block.timestamp + 6 days);
 
-        d3mHub.cull(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("cull(bytes32)", ilk), "D3MHub/unauthorized-cull");
     }
 
-    function testFail_no_cull_already_culled() public {
+    function test_no_cull_already_culled() public {
         _windSystem();
         d3mHub.cage(ilk);
 
         d3mHub.cull(ilk);
-        d3mHub.cull(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("cull(bytes32)", ilk), "D3MHub/already-culled");
     }
 
-    function testFail_no_cull_no_ilk() public {
-        d3mHub.cull("fake-ilk");
+    function test_no_cull_no_ilk() public {
+        assertRevert(address(d3mHub), abi.encodeWithSignature("cull(bytes32)", bytes32("fake-ilk")), "D3MHub/pool-live");
     }
 
     function test_uncull() public {
@@ -901,21 +899,21 @@ contract D3MHubTest is DSTest {
         assertEq(culled, 0);
     }
 
-    function testFail_no_uncull_not_culled() public {
+    function test_no_uncull_not_culled() public {
         _windSystem();
         d3mHub.cage(ilk);
 
         vat.cage();
-        d3mHub.uncull(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("uncull(bytes32)", ilk), "D3MHub/not-prev-culled");
     }
 
-    function testFail_no_uncull_mcd_live() public {
+    function test_no_uncull_mcd_live() public {
         _windSystem();
         d3mHub.cage(ilk);
 
         d3mHub.cull(ilk);
 
-        d3mHub.uncull(ilk);
+        assertRevert(address(d3mHub), abi.encodeWithSignature("uncull(bytes32)", ilk), "D3MHub/no-uncull-normal-operation");
     }
 
     function test_quit_culled() public {
@@ -1130,7 +1128,7 @@ contract D3MHubTest is DSTest {
         _windSystem(); // Tests that the current pool has ink/art
 
         // Setup New hub
-        D3MHub newHub = new D3MHub(address(vat), address(daiJoin));
+        D3MHub newHub = new D3MHub(address(daiJoin));
         newHub.file("vow", vow);
         newHub.file("end", address(end));
 
@@ -1168,7 +1166,7 @@ contract D3MHubTest is DSTest {
         _windSystem(); // Tests that the current pool has ink/art
 
         // Setup New hub
-        D3MHub newHub = new D3MHub(address(vat), address(daiJoin));
+        D3MHub newHub = new D3MHub(address(daiJoin));
         newHub.file("vow", vow);
         newHub.file("end", address(end));
 
@@ -1198,7 +1196,7 @@ contract D3MHubTest is DSTest {
         _windSystem(); // Tests that the current pool has ink/art
 
         // Setup New hub and D3M
-        D3MHub newHub = new D3MHub(address(vat), address(daiJoin));
+        D3MHub newHub = new D3MHub(address(daiJoin));
         newHub.file("vow", vow);
         newHub.file("end", address(end));
         vat.rely(address(newHub));
@@ -1360,11 +1358,11 @@ contract D3MHubTest is DSTest {
         end.cage(ilk);
     }
 
-    function testFail_cage_ilk_before_uncull() public {
+    function test_cage_ilk_before_uncull() public {
         _windSystem();
         d3mHub.cage(ilk);
         d3mHub.cull(ilk);
         end.cage();
-        end.cage(ilk);
+        assertRevert(address(end), abi.encodeWithSignature("cage(bytes32)", ilk), "D3MOracle/ilk-culled-in-shutdown");
     }
 }

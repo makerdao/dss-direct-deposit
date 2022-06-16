@@ -207,7 +207,7 @@ contract D3MAavePlan is ID3MPlan {
             wards[msg.sender] == 1 ||
             !active()
         , "D3MAavePlan/not-authorized");
-        bar = 0;
+        bar = 0;  // ensure deactivation even if active conditions return later
         emit Disable();
     }
 }

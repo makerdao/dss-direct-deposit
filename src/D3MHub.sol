@@ -23,7 +23,6 @@ import "./plans/ID3MPlan.sol";
 interface VatLike {
     function debt() external view returns (uint256);
     function hope(address) external;
-    function nope(address) external;
     function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
     function Line() external view returns (uint256);
     function urns(bytes32, address) external view returns (uint256, uint256);
@@ -33,7 +32,6 @@ interface VatLike {
     function move(address, address, uint256) external;
     function frob(bytes32, address, address, address, int256, int256) external;
     function grab(bytes32, address, address, address, int256, int256) external;
-    function fork(bytes32, address, address, int256, int256) external;
     function suck(address, address, uint256) external;
 }
 
@@ -43,6 +41,7 @@ interface EndLike {
 }
 
 interface DaiJoinLike {
+    function vat() external view returns (address);
     function dai() external view returns (address);
     function join(address, uint256) external;
     function exit(address, uint256) external;
@@ -78,7 +77,7 @@ contract D3MHub {
     VatLike     public immutable vat;
     DaiJoinLike public immutable daiJoin;
 
-    enum Mode { NORMAL, MODULE_CULLED, MCD_CAGED }
+    enum Mode { NORMAL, D3M_CULLED, MCD_CAGED }
 
     /**
         @notice Tracking struct for each of the D3M ilks.
@@ -105,22 +104,20 @@ contract D3MHub {
     event Wind(bytes32 indexed ilk, uint256 amount);
     event Unwind(bytes32 indexed ilk, uint256 amount, uint256 fees);
     event Reap(bytes32 indexed ilk, uint256 amt);
+    event Exit(bytes32 indexed ilk, address indexed usr, uint256 amt);
     event Cage(bytes32 indexed ilk);
     event Cull(bytes32 indexed ilk, uint256 ink, uint256 art);
     event Uncull(bytes32 indexed ilk, uint256 wad);
-    event Quit(bytes32 indexed ilk, address indexed usr);
-    event Exit(bytes32 indexed ilk, address indexed usr, uint256 amt);
 
     /**
         @dev sets msg.sender as authed.
-        @param vat_     address of the DSS vat contract
         @param daiJoin_ address of the DSS Dai Join contract
     */
-    constructor(address vat_, address daiJoin_) {
-        vat = VatLike(vat_);
+    constructor(address daiJoin_) {
         daiJoin = DaiJoinLike(daiJoin_);
-        TokenLike(DaiJoinLike(daiJoin_).dai()).approve(daiJoin_, type(uint256).max);
-        VatLike(vat_).hope(daiJoin_);
+        vat = VatLike(daiJoin.vat());
+        TokenLike(daiJoin.dai()).approve(daiJoin_, type(uint256).max);
+        vat.hope(daiJoin_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -259,9 +256,9 @@ contract D3MHub {
             // Normal mode or module just caged (no culled)
             // debt is obtained from CDP art
             (,daiDebt) = vat.urns(ilk, address(_pool));
-        } else if (mode == Mode.MODULE_CULLED) {
+        } else if (mode == Mode.D3M_CULLED) {
             // Module shutdown and culled
-            // debt is obtained from free collateral owned by this contract
+            // debt is obtained from free collateral owned by the pool contract
             // We rebalance the CDP after grabbing in `cull` so the gems represents
             // the debt at time of cull
             daiDebt = vat.gem(ilk, address(_pool));
@@ -320,7 +317,7 @@ contract D3MHub {
             vat.frob(ilk, address(_pool), address(_pool), address(this), -int256(amount), -int256(amount));
             vat.slip(ilk, address(_pool), -int256(amount));
             vat.move(address(this), vow, fees * RAY);
-        } else if (mode == Mode.MODULE_CULLED) {
+        } else if (mode == Mode.D3M_CULLED) {
             vat.slip(ilk, address(_pool), -int256(amount));
             vat.move(address(this), vow, total * RAY);
         } else {
@@ -390,8 +387,9 @@ contract D3MHub {
         @param ilk bytes32 of the D3M ilk name
     */
     function exec(bytes32 ilk) external lock {
-        (uint256 Art, uint256 rate,, uint256 line,) = vat.ilks(ilk);
+        (uint256 Art, uint256 rate, uint256 spot, uint256 line,) = vat.ilks(ilk);
         require(rate == RAY, "D3MHub/rate-not-one");
+        require(spot == RAY, "D3MHub/spot-not-one");
 
         ID3MPool _pool = ilks[ilk].pool;
 
@@ -416,7 +414,7 @@ contract D3MHub {
                 _pool,
                 type(uint256).max,
                 ilks[ilk].culled == 1
-                ? Mode.MODULE_CULLED
+                ? Mode.D3M_CULLED
                 : Mode.NORMAL,
                 currentAssets
             );
@@ -516,8 +514,7 @@ contract D3MHub {
     function exit(bytes32 ilk, address usr, uint256 wad) external lock {
         require(wad <= MAXINT256, "D3MHub/overflow");
         vat.slip(ilk, msg.sender, -int256(wad));
-        ID3MPool _pool = ilks[ilk].pool;
-        _pool.transfer(usr, wad);
+        ilks[ilk].pool.transfer(usr, wad);
         emit Exit(ilk, usr, wad);
     }
 
