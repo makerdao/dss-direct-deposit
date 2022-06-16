@@ -555,9 +555,7 @@ contract D3MHub {
         This must occur while vat is live. Can be triggered by auth or
         after tau number of seconds has passed since the pool was caged.
         @dev This will send the pool's debt to the vow as sin and convert its
-        collateral to gems.  There is a situation where another user has paid
-        back some of the Pool's debt where ink != art in this case we rebalance
-        so that vat.gems(pool) will represent the amount of debt sent to the vow.
+        collateral to gems.
         @param ilk bytes32 of the D3M ilk name
     */
     function cull(bytes32 ilk) external {
