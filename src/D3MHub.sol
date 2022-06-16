@@ -278,14 +278,12 @@ contract D3MHub {
         // - dai debt tracked in vat (CDP or free)
         uint256 amount = _min(
                             _min(
-                                _min(
-                                    supplyReduction,
-                                    availableAssets
-                                ),
-                                daiDebt
+                                supplyReduction,
+                                availableAssets
                             ),
-                            MAXINT256
-                         );
+                            daiDebt
+                        );
+        require(amount <= MAXINT256, "D3MHub/overflow");
 
         // Determine the amount of fees to bring back
         uint256 fees = 0;
@@ -335,7 +333,8 @@ contract D3MHub {
         (uint256 ink, uint256 art) = vat.urns(ilk, _pool);
         if (art < ink) {
             address _vow = vow;
-            diff = _min(ink - art, MAXINT256);
+            diff = ink - art;
+            require(diff <= MAXINT256, "D3MHub/overflow");
             vat.suck(_vow, _vow, diff * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
             vat.grab(ilk, _pool, _pool, _vow, 0, int256(diff));
         }
