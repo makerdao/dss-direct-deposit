@@ -255,9 +255,7 @@ contract D3MHub {
         if (mode == Mode.NORMAL) {
             // Normal mode or module just caged (no culled)
             // debt is obtained from CDP art
-            uint256 ink;
-            (ink, daiDebt) = vat.urns(ilk, address(_pool));
-            require(ink == daiDebt, "D3MHub/position-needs-to-be-fixed");
+            (, daiDebt) = vat.urns(ilk, address(_pool));
         } else if (mode == Mode.D3M_CULLED) {
             // Module shutdown and culled
             // debt is obtained from free collateral owned by the pool contract
