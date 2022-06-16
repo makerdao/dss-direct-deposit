@@ -1073,7 +1073,8 @@ contract D3MAaveTest is DSSTest {
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAavePool));
         uint256 gemBefore = vat.gem(ilk, address(end));
-        // uint256 sinBefore = vat.sin(vow);
+        uint256 viceBefore = vat.vice();
+        uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
         uint256 adaiDaiBalanceBefore = dai.balanceOf(address(adai));
         uint256 poolAdaiBalanceBefore = adai.balanceOf(address(d3mAavePool));
@@ -1096,7 +1097,8 @@ contract D3MAaveTest is DSSTest {
         assertEq(art, part - 10 * WAD);
         assertEq(ink - art, 10 * WAD);
         assertEq(vat.gem(ilk, address(d3mAavePool)), gemBefore);
-        // assertEq(vat.sin(vow), sinBefore);
+        assertEq(vat.vice(), viceBefore);
+        assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore);
         assertEq(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
         assertEq(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
@@ -1108,7 +1110,8 @@ contract D3MAaveTest is DSSTest {
         assertEq(art, part);
         assertEq(ink, art);
         assertEq(vat.gem(ilk, address(d3mAavePool)), gemBefore);
-        // assertEq(vat.sin(vow), sinBefore);
+        assertEq(vat.vice(), viceBefore);
+        assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
         assertEq(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
         assertEq(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
@@ -1123,7 +1126,8 @@ contract D3MAaveTest is DSSTest {
         assertLt(ink, pink);
         assertLt(art, part);
         assertEq(ink, art);
-        // assertEq(vat.sin(vow), sinBefore);
+        assertEq(vat.vice(), viceBefore);
+        assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
         assertEq(vat.gem(ilk, address(d3mAavePool)), gemBefore);
         assertLt(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
@@ -1138,7 +1142,8 @@ contract D3MAaveTest is DSSTest {
         assertEq(art, part);
         assertEq(ink, art);
         assertEq(vat.gem(ilk, address(d3mAavePool)), gemBefore);
-        // assertEq(vat.sin(vow), sinBefore);
+        assertEq(vat.vice(), viceBefore);
+        assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
         assertEq(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
         assertEq(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
