@@ -497,7 +497,7 @@ contract D3MHubTest is DSSTest {
         assertEq(testGem.balanceOf(address(d3mTestPool)), 75 * WAD);
     }
 
-    function test_wind_fully_unwind_wind_debt_paid_back() public {
+    function test_fully_unwind_after_debt_paid_back() public {
         _windSystem();
 
         // Someone pays back our debt
