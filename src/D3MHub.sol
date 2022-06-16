@@ -576,15 +576,6 @@ contract D3MHub {
         require(art <= MAXINT256, "D3MHub/overflow");
         vat.grab(ilk, address(_pool), address(_pool), vow, -int256(ink), -int256(art));
 
-        if (ink > art) {
-            // We have more collateral than debt, so need to rebalance.
-            // After cull the gems we grab above represent the debt to
-            // unwind.
-            unchecked {
-                vat.slip(ilk, address(_pool), -int256(ink - art));
-            }
-        }
-
         ilks[ilk].culled = 1;
         emit Cull(ilk, ink, art);
     }

@@ -1103,7 +1103,7 @@ contract D3MHubTest is DSSTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 0);
         assertEq(art, 0);
-        assertEq(vat.gem(ilk, address(d3mTestPool)), 40 * WAD);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 50 * WAD);
         assertEq(vat.dai(address(d3mHub)), 0);
         // Sin only increases by 40 WAD since 10 was covered previously
         assertEq(vat.sin(vow), sinBefore + 40 * RAD);
