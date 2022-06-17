@@ -1058,7 +1058,7 @@ contract D3MAaveTest is DSSTest {
         d3mHub.reap(ilk); // Clear out fees at the start
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAavePool));
-        uint256 gemBefore = vat.gem(ilk, address(end));
+        uint256 gemBefore = vat.gem(ilk, address(d3mAavePool));
         uint256 viceBefore = vat.vice();
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
@@ -1111,7 +1111,7 @@ contract D3MAaveTest is DSSTest {
         d3mHub.reap(ilk); // Clear out fees at the start
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAavePool));
-        uint256 gemBefore = vat.gem(ilk, address(end));
+        uint256 gemBefore = vat.gem(ilk, address(d3mAavePool));
         uint256 viceBefore = vat.vice();
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
