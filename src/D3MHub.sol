@@ -255,7 +255,7 @@ contract D3MHub {
         if (mode == Mode.NORMAL) {
             // Normal mode or module just caged (no culled)
             // debt is obtained from CDP art
-            (,daiDebt) = vat.urns(ilk, address(_pool));
+            (, daiDebt) = vat.urns(ilk, address(_pool));
         } else if (mode == Mode.D3M_CULLED) {
             // Module shutdown and culled
             // debt is obtained from free collateral owned by the pool contract
@@ -278,14 +278,12 @@ contract D3MHub {
         // - dai debt tracked in vat (CDP or free)
         uint256 amount = _min(
                             _min(
-                                _min(
-                                    supplyReduction,
-                                    availableAssets
-                                ),
-                                daiDebt
+                                supplyReduction,
+                                availableAssets
                             ),
-                            MAXINT256
-                         );
+                            daiDebt
+                        );
+        require(amount <= MAXINT256, "D3MHub/overflow");
 
         // Determine the amount of fees to bring back
         uint256 fees = 0;
@@ -329,6 +327,17 @@ contract D3MHub {
         }
 
         emit Unwind(ilk, amount, fees);
+    }
+
+    function _fix(bytes32 ilk, address _pool) internal returns (uint256 diff) {
+        (uint256 ink, uint256 art) = vat.urns(ilk, _pool);
+        if (art < ink) {
+            address _vow = vow;
+            diff = ink - art;
+            require(diff <= MAXINT256, "D3MHub/overflow");
+            vat.suck(_vow, _vow, diff * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+            vat.grab(ilk, _pool, _pool, _vow, 0, int256(diff));
+        }
     }
 
     // Ilk Getters
@@ -408,6 +417,8 @@ contract D3MHub {
                 currentAssets
             );
         } else if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) {
+            _fix(ilk, address(_pool));
+
             // pool caged
             _unwind(
                 ilk,
@@ -419,6 +430,8 @@ contract D3MHub {
                 currentAssets
             );
         } else {
+            Art += _fix(ilk, address(_pool));
+
             // Determine if it needs to unwind due to debt ceilings
             uint256 lineWad = line / RAY; // Round down to always be under the actual limit
             uint256 Line = vat.Line();
@@ -490,6 +503,8 @@ contract D3MHub {
         _pool.preDebtChange("reap");
         uint256 assetBalance = _pool.assetBalance();
         (, uint256 daiDebt) = vat.urns(ilk, address(_pool));
+        daiDebt += _fix(ilk, address(_pool));
+
         if (assetBalance > daiDebt) {
             uint256 fees;
             unchecked {
@@ -539,9 +554,7 @@ contract D3MHub {
         This must occur while vat is live. Can be triggered by auth or
         after tau number of seconds has passed since the pool was caged.
         @dev This will send the pool's debt to the vow as sin and convert its
-        collateral to gems.  There is a situation where another user has paid
-        back some of the Pool's debt where ink != art in this case we rebalance
-        so that vat.gems(pool) will represent the amount of debt sent to the vow.
+        collateral to gems.
         @param ilk bytes32 of the D3M ilk name
     */
     function cull(bytes32 ilk) external {
@@ -559,15 +572,6 @@ contract D3MHub {
         require(ink <= MAXINT256, "D3MHub/overflow");
         require(art <= MAXINT256, "D3MHub/overflow");
         vat.grab(ilk, address(_pool), address(_pool), vow, -int256(ink), -int256(art));
-
-        if (ink > art) {
-            // We have more collateral than debt, so need to rebalance.
-            // After cull the gems we grab above represent the debt to
-            // unwind.
-            unchecked {
-                vat.slip(ilk, address(_pool), -int256(ink - art));
-            }
-        }
 
         ilks[ilk].culled = 1;
         emit Cull(ilk, ink, art);
