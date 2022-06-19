@@ -26,7 +26,7 @@
 // (0)     borrowRatePerBlock = ((((apy / 100) + 1) ^ (1 / 365) - 1) / blocksPerDay) * WAD
 //         ATTOW the formula matches the borrow apy on (https://compound.finance/markets/DAI) using blocksPerDay = 6570
 //
-// https://github.com/compound-finance/compound-protocol/blob/master/contracts/BaseJumpRateModelV2.sol#L95
+// https://github.com/compound-finance/compound-protocol/blob/a3214f67b73310d547e00fc578e8355911c9d376/contracts/BaseJumpRateModelV2.sol#L96
 //
 // util > kink:
 //         normalRate = kink * multiplierPerBlock / WAD + baseRatePerBlock;
@@ -38,7 +38,7 @@
 //         targetInterestRate = util * multiplierPerBlock / WAD + baseRatePerBlock
 // (2)     util = (targetInterestRate - baseRatePerBlock) * WAD / multiplierPerBlock
 //
-// https://github.com/compound-finance/compound-protocol/blob/master/contracts/BaseJumpRateModelV2.sol#L79
+// https://github.com/compound-finance/compound-protocol/blob/a3214f67b73310d547e00fc578e8355911c9d376/contracts/BaseJumpRateModelV2.sol#L80
 //
 //         util = borrows * WAD / (cash + borrows - reserves);
 // (3)     cash + borrows - reserves = borrows * WAD / util
