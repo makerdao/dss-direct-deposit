@@ -127,7 +127,7 @@ contract D3MAaveTest is DSSTest {
         _giveAuthAccess(address(end), address(this));
         _giveAuthAccess(address(spot), address(this));
 
-        d3mHub = new D3MHub(address(vat), address(daiJoin));
+        d3mHub = new D3MHub(address(daiJoin));
         d3mAavePool = new D3MAavePool(address(d3mHub), address(dai), address(aavePool));
         d3mAavePool.rely(address(d3mHub));
         d3mAavePlan = new D3MAavePlan(address(dai), address(aavePool));
@@ -1050,17 +1050,141 @@ contract D3MAaveTest is DSSTest {
         assertEq(tau, 1 days);
     }
 
-    // Make sure the module works correctly even when someone permissionlessly repays the urn
-    function test_permissionless_repay() public {
+    function test_fully_unwind_debt_paid_back() public {
+        uint256 adaiDaiBalanceInitial = dai.balanceOf(address(adai));
+
         _setRelBorrowTarget(7500);
 
-        // Permissionlessly repay the urn
-        _giveTokens(dai, 100);
-        dai.approve(address(daiJoin), 100);
-        daiJoin.join(address(this), 100);
-        vat.frob(ilk, address(address(d3mAavePool)), address(this), address(this), 0, -100); // Some small amount of dai repaid
+        d3mHub.reap(ilk); // Clear out fees at the start
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAavePool));
+        uint256 gemBefore = vat.gem(ilk, address(d3mAavePool));
+        uint256 viceBefore = vat.vice();
+        uint256 sinBefore = vat.sin(vow);
+        uint256 vowDaiBefore = vat.dai(vow);
+        uint256 adaiDaiBalanceBefore = dai.balanceOf(address(adai));
+        uint256 poolAdaiBalanceBefore = adai.balanceOf(address(d3mAavePool));
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mAavePool),
+            address(d3mAavePool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mAavePool));
+        assertEq(ink, pink);
+        assertEq(art, part - 10 * WAD);
+        assertEq(ink - art, 10 * WAD);
+        assertEq(vat.gem(ilk, address(d3mAavePool)), gemBefore);
+        assertEq(vat.vice(), viceBefore);
+        assertEq(vat.sin(vow), sinBefore);
+        assertEq(vat.dai(vow), vowDaiBefore);
+        assertEq(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
+        assertEq(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
 
         // We should be able to close out the vault completely even though ink and art do not match
-        _setRelBorrowTarget(0);
+        // _setRelBorrowTarget(0);
+        d3mAavePlan.file("bar", 0);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mAavePool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(d3mAavePool)), 0);
+        assertEq(vat.vice(), viceBefore);
+        assertEq(vat.sin(vow), sinBefore);
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        assertEq(dai.balanceOf(address(adai)), adaiDaiBalanceInitial);
+        assertEq(adai.balanceOf(address(d3mAavePool)), 0);
+    }
+
+    function test_wind_partial_unwind_wind_debt_paid_back() public {
+        uint256 initialRate = _setRelBorrowTarget(5000);
+        d3mHub.reap(ilk); // Clear out fees at the start
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAavePool));
+        uint256 gemBefore = vat.gem(ilk, address(d3mAavePool));
+        uint256 viceBefore = vat.vice();
+        uint256 sinBefore = vat.sin(vow);
+        uint256 vowDaiBefore = vat.dai(vow);
+        uint256 adaiDaiBalanceBefore = dai.balanceOf(address(adai));
+        uint256 poolAdaiBalanceBefore = adai.balanceOf(address(d3mAavePool));
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mAavePool),
+            address(d3mAavePool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mAavePool));
+        assertEq(ink, pink);
+        assertEq(art, part - 10 * WAD);
+        assertEq(ink - art, 10 * WAD);
+        assertEq(vat.gem(ilk, address(d3mAavePool)), gemBefore);
+        assertEq(vat.vice(), viceBefore);
+        assertEq(vat.sin(vow), sinBefore);
+        assertEq(vat.dai(vow), vowDaiBefore);
+        assertEq(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
+        assertEq(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mAavePool));
+        assertEq(ink, pink);
+        assertEq(art, part);
+        assertEq(ink, art);
+        assertEq(vat.gem(ilk, address(d3mAavePool)), gemBefore);
+        assertEq(vat.vice(), viceBefore);
+        assertEq(vat.sin(vow), sinBefore);
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        assertEq(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
+        assertEq(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
+
+        // Raise target a little to trigger unwind
+        //_setRelBorrowTarget(12500);
+        d3mAavePlan.file("bar", getBorrowRate() * 12500 / 10000);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mAavePool));
+        assertLt(ink, pink);
+        assertLt(art, part);
+        assertEq(ink, art);
+        assertEq(vat.vice(), viceBefore);
+        assertEq(vat.sin(vow), sinBefore);
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        assertEq(vat.gem(ilk, address(d3mAavePool)), gemBefore);
+        assertLt(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
+        assertLt(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
+
+        // can re-wind and have the correct amount of debt
+        d3mAavePlan.file("bar", initialRate);
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mAavePool));
+        assertEq(ink, pink);
+        assertEq(art, part);
+        assertEq(ink, art);
+        assertEq(vat.gem(ilk, address(d3mAavePool)), gemBefore);
+        assertEq(vat.vice(), viceBefore);
+        assertEq(vat.sin(vow), sinBefore);
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        assertEq(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
+        assertEq(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
     }
 }
