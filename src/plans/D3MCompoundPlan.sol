@@ -84,11 +84,14 @@ contract D3MCompoundPlan is ID3MPlan {
 
     constructor(address cDai_) {
         address rateModel_ = CErc20Like(cDai_).interestRateModel();
+        address delegate_  = CErc20Like(cDai_).implementation();
+
         require(rateModel_ != address(0), "D3MCompoundPlan/invalid-rateModel");
+        require(delegate_  != address(0), "D3MCompoundPlan/invalid-delegate");
 
         cDai     = CErc20Like(cDai_);
         tack     = InterestRateModelLike(rateModel_);
-        delegate = cDai.implementation();
+        delegate = delegate_;
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
