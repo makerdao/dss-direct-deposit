@@ -1096,8 +1096,8 @@ contract D3MCompoundTest is DSSTest {
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore);
-        assertEq(dai.balanceOf(address(cDai)), cdaiDaiBalanceBefore);
-        assertEq(cDai.balanceOf(address(d3mCompoundPool)), poolAdaiBalanceBefore);
+        assertEqRounding(dai.balanceOf(address(cDai)), cdaiDaiBalanceBefore);
+        assertEqCdai(cDai.balanceOf(address(d3mCompoundPool)), poolAdaiBalanceBefore);
 
         // We should be able to close out the vault completely even though ink and art do not match
         // _setRelBorrowTarget(0);
@@ -1150,8 +1150,8 @@ contract D3MCompoundTest is DSSTest {
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore);
-        assertEq(dai.balanceOf(address(cDai)), cdaiDaiBalanceBefore);
-        assertEq(cDai.balanceOf(address(d3mCompoundPool)), poolAdaiBalanceBefore);
+        assertEqRounding(dai.balanceOf(address(cDai)), cdaiDaiBalanceBefore);
+        assertEqCdai(cDai.balanceOf(address(d3mCompoundPool)), poolAdaiBalanceBefore);
 
         d3mHub.exec(ilk);
 
@@ -1163,8 +1163,8 @@ contract D3MCompoundTest is DSSTest {
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(cDai)), cdaiDaiBalanceBefore);
-        assertEq(cDai.balanceOf(address(d3mCompoundPool)), poolAdaiBalanceBefore);
+        assertEqRounding(dai.balanceOf(address(cDai)), cdaiDaiBalanceBefore);
+        assertEqCdai(cDai.balanceOf(address(d3mCompoundPool)), poolAdaiBalanceBefore);
 
         // Raise target a little to trigger unwind
         //_setRelBorrowTarget(12500);
@@ -1195,7 +1195,7 @@ contract D3MCompoundTest is DSSTest {
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(cDai)), cdaiDaiBalanceBefore);
-        assertEq(cDai.balanceOf(address(d3mCompoundPool)), poolAdaiBalanceBefore);
+        assertEqRounding(dai.balanceOf(address(cDai)), cdaiDaiBalanceBefore);
+        assertEqCdai(cDai.balanceOf(address(d3mCompoundPool)), poolAdaiBalanceBefore);
     }
 }
