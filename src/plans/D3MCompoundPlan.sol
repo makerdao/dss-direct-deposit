@@ -47,7 +47,7 @@ pragma solidity ^0.8.14;
 
 import "./ID3MPlan.sol";
 
-// cDai - https://etherscan.io/token/0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643
+// cDai - https://etherscan.io/address/0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643
 interface CErc20Like {
     function totalBorrows()           external view returns (uint256);
     function totalReserves()          external view returns (uint256);
