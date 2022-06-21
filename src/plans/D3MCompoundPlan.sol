@@ -141,6 +141,7 @@ contract D3MCompoundPlan is ID3MPlan {
         uint256 baseRatePerBlock       = tack.baseRatePerBlock();
         uint256 jumpMultiplierPerBlock = tack.jumpMultiplierPerBlock();
 
+        // The normal rate is a Compound term for the rate at kink utillization
         uint256 normalRate = _wmul(kink, multiplierPerBlock) + baseRatePerBlock;
 
         uint256 targetUtil;
