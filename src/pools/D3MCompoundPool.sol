@@ -82,8 +82,8 @@ contract D3MCompoundPool is ID3MPool {
         dai.approve(cDai_, type(uint256).max);
 
         hub = hub_;
-        vat = VatLike(D3mHubLike(hub).vat());
-        vat.hope(hub);
+        vat = VatLike(D3mHubLike(hub_).vat());
+        vat.hope(hub_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
