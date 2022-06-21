@@ -23,15 +23,20 @@ A "dumb" adapter which is responsible for depositing or withdrawing DAI from the
 
 The D3MPlan can be viewed as the targeting logic for D3M instances. The plan is responsible for reading all relevant information from its state (i.e. the target rate) and possibly from the external protocol (i.e. current balance of supply and borrowing in the market) and condensing this down to a debt target. This desired target debt is forwarded to the Hub to take action to reach this target debt level asap.
 
+### General Configuration
+
+The below parameter exists for each D3M implementation:
+
+- `tau` [seconds] - The expiry for when bad debt is sent to the vow debt queue. This must be set during initialization to enforce a deadline for when this module is considered to be in a failure mode where no more liquidity is available in the pool to unwind. Unwinding can still occur after this period elapses.
+
 # Specific Implementations
 
 ## Aave D3M
 
 ### Configuration
 
-Below are the configurable parameters for the Aave DAI D3M:
+Below is a configurable parameter for the Aave DAI D3M:
 
-- `tau` [seconds] - The expiry for when bad debt is sent to the vow debt queue. This must be set during initialization to enforce a deadline for when this module is considered to be in a failure mode where no more liquidity is available in the pool to unwind. Unwinding can still occur after this period elapses.
 - `bar` [ray] - The target borrow rate on Aave for the DAI market. This module will aim to enforce that borrow limit.
 
 Any stkAave that is accured can be permissionlessly collected into the pause proxy by calling `collect()`.
@@ -40,9 +45,8 @@ Any stkAave that is accured can be permissionlessly collected into the pause pro
 
 ### Configuration
 
-Below are the configurable parameters for the Compound DAI D3M:
+Below is a configurable parameter for the Compound DAI D3M:
 
-- `tau` [seconds] - The expiry for when bad debt is sent to the vow debt queue. This must be set during initialization to enforce a deadline for when this module is considered to be in a failure mode where no more liquidity is available in the pool to unwind. Unwinding can still occur after this period elapses.
 - `barb` [wad] - The target borrow rate per block on Compound for the DAI market. This module will aim to enforce that borrow limit.
 
 Any Comp that is accured can be permissionlessly collected into the pause proxy by calling `collect()`.
