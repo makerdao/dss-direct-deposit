@@ -135,30 +135,6 @@ contract D3MCompoundPlan is ID3MPlan {
         emit File(what, data);
     }
 
-    function getTargetAssets(uint256 currentAssets) external override view returns (uint256) {
-        uint256 targetInterestRate = barb;
-        if (targetInterestRate == 0) return 0; // De-activated
-
-        uint256 borrows = cDai.totalBorrows();
-        uint256 targetTotalPoolSize = _calculateTargetSupply(targetInterestRate, borrows);
-        uint256 totalPoolSize = cDai.getCash() + borrows - cDai.totalReserves();
-
-        if (targetTotalPoolSize >= totalPoolSize) {
-            // Increase debt (or same)
-            return currentAssets + targetTotalPoolSize - totalPoolSize;
-        } else {
-            // Decrease debt
-            unchecked {
-                uint256 decrease = totalPoolSize - targetTotalPoolSize;
-                if (currentAssets >= decrease) {
-                    return currentAssets - decrease;
-                } else {
-                    return 0;
-                }
-            }
-        }
-    }
-
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 borrows) internal view returns (uint256) {
         uint256 kink                   = tack.kink();
         uint256 multiplierPerBlock     = tack.multiplierPerBlock();
@@ -182,6 +158,30 @@ contract D3MCompoundPlan is ID3MPlan {
         if (targetUtil > WAD) return 0; // illegal rate (unacheivable utilization)
 
         return _wdiv(borrows, targetUtil);                                                      // (3)
+    }
+
+    function getTargetAssets(uint256 currentAssets) external override view returns (uint256) {
+        uint256 targetInterestRate = barb;
+        if (targetInterestRate == 0) return 0; // De-activated
+
+        uint256 borrows = cDai.totalBorrows();
+        uint256 targetTotalPoolSize = _calculateTargetSupply(targetInterestRate, borrows);
+        uint256 totalPoolSize = cDai.getCash() + borrows - cDai.totalReserves();
+
+        if (targetTotalPoolSize >= totalPoolSize) {
+            // Increase debt (or same)
+            return currentAssets + targetTotalPoolSize - totalPoolSize;
+        } else {
+            // Decrease debt
+            unchecked {
+                uint256 decrease = totalPoolSize - targetTotalPoolSize;
+                if (currentAssets >= decrease) {
+                    return currentAssets - decrease;
+                } else {
+                    return 0;
+                }
+            }
+        }
     }
 
     function active() public view override returns (bool) {
