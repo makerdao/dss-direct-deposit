@@ -83,13 +83,14 @@ contract D3MCompoundPlan is ID3MPlan {
     event File(bytes32 indexed what, address data);
 
     constructor(address cDai_) {
-        address rateModel_ = CErc20Like(cDai_).interestRateModel();
-        address delegate_  = CErc20Like(cDai_).implementation();
+        cDai = CErc20Like(cDai_);
+
+        address rateModel_ = cDai.interestRateModel();
+        address delegate_  = cDai.implementation();
 
         require(rateModel_ != address(0), "D3MCompoundPlan/invalid-rateModel");
         require(delegate_  != address(0), "D3MCompoundPlan/invalid-delegate");
 
-        cDai     = CErc20Like(cDai_);
         tack     = InterestRateModelLike(rateModel_);
         delegate = delegate_;
 
