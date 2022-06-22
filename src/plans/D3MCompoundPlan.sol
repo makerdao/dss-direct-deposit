@@ -157,8 +157,6 @@ contract D3MCompoundPlan is ID3MPlan {
             return 0;
         }
 
-        if (targetUtil > WAD) return 0; // illegal rate (unacheivable utilization)
-
         return _wdiv(borrows, targetUtil);                                                      // (3)
     }
 

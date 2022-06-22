@@ -254,15 +254,19 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
         assertEq(supply, 0);
     }
 
-    function test_top_utilization() public {
-        uint256 topUtil = WAD;
+    function test_very_high_utilization_supported() public {
         uint256 normalRate = _add(_wmul(model.kink(), model.multiplierPerBlock()), model.baseRatePerBlock());
 
-        uint256 topRate = normalRate + model.jumpMultiplierPerBlock() * (topUtil - model.kink()) / WAD;
-        assertGt(plan.calculateTargetSupply(topRate), 0);
+        uint256 util = 1e36;
+        uint256 rate = normalRate + model.jumpMultiplierPerBlock() * (util - model.kink()) / WAD;
 
-        uint256 overTopRate = topRate * 101 / 100;
-        assertEq(plan.calculateTargetSupply(overTopRate), 0);
+        // Make sure utilization target supply is indeed less than borrows (i.e utilization > 100%)
+        uint256 targetSupply = plan.calculateTargetSupply(rate);
+        assertLt(targetSupply, cDai.totalBorrows());
+
+        // Make sure targetSupply is indeed very small
+        assertGt(targetSupply, 0);
+        assertLt(targetSupply, WAD);
     }
 
     function test_implements_getTargetAssets() public override {

@@ -331,7 +331,7 @@ contract D3MCompoundTest is DSSTest {
         assertEq(vat.dai(address(d3mHub)), 0);
     }
 
-    function test_bar_zero() public {
+    function test_barb_zero() public {
 
         uint256 targetBorrowRate = _setRelBorrowTarget(7500);
 
@@ -352,6 +352,39 @@ contract D3MCompoundTest is DSSTest {
 
         assertEqRounding(ink, 0);
         assertEqRounding(art, 0);
+    }
+
+    function test_utilization_over_100_percent() public {
+
+        // Borrow out all cash so we have high utilization
+        assertEq(cDai.borrow(cDai.getCash()), 0);
+
+        // Lower rate by 0.1% (inject dai)
+        uint256 targetBorrowRate = _setRelBorrowTarget(9990);
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        // Make sure the amount supplied is less than the reserves, which means utilization still > 100%
+        uint256 initialSupply = cDai.balanceOfUnderlying(address(d3mCompoundPool));
+        assertGt(initialSupply, 0);
+        assertLt(initialSupply, cDai.totalReserves());
+
+        // Assert that indeed current utilization > 100%
+        assertGt(rateModel.utilizationRate(cDai.getCash(), cDai.totalBorrows(), cDai.totalReserves()), WAD);
+
+        // File the current rate, make sure it is supported (does not cause unwind) although utilization is over 100%
+        d3mCompoundPlan.file("barb", cDai.borrowRatePerBlock());
+        d3mHub.exec(ilk);
+        _assertEqApprox(initialSupply, cDai.balanceOfUnderlying(address(d3mCompoundPool)), WAD / 100);
+
+        // File a the maximum supported rate
+        d3mCompoundPlan.file("barb", 0.0005e16);
+        d3mHub.exec(ilk);
+
+        // Assert that still current utilization > 100%
+        assertGt(rateModel.utilizationRate(cDai.getCash(), cDai.totalBorrows(), cDai.totalReserves()), WAD);
+
+        // Make sure it caused us to unwind
+        assertEqRounding(cDai.balanceOfUnderlying(address(d3mCompoundPool)), 0);
     }
 
     function test_target_increase_insufficient_liquidity() public {
