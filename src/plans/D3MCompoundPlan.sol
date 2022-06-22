@@ -150,6 +150,7 @@ contract D3MCompoundPlan is ID3MPlan {
             if (jumpMultiplierPerBlock == 0) return 0; // illegal rate, max is normal rate for this case
             targetUtil = kink + _wdiv(targetInterestRate - normalRate, jumpMultiplierPerBlock); // (1)
         } else if (targetInterestRate > baseRatePerBlock) {
+            // multiplierPerBlock != 0, as otherwise normalRate == baseRatePerBlock, matching the first case
             targetUtil = _wdiv(targetInterestRate - baseRatePerBlock, multiplierPerBlock);      // (2)
         } else {
             // if (target == base) => (borrows == 0) => supply does not matter
