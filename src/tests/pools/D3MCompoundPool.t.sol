@@ -273,7 +273,7 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
     function test_maxWithdraw_gets_available_assets() public {
         pool.file("hub", address(this));
         pool.deposit(1 * WAD);
-        _assertEqApprox(pool.assetBalance(), pool.maxWithdraw());
+        assertEq(pool.assetBalance(), pool.maxWithdraw());
     }
 
     function test_maxDeposit_returns_max_uint() public {
