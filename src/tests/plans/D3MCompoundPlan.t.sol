@@ -150,6 +150,11 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
         assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", bytes32("bad"), uint256(1)), "D3MCompoundPlan/file-unrecognized-param");
     }
 
+    function test_cannot_file_uint_without_auth() public {
+        plan.deny(address(this));
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", bytes32("barb"), uint256(1)), "D3MCompoundPlan/not-authorized");
+    }
+
     function test_can_file_rateModel() public {
         assertEq(address(plan.tack()), address(model));
 
@@ -159,7 +164,7 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
     }
 
     function test_can_file_delegate() public {
-        assert(plan.delegate() != address(1));
+        assertTrue(plan.delegate() != address(1));
 
         plan.file("delegate", address(1));
 
@@ -170,9 +175,9 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
         assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,address)", bytes32("bad"), address(1)), "D3MCompoundPlan/file-unrecognized-param");
     }
 
-    function test_cannot_file_without_auth() public {
+    function test_cannot_file_address_without_auth() public {
         plan.deny(address(this));
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", bytes32("barb"), uint256(1)), "D3MCompoundPlan/not-authorized");
+        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,address)", bytes32("tack"), uint256(1)), "D3MCompoundPlan/not-authorized");
     }
 
     function test_calculate_current_rate() public {
@@ -290,7 +295,12 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
     }
 
     function test_rate_model_changed_not_active() public {
+        // Set barb so we won't be inactive due to it
+        plan.file("barb", 123);
+
         // Simulate Compound changing the rate model in the pool
+        assertTrue(address(plan.tack()) == cDai.interestRateModel());
+        assertTrue(plan.active());
         plan.file("tack", address(456));
 
         assertTrue(address(plan.tack()) != cDai.interestRateModel());
@@ -298,8 +308,12 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
     }
 
     function test_delegate_changed_not_active() public {
+        // Set barb so we won't be inactive due to it
+        plan.file("barb", 123);
+
         // Simulate Compound changing the cDai implementation
         assertTrue(address(plan.delegate()) == cDai.implementation());
+        assertTrue(plan.active() == true);
         plan.file("delegate", address(456));
 
         assertTrue(address(plan.delegate()) != cDai.implementation());

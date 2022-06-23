@@ -308,12 +308,15 @@ contract D3MCompoundTest is DSSTest {
         uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
+        uint256 amountSuppliedInitial = cDai.balanceOfUnderlying(address(d3mCompoundPool));
+
         // Raise by 25%
         targetBorrowRate = _setRelBorrowTarget(12500);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         uint256 amountSupplied = cDai.balanceOfUnderlying(address(d3mCompoundPool));
         assertTrue(amountSupplied > 0);
+        assertLt(amountSupplied, amountSuppliedInitial);
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mCompoundPool));
         assertEqRounding(ink, amountSupplied);
         assertEqRounding(art, amountSupplied);
@@ -367,7 +370,7 @@ contract D3MCompoundTest is DSSTest {
         d3mHub.exec(ilk);
         _assertEqApprox(initialSupply, cDai.balanceOfUnderlying(address(d3mCompoundPool)), WAD / 100);
 
-        // File a the maximum supported rate
+        // File the maximum supported rate
         d3mCompoundPlan.file("barb", 0.0005e16);
         d3mHub.exec(ilk);
 
@@ -592,6 +595,12 @@ contract D3MCompoundTest is DSSTest {
 
         // Someone else borrows almost all the liquidity
         assertEq(cDai.borrow(dai.balanceOf(address(cDai)) - 100 * WAD), 0);
+
+        // Show that 100 DAI is less than the amount of fees that have accrued
+        uint256 assetBalance = d3mCompoundPool.assetBalance();
+        (, uint256 daiDebt) = vat.urns(ilk, address(d3mCompoundPool));
+        uint256 eligibleFees = assetBalance - daiDebt;
+        assertLt(100 * WAD, eligibleFees);
 
         // Reap the partial fees
         uint256 vowDai = vat.dai(vow);
@@ -833,6 +842,9 @@ contract D3MCompoundTest is DSSTest {
             assertEq(vat.dai(vow), originalDai - originalSin - part * RAY);
             assertEq(vat.sin(vow), 0);
         }
+
+        // Cannot cage the ilk before it is unculled
+        assertRevert(address(end), abi.encodeWithSignature("cage(bytes32)", ilk), "D3MOracle/ilk-culled-in-shutdown");
 
         d3mHub.uncull(ilk);
         VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
@@ -1097,7 +1109,7 @@ contract D3MCompoundTest is DSSTest {
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
         uint256 cdaiDaiBalanceBefore = dai.balanceOf(address(cDai));
-        uint256 poolAdaiBalanceBefore = cDai.balanceOf(address(d3mCompoundPool));
+        uint256 poolCdaiBalanceBefore = cDai.balanceOf(address(d3mCompoundPool));
 
         // Someone pays back our debt
         _giveTokens(dai, 10 * WAD);
@@ -1121,7 +1133,7 @@ contract D3MCompoundTest is DSSTest {
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore);
         assertEqRounding(dai.balanceOf(address(cDai)), cdaiDaiBalanceBefore);
-        assertEqCdai(cDai.balanceOf(address(d3mCompoundPool)), poolAdaiBalanceBefore);
+        assertEqCdai(cDai.balanceOf(address(d3mCompoundPool)), poolCdaiBalanceBefore);
 
         // We should be able to close out the vault completely even though ink and art do not match
         // _setRelBorrowTarget(0);
@@ -1151,7 +1163,7 @@ contract D3MCompoundTest is DSSTest {
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
         uint256 cdaiDaiBalanceBefore = dai.balanceOf(address(cDai));
-        uint256 poolAdaiBalanceBefore = cDai.balanceOf(address(d3mCompoundPool));
+        uint256 poolCdaiBalanceBefore = cDai.balanceOf(address(d3mCompoundPool));
 
         // Someone pays back our debt
         _giveTokens(dai, 10 * WAD);
@@ -1175,7 +1187,7 @@ contract D3MCompoundTest is DSSTest {
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore);
         assertEqRounding(dai.balanceOf(address(cDai)), cdaiDaiBalanceBefore);
-        assertEqCdai(cDai.balanceOf(address(d3mCompoundPool)), poolAdaiBalanceBefore);
+        assertEqCdai(cDai.balanceOf(address(d3mCompoundPool)), poolCdaiBalanceBefore);
 
         d3mHub.exec(ilk);
 
@@ -1188,7 +1200,7 @@ contract D3MCompoundTest is DSSTest {
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
         assertEqRounding(dai.balanceOf(address(cDai)), cdaiDaiBalanceBefore);
-        assertEqCdai(cDai.balanceOf(address(d3mCompoundPool)), poolAdaiBalanceBefore);
+        assertEqCdai(cDai.balanceOf(address(d3mCompoundPool)), poolCdaiBalanceBefore);
 
         // Raise target a little to trigger unwind
         //_setRelBorrowTarget(12500);
@@ -1205,7 +1217,7 @@ contract D3MCompoundTest is DSSTest {
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
         assertEq(vat.gem(ilk, address(d3mCompoundPool)), gemBefore);
         assertLt(dai.balanceOf(address(cDai)), cdaiDaiBalanceBefore);
-        assertLt(cDai.balanceOf(address(d3mCompoundPool)), poolAdaiBalanceBefore);
+        assertLt(cDai.balanceOf(address(d3mCompoundPool)), poolCdaiBalanceBefore);
 
         // can re-wind and have the correct amount of debt
         d3mCompoundPlan.file("barb", initialRate);
@@ -1220,6 +1232,6 @@ contract D3MCompoundTest is DSSTest {
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
         assertEqRounding(dai.balanceOf(address(cDai)), cdaiDaiBalanceBefore);
-        assertEqCdai(cDai.balanceOf(address(d3mCompoundPool)), poolAdaiBalanceBefore);
+        assertEqCdai(cDai.balanceOf(address(d3mCompoundPool)), poolCdaiBalanceBefore);
     }
 }
