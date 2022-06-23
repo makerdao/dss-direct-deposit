@@ -44,12 +44,8 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
     TokenLike       comp;
     LensLike        lens;
 
-    function _mul(uint256 x, uint256 y) public pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
-    }
-
     function _wdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, WAD) / y;
+        z = x * WAD / y;
     }
 
     function _assertEqApprox(uint256 _a, uint256 _b) internal {

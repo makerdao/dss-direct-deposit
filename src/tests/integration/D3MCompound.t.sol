@@ -158,17 +158,8 @@ contract D3MCompoundTest is DSSTest {
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
     }
-    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "overflow");
-    }
-    function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "underflow");
-    }
-    function _mul(uint256 x, uint256 y) public pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
-    }
     function _wdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, WAD) / y;
+        z = x * WAD / y;
     }
 
     function _giveAuthAccess(address _base, address target) internal {

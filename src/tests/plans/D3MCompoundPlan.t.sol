@@ -56,20 +56,11 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
     InterestRateModelLike  model;
     D3MCompoundPlanWrapper plan;
 
-    function _add(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "overflow");
-    }
-    function _sub(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "underflow");
-    }
-    function _mul(uint256 x, uint256 y) public pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
-    }
     function _wmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, y) / WAD;
+        z = x * y / WAD;
     }
     function _wdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = _mul(x, WAD) / y;
+        z = x * WAD / y;
     }
 
     function assertEqApproxBPS(uint256 _a, uint256 _b, uint256 _tolerance_bps) internal {
@@ -80,7 +71,7 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
             a = b;
             b = tmp;
         }
-        if (a - b > _mul(_b, _tolerance_bps) / 10 ** 4) {
+        if (a - b > _b * _tolerance_bps / 10 ** 4) {
             emit log_bytes32("Error: Wrong `uint' value");
             emit log_named_uint("  Expected", _b);
             emit log_named_uint("    Actual", _a);
@@ -121,7 +112,7 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
         reserves = cDai.totalReserves();
 
         // reverse calculation of https://github.com/compound-finance/compound-protocol/blob/master/contracts/BaseJumpRateModelV2.sol#L79
-        cash = _add(_sub(_wdiv(borrows, util), borrows), reserves);
+        cash = _wdiv(borrows, util) - borrows + reserves;
         targetRate = model.getBorrowRate(cash, borrows, reserves);
     }
 
@@ -191,7 +182,7 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
         uint256 cash = cDai.getCash();
         uint256 borrows = cDai.totalBorrows();
         uint256 reserves = cDai.totalReserves();
-        assertEqApproxBPS(targetSupply, _sub(_add(cash, borrows), reserves), 1);
+        assertEqApproxBPS(targetSupply, cash + borrows - reserves, 1);
     }
 
     function test_calculate_exactly_normal_rate() public {
@@ -199,7 +190,7 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
         (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) = _targetRateForUtil(util);
 
         uint256 supply = plan.calculateTargetSupply(targetRate);
-        assertEqApproxBPS(supply, _sub(_add(cash, borrows), reserves), 1);
+        assertEqApproxBPS(supply, cash + borrows - reserves, 1);
     }
 
     function test_calculate_below_normal_rate() public {
@@ -207,15 +198,15 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
         (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) = _targetRateForUtil(util);
 
         uint256 supply = plan.calculateTargetSupply(targetRate);
-        assertEqApproxBPS(supply, _sub(_add(cash, borrows), reserves), 1);
+        assertEqApproxBPS(supply, cash + borrows - reserves, 1);
     }
 
     function test_calculate_above_normal_rate() public {
-        uint256 util = _add(model.kink(), _sub(WAD, model.kink()) / 2); // example: current kink = 80% => util = 80% + 10%
+        uint256 util = model.kink() + (WAD - model.kink()) / 2; // example: current kink = 80% => util = 80% + 10%
         (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) = _targetRateForUtil(util);
 
         uint256 supply = plan.calculateTargetSupply(targetRate);
-        assertEqApproxBPS(supply, _sub(_add(cash, borrows), reserves), 1);
+        assertEqApproxBPS(supply, cash + borrows - reserves, 1);
     }
 
     function test_calculate_extremely_low_rate() public {
@@ -223,15 +214,15 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
         (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) = _targetRateForUtil(util);
 
         uint256 supply = plan.calculateTargetSupply(targetRate);
-        assertEqApproxBPS(supply, _sub(_add(cash, borrows), reserves), 1);
+        assertEqApproxBPS(supply, cash + borrows - reserves, 1);
     }
 
     function test_calculate_extremely_high_rate() public {
-        uint256 util = _add(model.kink(), _mul(_sub(WAD, model.kink()), 9) / 10); // example: current kink = 80% => util = 80% + 20% * 9 / 10 = 98%
+        uint256 util = model.kink() + (WAD - model.kink()) * 9 / 10; // example: current kink = 80% => util = 80% + 20% * 9 / 10 = 98%
         (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) = _targetRateForUtil(util);
 
         uint256 supply = plan.calculateTargetSupply(targetRate);
-        assertEqApproxBPS(supply, _sub(_add(cash, borrows), reserves), 1);
+        assertEqApproxBPS(supply, cash + borrows - reserves, 1);
     }
 
     function test_interest_rate_calc() public {
@@ -240,7 +231,7 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
             (uint256 targetRate, uint256 newCash, uint256 borrows, uint256 reserves) = _targetRateForRelativeUtil(i * 100);
 
             uint256 supply = plan.calculateTargetSupply(targetRate);
-            assertEqApproxBPS(supply, _sub(_add(newCash, borrows), reserves), 1);
+            assertEqApproxBPS(supply, newCash + borrows - reserves, 1);
         }
     }
 
@@ -255,7 +246,7 @@ contract D3MCompoundPlanTest is D3MPlanBaseTest {
     }
 
     function test_very_high_utilization_supported() public {
-        uint256 normalRate = _add(_wmul(model.kink(), model.multiplierPerBlock()), model.baseRatePerBlock());
+        uint256 normalRate = _wmul(model.kink(), model.multiplierPerBlock()) + model.baseRatePerBlock();
 
         uint256 util = 1e36;
         uint256 rate = normalRate + model.jumpMultiplierPerBlock() * (util - model.kink()) / WAD;
