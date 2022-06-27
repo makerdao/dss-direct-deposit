@@ -187,7 +187,7 @@ contract D3MCompoundPlan is ID3MPlan {
     function active() public view override returns (bool) {
         if (barb == 0) return false;
         return cDai.interestRateModel() == address(tack) &&
-               cDai.implementation() == delegate;
+               cDai.implementation()    == delegate;
     }
 
     function disable() external override {

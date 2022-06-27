@@ -33,6 +33,7 @@ interface VatLike {
 interface D3mHubLike {
     function vat() external view returns (address);
 }
+
 // cDai - https://etherscan.io/token/0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643
 interface CErc20Like is TokenLike {
     function underlying()                           external view returns (address);
@@ -134,6 +135,7 @@ contract D3MCompoundPool is ID3MPool {
     function deposit(uint256 wad) external override onlyHub {
         uint256 prev = cDai.balanceOf(address(this));
         require(cDai.mint(wad) == 0, "D3MCompoundPool/mint-failure");
+
         // As interest was accrued on `mint` we can use the non accruing `exchangeRateStored`
         require(
             cDai.balanceOf(address(this)) ==
