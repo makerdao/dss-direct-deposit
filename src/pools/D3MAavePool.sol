@@ -19,9 +19,9 @@ pragma solidity ^0.8.14;
 import "./ID3MPool.sol";
 
 interface TokenLike {
-    function approve(address, uint256) external returns (bool);
+    function balanceOf(address)         external view returns (uint256);
+    function approve(address, uint256)  external returns (bool);
     function transfer(address, uint256) external returns (bool);
-    function balanceOf(address) external view returns (uint256);
 }
 
 interface VatLike {
@@ -71,14 +71,14 @@ contract D3MAavePool is ID3MPool {
 
     mapping (address => uint256) public wards;
     address                      public hub;
-    address                      public king;  // Who gets the rewards
+    address                      public king; // Who gets the rewards
 
-    VatLike            public immutable vat;
-    LendingPoolLike    public immutable pool;
-    ATokenLike         public immutable stableDebt;
-    ATokenLike         public immutable variableDebt;
-    ATokenLike         public immutable adai;
-    TokenLike          public immutable dai; // Asset
+    VatLike         public immutable vat;
+    LendingPoolLike public immutable pool;
+    ATokenLike      public immutable stableDebt;
+    ATokenLike      public immutable variableDebt;
+    ATokenLike      public immutable adai;
+    TokenLike       public immutable dai; // Asset
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -120,7 +120,7 @@ contract D3MAavePool is ID3MPool {
     }
 
     // --- Math ---
-    uint256 internal constant RAY  = 10 ** 27;
+    uint256 internal constant RAY = 10 ** 27;
     function _rdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = (x * RAY) / y;
     }
