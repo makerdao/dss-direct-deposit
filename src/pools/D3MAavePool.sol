@@ -36,7 +36,7 @@ interface D3mHubLike {
 
 // aDai: https://etherscan.io/address/0x028171bCA77440897B824Ca71D1c56caC55b68A3
 interface ATokenLike is TokenLike {
-    function scaledBalanceOf(address) external view returns (uint256);
+    function scaledBalanceOf(address)  external view returns (uint256);
     function getIncentivesController() external view returns (address);
 }
 
@@ -46,18 +46,18 @@ interface LendingPoolLike {
     function withdraw(address asset, uint256 amount, address to) external;
     function getReserveNormalizedIncome(address asset) external view returns (uint256);
     function getReserveData(address asset) external view returns (
-        uint256,    // configuration
-        uint128,    // the liquidity index. Expressed in ray
-        uint128,    // variable borrow index. Expressed in ray
-        uint128,    // the current supply rate. Expressed in ray
-        uint128,    // the current variable borrow rate. Expressed in ray
-        uint128,    // the current stable borrow rate. Expressed in ray
-        uint40,     // last updated timestamp
-        address,    // address of the adai interest bearing token
-        address,    // address of the stable debt token
-        address,    // address of the variable debt token
-        address,    // address of the interest rate strategy
-        uint8       // the id of the reserve
+        uint256, // configuration
+        uint128, // the liquidity index. Expressed in ray
+        uint128, // variable borrow index. Expressed in ray
+        uint128, // the current supply rate. Expressed in ray
+        uint128, // the current variable borrow rate. Expressed in ray
+        uint128, // the current stable borrow rate. Expressed in ray
+        uint40,  // last updated timestamp
+        address, // address of the adai interest bearing token
+        address, // address of the stable debt token
+        address, // address of the variable debt token
+        address, // address of the interest rate strategy
+        uint8    // the id of the reserve
     );
 }
 
