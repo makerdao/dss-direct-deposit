@@ -170,7 +170,7 @@ contract D3MCompoundPlan is ID3MPlan {
 
         if (targetTotalPoolSize >= totalPoolSize) {
             // Increase debt (or same)
-            return currentAssets + targetTotalPoolSize - totalPoolSize;
+            return currentAssets + (targetTotalPoolSize - totalPoolSize);
         } else {
             // Decrease debt
             unchecked {
