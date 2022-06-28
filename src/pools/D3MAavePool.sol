@@ -20,7 +20,7 @@ import "./ID3MPool.sol";
 
 interface TokenLike {
     function balanceOf(address) external view returns (uint256);
-    function approve(address, uint256)  external returns (bool);
+    function approve(address, uint256) external returns (bool);
     function transfer(address, uint256) external returns (bool);
 }
 
