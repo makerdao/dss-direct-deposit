@@ -25,18 +25,18 @@ interface TokenLike {
 
 interface LendingPoolLike {
     function getReserveData(address asset) external view returns (
-        uint256,    // configuration
-        uint128,    // the liquidity index. Expressed in ray
-        uint128,    // variable borrow index. Expressed in ray
-        uint128,    // the current supply rate. Expressed in ray
-        uint128,    // the current variable borrow rate. Expressed in ray
-        uint128,    // the current stable borrow rate. Expressed in ray
-        uint40,     // last updated timestamp
-        address,    // address of the adai interest bearing token
-        address,    // address of the stable debt token
-        address,    // address of the variable debt token
-        address,    // address of the interest rate strategy
-        uint8       // the id of the reserve
+        uint256, // configuration
+        uint128, // the liquidity index. Expressed in ray
+        uint128, // variable borrow index. Expressed in ray
+        uint128, // the current supply rate. Expressed in ray
+        uint128, // the current variable borrow rate. Expressed in ray
+        uint128, // the current stable borrow rate. Expressed in ray
+        uint40,  // last updated timestamp
+        address, // address of the adai interest bearing token
+        address, // address of the stable debt token
+        address, // address of the variable debt token
+        address, // address of the interest rate strategy
+        uint8    // the id of the reserve
     );
 }
 
@@ -53,7 +53,7 @@ contract D3MAavePlan is ID3MPlan {
 
     mapping (address => uint256) public wards;
     InterestRateStrategyLike     public tack;
-    uint256                      public bar;   // Target Interest Rate [ray]
+    uint256                      public bar; // Target Interest Rate [ray]
 
     LendingPoolLike public immutable pool;
     TokenLike       public immutable stableDebt;
@@ -73,15 +73,15 @@ contract D3MAavePlan is ID3MPlan {
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
-        require(adai_ != address(0), "D3MAavePlan/invalid-adai");
-        require(stableDebt_ != address(0), "D3MAavePlan/invalid-stableDebt");
-        require(variableDebt_ != address(0), "D3MAavePlan/invalid-variableDebt");
+        require(adai_             != address(0), "D3MAavePlan/invalid-adai");
+        require(stableDebt_       != address(0), "D3MAavePlan/invalid-stableDebt");
+        require(variableDebt_     != address(0), "D3MAavePlan/invalid-variableDebt");
         require(interestStrategy_ != address(0), "D3MAavePlan/invalid-interestStrategy");
 
-        adai = adai_;
-        stableDebt = TokenLike(stableDebt_);
+        adai         = adai_;
+        stableDebt   = TokenLike(stableDebt_);
         variableDebt = TokenLike(variableDebt_);
-        tack = InterestRateStrategyLike(interestStrategy_);
+        tack         = InterestRateStrategyLike(interestStrategy_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -93,7 +93,7 @@ contract D3MAavePlan is ID3MPlan {
     }
 
     // --- Math ---
-    uint256 constant RAY  = 10 ** 27;
+    uint256 constant RAY = 10 ** 27;
     function _rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = (x * y) / RAY;
     }
@@ -116,26 +116,22 @@ contract D3MAavePlan is ID3MPlan {
         else revert("D3MAavePlan/file-unrecognized-param");
         emit File(what, data);
     }
-
     function file(bytes32 what, address data) external auth {
         if (what == "tack") tack = InterestRateStrategyLike(data);
         else revert("D3MAavePlan/file-unrecognized-param");
         emit File(what, data);
     }
 
-    function _maxBar() internal view returns (uint256) {
-        return tack.getMaxVariableBorrowRate();
-    }
-
     // --- Automated Rate targeting ---
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 totalDebt) internal view returns (uint256) {
         uint256 base = tack.baseVariableBorrowRate();
-        if (targetInterestRate <= base || targetInterestRate > _maxBar()) {
+        if (targetInterestRate <= base || targetInterestRate > tack.getMaxVariableBorrowRate()) {
             return 0;
         }
 
         // Do inverse calculation of interestStrategy
         uint256 variableRateSlope1 = tack.variableRateSlope1();
+
         uint256 targetUtil;
         if (targetInterestRate > base + variableRateSlope1) {
             // Excess interest rate
@@ -162,18 +158,18 @@ contract D3MAavePlan is ID3MPlan {
                              );
             }
         }
+
         return _rdiv(totalDebt, targetUtil);
     }
 
     function getTargetAssets(uint256 currentAssets) external override view returns (uint256) {
         uint256 targetInterestRate = bar;
-        if (targetInterestRate == 0) return 0;  // De-activated
+        if (targetInterestRate == 0) return 0; // De-activated
 
         uint256 totalDebt = stableDebt.totalSupply() + variableDebt.totalSupply();
-
         uint256 totalPoolSize = dai.balanceOf(adai) + totalDebt;
-
         uint256 targetTotalPoolSize = _calculateTargetSupply(targetInterestRate, totalDebt);
+
         if (targetTotalPoolSize >= totalPoolSize) {
             // Increase debt (or same)
             return currentAssets + (targetTotalPoolSize - totalPoolSize);
@@ -193,20 +189,15 @@ contract D3MAavePlan is ID3MPlan {
     function active() public view override returns (bool) {
         if (bar == 0) return false;
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address strategy,) = pool.getReserveData(address(dai));
-        return (
-                    strategy      == address(tack)         &&
-                    adai_         == address(adai)         &&
-                    stableDebt_   == address(stableDebt)   &&
-                    variableDebt_ == address(variableDebt)
-               );
+        return strategy      == address(tack)          &&
+               adai_         == address(adai)          &&
+               stableDebt_   == address(stableDebt)    &&
+               variableDebt_ == address(variableDebt);
     }
 
     function disable() external override {
-        require(
-            wards[msg.sender] == 1 ||
-            !active()
-        , "D3MAavePlan/not-authorized");
-        bar = 0;  // ensure deactivation even if active conditions return later
+        require(wards[msg.sender] == 1 || !active(), "D3MAavePlan/not-authorized");
+        bar = 0; // ensure deactivation even if active conditions return later
         emit Disable();
     }
 }
