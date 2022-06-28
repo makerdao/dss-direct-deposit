@@ -19,7 +19,7 @@ pragma solidity ^0.8.14;
 import "./ID3MPlan.sol";
 
 interface TokenLike {
-    function totalSupply()      external view returns (uint256);
+    function totalSupply() external view returns (uint256);
     function balanceOf(address) external view returns (uint256);
 }
 
@@ -122,6 +122,7 @@ contract D3MAavePlan is ID3MPlan {
         emit File(what, data);
     }
 
+    // --- Automated Rate targeting ---
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 totalDebt) internal view returns (uint256) {
         uint256 base = tack.baseVariableBorrowRate();
         if (targetInterestRate <= base || targetInterestRate > tack.getMaxVariableBorrowRate()) {
@@ -188,8 +189,8 @@ contract D3MAavePlan is ID3MPlan {
     function active() public view override returns (bool) {
         if (bar == 0) return false;
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address strategy,) = pool.getReserveData(address(dai));
-        return strategy      == address(tack) &&
-               adai_         == address(adai) &&
+        return strategy      == address(tack)       &&
+               adai_         == address(adai)       &&
                stableDebt_   == address(stableDebt) &&
                variableDebt_ == address(variableDebt);
     }
