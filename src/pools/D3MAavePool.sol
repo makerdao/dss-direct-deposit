@@ -36,7 +36,7 @@ interface D3mHubLike {
 
 // aDai: https://etherscan.io/address/0x028171bCA77440897B824Ca71D1c56caC55b68A3
 interface ATokenLike is TokenLike {
-    function scaledBalanceOf(address)  external view returns (uint256);
+    function scaledBalanceOf(address) external view returns (uint256);
     function getIncentivesController() external view returns (address);
 }
 

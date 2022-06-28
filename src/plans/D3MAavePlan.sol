@@ -42,10 +42,10 @@ interface LendingPoolLike {
 
 interface InterestRateStrategyLike {
     function OPTIMAL_UTILIZATION_RATE() external view returns (uint256);
-    function EXCESS_UTILIZATION_RATE()  external view returns (uint256);
-    function variableRateSlope1()       external view returns (uint256);
-    function variableRateSlope2()       external view returns (uint256);
-    function baseVariableBorrowRate()   external view returns (uint256);
+    function EXCESS_UTILIZATION_RATE() external view returns (uint256);
+    function variableRateSlope1() external view returns (uint256);
+    function variableRateSlope2() external view returns (uint256);
+    function baseVariableBorrowRate() external view returns (uint256);
     function getMaxVariableBorrowRate() external view returns (uint256);
 }
 
