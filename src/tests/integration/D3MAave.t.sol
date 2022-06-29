@@ -340,8 +340,8 @@ contract D3MAaveTest is DSSTest {
         d3mHub.exec(ilk);
 
         (ink, art) = vat.urns(ilk, address(d3mAavePool));
-        assertEq(ink, 0);
-        assertEq(art, 0);
+        assertEqRoundingAgainst(ink, 0);
+        assertEqRoundingAgainst(art, 0);
     }
 
     function test_target_increase_insufficient_liquidity() public {
@@ -831,10 +831,10 @@ contract D3MAaveTest is DSSTest {
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
         assertGt(adai.balanceOf(address(d3mAavePool)), amountSupplied / 2);
         if (originalSin + part * RAY >= originalDai + (amountSupplied / 2) * RAY) {
-            assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY, RAY);
+            assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY, (10 * RAY));
             assertEq(vat.dai(vow), 0);
         } else {
-            assertEqApprox(vat.dai(vow), originalDai + (amountSupplied / 2) * RAY - originalSin - part * RAY, RAY);
+            assertEqApprox(vat.dai(vow), originalDai + (amountSupplied / 2) * RAY - originalSin - part * RAY, (10 * RAY));
             assertEq(vat.sin(vow), 0);
         }
 
@@ -1038,7 +1038,7 @@ contract D3MAaveTest is DSSTest {
         d3mHub.exec(ilk);
 
         (ink, ) = vat.urns(ilk, address(d3mAavePool));
-        assertEq(ink, 0);
+        assertEqRoundingAgainst(ink, 0);
     }
 
     function test_set_tau_not_caged() public {
@@ -1085,8 +1085,8 @@ contract D3MAaveTest is DSSTest {
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore);
-        assertEq(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
-        assertEq(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
+        assertEqRoundingAgainst(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
+        assertEqApprox(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore, 2); // rounding may affect twice
 
         // We should be able to close out the vault completely even though ink and art do not match
         // _setRelBorrowTarget(0);
@@ -1095,13 +1095,13 @@ contract D3MAaveTest is DSSTest {
         d3mHub.exec(ilk);
 
         (ink, art) = vat.urns(ilk, address(d3mAavePool));
-        assertEq(ink, 0);
-        assertEq(art, 0);
+        assertEqRoundingAgainst(ink, 0);
+        assertEqRoundingAgainst(art, 0);
         assertEq(vat.gem(ilk, address(d3mAavePool)), 0);
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(adai)), adaiDaiBalanceInitial);
+        assertEqRoundingAgainst(dai.balanceOf(address(adai)), adaiDaiBalanceInitial);
         assertEq(adai.balanceOf(address(d3mAavePool)), 0);
     }
 
@@ -1138,21 +1138,21 @@ contract D3MAaveTest is DSSTest {
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore);
-        assertEq(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
-        assertEq(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
+        assertEqRoundingAgainst(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
+        assertEqRoundingAgainst(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
 
         d3mHub.exec(ilk);
 
         (ink, art) = vat.urns(ilk, address(d3mAavePool));
-        assertEq(ink, pink);
-        assertEq(art, part);
+        assertEqRoundingAgainst(ink, pink);
+        assertEqRoundingAgainst(art, part);
         assertEq(ink, art);
         assertEq(vat.gem(ilk, address(d3mAavePool)), gemBefore);
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
-        assertEq(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
+        assertEqRoundingAgainst(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
+        assertEqApprox(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore, 2); // rounding may affect twice
 
         // Raise target a little to trigger unwind
         //_setRelBorrowTarget(12500);
@@ -1176,14 +1176,14 @@ contract D3MAaveTest is DSSTest {
         d3mHub.exec(ilk);
 
         (ink, art) = vat.urns(ilk, address(d3mAavePool));
-        assertEq(ink, pink);
-        assertEq(art, part);
+        assertEqRoundingAgainst(ink, pink);
+        assertEqRoundingAgainst(art, part);
         assertEq(ink, art);
         assertEq(vat.gem(ilk, address(d3mAavePool)), gemBefore);
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
-        assertEq(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
+        assertEqRoundingAgainst(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
+        assertEqApprox(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore, 2); // rounding may affect twice
     }
 }
