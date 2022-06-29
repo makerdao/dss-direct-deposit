@@ -31,6 +31,8 @@ interface Hevm {
     ) external;
 
     function load(address, bytes32) external view returns (bytes32);
+
+    function roll(uint256) external;
 }
 
 interface VatLike {
