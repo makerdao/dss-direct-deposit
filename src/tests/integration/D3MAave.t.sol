@@ -831,10 +831,12 @@ contract D3MAaveTest is DSSTest {
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
         assertGt(adai.balanceOf(address(d3mAavePool)), amountSupplied / 2);
         if (originalSin + part * RAY >= originalDai + (amountSupplied / 2) * RAY) {
-            assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY, (10 * RAY));
+            // rounding may affect twice, and multiplied by RAY to be compared with sin
+            assertEqApprox(vat.sin(vow), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY, (2 * RAY));
             assertEq(vat.dai(vow), 0);
         } else {
-            assertEqApprox(vat.dai(vow), originalDai + (amountSupplied / 2) * RAY - originalSin - part * RAY, (10 * RAY));
+            // rounding may affect twice, and multiplied by RAY to be compared with sin
+            assertEqApprox(vat.dai(vow), originalDai + (amountSupplied / 2) * RAY - originalSin - part * RAY, (2 * RAY));
             assertEq(vat.sin(vow), 0);
         }
 
