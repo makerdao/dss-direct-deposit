@@ -19,8 +19,8 @@ pragma solidity ^0.8.14;
 import "./ID3MPool.sol";
 
 interface TokenLike {
-    function balanceOf(address)         external view returns (uint256);
-    function approve(address, uint256)  external returns (bool);
+    function balanceOf(address) external view returns (uint256);
+    function approve(address, uint256) external returns (bool);
     function transfer(address, uint256) external returns (bool);
 }
 
@@ -36,15 +36,15 @@ interface D3mHubLike {
 
 // cDai - https://etherscan.io/token/0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643
 interface CErc20Like is TokenLike {
-    function underlying()                           external view returns (address);
-    function comptroller()                          external view returns (address);
-    function exchangeRateStored()                   external view returns (uint256);
-    function getCash()                              external view returns (uint256);
-    function getAccountSnapshot(address account)    external view returns (uint256, uint256, uint256, uint256);
-    function mint(uint256 mintAmount)               external returns (uint256);
+    function underlying() external view returns (address);
+    function comptroller() external view returns (address);
+    function exchangeRateStored() external view returns (uint256);
+    function getCash() external view returns (uint256);
+    function getAccountSnapshot(address account) external view returns (uint256, uint256, uint256, uint256);
+    function mint(uint256 mintAmount) external returns (uint256);
     function redeemUnderlying(uint256 redeemAmount) external returns (uint256);
-    function accrueInterest()                       external returns (uint256);
-    function exchangeRateCurrent()                  external returns (uint256);
+    function accrueInterest() external returns (uint256);
+    function exchangeRateCurrent() external returns (uint256);
 }
 
 // Comptroller - https://etherscan.io/address/0x3d9819210a31b4961b30ef54be2aed79b9c9cd3b

@@ -48,18 +48,18 @@ import "./ID3MPlan.sol";
 
 // cDai - https://etherscan.io/address/0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643
 interface CErc20Like {
-    function totalBorrows()           external view returns (uint256);
-    function totalReserves()          external view returns (uint256);
-    function interestRateModel()      external view returns (address);
-    function getCash()                external view returns (uint256);
-    function implementation()         external view returns (address);
+    function totalBorrows() external view returns (uint256);
+    function totalReserves() external view returns (uint256);
+    function interestRateModel() external view returns (address);
+    function getCash() external view returns (uint256);
+    function implementation() external view returns (address);
 }
 
 // JumpRateModelV2 - https://etherscan.io/address/0xfb564da37b41b2f6b6edcc3e56fbf523bd9f2012
 interface InterestRateModelLike {
-    function baseRatePerBlock()       external view returns (uint256);
-    function kink()                   external view returns (uint256);
-    function multiplierPerBlock()     external view returns (uint256);
+    function baseRatePerBlock() external view returns (uint256);
+    function kink() external view returns (uint256);
+    function multiplierPerBlock() external view returns (uint256);
     function jumpMultiplierPerBlock() external view returns (uint256);
 }
 
