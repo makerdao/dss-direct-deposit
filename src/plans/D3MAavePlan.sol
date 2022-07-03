@@ -72,7 +72,7 @@ contract D3MAavePlan is ID3MPlan {
         pool = LendingPoolLike(pool_);
 
         // Fetch the reserve data from Aave
-        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = LendingPoolLike(pool_).getReserveData(dai_);
+        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = pool.getReserveData(dai_);
         require(adai_             != address(0), "D3MAavePlan/invalid-adai");
         require(stableDebt_       != address(0), "D3MAavePlan/invalid-stableDebt");
         require(variableDebt_     != address(0), "D3MAavePlan/invalid-variableDebt");

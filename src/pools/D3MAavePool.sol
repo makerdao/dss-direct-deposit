@@ -91,7 +91,7 @@ contract D3MAavePool is ID3MPool {
         dai = TokenLike(dai_);
 
         // Fetch the reserve data from Aave
-        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, ,) = LendingPoolLike(pool_).getReserveData(dai_);
+        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, ,) = pool.getReserveData(dai_);
         require(stableDebt_ != address(0), "D3MAavePool/invalid-stableDebt");
         require(variableDebt_ != address(0), "D3MAavePool/invalid-variableDebt");
 
@@ -99,7 +99,7 @@ contract D3MAavePool is ID3MPool {
         stableDebt = ATokenLike(stableDebt_);
         variableDebt = ATokenLike(variableDebt_);
 
-        TokenLike(dai_).approve(pool_, type(uint256).max);
+        dai.approve(pool_, type(uint256).max);
 
         hub = hub_;
         vat = VatLike(D3mHubLike(hub_).vat());
