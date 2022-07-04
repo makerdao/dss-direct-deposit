@@ -23,21 +23,21 @@ import { D3MPlanBaseTest } from "./D3MPlanBase.t.sol";
 import { D3MCompoundPlan } from "../../plans/D3MCompoundPlan.sol";
 
 interface CErc20Like {
-    function borrowRatePerBlock()               external view returns (uint256);
-    function getCash()                          external view returns (uint256);
-    function totalBorrows()                     external view returns (uint256);
-    function totalReserves()                    external view returns (uint256);
-    function interestRateModel()                external view returns (address);
-    function implementation()                   external view returns (address);
-    function accrueInterest()                   external returns (uint256);
+    function borrowRatePerBlock() external view returns (uint256);
+    function getCash() external view returns (uint256);
+    function totalBorrows() external view returns (uint256);
+    function totalReserves() external view returns (uint256);
+    function interestRateModel() external view returns (address);
+    function implementation() external view returns (address);
+    function accrueInterest() external returns (uint256);
 }
 
 interface InterestRateModelLike {
-    function baseRatePerBlock()       external view returns (uint256);
-    function kink()                   external view returns (uint256);
-    function multiplierPerBlock()     external view returns (uint256);
+    function baseRatePerBlock() external view returns (uint256);
+    function kink() external view returns (uint256);
+    function multiplierPerBlock() external view returns (uint256);
     function jumpMultiplierPerBlock() external view returns (uint256);
-    function blocksPerYear()          external view returns (uint256);
+    function blocksPerYear() external view returns (uint256);
     function getBorrowRate(uint256 cash, uint256 borrows, uint256 reserves) external view returns (uint256);
     function utilizationRate(uint256 cash, uint256 borrows, uint256 reserves) external pure returns (uint256);
 }

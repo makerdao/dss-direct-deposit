@@ -22,8 +22,8 @@ import { D3MCompoundPool } from "../../pools/D3MCompoundPool.sol";
 
 interface CErc20Like {
     function balanceOf(address owner) external view returns (uint256);
-    function exchangeRateStored()     external view returns (uint256);
-    function comptroller()            external view returns (address);
+    function exchangeRateStored() external view returns (uint256);
+    function comptroller() external view returns (address);
     function balanceOfUnderlying(address owner) external returns (uint256);
 }
 
