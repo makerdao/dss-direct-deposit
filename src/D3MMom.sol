@@ -1,5 +1,5 @@
+// SPDX-FileCopyrightText: © 2021 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2021 Dai Foundation
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.6.12;
+pragma solidity ^0.8.14;
 
-interface FileLike {
-    function file(bytes32 what, uint256 data) external;
+interface DisableLike {
+    function disable() external;
 }
 
 interface AuthorityLike {
@@ -25,27 +25,27 @@ interface AuthorityLike {
 }
 
 // Bypass governance delay to disable a direct deposit module
-contract DirectDepositMom {
+contract D3MMom {
     address public owner;
     address public authority;
 
-    event SetOwner(address indexed oldOwner, address indexed newOwner);
-    event SetAuthority(address indexed oldAuthority, address indexed newAuthority);
+    event SetOwner(address indexed newOwner);
+    event SetAuthority(address indexed newAuthority);
     event Disable(address indexed who);
 
     modifier onlyOwner {
-        require(msg.sender == owner, "DirectDepositMom/only-owner");
+        require(msg.sender == owner, "D3MMom/only-owner");
         _;
     }
 
     modifier auth {
-        require(isAuthorized(msg.sender, msg.sig), "DirectDepositMom/not-authorized");
+        require(isAuthorized(msg.sender, msg.sig), "D3MMom/not-authorized");
         _;
     }
 
-    constructor() public {
+    constructor() {
         owner = msg.sender;
-        emit SetOwner(address(0), msg.sender);
+        emit SetOwner(msg.sender);
     }
 
     function isAuthorized(address src, bytes4 sig) internal view returns (bool) {
@@ -62,18 +62,18 @@ contract DirectDepositMom {
 
     // Governance actions with delay
     function setOwner(address owner_) external onlyOwner {
-        emit SetOwner(owner, owner_);
         owner = owner_;
+        emit SetOwner(owner_);
     }
 
     function setAuthority(address authority_) external onlyOwner {
-        emit SetAuthority(authority, authority_);
         authority = authority_;
+        emit SetAuthority(authority_);
     }
 
     // Governance action without delay
     function disable(address who) external auth {
-        FileLike(who).file("bar", 0);
+        DisableLike(who).disable();
         emit Disable(who);
     }
 }
