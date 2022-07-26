@@ -170,7 +170,6 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
         D3MAavePlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 2 * RAY / 100);
 
         uint256 initialTargetAssets = D3MAavePlan(d3mTestPlan).getTargetAssets(0);
-        assertGt(initialTargetAssets, 0);
 
         // Reduce target rate (increase needed number of target Assets)
         D3MAavePlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
