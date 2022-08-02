@@ -23,6 +23,10 @@ interface TokenLike {
     function balanceOf(address) external view returns (uint256);
 }
 
+interface ATokenLike {
+    function ATOKEN_REVISION() external view returns (uint256);
+}
+
 interface LendingPoolLike {
     function getReserveData(address asset) external view returns (
         uint256, // configuration
@@ -60,6 +64,7 @@ contract D3MAavePlan is ID3MPlan {
     TokenLike       public immutable variableDebt;
     TokenLike       public immutable dai;
     address         public immutable adai;
+    uint256         public immutable adaiRevision;
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -79,6 +84,7 @@ contract D3MAavePlan is ID3MPlan {
         require(interestStrategy_ != address(0), "D3MAavePlan/invalid-interestStrategy");
 
         adai         = adai_;
+        adaiRevision = ATokenLike(adai_).ATOKEN_REVISION();
         stableDebt   = TokenLike(stableDebt_);
         variableDebt = TokenLike(variableDebt_);
         tack         = InterestRateStrategyLike(interestStrategy_);
@@ -191,8 +197,10 @@ contract D3MAavePlan is ID3MPlan {
     function active() public view override returns (bool) {
         if (bar == 0) return false;
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address strategy,) = pool.getReserveData(address(dai));
+        uint256 adaiRevision_ = ATokenLike(adai_).ATOKEN_REVISION();
         return strategy      == address(tack)          &&
                adai_         == address(adai)          &&
+               adaiRevision_ == adaiRevision           &&
                stableDebt_   == address(stableDebt)    &&
                variableDebt_ == address(variableDebt);
     }

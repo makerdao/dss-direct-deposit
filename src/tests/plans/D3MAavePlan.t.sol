@@ -91,6 +91,10 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
         assertEq(address(adai), D3MAavePlan(d3mTestPlan).adai());
     }
 
+    function test_sets_adaiRevision_value() public {
+        assertEq(D3MAavePlan(d3mTestPlan).adaiRevision(), 2);
+    }
+
     function test_sets_dai_value() public {
         assertEq(address(D3MAavePlan(d3mTestPlan).dai()), address(dai));
     }
