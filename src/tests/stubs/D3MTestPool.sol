@@ -113,7 +113,7 @@ contract D3MTestPool is ID3MPool {
 
     function withdraw(uint256 wad) external override onlyHub {
         D3MTestGem(share).burn(address(this), wad);
-        TokenLike(asset).transferFrom(share, address(msg.sender), wad);
+        TokenLike(asset).transferFrom(share, msg.sender, wad);
     }
 
     function transfer(address dst, uint256 wad) public override onlyHub {

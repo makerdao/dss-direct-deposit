@@ -144,8 +144,12 @@ contract D3MCompoundPool is ID3MPool {
     }
 
     function withdraw(uint256 wad) external override onlyHub {
+        uint256 prevDai = dai.balanceOf(msg.sender);
+
         require(cDai.redeemUnderlying(wad) == 0, "D3MCompoundPool/redeemUnderlying-failure");
         dai.transfer(msg.sender, wad);
+
+        require(dai.balanceOf(msg.sender) == prevDai + wad, "D3MCompoundPool/incorrect-dai-balance-received");
     }
 
     function transfer(address dst, uint256 wad) external override onlyHub {

@@ -135,6 +135,7 @@ contract FakeLendingPool {
             amt,
             dst
         );
+        D3MTestGem(asset).transfer(dst, amt);
     }
 
     function getReserveNormalizedIncome(address asset) external pure returns (uint256) {
@@ -200,6 +201,9 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
     }
 
     function test_withdraw_calls_lending_pool_withdraw() public {
+        // make sure we have Dai to withdraw
+        D3MTestGem(address(dai)).mint(address(aavePool), 1);
+
         D3MAavePool(d3mTestPool).file("hub", address(this));
         D3MAavePool(d3mTestPool).withdraw(1);
         (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
@@ -209,6 +213,9 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
     }
 
     function test_withdraw_calls_lending_pool_withdraw_vat_caged() public {
+        // make sure we have Dai to withdraw
+        D3MTestGem(address(dai)).mint(address(aavePool), 1);
+
         D3MAavePool(d3mTestPool).file("hub", address(this));
         FakeVat(vat).cage();
         D3MAavePool(d3mTestPool).withdraw(1);

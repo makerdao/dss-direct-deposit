@@ -165,7 +165,11 @@ contract D3MAavePool is ID3MPool {
     // Withdraws Dai from Aave in exchange for adai
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
     function withdraw(uint256 wad) external override onlyHub {
-        pool.withdraw(address(dai), wad, address(msg.sender));
+        uint256 prevDai = dai.balanceOf(msg.sender);
+
+        pool.withdraw(address(dai), wad, msg.sender);
+
+        require(dai.balanceOf(msg.sender) == prevDai + wad, "D3MAavePool/incorrect-dai-balance-received");
     }
 
     function transfer(address dst, uint256 wad) external override onlyHub {
