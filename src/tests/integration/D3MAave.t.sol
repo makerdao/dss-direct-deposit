@@ -296,7 +296,6 @@ contract D3MAaveTest is DSSTest {
 
     function test_target_decrease() public {
         uint256 targetBorrowRate = _setRelBorrowTarget(7500);
-        d3mHub.reap(ilk);     // Clear out interest to get rid of rounding errors
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         uint256 amountMinted = adai.balanceOf(address(d3mAavePool));
@@ -328,7 +327,6 @@ contract D3MAaveTest is DSSTest {
 
     function test_bar_zero() public {
         uint256 targetBorrowRate = _setRelBorrowTarget(7500);
-        d3mHub.reap(ilk);     // Clear out interest to get rid of rounding errors
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mAavePool));
@@ -464,7 +462,6 @@ contract D3MAaveTest is DSSTest {
 
         // Set a super low target interest rate
         uint256 targetBorrowRate = _setRelBorrowTarget(1);
-        d3mHub.reap(ilk);
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mAavePool));
         assertEq(ink, debtCeiling);
         assertEq(art, debtCeiling);
@@ -483,7 +480,6 @@ contract D3MAaveTest is DSSTest {
         debtCeiling = 125_000 * WAD;
         vat.file(ilk, "line", debtCeiling * RAY);
         d3mHub.exec(ilk);
-        d3mHub.reap(ilk);
         (ink, art) = vat.urns(ilk, address(d3mAavePool));
         assertEq(ink, debtCeiling);
         assertEq(art, debtCeiling);
@@ -497,7 +493,7 @@ contract D3MAaveTest is DSSTest {
         hevm.warp(block.timestamp + 1 days);     // Collect one day of interest
 
         uint256 vowDai = vat.dai(vow);
-        d3mHub.reap(ilk);
+        d3mHub.exec(ilk);
 
         emit log_named_decimal_uint("dai", vat.dai(vow) - vowDai, 18);
 
@@ -512,6 +508,12 @@ contract D3MAaveTest is DSSTest {
         uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
 
+        uint256 pAssets = adai.balanceOf(address(d3mAavePool));
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAavePool));
+        assertEq(pink, part);
+        assertEqApprox(pink, pAssets, 1);
+        assertEqApprox(part, pAssets, 1);
+
         // Someone else borrows the exact amount previously available
         (uint256 amountSupplied,) = vat.urns(ilk, address(d3mAavePool));
         uint256 amountToBorrow = currentLiquidity;
@@ -519,7 +521,9 @@ contract D3MAaveTest is DSSTest {
 
         // Accumulate a bunch of interest
         hevm.warp(block.timestamp + 180 days);
-        uint256 feesAccrued = adai.balanceOf(address(d3mAavePool)) - amountSupplied;
+        
+        uint256 feesAccrued = adai.balanceOf(address(d3mAavePool)) - pAssets;
+
         currentLiquidity = dai.balanceOf(address(adai));
         assertGt(feesAccrued, 0);
         assertEq(amountSupplied, currentLiquidity);
@@ -529,17 +533,21 @@ contract D3MAaveTest is DSSTest {
         d3mHub.cage(ilk);
         d3mHub.exec(ilk);
 
-        // The full debt should be paid off, but we are still owed fees
+        uint256 assets = adai.balanceOf(address(d3mAavePool));
+        // All the fees are accrued but what can't be withdrawn is added up to the original ink and art debt
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mAavePool));
-        assertEq(ink, 0);
-        assertEq(art, 0);
+        assertEq(ink, art);
+        assertEqApprox(ink, assets, 1);
+        assertEqApprox(art, assets, 1);
         assertGt(adai.balanceOf(address(d3mAavePool)), 0);
-        assertEq(vat.dai(vow), vowDai);
+        assertEq(ink, pink + feesAccrued - currentLiquidity, "error aca!!!");
+        assertEqApprox(vat.dai(vow), vowDai + feesAccrued * RAY, RAY);
 
         // Someone repays
         aavePool.repay(address(dai), amountToBorrow, 2, address(this));
         d3mHub.exec(ilk);
 
+        // Now the CDP completely unwinds and surplus buffer doesn't change
         (ink, art) = vat.urns(ilk, address(d3mAavePool));
         assertEq(ink, 0);
         assertEq(art, 0);
@@ -547,21 +555,39 @@ contract D3MAaveTest is DSSTest {
         assertEqApprox(vat.dai(vow), vowDai + feesAccrued * RAY, RAY);
     }
 
-    function test_insufficient_liquidity_for_reap_fees() public {
+    function test_insufficient_liquidity_for_exec_fees() public {
         // Lower by 50%
         uint256 targetBorrowRate = _setRelBorrowTarget(5000);
         assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        uint256 pAssets = adai.balanceOf(address(d3mAavePool));
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAavePool));
+        assertEq(pink, part);
+        assertEqApprox(pink, pAssets, 1);
+        assertEqApprox(part, pAssets, 1);
 
         // Accumulate a bunch of interest
         hevm.warp(block.timestamp + 180 days);
 
         // Someone else borrows almost all the liquidity
         aavePool.borrow(address(dai), dai.balanceOf(address(adai)) - 100 * WAD, 2, 0, address(this));
+        assertEq(dai.balanceOf(address(adai)), 100 * WAD);
 
-        // Reap the partial fees
+        uint256 feesAccrued = adai.balanceOf(address(d3mAavePool)) - pAssets;
+        assertGt(feesAccrued, 100 * WAD);
+
+        // Accrue fees
         uint256 vowDai = vat.dai(vow);
-        d3mHub.reap(ilk);
-        assertEq(vat.dai(vow), vowDai + 100 * RAD);
+        d3mAavePlan.file("bar", 0); // So we make sure to unwind after rebalancing
+        d3mHub.exec(ilk);
+
+        uint256 assets = adai.balanceOf(address(d3mAavePool));
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mAavePool));
+        assertEq(ink, art);
+        assertEqApprox(ink, assets, 1);
+        assertEqApprox(art, assets, 1);
+        assertEq(ink, pink + feesAccrued - 100 * WAD);
+        assertEqApprox(vat.dai(vow), vowDai + feesAccrued * RAY, RAY);
     }
 
     function test_unwind_mcd_caged_not_skimmed() public {
@@ -1014,16 +1040,6 @@ contract D3MAaveTest is DSSTest {
         assertEq(bal, pbal);
     }
 
-    function test_reap_caged() public {
-        _setRelBorrowTarget(7500);
-
-        d3mHub.cage(ilk);
-
-        hevm.warp(block.timestamp + 1 days);    // Accrue some interest
-
-        assertRevert(address(d3mHub), abi.encodeWithSignature("reap(bytes32)", ilk), "D3MHub/pool-not-live");
-    }
-
     function test_direct_deposit_mom() public {
         _setRelBorrowTarget(7500);
 
@@ -1055,8 +1071,6 @@ contract D3MAaveTest is DSSTest {
         uint256 adaiDaiBalanceInitial = dai.balanceOf(address(adai));
 
         _setRelBorrowTarget(7500);
-
-        d3mHub.reap(ilk); // Clear out fees at the start
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAavePool));
         uint256 gemBefore = vat.gem(ilk, address(d3mAavePool));
@@ -1109,7 +1123,6 @@ contract D3MAaveTest is DSSTest {
 
     function test_wind_partial_unwind_wind_debt_paid_back() public {
         uint256 initialRate = _setRelBorrowTarget(5000);
-        d3mHub.reap(ilk); // Clear out fees at the start
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAavePool));
         uint256 gemBefore = vat.gem(ilk, address(d3mAavePool));
