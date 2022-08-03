@@ -605,7 +605,7 @@ contract D3MHubTest is DSSTest {
         assertEq(testGem.balanceOf(address(d3mTestPool)), 20 * WAD);
     }
 
-    function test_reap_debt_paid_back() public {
+    function test_exec_fees_debt_paid_back() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
@@ -639,7 +639,7 @@ contract D3MHubTest is DSSTest {
         assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
         assertEq(testGem.balanceOf(address(d3mTestPool)), 55 * WAD);
 
-        d3mHub.reap(ilk);
+        d3mHub.exec(ilk);
 
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 50 * WAD);
@@ -913,20 +913,20 @@ contract D3MHubTest is DSSTest {
         otherPool.file("postDebt", false); // reset postDebt
     }
 
-    function test_reap_available_liquidity() public {
+    function test_exec_fees_available_liquidity() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
         _giveTokens(TokenLike(address(testGem)), 10 * WAD);
         testGem.transfer(address(d3mTestPool), 10 * WAD);
 
-        (, uint256 part) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(part, 50 * WAD);
+        (, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(art, 50 * WAD);
         uint256 prevDai = vat.dai(vow);
 
-        d3mHub.reap(ilk);
+        d3mHub.exec(ilk);
 
-        (, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        (, art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(art, 50 * WAD);
         uint256 currentDai = vat.dai(vow);
         assertEq(currentDai, prevDai + 10 * RAD); // Interest shows up in vat Dai for the Vow [rad]
@@ -935,73 +935,36 @@ contract D3MHubTest is DSSTest {
         assertTrue(d3mTestPool.postDebt());
     }
 
-    function test_reap_not_enough_liquidity() public {
+    function test_exec_fees_not_enough_liquidity() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        _giveTokens(TokenLike(address(testGem)), 55 * WAD);
-        testGem.transfer(address(d3mTestPool), 10 * WAD);
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
 
-        (, uint256 part) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(part, 50 * WAD);
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
         uint256 prevDai = vat.dai(vow);
 
         // If we do not have enough liquidity then we pull out what we can for the fees
-        // This will pull out all but 5 WAD of the liquidity
+        // This will pull out all but 2 WAD of the liquidity
         assertEq(dai.balanceOf(address(testGem)), 50 * WAD); // liquidity before simulating other user's withdraw
         testGem.giveAllowance(address(dai), address(this), type(uint256).max);
-        dai.transferFrom(address(testGem), address(this), 45 * WAD);
-        assertEq(dai.balanceOf(address(testGem)), 5 * WAD); // liquidity after
+        dai.transferFrom(address(testGem), address(this), 48 * WAD);
+        assertEq(dai.balanceOf(address(testGem)), 2 * WAD); // liquidity after
 
-        d3mHub.reap(ilk);
+        d3mHub.exec(ilk);
 
-        (, uint256 art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(art, 50 * WAD);
-        uint256 currentDai = vat.dai(vow);
-        assertEq(currentDai, prevDai + 5 * RAD); // Interest shows up in vat Dai for the Vow [rad]
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        // Collateral and debt increase by 8 WAD as there wasn't enough liquidity to pay the fees accumulated
+        assertEq(ink, 58 * WAD);
+        assertEq(art, 58 * WAD);
+         // 10 RAY immediately shows up in the surplus
+        assertEq(vat.dai(vow), prevDai + 10 * RAD);
         // Make sure pre/post functions get called
         assertTrue(d3mTestPool.preDebt());
         assertTrue(d3mTestPool.postDebt());
-    }
-
-    function test_no_reap_mcd_caged() public {
-        _windSystem();
-        // interest is determined by the difference in gem balance to dai debt
-        // by giving extra gems to the Join we simulate interest
-        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
-        testGem.transfer(address(d3mTestPool), 10 * WAD);
-
-        // MCD shutdowns
-        end.cage();
-        end.cage(ilk);
-
-        assertRevert(address(d3mHub), abi.encodeWithSignature("reap(bytes32)", ilk), "D3MHub/no-reap-during-shutdown");
-    }
-
-    function test_no_reap_pool_caged() public {
-        _windSystem();
-        // interest is determined by the difference in gem balance to dai debt
-        // by giving extra gems to the Join we simulate interest
-        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
-        testGem.transfer(address(d3mTestPool), 10 * WAD);
-
-        // module caged
-        d3mHub.cage(ilk);
-
-        assertRevert(address(d3mHub), abi.encodeWithSignature("reap(bytes32)", ilk), "D3MHub/pool-not-live");
-    }
-
-    function test_no_reap_plan_inactive() public {
-        _windSystem();
-        // interest is determined by the difference in gem balance to dai debt
-        // by giving extra gems to the Join we simulate interest
-        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
-        testGem.transfer(address(d3mTestPool), 10 * WAD);
-
-        // pool inactive
-        d3mTestPlan.file("active_", false);
-
-        assertRevert(address(d3mHub), abi.encodeWithSignature("reap(bytes32)", ilk), "D3MHub/plan-not-active");
     }
 
     function test_exit() public {
@@ -1637,18 +1600,6 @@ contract D3MHubTest is DSSTest {
         assertEq(d3mHub.locked(), 1);
 
         try d3mHub.exec(ilk) {} catch Error(string memory errmsg) {
-            bytes32 locked = hevm.load(address(d3mHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
-            assertTrue(uint256(locked) == 1);
-            assertTrue(cmpStr(errmsg, "D3MHub/system-locked"));
-        }
-    }
-
-    function test_reap_lock_protection() public {
-        // Store memory slot 0x3
-        hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
-        assertEq(d3mHub.locked(), 1);
-
-        try d3mHub.reap(ilk) {} catch Error(string memory errmsg) {
             bytes32 locked = hevm.load(address(d3mHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
             assertTrue(uint256(locked) == 1);
             assertTrue(cmpStr(errmsg, "D3MHub/system-locked"));
