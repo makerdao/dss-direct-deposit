@@ -275,6 +275,7 @@ contract D3MHub {
             uint256 _diff = assets - ink;
             require(_diff <= MAXINT256, "D3MHub/overflow");
             vat.slip(ilk, address(_pool), int256(_diff));
+            vat.frob(ilk, address(_pool), address(_pool), address(this), int256(_diff), 0);
             ink = assets;
             emit Fees(ilk, _diff);
         }
