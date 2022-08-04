@@ -232,13 +232,10 @@ contract D3MHub {
         emit Wind(ilk, amount);
     }
 
-    function _unwind(bytes32 ilk, ID3MPool _pool, uint256 reduction, Mode mode, uint256 assetBalance) internal {
+    function _unwind(bytes32 ilk, ID3MPool _pool, uint256 reduction, Mode mode) internal {
         uint256 amount = _min(
-                            _min(
-                                reduction, // max reduction desired
-                                _pool.maxWithdraw() // max amount the pool allows to withdraw (for any reason)
-                            ),
-                            assetBalance // assets balance
+                            reduction, // max reduction desired
+                            _pool.maxWithdraw() // max amount the pool allows to withdraw including the assetsBalance
                         );
         if (mode == Mode.NORMAL) {
             if (amount > 0) {
@@ -365,8 +362,7 @@ contract D3MHub {
                 ilk,
                 _pool,
                 type(uint256).max,
-                Mode.MCD_CAGED,
-                currentAssets
+                Mode.MCD_CAGED
             );
         } else if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) {
             if (ilks[ilk].culled == 0) {
@@ -380,8 +376,7 @@ contract D3MHub {
                 type(uint256).max,
                 ilks[ilk].culled == 1
                 ? Mode.D3M_CULLED
-                : Mode.NORMAL,
-                currentAssets
+                : Mode.NORMAL
             );
         } else {
             Art += _fix(ilk, address(_pool), currentAssets);
@@ -415,8 +410,7 @@ contract D3MHub {
                     ilk,
                     _pool,
                     toUnwind,
-                    Mode.NORMAL,
-                    currentAssets
+                    Mode.NORMAL
                 );
             } else {
                 uint256 toWind;
