@@ -266,22 +266,83 @@ contract D3MHub {
         emit Unwind(ilk, amount);
     }
 
-    function _fix(bytes32 ilk, address _pool, uint256 assets) internal returns (uint256 diff) {
-        (uint256 ink, uint256 art) = vat.urns(ilk, _pool);
-        if (assets > ink) {
-            uint256 _diff = assets - ink;
-            require(_diff <= MAXINT256, "D3MHub/overflow");
-            vat.slip(ilk, address(_pool), int256(_diff));
-            vat.frob(ilk, address(_pool), address(_pool), address(this), int256(_diff), 0);
-            ink = assets;
-            emit Fees(ilk, _diff);
+
+    function _normal(bytes32 ilk, ID3MPool _pool, uint256 Art, uint256 lineWad) internal {
+        uint256 currentAssets = _pool.assetBalance(); // Should return DAI owned by D3MPool
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(_pool));
+        if (currentAssets > ink) { // If fees were generated
+            uint256 fixInk = currentAssets - ink; // Amount of fees we will now count as collateral
+            require(fixInk <= MAXINT256, "D3MHub/overflow");
+            vat.slip(ilk, address(_pool), int256(fixInk)); // Generate extra collateral
+            vat.frob(ilk, address(_pool), address(_pool), address(this), int256(fixInk), 0); // Lock it
+            ink += fixInk;
+            emit Fees(ilk, fixInk);
         }
-        if (art < ink) {
+        if (art < ink) { // If there was permissionless DAI paid or fees generated
             address _vow = vow;
-            diff = ink - art;
-            require(diff <= MAXINT256, "D3MHub/overflow");
-            vat.suck(_vow, _vow, diff * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
-            vat.grab(ilk, _pool, _pool, _vow, 0, int256(diff));
+            uint256 fixArt = ink - art; // Amount of fees + permissionless DAI paid we will now transform to debt
+            delete art;
+            require(fixArt <= MAXINT256, "D3MHub/overflow");
+            vat.suck(_vow, _vow, fixArt * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+            vat.grab(ilk, address(_pool), address(_pool), _vow, 0, int256(fixArt)); // Generating the debt
+            Art += fixArt;
+        }
+
+        // Determine if it needs to unwind or wind
+
+        uint256 Line = vat.Line();
+        uint256 debt = vat.debt();
+
+        uint256 toUnwind;
+        if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) { // If D3M is caged (but not culled) or plan is not active
+            toUnwind = type(uint256).max; // we want to unwind the most we can
+        } else {
+            if (Art > lineWad) {
+                unchecked {
+                    toUnwind = Art - lineWad; // checks if we need to unwind due ilk debt ceiling
+                }
+            }
+            if (debt > Line) {
+                unchecked {
+                    toUnwind = _max(toUnwind, _divup(debt - Line, RAY)); // checks if we need to unwind due global debt ceiling
+                }
+            }
+
+            // Determine if it needs to unwind due plan
+            uint256 targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
+            if (targetAssets < currentAssets) {
+                unchecked {
+                    toUnwind = _max(toUnwind, currentAssets - targetAssets); // checks if we need to unwind due targetAssets
+                }
+            }
+        }
+
+        if (toUnwind > 0) {
+            _unwind(
+                ilk,
+                _pool,
+                toUnwind,
+                Mode.NORMAL
+            );
+        } else {
+            uint256 toWind;
+            // All the subtractions are safe as otherwise toUnwind is > 0
+            uint256 targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
+            unchecked {
+                toWind = _min(
+                            _min(
+                                _min(
+                                    targetAssets - currentAssets, // restricts winding due targetAssets
+                                    lineWad - Art // restricts winding due ilk debt ceiling
+                                ),
+                                (Line - debt) / RAY  // restricts winding due ilk debt ceiling
+                            ),
+                            _pool.maxDeposit() // restricts winding if the pool has a max deposit
+                        );
+            }
+            require(Art + toWind <= MAXINT256, "D3MHub/wind-overflow");
+            _wind(ilk, _pool, toWind);
         }
     }
 
@@ -351,85 +412,34 @@ contract D3MHub {
         ID3MPool _pool = ilks[ilk].pool;
 
         _pool.preDebtChange("exec");
-        uint256 currentAssets = _pool.assetBalance();
 
         if (vat.live() == 0) {
             // MCD caged
-            require(end.debt() == 0, "D3MHub/end-debt-already-set");
+            EndLike _end = end;
+            require(_end.debt() == 0, "D3MHub/end-debt-already-set");
             require(ilks[ilk].culled == 0, "D3MHub/module-has-to-be-unculled-first");
-            end.skim(ilk, address(_pool));
+            _end.skim(ilk, address(_pool));
             _unwind(
                 ilk,
                 _pool,
                 type(uint256).max,
                 Mode.MCD_CAGED
             );
-        } else if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) {
-            if (ilks[ilk].culled == 0) {
-                _fix(ilk, address(_pool), currentAssets);
-            }
-
+        } else if (ilks[ilk].culled == 1) {
             // pool caged
             _unwind(
                 ilk,
                 _pool,
                 type(uint256).max,
-                ilks[ilk].culled == 1
-                ? Mode.D3M_CULLED
-                : Mode.NORMAL
+                Mode.D3M_CULLED
             );
         } else {
-            Art += _fix(ilk, address(_pool), currentAssets);
-
-            // Determine if it needs to unwind due to debt ceilings
-            uint256 lineWad = line / RAY; // Round down to always be under the actual limit
-            uint256 Line = vat.Line();
-            uint256 debt = vat.debt();
-            uint256 toUnwind;
-            if (Art > lineWad) {
-                unchecked {
-                    toUnwind = Art - lineWad;
-                }
-            }
-            if (debt > Line) {
-                unchecked {
-                    toUnwind = _max(toUnwind, _divup(debt - Line, RAY));
-                }
-            }
-
-            // Determine if it needs to unwind due plan
-            uint256 targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
-            if (targetAssets < currentAssets) {
-                unchecked {
-                    toUnwind = _max(toUnwind, currentAssets - targetAssets);
-                }
-            }
-
-            if (toUnwind > 0) {
-                _unwind(
-                    ilk,
-                    _pool,
-                    toUnwind,
-                    Mode.NORMAL
-                );
-            } else {
-                uint256 toWind;
-                // All the subtractions are safe as otherwise toUnwind is > 0
-                unchecked {
-                    toWind = _min(
-                                _min(
-                                    _min(
-                                        targetAssets - currentAssets,
-                                        lineWad - Art
-                                    ),
-                                    (Line - debt) / RAY
-                                ),
-                                _pool.maxDeposit() // Determine if the pool limits our total deposits
-                             );
-                }
-                require(Art + toWind <= MAXINT256, "D3MHub/wind-overflow");
-                _wind(ilk, _pool, toWind);
-            }
+            _normal(
+                ilk,
+                _pool,
+                Art,
+                line / RAY // round down ilk line in wad format
+            );
         }
 
         _pool.postDebtChange("exec");
