@@ -512,7 +512,6 @@ contract D3MAaveTest is DSSTest {
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAavePool));
         assertEq(pink, part);
         assertEqApprox(pink, pAssets, 1);
-        assertEqApprox(part, pAssets, 1);
 
         // Someone else borrows the exact amount previously available
         (uint256 amountSupplied,) = vat.urns(ilk, address(d3mAavePool));
@@ -538,9 +537,8 @@ contract D3MAaveTest is DSSTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mAavePool));
         assertEq(ink, art);
         assertEqApprox(ink, assets, 1);
-        assertEqApprox(art, assets, 1);
         assertGt(adai.balanceOf(address(d3mAavePool)), 0);
-        assertEq(ink, pink + feesAccrued - currentLiquidity, "error aca!!!");
+        assertEq(ink, pink + feesAccrued - currentLiquidity);
         assertEqApprox(vat.dai(vow), vowDai + feesAccrued * RAY, RAY);
 
         // Someone repays
@@ -564,7 +562,6 @@ contract D3MAaveTest is DSSTest {
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mAavePool));
         assertEq(pink, part);
         assertEqApprox(pink, pAssets, 1);
-        assertEqApprox(part, pAssets, 1);
 
         // Accumulate a bunch of interest
         hevm.warp(block.timestamp + 180 days);
@@ -585,7 +582,6 @@ contract D3MAaveTest is DSSTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mAavePool));
         assertEq(ink, art);
         assertEqApprox(ink, assets, 1);
-        assertEqApprox(art, assets, 1);
         assertEq(ink, pink + feesAccrued - 100 * WAD);
         assertEqApprox(vat.dai(vow), vowDai + feesAccrued * RAY, RAY);
     }
