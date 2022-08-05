@@ -66,8 +66,6 @@ contract D3MAavePlan is ID3MPlan {
     address         public immutable adai;
     uint256         public immutable adaiRevision;
 
-    uint256 internal constant MAX_BORROW_RATE = RAY; // 100%
-
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
@@ -120,10 +118,8 @@ contract D3MAavePlan is ID3MPlan {
     }
 
     function file(bytes32 what, uint256 data) external auth {
-        if (what == "bar") {
-            require(data <= MAX_BORROW_RATE, "D3MAavePlan/bar-too-high");
-            bar = data;
-        } else revert("D3MAavePlan/file-unrecognized-param");
+        if (what == "bar") bar = data;
+        else revert("D3MAavePlan/file-unrecognized-param");
         emit File(what, data);
     }
     function file(bytes32 what, address data) external auth {
