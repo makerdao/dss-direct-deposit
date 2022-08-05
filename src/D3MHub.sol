@@ -76,8 +76,6 @@ contract D3MHub {
     VatLike     public immutable vat;
     DaiJoinLike public immutable daiJoin;
 
-    enum Mode { NORMAL, D3M_CULLED, MCD_CAGED }
-
     /**
         @notice Tracking struct for each of the D3M ilks.
         @param pool   Contract to access external pool and hold balances
@@ -228,36 +226,31 @@ contract D3MHub {
             daiJoin.exit(address(_pool), amount);
             _pool.deposit(amount);
         }
-
         emit Wind(ilk, amount);
     }
 
-    function _unwind(bytes32 ilk, ID3MPool _pool, uint256 amount, Mode mode) internal {
-        if (mode == Mode.NORMAL) {
-            if (amount > 0) {
-                require(amount <= MAXINT256, "D3MHub/overflow");
+    function _unwind(bytes32 ilk, ID3MPool _pool, uint256 amount) internal {
+        if (amount > 0) {
+            _pool.withdraw(amount);
+            daiJoin.join(address(this), amount);
+            vat.frob(ilk, address(_pool), address(_pool), address(this), -int256(amount), -int256(amount));
+            vat.slip(ilk, address(_pool), -int256(amount));
+        }
+        emit Unwind(ilk, amount);
+    }
 
-                _pool.withdraw(amount);
-                daiJoin.join(address(this), amount);
+    function _fullUnwind(bytes32 ilk, ID3MPool _pool, address urn) internal {
+        uint256 amount = _pool.maxWithdraw();
+        if (amount > 0) {
+            uint256 toSlip = _min(vat.gem(ilk, urn), amount);
+            require(toSlip <= MAXINT256, "D3MHub/overflow");
 
-                vat.frob(ilk, address(_pool), address(_pool), address(this), -int256(amount), -int256(amount));
-                vat.slip(ilk, address(_pool), -int256(amount));
-            }
-        } else if (mode == Mode.D3M_CULLED || mode == Mode.MCD_CAGED) {
-            if (amount > 0) {
-                address urn = mode == Mode.D3M_CULLED ? address(_pool) : address(end);
+            _pool.withdraw(amount);
+            daiJoin.join(address(this), amount);
 
-                uint256 toSlip = _min(vat.gem(ilk, urn), amount);
-                require(toSlip <= MAXINT256, "D3MHub/overflow");
-
-                _pool.withdraw(amount);
-                daiJoin.join(address(this), amount);
-
-                vat.slip(ilk, urn, -int256(toSlip));
-                vat.move(address(this), vow, amount * RAY);
-            }
-        } else revert("D3MHub/unknown-mode");
-
+            vat.slip(ilk, urn, -int256(toSlip));
+            vat.move(address(this), vow, amount * RAY);
+        }
         emit Unwind(ilk, amount);
     }
 
@@ -319,12 +312,12 @@ contract D3MHub {
         }
 
         if (toUnwind > 0) {
-            _unwind(
-                ilk,
-                _pool,
-                _min(toUnwind, maxWithdraw),
-                Mode.NORMAL
+            toUnwind = _min(
+                toUnwind,
+                maxWithdraw
             );
+            require(toUnwind <= MAXINT256, "D3MHub/overflow");
+            _unwind(ilk, _pool, toUnwind);
         } else {
             uint256 toWind;
             // All the subtractions are safe as otherwise toUnwind is > 0
@@ -419,19 +412,17 @@ contract D3MHub {
             require(_end.debt() == 0, "D3MHub/end-debt-already-set");
             require(ilks[ilk].culled == 0, "D3MHub/module-has-to-be-unculled-first");
             _end.skim(ilk, address(_pool));
-            _unwind(
+            _fullUnwind(
                 ilk,
                 _pool,
-                _pool.maxWithdraw(),
-                Mode.MCD_CAGED
+                address(_end)
             );
         } else if (ilks[ilk].culled == 1) {
             // pool caged
-            _unwind(
+            _fullUnwind(
                 ilk,
                 _pool,
-                _pool.maxWithdraw(),
-                Mode.D3M_CULLED
+                address(_pool)
             );
         } else {
             _normal(
