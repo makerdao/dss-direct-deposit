@@ -232,11 +232,7 @@ contract D3MHub {
         emit Wind(ilk, amount);
     }
 
-    function _unwind(bytes32 ilk, ID3MPool _pool, uint256 reduction, Mode mode) internal {
-        uint256 amount = _min(
-                            reduction, // max reduction desired
-                            _pool.maxWithdraw() // max amount the pool allows to withdraw including the assetsBalance
-                        );
+    function _unwind(bytes32 ilk, ID3MPool _pool, uint256 amount, Mode mode) internal {
         if (mode == Mode.NORMAL) {
             if (amount > 0) {
                 require(amount <= MAXINT256, "D3MHub/overflow");
@@ -244,7 +240,6 @@ contract D3MHub {
                 _pool.withdraw(amount);
                 daiJoin.join(address(this), amount);
 
-                // assetsBalance == art tracked in vat (as _fix is called previously) => amount <= art
                 vat.frob(ilk, address(_pool), address(_pool), address(this), -int256(amount), -int256(amount));
                 vat.slip(ilk, address(_pool), -int256(amount));
             }
@@ -266,27 +261,32 @@ contract D3MHub {
         emit Unwind(ilk, amount);
     }
 
-
     function _normal(bytes32 ilk, ID3MPool _pool, uint256 Art, uint256 lineWad) internal {
         uint256 currentAssets = _pool.assetBalance(); // Should return DAI owned by D3MPool
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(_pool));
+        uint256 maxWithdraw = _pool.maxWithdraw();
         if (currentAssets > ink) { // If fees were generated
-            uint256 fixInk = currentAssets - ink; // Amount of fees we will now count as collateral
+            uint256 fixInk = _min(
+                currentAssets - ink, // fees generated
+                ink <= lineWad // if previously CDP was under debt ceiling
+                    ? lineWad + maxWithdraw - ink // we can just go above debt ceiling + maxWithdraw
+                    : maxWithdraw // we can just go above current state + maxWithdraw
+            );
             require(fixInk <= MAXINT256, "D3MHub/overflow");
             vat.slip(ilk, address(_pool), int256(fixInk)); // Generate extra collateral
             vat.frob(ilk, address(_pool), address(_pool), address(this), int256(fixInk), 0); // Lock it
             ink += fixInk;
             emit Fees(ilk, fixInk);
         }
-        if (art < ink) { // If there was permissionless DAI paid or fees generated
+        if (art < ink) { // If there was permissionless DAI paid or fees added as collateral
             address _vow = vow;
             uint256 fixArt = ink - art; // Amount of fees + permissionless DAI paid we will now transform to debt
             delete art;
-            require(fixArt <= MAXINT256, "D3MHub/overflow");
+            Art += fixArt;
+            require(Art <= MAXINT256, "D3MHub/overflow");
             vat.suck(_vow, _vow, fixArt * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
             vat.grab(ilk, address(_pool), address(_pool), _vow, 0, int256(fixArt)); // Generating the debt
-            Art += fixArt;
         }
 
         // Determine if it needs to unwind or wind
@@ -296,7 +296,7 @@ contract D3MHub {
 
         uint256 toUnwind;
         if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) { // If D3M is caged (but not culled) or plan is not active
-            toUnwind = type(uint256).max; // we want to unwind the most we can
+            toUnwind = maxWithdraw; // we want to unwind the most we can
         } else {
             if (Art > lineWad) {
                 unchecked {
@@ -322,7 +322,7 @@ contract D3MHub {
             _unwind(
                 ilk,
                 _pool,
-                toUnwind,
+                _min(toUnwind, maxWithdraw),
                 Mode.NORMAL
             );
         } else {
@@ -422,7 +422,7 @@ contract D3MHub {
             _unwind(
                 ilk,
                 _pool,
-                type(uint256).max,
+                _pool.maxWithdraw(),
                 Mode.MCD_CAGED
             );
         } else if (ilks[ilk].culled == 1) {
@@ -430,7 +430,7 @@ contract D3MHub {
             _unwind(
                 ilk,
                 _pool,
-                type(uint256).max,
+                _pool.maxWithdraw(),
                 Mode.D3M_CULLED
             );
         } else {
