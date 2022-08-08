@@ -417,7 +417,6 @@ contract D3MHub {
                 address(_end)
             );
         } else if (ilks[ilk].culled == 1) {
-            // pool caged
             _fullUnwind(
                 ilk,
                 _pool,
