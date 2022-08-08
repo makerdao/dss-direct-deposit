@@ -262,7 +262,7 @@ contract D3MHub {
         if (currentAssets > ink) { // If fees were generated
             uint256 fixInk = _min(
                 currentAssets - ink, // fees generated
-                ink <= lineWad // if previously CDP was under debt ceiling
+                ink < lineWad // if previously CDP was under debt ceiling
                     ? lineWad + maxWithdraw - ink // we can just go above debt ceiling + maxWithdraw
                     : maxWithdraw // we can just go above current state + maxWithdraw
             );
