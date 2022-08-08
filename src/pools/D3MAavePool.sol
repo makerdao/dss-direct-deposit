@@ -181,9 +181,9 @@ contract D3MAavePool is ID3MPool {
         require(adai.transfer(dst, adai.balanceOf(address(this))), "D3MAavePool/transfer-failed");
     }
 
-    function preDebtChange(bytes32) external override {}
+    function preDebtChange() external override {}
 
-    function postDebtChange(bytes32) external override {}
+    function postDebtChange() external override {}
 
     // --- Balance of the underlying asset (Dai)
     function assetBalance() public view override returns (uint256) {

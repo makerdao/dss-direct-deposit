@@ -101,9 +101,9 @@ contract D3MPoolBase is ID3MPool {
 
     function transfer(address dst, uint256 wad) onlyHub external override {}
 
-    function preDebtChange(bytes32 what) external override {}
+    function preDebtChange() external override {}
 
-    function postDebtChange(bytes32 what) external override {}
+    function postDebtChange() external override {}
 
     function assetBalance() external view override returns (uint256) {}
 
@@ -276,10 +276,10 @@ contract D3MPoolBaseTest is DSSTest {
     }
 
     function test_implements_preDebtChange() public {
-        D3MPoolBase(d3mTestPool).preDebtChange("test");
+        D3MPoolBase(d3mTestPool).preDebtChange();
     }
 
     function test_implements_postDebtChange() public {
-        D3MPoolBase(d3mTestPool).postDebtChange("test");
+        D3MPoolBase(d3mTestPool).postDebtChange();
     }
 }

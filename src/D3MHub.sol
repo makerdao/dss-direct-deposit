@@ -403,7 +403,7 @@ contract D3MHub {
 
         ID3MPool _pool = ilks[ilk].pool;
 
-        _pool.preDebtChange("exec");
+        _pool.preDebtChange();
 
         if (vat.live() == 0) {
             // MCD caged
@@ -431,7 +431,7 @@ contract D3MHub {
             );
         }
 
-        _pool.postDebtChange("exec");
+        _pool.postDebtChange();
     }
 
     /**

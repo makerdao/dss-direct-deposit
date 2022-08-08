@@ -161,11 +161,11 @@ contract D3MCompoundPool is ID3MPool {
         require(cDai.transfer(dst, cDai.balanceOf(address(this))), "D3MCompoundPool/transfer-failed");
     }
 
-    function preDebtChange(bytes32) external override {
+    function preDebtChange() external override {
         require(cDai.accrueInterest() == 0, "D3MCompoundPool/accrueInterest-failure");
     }
 
-    function postDebtChange(bytes32) external override {}
+    function postDebtChange() external override {}
 
     // Does not accrue interest (as opposed to cToken's balanceOfUnderlying() which is not a view function).
     function assetBalance() public view override returns (uint256) {

@@ -124,13 +124,11 @@ contract D3MTestPool is ID3MPool {
         require(TokenLike(share).transfer(dst, shareBalance()), "D3MTestPool/transfer-failed");
     }
 
-    function preDebtChange(bytes32 what) external override {
-        what;
+    function preDebtChange() external override {
         preDebt = true;
     }
 
-    function postDebtChange(bytes32 what) external override {
-        what;
+    function postDebtChange() external override {
         postDebt = true;
     }
 

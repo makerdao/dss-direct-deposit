@@ -62,15 +62,13 @@ interface ID3MPool {
 
     /**
         @notice Some external pools require actions before debt changes
-        @param what which function is triggering the change
     */
-    function preDebtChange(bytes32 what) external;
+    function preDebtChange() external;
 
     /**
         @notice Some external pools require actions after debt changes
-        @param what which function is triggering the change
     */
-    function postDebtChange(bytes32 what) external;
+    function postDebtChange() external;
 
     /**
         @notice Balance of assets this pool "owns".
