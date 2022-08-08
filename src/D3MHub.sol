@@ -286,6 +286,7 @@ contract D3MHub {
 
         uint256 Line = vat.Line();
         uint256 debt = vat.debt();
+        uint256 targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
 
         uint256 toUnwind;
         if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) { // If D3M is caged (but not culled) or plan is not active
@@ -303,7 +304,6 @@ contract D3MHub {
             }
 
             // Determine if it needs to unwind due plan
-            uint256 targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
             if (targetAssets < currentAssets) {
                 unchecked {
                     toUnwind = _max(toUnwind, currentAssets - targetAssets); // checks if we need to unwind due targetAssets
@@ -321,7 +321,6 @@ contract D3MHub {
         } else {
             uint256 toWind;
             // All the subtractions are safe as otherwise toUnwind is > 0
-            uint256 targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
             unchecked {
                 toWind = _min(
                             _min(
