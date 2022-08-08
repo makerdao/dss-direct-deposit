@@ -255,9 +255,9 @@ contract D3MHub {
     }
 
     function _normal(bytes32 ilk, ID3MPool _pool, uint256 Art, uint256 lineWad) internal {
-        uint256 currentAssets = _pool.assetBalance(); // Should return DAI owned by D3MPool
-
         (uint256 ink, uint256 art) = vat.urns(ilk, address(_pool));
+        require(art == Art, "D3MHub/more-than-one-urn");
+        uint256 currentAssets = _pool.assetBalance(); // Should return DAI owned by D3MPool
         uint256 maxWithdraw = _pool.maxWithdraw();
         if (currentAssets > ink) { // If fees were generated
             uint256 fixInk = _min(
@@ -275,9 +275,8 @@ contract D3MHub {
         if (art < ink) { // If there was permissionless DAI paid or fees added as collateral
             address _vow = vow;
             uint256 fixArt = ink - art; // Amount of fees + permissionless DAI paid we will now transform to debt
-            delete art;
-            Art += fixArt;
-            require(Art <= MAXINT256, "D3MHub/overflow");
+            art += fixArt;
+            require(art <= MAXINT256, "D3MHub/overflow");
             vat.suck(_vow, _vow, fixArt * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
             vat.grab(ilk, address(_pool), address(_pool), _vow, 0, int256(fixArt)); // Generating the debt
         }
@@ -292,9 +291,9 @@ contract D3MHub {
         if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) { // If D3M is caged (but not culled) or plan is not active
             toUnwind = type(uint256).max; // We make sure to enter the unwind path
         } else {
-            if (Art > lineWad) {
+            if (art > lineWad) {
                 unchecked {
-                    toUnwind = Art - lineWad; // checks if we need to unwind due ilk debt ceiling
+                    toUnwind = art - lineWad; // checks if we need to unwind due ilk debt ceiling
                 }
             }
             if (debt > Line) {
@@ -326,14 +325,14 @@ contract D3MHub {
                             _min(
                                 _min(
                                     targetAssets - currentAssets, // restricts winding due targetAssets
-                                    lineWad - Art // restricts winding due ilk debt ceiling
+                                    lineWad - art // restricts winding due ilk debt ceiling
                                 ),
                                 (Line - debt) / RAY  // restricts winding due ilk debt ceiling
                             ),
                             _pool.maxDeposit() // restricts winding if the pool has a max deposit
                         );
             }
-            require(Art + toWind <= MAXINT256, "D3MHub/wind-overflow");
+            require(art + toWind <= MAXINT256, "D3MHub/wind-overflow");
             _wind(ilk, _pool, toWind);
         }
     }
