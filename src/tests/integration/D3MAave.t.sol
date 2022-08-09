@@ -553,7 +553,7 @@ contract D3MAaveTest is DSSTest {
         assertEqApprox(ink, 0, 1);
         assertEqApprox(art, 0, 1);
         assertEq(adai.balanceOf(address(d3mAavePool)), 0);
-        assertEqApprox(vat.dai(vow), vowDai + feesAccrued * RAY, 2 * RAY);
+        assertEqApprox(vat.dai(vow), vowDai + feesAccrued * RAY, 2 * RAY); // rounding may affect twice
     }
 
     function test_insufficient_liquidity_for_exec_fees() public {
