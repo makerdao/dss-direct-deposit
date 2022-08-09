@@ -1640,6 +1640,28 @@ contract D3MHubTest is DSSTest {
         assertEq(art, 60 * WAD);
     }
 
+    function test_exec_different_art_Art() public {
+        vat.slip(ilk, address(this), int256(1));
+        vat.frob(ilk, address(this), address(this), address(this), int256(1), int256(1));
+        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", bytes32("fake-ilk")), "D3MHub/rate-not-one");
+    }
+
+    function test_culled_not_reverting_different_art_Art() public {
+        vat.slip(ilk, address(this), int256(1));
+        vat.frob(ilk, address(this), address(this), address(this), int256(1), int256(1));
+        d3mHub.cage(ilk);
+        d3mHub.cull(ilk);
+        d3mHub.exec(ilk);
+    }
+
+    function test_system_caged_not_reverting_different_art_Art() public {
+        vat.slip(ilk, address(this), int256(1));
+        vat.frob(ilk, address(this), address(this), address(this), int256(1), int256(1));
+        end.cage();
+        end.cage(ilk);
+        d3mHub.exec(ilk);
+    }
+
     function test_cage_ilk_after_uncull() public {
         _windSystem();
         d3mHub.cage(ilk);
