@@ -239,7 +239,7 @@ contract D3MHub {
         emit Unwind(ilk, amount);
     }
 
-    function _fullUnwind(bytes32 ilk, ID3MPool _pool, address urn) internal {
+    function _unwind(bytes32 ilk, ID3MPool _pool, address urn) internal {
         uint256 amount = _pool.maxWithdraw();
         if (amount > 0) {
             uint256 toSlip = _min(vat.gem(ilk, urn), amount);
@@ -410,13 +410,13 @@ contract D3MHub {
             require(_end.debt() == 0, "D3MHub/end-debt-already-set");
             require(ilks[ilk].culled == 0, "D3MHub/module-has-to-be-unculled-first");
             _end.skim(ilk, address(_pool));
-            _fullUnwind(
+            _unwind(
                 ilk,
                 _pool,
                 address(_end)
             );
         } else if (ilks[ilk].culled == 1) {
-            _fullUnwind(
+            _unwind(
                 ilk,
                 _pool,
                 address(_pool)
