@@ -1115,7 +1115,7 @@ contract D3MAaveTest is DSSTest {
         assertEq(vat.gem(ilk, address(d3mAavePool)), 0);
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
-        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        assertEqApprox(vat.dai(vow), vowDaiBefore + 10 * RAD, RAY);
         assertEqRoundingAgainst(dai.balanceOf(address(adai)), adaiDaiBalanceInitial);
         assertEq(adai.balanceOf(address(d3mAavePool)), 0);
     }
