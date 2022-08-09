@@ -281,8 +281,8 @@ contract D3MHub {
 
         // Determine if it needs to unwind or wind
 
-        uint256 Line = vat.Line();
-        uint256 debt = vat.debt();
+        uint256 Line;
+        uint256 debt;
         uint256 targetAssets;
         uint256 toUnwind;
 
@@ -290,6 +290,8 @@ contract D3MHub {
         if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) {
             toUnwind = type(uint256).max; // We make sure to enter the unwind path
         } else {
+            Line = vat.Line();
+            debt = vat.debt();
             targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
 
             // Determine if it needs to unwind due ilk debt ceiling
