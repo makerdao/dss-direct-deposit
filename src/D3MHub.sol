@@ -261,8 +261,8 @@ contract D3MHub {
             uint256 fixInk = _min(
                 currentAssets - ink, // fees generated
                 ink < lineWad // if previously CDP was under debt ceiling
-                    ? lineWad + maxWithdraw - ink // we can just go above debt ceiling + maxWithdraw
-                    : maxWithdraw // we can just go above current state + maxWithdraw
+                    ? (lineWad - ink) + maxWithdraw // up to gap to reach debt ceiling + maxWithdraw
+                    : maxWithdraw // up to maxWithdraw
             );
             require(fixInk <= MAXINT256, "D3MHub/overflow");
             vat.slip(ilk, address(_pool), int256(fixInk)); // Generate extra collateral
