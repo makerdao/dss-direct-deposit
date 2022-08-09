@@ -244,11 +244,10 @@ contract D3MHub {
         if (amount > 0) {
             uint256 toSlip = _min(vat.gem(ilk, urn), amount);
             require(toSlip <= MAXINT256, "D3MHub/overflow");
+            vat.slip(ilk, urn, -int256(toSlip));
 
             _pool.withdraw(amount);
             daiJoin.join(address(this), amount);
-
-            vat.slip(ilk, urn, -int256(toSlip));
             vat.move(address(this), vow, amount * RAY);
         }
         emit Unwind(ilk, amount);
