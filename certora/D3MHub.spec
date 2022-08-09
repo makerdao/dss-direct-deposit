@@ -9,9 +9,9 @@ using PlanMock as plan
 methods {
     vat() returns (address) envfree
     daiJoin() returns (address) envfree
-    ilks(bytes32) returns (address, address, uint256, uint256, uint256) envfree
-    plan(bytes32) returns (address) envfree
-    pool(bytes32) returns (address) envfree
+    ilks(bytes32) returns (address, address, uint256, uint256, uint256) envfree => DISPATCHER(true)
+    plan(bytes32) returns (address) envfree => DISPATCHER(true)
+    pool(bytes32) returns (address) envfree => DISPATCHER(true)
     vat.can(address, address) returns (uint256) envfree
     vat.dai(address) returns (uint256) envfree
     vat.gem(bytes32, address) returns (uint256) envfree
@@ -26,6 +26,20 @@ methods {
     pool.hub() returns (address) envfree
     pool.vat() returns (address) envfree
     pool.dai() returns (address) envfree
+    debt() returns (uint256) => DISPATCHER(true)
+    skim(bytes32, address) => DISPATCHER(true)
+    active() returns (bool) => DISPATCHER(true)
+    getTargetAssets(uint256) returns (uint256) => DISPATCHER(true)
+    assetBalance() returns (uint256) => DISPATCHER(true)
+    maxDeposit() returns (uint256) => DISPATCHER(true)
+    maxWithdraw() returns (uint256) => DISPATCHER(true)
+    deposit(uint256) => DISPATCHER(true)
+    withdraw(uint256) => DISPATCHER(true)
+    preDebtChange(bytes32) => DISPATCHER(true)
+    postDebtChange(bytes32) => DISPATCHER(true)
+    balanceOf(address) returns (uint256) => DISPATCHER(true)
+    burn(address, uint256) => DISPATCHER(true)
+    mint(address, uint256) => DISPATCHER(true)
 }
 
 definition WAD() returns uint256 = 10^18;
