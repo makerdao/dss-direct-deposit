@@ -105,6 +105,9 @@ contract D3MAaveTest is DSSTest {
     uint256 constant EPSILON_TOLERANCE = 4;
 
     function setUp() public override {
+        emit log_named_uint("block", block.number);
+        emit log_named_uint("timestamp", block.timestamp);
+
         hevm = Hevm(address(bytes20(uint160(uint256(keccak256('hevm cheat code'))))));
 
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
@@ -538,7 +541,7 @@ contract D3MAaveTest is DSSTest {
         assertEq(ink, art);
         assertEqApprox(ink, assets, 1);
         assertGt(adai.balanceOf(address(d3mAavePool)), 0);
-        assertEq(ink, pink + feesAccrued - currentLiquidity);
+        assertEqApprox(ink, pink + feesAccrued - currentLiquidity, 1);
         assertEqApprox(vat.dai(vow), vowDai + feesAccrued * RAY, RAY);
 
         // Someone repays
@@ -582,7 +585,7 @@ contract D3MAaveTest is DSSTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mAavePool));
         assertEq(ink, art);
         assertEqApprox(ink, assets, 1);
-        assertEq(ink, pink + feesAccrued - 100 * WAD);
+        assertEqApprox(ink, pink + feesAccrued - 100 * WAD, 1);
         assertEqApprox(vat.dai(vow), vowDai + feesAccrued * RAY, RAY);
     }
 
@@ -1161,7 +1164,7 @@ contract D3MAaveTest is DSSTest {
         assertEq(vat.gem(ilk, address(d3mAavePool)), gemBefore);
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
-        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        assertEqApprox(vat.dai(vow), vowDaiBefore + 10 * RAD, RAY);
         assertEqRoundingAgainst(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
         assertEqApprox(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore, 2); // rounding may affect twice
 
@@ -1177,7 +1180,7 @@ contract D3MAaveTest is DSSTest {
         assertEq(ink, art);
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
-        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        assertEqApprox(vat.dai(vow), vowDaiBefore + 10 * RAD, RAY);
         assertEq(vat.gem(ilk, address(d3mAavePool)), gemBefore);
         assertLt(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
         assertLt(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore);
@@ -1193,7 +1196,7 @@ contract D3MAaveTest is DSSTest {
         assertEq(vat.gem(ilk, address(d3mAavePool)), gemBefore);
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
-        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        assertEqApprox(vat.dai(vow), vowDaiBefore + 10 * RAD, RAY);
         assertEqRoundingAgainst(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
         assertEqApprox(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore, 2); // rounding may affect twice
     }
