@@ -1599,11 +1599,7 @@ contract D3MHubTest is DSSTest {
         hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
         assertEq(d3mHub.locked(), 1);
 
-        try d3mHub.exec(ilk) {} catch Error(string memory errmsg) {
-            bytes32 locked = hevm.load(address(d3mHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
-            assertTrue(uint256(locked) == 1);
-            assertTrue(cmpStr(errmsg, "D3MHub/system-locked"));
-        }
+        assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", ilk), "D3MHub/system-locked");
     }
 
     function test_exit_lock_protection() public {
@@ -1611,13 +1607,7 @@ contract D3MHubTest is DSSTest {
         hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
         assertEq(d3mHub.locked(), 1);
 
-        try d3mHub.exit(ilk, address(this), 1) {} catch Error(
-            string memory errmsg
-        ) {
-            bytes32 locked = hevm.load(address(d3mHub), bytes32(uint256(3))); // Load memory slot 0x3 from Hub
-            assertTrue(uint256(locked) == 1);
-            assertTrue(cmpStr(errmsg, "D3MHub/system-locked"));
-        }
+        assertRevert(address(d3mHub), abi.encodeWithSignature("exit(bytes32,address,uint256)", ilk, address(this), 1), "D3MHub/system-locked");
     }
 
     function test_wind_limited_by_pool_loss() public {
