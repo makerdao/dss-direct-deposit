@@ -1640,6 +1640,241 @@ contract D3MHubTest is DSSTest {
         assertEq(art, 60 * WAD);
     }
 
+    function test_exec_fixInk_full_amount() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
+        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
+
+        vat.file(ilk, "line", 55 * RAD);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        uint256 prevDai = vat.dai(vow);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertEq(vat.dai(vow), prevDai + 10 * RAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+    }
+
+    function test_exec_fixInk_limited_under_debt_ceiling_nothing_to_withdraw() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
+        hevm.store(
+            address(dai),
+            keccak256(abi.encode(address(testGem), uint256(2))),
+            bytes32(uint256(0))
+        );
+        assertEq(dai.balanceOf(address(testGem)), 0);
+
+        vat.file(ilk, "line", 55 * RAD);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        uint256 prevDai = vat.dai(vow);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 55 * WAD);
+        assertEq(art, 55 * WAD);
+        assertEq(vat.dai(vow), prevDai + 5 * RAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
+    }
+
+    function test_exec_fixInk_limited_under_debt_ceiling_something_to_withdraw() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
+        hevm.store(
+            address(dai),
+            keccak256(abi.encode(address(testGem), uint256(2))),
+            bytes32(uint256(3 * WAD))
+        );
+        assertEq(dai.balanceOf(address(testGem)), 3 * WAD);
+
+        vat.file(ilk, "line", 55 * RAD);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        uint256 prevDai = vat.dai(vow);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 55 * WAD);
+        assertEq(art, 55 * WAD);
+        assertEq(vat.dai(vow), prevDai + 8 * RAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 57 * WAD);
+    }
+
+    function test_exec_fixInk_limited_at_debt_ceiling_nothing_to_withdraw() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
+        hevm.store(
+            address(dai),
+            keccak256(abi.encode(address(testGem), uint256(2))),
+            bytes32(uint256(0))
+        );
+        assertEq(dai.balanceOf(address(testGem)), 0);
+
+        vat.file(ilk, "line", 50 * RAD);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        uint256 prevDai = vat.dai(vow);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertEq(vat.dai(vow), prevDai);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
+    }
+
+    function test_exec_fixInk_limited_at_debt_ceiling_something_to_withdraw() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
+        hevm.store(
+            address(dai),
+            keccak256(abi.encode(address(testGem), uint256(2))),
+            bytes32(uint256(3 * WAD))
+        );
+        assertEq(dai.balanceOf(address(testGem)), 3 * WAD);
+
+        vat.file(ilk, "line", 50 * RAD);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        uint256 prevDai = vat.dai(vow);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertEq(vat.dai(vow), prevDai + 3 * RAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 57 * WAD);
+    }
+
+    function test_exec_fixInk_above_debt_ceiling_full_amount() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
+        hevm.store(
+            address(dai),
+            keccak256(abi.encode(address(testGem), uint256(2))),
+            bytes32(uint256(10 * WAD))
+        );
+        assertEq(dai.balanceOf(address(testGem)), 10 * WAD);
+
+        vat.file(ilk, "line", 45 * RAD);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        uint256 prevDai = vat.dai(vow);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertEq(vat.dai(vow), prevDai + 10 * RAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+    }
+
+    function test_exec_fixInk_limited_above_debt_ceiling_nothing_to_withdraw() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
+        hevm.store(
+            address(dai),
+            keccak256(abi.encode(address(testGem), uint256(2))),
+            bytes32(uint256(0))
+        );
+        assertEq(dai.balanceOf(address(testGem)), 0);
+
+        vat.file(ilk, "line", 45 * RAD);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        uint256 prevDai = vat.dai(vow);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertEq(vat.dai(vow), prevDai);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
+    }
+
+    function test_exec_fixInk_limited_above_debt_ceiling_something_to_withdraw() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
+        hevm.store(
+            address(dai),
+            keccak256(abi.encode(address(testGem), uint256(2))),
+            bytes32(uint256(3 * WAD))
+        );
+        assertEq(dai.balanceOf(address(testGem)), 3 * WAD);
+
+        vat.file(ilk, "line", 45 * RAD);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        uint256 prevDai = vat.dai(vow);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertEq(vat.dai(vow), prevDai + 3 * RAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 57 * WAD);
+    }
+
     function test_exec_different_art_Art() public {
         vat.slip(ilk, address(this), int256(1));
         vat.frob(ilk, address(this), address(this), address(this), int256(1), int256(1));
