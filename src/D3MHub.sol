@@ -222,7 +222,6 @@ contract D3MHub {
         if (amount > 0) {
             vat.slip(ilk, address(_pool), int256(amount));
             vat.frob(ilk, address(_pool), address(_pool), address(this), int256(amount), int256(amount));
-            // normalized debt == erc20 DAI (Vat rate for D3M ilks fixed to 1 RAY)
             daiJoin.exit(address(_pool), amount);
             _pool.deposit(amount);
         }
