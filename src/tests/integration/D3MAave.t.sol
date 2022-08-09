@@ -382,8 +382,8 @@ contract D3MAaveTest is DSSTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mAavePool));
         assertTrue(ink > 0);
         assertTrue(art > 0);
-        assertEq(pink - ink, currentLiquidity);
-        assertEq(part - art, currentLiquidity);
+        assertEqApprox(pink - ink, currentLiquidity, 1);
+        assertEqApprox(part - art, currentLiquidity, 1);
         assertEq(dai.balanceOf(address(adai)), 0);
         assertEq(getBorrowRate(), interestStrategy.getMaxVariableBorrowRate());
 
@@ -421,8 +421,8 @@ contract D3MAaveTest is DSSTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mAavePool));
         assertTrue(ink > 0);
         assertTrue(art > 0);
-        assertEq(pink - ink, currentLiquidity);
-        assertEq(part - art, currentLiquidity);
+        assertEqApprox(pink - ink, currentLiquidity, 1);
+        assertEqApprox(part - art, currentLiquidity, 1);
         assertEq(dai.balanceOf(address(adai)), 0);
         assertEq(getBorrowRate(), interestStrategy.getMaxVariableBorrowRate());
 
@@ -550,10 +550,10 @@ contract D3MAaveTest is DSSTest {
 
         // Now the CDP completely unwinds and surplus buffer doesn't change
         (ink, art) = vat.urns(ilk, address(d3mAavePool));
-        assertEq(ink, 0);
-        assertEq(art, 0);
+        assertEqApprox(ink, 0, 1);
+        assertEqApprox(art, 0, 1);
         assertEq(adai.balanceOf(address(d3mAavePool)), 0);
-        assertEqApprox(vat.dai(vow), vowDai + feesAccrued * RAY, RAY);
+        assertEqApprox(vat.dai(vow), vowDai + feesAccrued * RAY, 2 * RAY);
     }
 
     function test_insufficient_liquidity_for_exec_fees() public {
