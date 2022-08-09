@@ -286,24 +286,28 @@ contract D3MHub {
         uint256 targetAssets;
         uint256 toUnwind;
 
-        if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) { // If D3M is caged (but not culled) or plan is not active
+        // Determine if it needs to fully unwind due D3M ilk being caged (but not culled) or plan is not active
+        if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) {
             toUnwind = type(uint256).max; // We make sure to enter the unwind path
         } else {
+            targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
+
+            // Determine if it needs to unwind due ilk debt ceiling
             if (art > lineWad) {
                 unchecked {
-                    toUnwind = art - lineWad; // checks if we need to unwind due ilk debt ceiling
+                    toUnwind = art - lineWad;
                 }
             }
+            // Determine if it needs to unwind due global debt ceiling
             if (debt > Line) {
                 unchecked {
-                    toUnwind = _max(toUnwind, _divup(debt - Line, RAY)); // checks if we need to unwind due global debt ceiling
+                    toUnwind = _max(toUnwind, _divup(debt - Line, RAY));
                 }
             }
-            targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
-            // Determine if it needs to unwind due plan
+            // Determine if it needs to unwind due plan targetAssets
             if (targetAssets < currentAssets) {
                 unchecked {
-                    toUnwind = _max(toUnwind, currentAssets - targetAssets); // checks if we need to unwind due targetAssets
+                    toUnwind = _max(toUnwind, currentAssets - targetAssets);
                 }
             }
         }
