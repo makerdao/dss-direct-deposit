@@ -9,9 +9,10 @@ using PlanMock as plan
 methods {
     vat() returns (address) envfree
     daiJoin() returns (address) envfree
-    ilks(bytes32) returns (address, address, uint256, uint256, uint256) envfree => DISPATCHER(true)
     plan(bytes32) returns (address) envfree => DISPATCHER(true)
     pool(bytes32) returns (address) envfree => DISPATCHER(true)
+    tic(bytes32) returns (uint256) envfree => DISPATCHER(true)
+    culled(bytes32) returns (uint256) envfree => DISPATCHER(true)
     vat.can(address, address) returns (uint256) envfree
     vat.debt() returns (uint256) envfree
     vat.dai(address) returns (uint256) envfree
@@ -55,14 +56,6 @@ rule exec_normal(bytes32 ilk) {
     require(daiJoin() == daiJoin);
     require(plan(ilk) == plan);
     require(pool(ilk) == pool);
-    address pool_;
-    address plan_;
-    uint256 tau;
-    uint256 culled;
-    uint256 tic;
-    pool_, plan_, tau, culled, tic = ilks(ilk);
-    require(pool_ == pool);
-    require(plan_ == plan);
     require(daiJoin.dai() == dai);
     require(daiJoin.vat() == vat);
     require(plan.dai() == dai);
@@ -71,6 +64,9 @@ rule exec_normal(bytes32 ilk) {
     require(pool.dai() == dai);
 
     env e;
+
+    uint256 tic = tic(ilk);
+    uint256 culled = culled(ilk);
 
     uint256 LineBefore = vat.Line();
     uint256 debtBefore = vat.debt();
