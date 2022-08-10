@@ -321,10 +321,10 @@ contract D3MHub {
                 toWind = _min(
                             _min(
                                 _min(
-                                    targetAssets - currentAssets, // plan targetAssets
-                                    lineWad - art // amount to reach ilk debt ceiling
+                                    lineWad - art, // amount to reach ilk debt ceiling
+                                    (Line - debt) / RAY  // amount to reach global debt ceiling
                                 ),
-                                (Line - debt) / RAY  // amount to reach global debt ceiling
+                                targetAssets - currentAssets // plan targetAssets
                             ),
                             _pool.maxDeposit() // restricts winding if the pool has a max deposit
                         );
