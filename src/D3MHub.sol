@@ -286,7 +286,7 @@ contract D3MHub {
         uint256 targetAssets;
         uint256 toUnwind;
 
-        // Determine if it needs to fully unwind due D3M ilk being caged (but not culled) or plan is not active
+        // Determine if it needs to fully unwind due to D3M ilk being caged (but not culled) or plan is not active
         if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) {
             toUnwind = type(uint256).max; // We make sure to enter the unwind path
         } else {
@@ -294,23 +294,15 @@ contract D3MHub {
             debt = vat.debt();
             targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
 
-            // Determine if it needs to unwind due ilk debt ceiling
-            if (art > lineWad) {
-                unchecked {
-                    toUnwind = art - lineWad;
-                }
-            }
-            // Determine if it needs to unwind due global debt ceiling
-            if (debt > Line) {
-                unchecked {
-                    toUnwind = _max(toUnwind, _divup(debt - Line, RAY));
-                }
-            }
-            // Determine if it needs to unwind due plan targetAssets
-            if (targetAssets < currentAssets) {
-                unchecked {
-                    toUnwind = _max(toUnwind, currentAssets - targetAssets);
-                }
+            // Determine if it needs to unwind due to:
+            unchecked {
+                toUnwind = _max(
+                                _max(
+                                    art > lineWad ? art - lineWad : 0, // ilk debt ceiling exceeded
+                                    debt > Line ? _divup(debt - Line, RAY) : 0 // global debt ceiling exceeded
+                                ),
+                                targetAssets < currentAssets ? currentAssets - targetAssets : 0 // plan targetAssets
+                            );
             }
         }
 
@@ -323,15 +315,16 @@ contract D3MHub {
             _unwind(ilk, _pool, toUnwind);
         } else {
             uint256 toWind;
-            // All the subtractions are safe as otherwise toUnwind is > 0
+            // Determine up to which value to wind:
+            // (subtractions are safe as otherwise toUnwind is > 0)
             unchecked {
                 toWind = _min(
                             _min(
                                 _min(
-                                    targetAssets - currentAssets, // restricts winding due targetAssets
-                                    lineWad - art // restricts winding due ilk debt ceiling
+                                    lineWad - art, // amount to reach ilk debt ceiling
+                                    (Line - debt) / RAY  // amount to reach global debt ceiling
                                 ),
-                                (Line - debt) / RAY  // restricts winding due ilk debt ceiling
+                                targetAssets - currentAssets // plan targetAssets
                             ),
                             _pool.maxDeposit() // restricts winding if the pool has a max deposit
                         );
