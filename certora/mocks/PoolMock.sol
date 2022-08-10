@@ -135,13 +135,11 @@ contract PoolMock {
         require(TokenLike(share).transfer(dst, shareBalance()), "D3MTestPool/transfer-failed");
     }
 
-    function preDebtChange(bytes32 what) external {
-        what;
+    function preDebtChange() external {
         preDebt = true;
     }
 
-    function postDebtChange(bytes32 what) external {
-        what;
+    function postDebtChange() external {
         postDebt = true;
     }
 
