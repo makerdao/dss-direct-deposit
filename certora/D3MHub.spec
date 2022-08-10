@@ -1,8 +1,8 @@
 // TeleportJoin.spec
 
-using VatMock as vat
-using DaiMock as dai
-using DaiJoinMock as daiJoin
+using Vat as vat
+using Dai as dai
+using DaiJoin as daiJoin
 using PoolMock as pool
 using PlanMock as plan
 
