@@ -87,8 +87,6 @@ rule exec_normal(bytes32 ilk) {
     uint256 targetAssets = plan.getTargetAssets(e, currentAssets);
 
     require(vat.live() == 1);
-    require(tic == 0);
-    require(active);
     require(culled == 0);
     require(inkBefore >= artBefore);
     require(currentAssets >= inkBefore);
@@ -123,6 +121,7 @@ rule exec_normal(bytes32 ilk) {
     assert(inkAfter <= lineWad || inkAfter <= inkBefore, "Ink can not overpass debt ceiling or be higher than prev one");
     assert(inkAfter == artAfter, "ink and art should end up being the same");
     assert(
+        tic == 0 && active &&
         targetAssets >= currentAssets &&
         targetAssets <= lineWad &&
         maxDeposit >= targetAssets - currentAssets &&
@@ -130,6 +129,7 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == targetAssets, "art should end as targetAssets"
     );
     assert(
+        tic == 0 && active &&
         targetAssets >= currentAssets &&
         targetAssets > lineWad &&
         inkBefore > lineWad &&
@@ -138,6 +138,7 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == inkBefore, "art should end at the value of prev ink"
     );
     assert(
+        tic == 0 && active &&
         targetAssets >= currentAssets &&
         targetAssets > lineWad &&
         inkBefore <= lineWad &&
