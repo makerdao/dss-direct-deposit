@@ -3,8 +3,8 @@
 using Vat as vat
 using Dai as dai
 using DaiJoin as daiJoin
-using PoolMock as pool
-using PlanMock as plan
+using D3MTestPool as pool
+using D3MTestPlan as plan
 
 methods {
     vat() returns (address) envfree
