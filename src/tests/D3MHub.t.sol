@@ -1640,7 +1640,7 @@ contract D3MHubTest is DSSTest {
         assertEq(art, 60 * WAD);
     }
 
-    function test_exec_fixInk_full_amount() public {
+    function test_exec_fixInk_full_under_debt_ceiling() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
@@ -1725,6 +1725,31 @@ contract D3MHubTest is DSSTest {
         assertEq(testGem.balanceOf(address(d3mTestPool)), 57 * WAD);
     }
 
+    function test_exec_fixInk_full_at_debt_ceiling() public {
+        _windSystem();
+        // interest is determined by the difference in gem balance to dai debt
+        // by giving extra gems to the Join we simulate interest
+        _giveTokens(TokenLike(address(testGem)), 10 * WAD);
+        testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
+        assertEq(d3mTestPool.maxWithdraw(), 50 * WAD);
+
+        vat.file(ilk, "line", 50 * RAD);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        uint256 prevDai = vat.dai(vow);
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+        assertEq(vat.dai(vow), prevDai + 10 * RAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+    }
+
     function test_exec_fixInk_limited_at_debt_ceiling_nothing_to_withdraw() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
@@ -1785,7 +1810,7 @@ contract D3MHubTest is DSSTest {
         assertEq(testGem.balanceOf(address(d3mTestPool)), 57 * WAD);
     }
 
-    function test_exec_fixInk_above_debt_ceiling_full_amount() public {
+    function test_exec_fixInk_full_above_debt_ceiling() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
