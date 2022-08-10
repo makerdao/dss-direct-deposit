@@ -1647,7 +1647,7 @@ contract D3MHubTest is DSSTest {
         _giveTokens(TokenLike(address(testGem)), 10 * WAD);
         testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
         assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
+        assertEq(d3mTestPool.maxWithdraw(), 50 * WAD);
 
         vat.file(ilk, "line", 55 * RAD);
 
@@ -1677,7 +1677,7 @@ contract D3MHubTest is DSSTest {
             keccak256(abi.encode(address(testGem), uint256(2))),
             bytes32(uint256(0))
         );
-        assertEq(dai.balanceOf(address(testGem)), 0);
+        assertEq(d3mTestPool.maxWithdraw(), 0);
 
         vat.file(ilk, "line", 55 * RAD);
 
@@ -1707,7 +1707,7 @@ contract D3MHubTest is DSSTest {
             keccak256(abi.encode(address(testGem), uint256(2))),
             bytes32(uint256(3 * WAD))
         );
-        assertEq(dai.balanceOf(address(testGem)), 3 * WAD);
+        assertEq(d3mTestPool.maxWithdraw(), 3 * WAD);
 
         vat.file(ilk, "line", 55 * RAD);
 
@@ -1737,7 +1737,7 @@ contract D3MHubTest is DSSTest {
             keccak256(abi.encode(address(testGem), uint256(2))),
             bytes32(uint256(0))
         );
-        assertEq(dai.balanceOf(address(testGem)), 0);
+        assertEq(d3mTestPool.maxWithdraw(), 0);
 
         vat.file(ilk, "line", 50 * RAD);
 
@@ -1767,7 +1767,7 @@ contract D3MHubTest is DSSTest {
             keccak256(abi.encode(address(testGem), uint256(2))),
             bytes32(uint256(3 * WAD))
         );
-        assertEq(dai.balanceOf(address(testGem)), 3 * WAD);
+        assertEq(d3mTestPool.maxWithdraw(), 3 * WAD);
 
         vat.file(ilk, "line", 50 * RAD);
 
@@ -1797,7 +1797,7 @@ contract D3MHubTest is DSSTest {
             keccak256(abi.encode(address(testGem), uint256(2))),
             bytes32(uint256(10 * WAD))
         );
-        assertEq(dai.balanceOf(address(testGem)), 10 * WAD);
+        assertEq(d3mTestPool.maxWithdraw(), 10 * WAD);
 
         vat.file(ilk, "line", 45 * RAD);
 
@@ -1827,7 +1827,7 @@ contract D3MHubTest is DSSTest {
             keccak256(abi.encode(address(testGem), uint256(2))),
             bytes32(uint256(0))
         );
-        assertEq(dai.balanceOf(address(testGem)), 0);
+        assertEq(d3mTestPool.maxWithdraw(), 0);
 
         vat.file(ilk, "line", 45 * RAD);
 
@@ -1857,7 +1857,7 @@ contract D3MHubTest is DSSTest {
             keccak256(abi.encode(address(testGem), uint256(2))),
             bytes32(uint256(3 * WAD))
         );
-        assertEq(dai.balanceOf(address(testGem)), 3 * WAD);
+        assertEq(d3mTestPool.maxWithdraw(), 3 * WAD);
 
         vat.file(ilk, "line", 45 * RAD);
 
