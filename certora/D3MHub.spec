@@ -118,24 +118,16 @@ rule exec_normal(bytes32 ilk) {
     assert(LineAfter == LineBefore, "Line should not change");
     assert(lineAfter == lineBefore, "line should not change");
     assert(artAfter == ArtAfter, "art should be same than Art");
-    assert(inkAfter <= lineWad || inkAfter <= inkBefore, "Ink can not overpass debt ceiling or be higher than prev one");
     assert(inkAfter == artAfter, "ink and art should end up being the same");
+    assert(inkAfter <= lineWad || inkAfter <= inkBefore, "Ink can not overpass debt ceiling or be higher than prev one");
+    // Winding
     assert(
         tic == 0 && active &&
         targetAssets >= currentAssets &&
         targetAssets <= lineWad &&
         maxDeposit >= targetAssets - currentAssets &&
         (LineBefore - debtMiddle) / RAY() >= targetAssets - currentAssets
-            => artAfter == targetAssets, "art should end as targetAssets"
-    );
-    assert(
-        tic == 0 && active &&
-        targetAssets >= currentAssets &&
-        targetAssets > lineWad &&
-        inkBefore > lineWad &&
-        maxDeposit >= targetAssets - currentAssets &&
-        (LineBefore - debtMiddle) / RAY() >= targetAssets - currentAssets
-            => artAfter == inkBefore, "art should end at the value of prev ink"
+            => artAfter == targetAssets, "wind: art should end as targetAssets"
     );
     assert(
         tic == 0 && active &&
@@ -144,6 +136,53 @@ rule exec_normal(bytes32 ilk) {
         inkBefore <= lineWad &&
         maxDeposit >= targetAssets - currentAssets &&
         (LineBefore - debtMiddle) / RAY() >= targetAssets - currentAssets
-            => artAfter == lineWad, "art should end at the value of lineWad"
+            => artAfter == lineWad, "wind: art should end at the value of lineWad"
     );
+    //
+    // Unwinding
+    assert(
+        tic == 0 && active &&
+        targetAssets >= currentAssets &&
+        targetAssets > lineWad &&
+        inkBefore > lineWad &&
+        inkBefore - lineWad > maxWithdraw &&
+        maxDeposit >= targetAssets - currentAssets &&
+        (LineBefore - debtMiddle) / RAY() >= targetAssets - currentAssets
+            => artAfter == inkBefore + fixInk - maxWithdraw, "unwind: art should end at the value of inkBefore + fixInk - maxWithdraw"
+    );
+    assert(
+        (tic > 0 || !active) &&
+        currentAssets == maxWithdraw
+            => artAfter == 0, "unwind: art should end as 0"
+    );
+    assert(
+        (tic > 0 || !active) &&
+        currentAssets > maxWithdraw &&
+        currentAssets - maxWithdraw < lineWad
+            => artAfter == currentAssets - maxWithdraw, "unwind: art should end as currentAssets - maxWithdraw"
+    );
+    // assert(
+    //     (tic > 0 || !active) &&
+    //     currentAssets > maxWithdraw &&
+    //     currentAssets - maxWithdraw >= lineWad &&
+    //     inkBefore <= lineWad
+    //         => artAfter == lineWad, "unwind: art should end as lineWad"
+    // );
+    assert(
+        (tic > 0 || !active) &&
+        currentAssets > maxWithdraw &&
+        currentAssets - maxWithdraw >= lineWad &&
+        inkBefore > lineWad
+            => artAfter == inkBefore, "unwind: art should end as lineWad"
+    );
+    // assert(
+    //     tic == 0 && active &&
+    //     targetAssets >= currentAssets &&
+    //     targetAssets > lineWad &&
+    //     inkBefore > lineWad &&
+    //     inkBefore - lineWad <= maxWithdraw &&
+    //     maxDeposit >= targetAssets - currentAssets &&
+    //     (LineBefore - debtMiddle) / RAY() >= targetAssets - currentAssets
+    //         => artAfter == inkBefore, "unwind: art should end at the value of inkBefore"
+    // );
 }
