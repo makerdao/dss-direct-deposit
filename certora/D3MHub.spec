@@ -1,4 +1,4 @@
-// TeleportJoin.spec
+// D3MHub.spec
 
 using Vat as vat
 using Dai as dai
@@ -157,23 +157,20 @@ rule exec_normal(bytes32 ilk) {
     );
     assert(
         (tic > 0 || !active) &&
-        currentAssets > maxWithdraw &&
         currentAssets - maxWithdraw < lineWad
             => artAfter == currentAssets - maxWithdraw, "unwind: art should end as currentAssets - maxWithdraw"
     );
-    // assert(
-    //     (tic > 0 || !active) &&
-    //     currentAssets > maxWithdraw &&
-    //     currentAssets - maxWithdraw >= lineWad &&
-    //     inkBefore <= lineWad
-    //         => artAfter == lineWad, "unwind: art should end as lineWad"
-    // );
     assert(
         (tic > 0 || !active) &&
-        currentAssets > maxWithdraw &&
         currentAssets - maxWithdraw >= lineWad &&
+        inkBefore <= lineWad
+            => artAfter == lineWad, "unwind: art should end as lineWad"
+    );
+    assert(
+        (tic > 0 || !active) &&
+        currentAssets - maxWithdraw >= inkBefore &&
         inkBefore > lineWad
-            => artAfter == inkBefore, "unwind: art should end as lineWad"
+            => artAfter == inkBefore, "unwind: art should end as inkBefore"
     );
     // assert(
     //     tic == 0 && active &&
