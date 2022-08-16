@@ -55,10 +55,13 @@ definition max_int256() returns mathint = 2^255 - 1;
 rule exec_normal(bytes32 ilk) {
     env e;
 
+    address vow = vow();
+
     require(vat() == vat);
     require(daiJoin() == daiJoin);
     require(plan(ilk) == plan);
     require(pool(ilk) == pool);
+    require(vow != daiJoin);
     require(daiJoin.dai() == dai);
     require(daiJoin.vat() == vat);
     require(plan.dai() == dai);
@@ -86,6 +89,7 @@ rule exec_normal(bytes32 ilk) {
     uint256 maxWithdraw = pool.maxWithdraw(e);
     uint256 assetsBefore = pool.assetBalance(e);
     uint256 targetAssets = plan.getTargetAssets(e, assetsBefore);
+    uint256 vatDaiVowBefore = vat.dai(vow);
 
     require(vat.live() == 1);
     require(culled == 0);
@@ -107,6 +111,7 @@ rule exec_normal(bytes32 ilk) {
     inkAfter, artAfter = vat.urns(ilk, pool);
 
     uint256 assetsAfter = pool.assetBalance(e);
+    uint256 vatDaiVowAfter = vat.dai(vow);
 
     uint256 lineWad = lineBefore / RAY();
     uint256 underLine = inkBefore < lineWad ? lineWad - inkBefore : 0;
@@ -123,7 +128,8 @@ rule exec_normal(bytes32 ilk) {
     assert(lineAfter == lineBefore, "line should not change");
     assert(artAfter == ArtAfter, "art should be same than Art");
     assert(inkAfter == artAfter, "ink and art should end up being the same");
-    assert(inkAfter <= lineWad || inkAfter <= inkBefore, "Ink can not overpass debt ceiling or be higher than prev one");
+    assert(inkAfter <= lineWad || inkAfter <= inkBefore, "ink can not overpass debt ceiling or be higher than prev one");
+    assert(vatDaiVowAfter == vatDaiVowBefore + fixArt * RAY(), "vatDaiVow did not increase as expected");
     // Winding to targetAssets
     assert(
         tic == 0 && active && // regular path in normal path
@@ -335,7 +341,7 @@ rule exec_ilk_culled(bytes32 ilk) {
 
     assert(assetsAfter == 0 || assetsAfter == assetsBefore - maxWithdraw, "assets should be 0 or decreased by maxWithdraw");
     assert(vatGemPoolAfter == 0 || vatGemPoolAfter == vatGemPoolBefore - maxWithdraw, "assets should be 0 or decreased by maxWithdraw");
-    assert(vatDaiVowAfter == vatDaiVowBefore + (assetsBefore - assetsAfter) * RAY(), "vatDaiVowAfter did not increase as expected");
+    assert(vatDaiVowAfter == vatDaiVowBefore + (assetsBefore - assetsAfter) * RAY(), "vatDaiVow did not increase as expected");
 }
 
 rule exec_exec(bytes32 ilk) {
