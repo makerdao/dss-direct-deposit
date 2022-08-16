@@ -105,6 +105,8 @@ rule exec_normal(bytes32 ilk) {
     uint256 artAfter;
     inkAfter, artAfter = vat.urns(ilk, pool);
 
+    uint256 assetsAfter = pool.assetBalance(e);
+
     uint256 lineWad = lineBefore / RAY();
     uint256 underLine = inkBefore < lineWad ? lineWad - inkBefore : 0;
     uint256 fixInk = assetsBefore > inkBefore
@@ -123,92 +125,109 @@ rule exec_normal(bytes32 ilk) {
     assert(inkAfter <= lineWad || inkAfter <= inkBefore, "Ink can not overpass debt ceiling or be higher than prev one");
     // Winding to targetAssets
     assert(
-        tic == 0 && active &&
-        targetAssets >= assetsBefore &&
-        targetAssets <= lineWad &&
-        maxDeposit >= targetAssets - assetsBefore &&
-        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore
-            => artAfter == targetAssets, "wind: art should end as targetAssets"
+        tic == 0 && active && // regular path in normal path
+        targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
+        maxDeposit >= targetAssets - assetsBefore && // target IS NOT restricted by maxDeposit
+        targetAssets <= lineWad && // target IS NOT restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore // target IS NOT restricted by global Line
+            => artAfter == targetAssets &&
+               assetsAfter == artAfter,
+               "wind: error 1"
     );
     // Winding to ilk line
     assert(
-        tic == 0 && active &&
-        targetAssets >= assetsBefore &&
-        targetAssets > lineWad &&
-        inkBefore <= lineWad &&
-        maxDeposit >= targetAssets - assetsBefore &&
-        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore
-            => artAfter == lineWad, "wind: art should end at the value of lineWad"
+        tic == 0 && active && // regular path in normal path
+        targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
+        maxDeposit >= targetAssets - assetsBefore && // target IS NOT restricted by maxDeposit
+        targetAssets > lineWad && // target IS restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
+        inkBefore <= lineWad // ink before execution is safe under ilk line
+            => artAfter == lineWad &&
+               assetsAfter >= artAfter,
+               "wind: error 2"
     );
-    //
+    assert(
+        tic == 0 && active && // regular path in normal path
+        targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
+        maxDeposit >= targetAssets - assetsBefore && // target IS NOT restricted by maxDeposit
+        targetAssets > lineWad && // target IS restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
+        assetsBefore <= lineWad && // assets before execution is safe under ilk line
+        targetAssets >= lineWad // target is pointed above ilk line
+            => artAfter == lineWad &&
+               assetsAfter == artAfter,
+               "wind: error 3"
+    );
     // Unwinding due to line
     assert(
-        tic == 0 && active &&
-        targetAssets >= assetsBefore &&
-        targetAssets > lineWad &&
-        inkBefore > lineWad &&
-        inkBefore - lineWad > maxWithdraw &&
-        maxDeposit >= targetAssets - assetsBefore &&
-        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore
-            => artAfter == inkBefore + fixInk - maxWithdraw, "unwind: art should end at the value of inkBefore + fixInk - maxWithdraw"
+        tic == 0 && active && // regular path in normal path
+        targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
+        targetAssets > lineWad && // target IS restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
+        inkBefore > lineWad && // ink before execution is not safe (over ilk line)
+        maxWithdraw >= assetsBefore - lineWad // enough to rebalance and decrease to ilk line value
+            => artAfter == lineWad &&
+               assetsAfter == artAfter,
+               "unwind: error 1"
     );
     assert(
-        tic == 0 && active &&
-        targetAssets >= assetsBefore &&
-        targetAssets > lineWad &&
-        inkBefore > lineWad &&
-        inkBefore - lineWad <= maxWithdraw &&
-        assetsBefore - inkBefore <= maxWithdraw &&
-        assetsBefore - lineWad <= maxWithdraw &&
-        maxDeposit >= targetAssets - assetsBefore &&
-        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore
-            => artAfter == lineWad, "unwind: art should end at the value of lineWad"
+        tic == 0 && active && // regular path in normal path
+        targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
+        targetAssets > lineWad && // target IS restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
+        inkBefore > lineWad && // ink before execution is not safe (over ilk line)
+        maxWithdraw < assetsBefore - inkBefore // NOT enough for full rebalance
+            => artAfter == inkBefore &&
+               assetsAfter > artAfter,
+               "unwind: error 2"
     );
     assert(
-        tic == 0 && active &&
-        targetAssets >= assetsBefore &&
-        targetAssets > lineWad &&
-        inkBefore > lineWad &&
-        inkBefore - lineWad <= maxWithdraw &&
-        assetsBefore - inkBefore <= maxWithdraw &&
-        assetsBefore - lineWad > maxWithdraw &&
-        maxDeposit >= targetAssets - assetsBefore &&
-        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore
-            => artAfter == assetsBefore - maxWithdraw, "unwind: art should end at the value of assetsBefore - maxWithdraw"
+        tic == 0 && active && // regular path in normal path
+        targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
+        targetAssets > lineWad && // target IS restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
+        inkBefore > lineWad && // ink before execution is not safe (over ilk line)
+        maxWithdraw < inkBefore - lineWad // no way to decrease to ilk line value
+            => artAfter == inkBefore + fixInk - maxWithdraw &&
+               assetsAfter >= artAfter,
+               "unwind: error 3"
     );
     assert(
-        tic == 0 && active &&
-        targetAssets >= assetsBefore &&
-        targetAssets > lineWad &&
-        inkBefore > lineWad &&
-        inkBefore - lineWad <= maxWithdraw &&
-        assetsBefore - inkBefore > maxWithdraw &&
-        maxDeposit >= targetAssets - assetsBefore &&
-        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore
-            => artAfter == inkBefore, "unwind: art should end at the value of inkBefore"
+        tic == 0 && active && // regular path in normal path
+        targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
+        targetAssets > lineWad && // target IS restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
+        inkBefore > lineWad && // ink before execution is not safe (over ilk line)
+        maxWithdraw < assetsBefore - lineWad && // NOT enough to rebalance and decrease to ilk line value
+        maxWithdraw >= assetsBefore - inkBefore // enough for full rebalance
+            => artAfter == assetsBefore - maxWithdraw &&
+               artAfter <= inkBefore &&
+               artAfter >= lineWad &&
+               assetsAfter == artAfter,
+               "unwind: error 4"
     );
     // Force unwinding due to ilk caged (but not culled yet) or plan inactive:
     assert(
         (tic > 0 || !active) &&
         assetsBefore == maxWithdraw
-            => artAfter == 0, "unwind: art should end as 0"
+            => artAfter == 0, "unwind: error 5"
     );
     assert(
         (tic > 0 || !active) &&
         assetsBefore - maxWithdraw < lineWad
-            => artAfter == assetsBefore - maxWithdraw, "unwind: art should end as assetsBefore - maxWithdraw"
+            => artAfter == assetsBefore - maxWithdraw, "unwind: error 6"
     );
     assert(
         (tic > 0 || !active) &&
         assetsBefore - maxWithdraw >= lineWad &&
         inkBefore <= lineWad
-            => artAfter == lineWad, "unwind: art should end as lineWad"
+            => artAfter == lineWad, "unwind: error 7"
     );
     assert(
         (tic > 0 || !active) &&
         assetsBefore - maxWithdraw >= inkBefore &&
         inkBefore > lineWad
-            => artAfter == inkBefore, "unwind: art should end as inkBefore"
+            => artAfter == inkBefore, "unwind: error 8"
     );
 }
 
