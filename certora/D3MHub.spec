@@ -158,6 +158,40 @@ rule exec_normal(bytes32 ilk) {
                assetsAfter == artAfter,
                "wind: error 3"
     );
+    // Unwinding to targetAssets
+    assert(
+        tic == 0 && active && // regular path in normal path
+        targetAssets <= assetsBefore && // plan determines we need to go down (or keep the same)
+        targetAssets <= lineWad && // target IS NOT restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= 0 && // target IS NOT restricted by global Line
+        maxWithdraw >= assetsBefore - targetAssets // target IS NOT restricted by maxWithdraw
+            => artAfter == targetAssets &&
+               assetsAfter == artAfter,
+               "unwind: error 1"
+    );
+    // Unwinding due to targetAssets but restricted
+    assert(
+        tic == 0 && active && // regular path in normal path
+        targetAssets <= assetsBefore && // plan determines we need to go down (or keep the same)
+        targetAssets <= lineWad && // target IS NOT restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= 0 && // target IS NOT restricted by global Line
+        maxWithdraw < assetsBefore - targetAssets && // target IS restricted by maxWithdraw
+        assetsBefore <= lineWad
+            => artAfter == assetsBefore - maxWithdraw &&
+               assetsAfter == artAfter,
+               "unwind: error 2"
+    );
+    assert(
+        tic == 0 && active && // regular path in normal path
+        targetAssets <= assetsBefore && // plan determines we need to go down (or keep the same)
+        targetAssets <= lineWad && // target IS NOT restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= 0 && // target IS NOT restricted by global Line
+        maxWithdraw < assetsBefore - targetAssets && // target IS restricted by maxWithdraw
+        inkBefore > lineWad &&
+        assetsBefore - inkBefore > maxWithdraw
+            => artAfter == inkBefore,
+               "unwind: error 3"
+    );
     // Unwinding due to line
     assert(
         tic == 0 && active && // regular path in normal path
@@ -168,7 +202,7 @@ rule exec_normal(bytes32 ilk) {
         maxWithdraw >= assetsBefore - lineWad // enough to rebalance and decrease to ilk line value
             => artAfter == lineWad &&
                assetsAfter == artAfter,
-               "unwind: error 1"
+               "unwind: error 4"
     );
     assert(
         tic == 0 && active && // regular path in normal path
@@ -179,7 +213,7 @@ rule exec_normal(bytes32 ilk) {
         maxWithdraw < assetsBefore - inkBefore // NOT enough for full rebalance
             => artAfter == inkBefore &&
                assetsAfter > artAfter,
-               "unwind: error 2"
+               "unwind: error 5"
     );
     assert(
         tic == 0 && active && // regular path in normal path
@@ -190,7 +224,7 @@ rule exec_normal(bytes32 ilk) {
         maxWithdraw < inkBefore - lineWad // no way to decrease to ilk line value
             => artAfter == inkBefore + fixInk - maxWithdraw &&
                assetsAfter >= artAfter,
-               "unwind: error 3"
+               "unwind: error 6"
     );
     assert(
         tic == 0 && active && // regular path in normal path
@@ -204,30 +238,30 @@ rule exec_normal(bytes32 ilk) {
                artAfter <= inkBefore &&
                artAfter >= lineWad &&
                assetsAfter == artAfter,
-               "unwind: error 4"
+               "unwind: error 7"
     );
     // Force unwinding due to ilk caged (but not culled yet) or plan inactive:
     assert(
         (tic > 0 || !active) &&
         assetsBefore == maxWithdraw
-            => artAfter == 0, "unwind: error 5"
+            => artAfter == 0, "unwind: error 8"
     );
     assert(
         (tic > 0 || !active) &&
         assetsBefore - maxWithdraw < lineWad
-            => artAfter == assetsBefore - maxWithdraw, "unwind: error 6"
+            => artAfter == assetsBefore - maxWithdraw, "unwind: error 9"
     );
     assert(
         (tic > 0 || !active) &&
         assetsBefore - maxWithdraw >= lineWad &&
         inkBefore <= lineWad
-            => artAfter == lineWad, "unwind: error 7"
+            => artAfter == lineWad, "unwind: error 10"
     );
     assert(
         (tic > 0 || !active) &&
         assetsBefore - maxWithdraw >= inkBefore &&
         inkBefore > lineWad
-            => artAfter == inkBefore, "unwind: error 8"
+            => artAfter == inkBefore, "unwind: error 11"
     );
 }
 
