@@ -519,3 +519,42 @@ rule cull(bytes32 ilk) {
     assert(vatSinVowAfter == vatSinVowBefore + artBefore * RAY(), "vatSinVow did not increase as expected");
     assert(vatViceAfter == vatViceBefore + artBefore * RAY(), "vatVice did not increase as expected");
 }
+
+rule uncull(bytes32 ilk) {
+    env e;
+
+    require(vat() == vat);
+
+    uint256 ArtBefore;
+    uint256 rateBefore;
+    uint256 spotBefore;
+    uint256 lineBefore;
+    uint256 dustBefore;
+    ArtBefore, rateBefore, spotBefore, lineBefore, dustBefore = vat.ilks(ilk);
+
+    require(rateBefore == RAY());
+
+    uint256 inkBefore;
+    uint256 artBefore;
+    inkBefore, artBefore = vat.urns(ilk, pool(ilk));
+
+    uint256 vatGemPoolBefore = vat.gem(ilk, pool(ilk));
+    uint256 vatDaiVowBefore = vat.dai(vow());
+
+    uncull(e, ilk);
+
+    uint256 inkAfter;
+    uint256 artAfter;
+    inkAfter, artAfter = vat.urns(ilk, pool(ilk));
+
+    uint256 vatGemPoolAfter = vat.gem(ilk, pool(ilk));
+
+    uint256 culledAfter = culled(ilk);
+    uint256 vatDaiVowAfter = vat.dai(vow());
+
+    assert(inkAfter == inkBefore + vatGemPoolBefore, "ink did not increase by prev value of vatGemPool as expected");
+    assert(artAfter == artBefore + vatGemPoolBefore, "art did not increase by prev value of vatGemPool as expected");
+    assert(vatGemPoolAfter == 0, "vatGemPool did not descrease to 0 as expected");
+    assert(culledAfter == 0, "culled was not set to 0 as expected");
+    assert(vatDaiVowAfter == vatDaiVowBefore + vatGemPoolBefore * RAY(), "vatDaiVow did not increase as expected");
+}
