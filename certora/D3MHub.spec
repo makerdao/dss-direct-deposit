@@ -15,6 +15,7 @@ methods {
     plan(bytes32) returns (address) envfree => DISPATCHER(true)
     pool(bytes32) returns (address) envfree => DISPATCHER(true)
     tic(bytes32) returns (uint256) envfree
+    tau(bytes32) returns (uint256) envfree
     culled(bytes32) returns (uint256) envfree
     vat.can(address, address) returns (uint256) envfree
     vat.debt() returns (uint256) envfree
@@ -23,7 +24,9 @@ methods {
     vat.Line() returns (uint256) envfree
     vat.live() returns (uint256) envfree
     vat.ilks(bytes32) returns (uint256, uint256, uint256, uint256, uint256) envfree
+    vat.sin(address) returns (uint256) envfree
     vat.urns(bytes32, address) returns (uint256, uint256) envfree
+    vat.vice() returns (uint256) envfree
     dai.allowance(address, address) returns (uint256) envfree
     dai.balanceOf(address) returns (uint256) envfree
     daiJoin.dai() returns (address) envfree
@@ -463,4 +466,56 @@ rule exec_exec(bytes32 ilk) {
     assert(assetsAfter2 == assetsAfter1, "assetsAfter did not remain as expected");
     assert(inkAfter2 == inkAfter1, "inkAfter did not remain as expected");
     assert(artAfter2 == artAfter1, "artAfter did not remain as expected");
+}
+
+rule cage(bytes32 ilk) {
+    env e;
+
+    require(vat() == vat);
+
+    cage(e, ilk);
+
+    assert(tic(ilk) == e.block.timestamp + tau(ilk), "tic was not set as expected");
+}
+
+rule cull(bytes32 ilk) {
+    env e;
+
+    require(vat() == vat);
+
+    uint256 ArtBefore;
+    uint256 rateBefore;
+    uint256 spotBefore;
+    uint256 lineBefore;
+    uint256 dustBefore;
+    ArtBefore, rateBefore, spotBefore, lineBefore, dustBefore = vat.ilks(ilk);
+
+    require(rateBefore == RAY());
+
+    uint256 inkBefore;
+    uint256 artBefore;
+    inkBefore, artBefore = vat.urns(ilk, pool(ilk));
+
+    uint256 vatGemPoolBefore = vat.gem(ilk, pool(ilk));
+    uint256 vatSinVowBefore = vat.sin(vow());
+    uint256 vatViceBefore = vat.vice();
+
+    cull(e, ilk);
+
+    uint256 inkAfter;
+    uint256 artAfter;
+    inkAfter, artAfter = vat.urns(ilk, pool(ilk));
+
+    uint256 vatGemPoolAfter = vat.gem(ilk, pool(ilk));
+
+    uint256 culledAfter = culled(ilk);
+    uint256 vatSinVowAfter = vat.sin(vow());
+    uint256 vatViceAfter = vat.vice();
+
+    assert(inkAfter == 0, "ink did not go to 0 as expected");
+    assert(artAfter == 0, "art did not go to 0 as expected");
+    assert(vatGemPoolAfter == vatGemPoolBefore + inkBefore, "vatGemPool did not increase as expected");
+    assert(culledAfter == 1, "culled was not set to 1 as expected");
+    assert(vatSinVowAfter == vatSinVowBefore + artBefore * RAY(), "vatSinVow did not increase as expected");
+    assert(vatViceAfter == vatViceBefore + artBefore * RAY(), "vatVice did not increase as expected");
 }
