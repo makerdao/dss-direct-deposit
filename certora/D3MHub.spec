@@ -6,6 +6,7 @@ using DaiJoin as daiJoin
 using End as end
 using D3MTestPool as pool
 using D3MTestPlan as plan
+using D3MTestGem as share
 
 methods {
     vat() returns (address) envfree
@@ -37,6 +38,7 @@ methods {
     pool.hub() returns (address) envfree
     pool.vat() returns (address) envfree
     pool.dai() returns (address) envfree
+    pool.share() returns (address) envfree
     debt() returns (uint256) => DISPATCHER(true)
     skim(bytes32, address) => DISPATCHER(true)
     active() returns (bool) => DISPATCHER(true)
@@ -48,6 +50,7 @@ methods {
     withdraw(uint256) => DISPATCHER(true)
     preDebtChange() => DISPATCHER(true)
     postDebtChange() => DISPATCHER(true)
+    transfer(address, uint256) => DISPATCHER(true)
     balanceOf(address) returns (uint256) => DISPATCHER(true)
     burn(address, uint256) => DISPATCHER(true)
     mint(address, uint256) => DISPATCHER(true)
@@ -466,6 +469,27 @@ rule exec_exec(bytes32 ilk) {
     assert(assetsAfter2 == assetsAfter1, "assetsAfter did not remain as expected");
     assert(inkAfter2 == inkAfter1, "inkAfter did not remain as expected");
     assert(artAfter2 == artAfter1, "artAfter did not remain as expected");
+}
+
+rule exit(bytes32 ilk, address usr, uint256 wad) {
+    env e;
+
+    require(vat() == vat);
+    require(pool(ilk) == pool);
+    require(pool.hub() == currentContract);
+    require(pool.vat() == vat);
+    require(pool.share() == share);
+
+    uint256 vatGemSenderBefore = vat.gem(ilk, e.msg.sender);
+    uint256 poolShareUsrBefore = share.balanceOf(e, usr);
+
+    exit(e, ilk, usr, wad);
+
+    uint256 vatGemSenderAfter = vat.gem(ilk, e.msg.sender);
+    uint256 poolShareUsrAfter = share.balanceOf(e, usr);
+
+    assert(vatGemSenderAfter == vatGemSenderBefore - wad, "vatGemSender did not decrease by wad amount");
+    assert(usr != pool => poolShareUsrAfter == poolShareUsrBefore + wad, "poolShareUsr did not increase by wad amount");
 }
 
 rule cage(bytes32 ilk) {
