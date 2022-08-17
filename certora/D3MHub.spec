@@ -3,6 +3,7 @@
 using Vat as vat
 using Dai as dai
 using DaiJoin as daiJoin
+using End as end
 using D3MTestPool as pool
 using D3MTestPlan as plan
 
@@ -10,6 +11,7 @@ methods {
     vat() returns (address) envfree
     daiJoin() returns (address) envfree
     vow() returns (address) envfree
+    end() returns (address) envfree
     plan(bytes32) returns (address) envfree => DISPATCHER(true)
     pool(bytes32) returns (address) envfree => DISPATCHER(true)
     tic(bytes32) returns (uint256) envfree
@@ -26,6 +28,8 @@ methods {
     dai.balanceOf(address) returns (uint256) envfree
     daiJoin.dai() returns (address) envfree
     daiJoin.vat() returns (address) envfree
+    end.vat() returns (address) envfree
+    end.tag(bytes32) returns (uint256) envfree
     plan.dai() returns (address) envfree
     pool.hub() returns (address) envfree
     pool.vat() returns (address) envfree
@@ -340,7 +344,83 @@ rule exec_ilk_culled(bytes32 ilk) {
     assert(inkAfter == 0, "ink should end up being 0");
 
     assert(assetsAfter == 0 || assetsAfter == assetsBefore - maxWithdraw, "assets should be 0 or decreased by maxWithdraw");
-    assert(vatGemPoolAfter == 0 || vatGemPoolAfter == vatGemPoolBefore - maxWithdraw, "assets should be 0 or decreased by maxWithdraw");
+    assert(vatGemPoolAfter == 0 || vatGemPoolAfter == vatGemPoolBefore - maxWithdraw, "vatGemPool should be 0 or decreased by maxWithdraw");
+    assert(vatDaiVowAfter == vatDaiVowBefore + (assetsBefore - assetsAfter) * RAY(), "vatDaiVow did not increase as expected");
+}
+
+rule exec_vat_caged(bytes32 ilk) {
+    env e;
+
+    address vow = vow();
+
+    require(vat() == vat);
+    require(daiJoin() == daiJoin);
+    require(end() == end);
+    require(plan(ilk) == plan);
+    require(pool(ilk) == pool);
+    require(vow != daiJoin);
+    require(daiJoin.dai() == dai);
+    require(daiJoin.vat() == vat);
+    require(end.vat() == vat);
+    require(plan.dai() == dai);
+    require(pool.hub() == currentContract);
+    require(pool.vat() == vat);
+    require(pool.dai() == dai);
+
+    uint256 LineBefore = vat.Line();
+    uint256 debtBefore = vat.debt();
+    uint256 ArtBefore;
+    uint256 rateBefore;
+    uint256 spotBefore;
+    uint256 lineBefore;
+    uint256 dustBefore;
+    ArtBefore, rateBefore, spotBefore, lineBefore, dustBefore = vat.ilks(ilk);
+    uint256 inkBefore;
+    uint256 artBefore;
+    inkBefore, artBefore = vat.urns(ilk, pool);
+
+    uint256 maxWithdraw = pool.maxWithdraw(e);
+    uint256 assetsBefore = pool.assetBalance(e);
+    uint256 targetAssets = plan.getTargetAssets(e, assetsBefore);
+
+    require(vat.live() == 0);
+    require(end.tag(ilk) == RAY());
+    require(inkBefore >= artBefore);
+    require(assetsBefore >= inkBefore);
+
+    uint256 vatGemEndBeforeOriginal = vat.gem(ilk, end);
+    require(inkBefore == 0 || vatGemEndBeforeOriginal == 0); // To ensure correct behavior
+    uint256 vatGemEndBefore = vatGemEndBeforeOriginal != 0 ? vatGemEndBeforeOriginal : artBefore;
+    uint256 vatDaiVowBefore = vat.dai(vow);
+
+    require(assetsBefore >= vatGemEndBefore);
+
+    exec(e, ilk);
+
+    uint256 LineAfter = vat.Line();
+    uint256 debtAfter = vat.debt();
+    uint256 ArtAfter;
+    uint256 rateAfter;
+    uint256 spotAfter;
+    uint256 lineAfter;
+    uint256 dustAfter;
+    ArtAfter, rateAfter, spotAfter, lineAfter, dustAfter = vat.ilks(ilk);
+    uint256 inkAfter;
+    uint256 artAfter;
+    inkAfter, artAfter = vat.urns(ilk, pool);
+
+    uint256 assetsAfter = pool.assetBalance(e);
+
+    uint256 vatGemEndAfter = vat.gem(ilk, end);
+    uint256 vatDaiVowAfter = vat.dai(vow);
+
+    // General asserts
+    assert(LineAfter == LineBefore, "Line should not change");
+    assert(lineAfter == lineBefore, "line should not change");
+    assert(artAfter == 0, "art should end up being 0");
+
+    assert(assetsAfter == 0 || assetsAfter == assetsBefore - maxWithdraw, "assets should be 0 or decreased by maxWithdraw");
+    assert(vatGemEndAfter == 0 || vatGemEndAfter == vatGemEndBefore - maxWithdraw, "vatGemEnd should be 0 or decreased by maxWithdraw");
     assert(vatDaiVowAfter == vatDaiVowBefore + (assetsBefore - assetsAfter) * RAY(), "vatDaiVow did not increase as expected");
 }
 
