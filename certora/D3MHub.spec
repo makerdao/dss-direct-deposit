@@ -13,6 +13,7 @@ methods {
     daiJoin() returns (address) envfree
     vow() returns (address) envfree
     end() returns (address) envfree
+    locked() returns (uint256) envfree
     plan(bytes32) returns (address) envfree => DISPATCHER(true)
     pool(bytes32) returns (address) envfree => DISPATCHER(true)
     tic(bytes32) returns (uint256) envfree
@@ -28,6 +29,7 @@ methods {
     vat.sin(address) returns (uint256) envfree
     vat.urns(bytes32, address) returns (uint256, uint256) envfree
     vat.vice() returns (uint256) envfree
+    vat.wards(address) returns (uint256) envfree
     dai.allowance(address, address) returns (uint256) envfree
     dai.balanceOf(address) returns (uint256) envfree
     daiJoin.dai() returns (address) envfree
@@ -490,6 +492,44 @@ rule exit(bytes32 ilk, address usr, uint256 wad) {
 
     assert(vatGemSenderAfter == vatGemSenderBefore - wad, "vatGemSender did not decrease by wad amount");
     assert(usr != pool => poolShareUsrAfter == poolShareUsrBefore + wad, "poolShareUsr did not increase by wad amount");
+}
+
+rule exit_revert(bytes32 ilk, address usr, uint256 wad) {
+    env e;
+
+    require(vat() == vat);
+    require(pool(ilk) == pool);
+    require(pool.hub() == currentContract);
+    require(pool.vat() == vat);
+    require(pool.share() == share);
+
+    uint256 locked = locked();
+    uint256 gem = vat.gem(ilk, e.msg.sender);
+    uint256 vatWard = vat.wards(currentContract);
+    uint256 balPool = share.balanceOf(e, pool);
+    uint256 balUsr = share.balanceOf(e, usr);
+
+    exit@withrevert(e, ilk, usr, wad);
+
+    bool revert1 = e.msg.value > 0;
+    bool revert2 = locked != 0;
+    bool revert3 = wad > max_int256();
+    bool revert4 = vatWard != 1;
+    bool revert5 = gem < wad;
+    bool revert6 = balPool < wad;
+    bool revert7 = pool != usr && balUsr + wad > max_uint256;
+
+    assert(revert1 => lastReverted, "revert1 failed");
+    assert(revert2 => lastReverted, "revert2 failed");
+    assert(revert3 => lastReverted, "revert3 failed");
+    assert(revert4 => lastReverted, "revert4 failed");
+    assert(revert5 => lastReverted, "revert5 failed");
+    assert(revert6 => lastReverted, "revert6 failed");
+    assert(revert7 => lastReverted, "revert7 failed");
+
+    assert(lastReverted => revert1 || revert2 || revert3 ||
+                           revert4 || revert5 || revert6 ||
+                           revert7, "Revert rules are not covering all the cases");
 }
 
 rule cage(bytes32 ilk) {
