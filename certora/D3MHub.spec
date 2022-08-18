@@ -546,12 +546,6 @@ rule cage(bytes32 ilk) {
 rule cage_revert(bytes32 ilk) {
     env e;
 
-    require(vat() == vat);
-    require(pool(ilk) == pool);
-    require(pool.hub() == currentContract);
-    require(pool.vat() == vat);
-    require(pool.share() == share);
-
     uint256 ward = wards(e.msg.sender);
     uint256 vatLive = vat.live();
     uint256 tic = tic(ilk);
