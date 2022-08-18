@@ -13,6 +13,7 @@ methods {
     daiJoin() returns (address) envfree
     vow() returns (address) envfree
     end() returns (address) envfree
+    ilks(bytes32) returns (address, address, uint256, uint256, uint256) envfree
     locked() returns (uint256) envfree
     plan(bytes32) returns (address) envfree => DISPATCHER(true)
     pool(bytes32) returns (address) envfree => DISPATCHER(true)
@@ -181,6 +182,17 @@ rule file_ilk_address_revert(bytes32 ilk, bytes32 what, address data) {
 
     assert(lastReverted => revert1 || revert2 || revert3 ||
                            revert4 || revert5, "Revert rules are not covering all the cases");
+}
+
+rule ilk_getters() {
+    bytes32 ilk;
+    address pool_; address plan_; uint256 tau; uint256 culled; uint256 tic;
+    pool_, plan_, tau, culled, tic = ilks(ilk);
+    assert(pool_ == pool(ilk), "pool getter did not return ilk.pool");
+    assert(plan_ == plan(ilk), "plan getter did not return ilk.plan");
+    assert(tau == tau(ilk), "tau getter did not return ilk.tau");
+    assert(culled == culled(ilk), "culled getter did not return ilk.culled");
+    assert(tic == tic(ilk), "tic getter did not return ilk.tic");
 }
 
 rule exec_normal(bytes32 ilk) {
