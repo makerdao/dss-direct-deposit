@@ -123,6 +123,32 @@ rule deny_revert(address usr) {
     assert(lastReverted => revert1 || revert2, "Revert rules are not covering all the cases");
 }
 
+rule file_ilk_uint256(bytes32 ilk, bytes32 what, uint256 data) {
+    env e;
+
+    file(e, ilk, what, data);
+
+    assert(tau(ilk) == data, "file did not set tau as expected");
+}
+
+rule file_ilk_uint256_revert(bytes32 ilk, bytes32 what, uint256 data) {
+    env e;
+
+    uint256 ward = wards(e.msg.sender);
+
+    file@withrevert(e, ilk, what, data);
+
+    bool revert1 = e.msg.value > 0;
+    bool revert2 = ward != 1;
+    bool revert3 = what != 0x7461750000000000000000000000000000000000000000000000000000000000;
+
+    assert(revert1 => lastReverted, "revert1 failed");
+    assert(revert2 => lastReverted, "revert2 failed");
+    assert(revert3 => lastReverted, "revert3 failed");
+
+    assert(lastReverted => revert1 || revert2 || revert3, "Revert rules are not covering all the cases");
+}
+
 rule exec_normal(bytes32 ilk) {
     env e;
 
