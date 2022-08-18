@@ -611,6 +611,63 @@ rule cull(bytes32 ilk) {
     assert(vatViceAfter == vatViceBefore + artBefore * RAY(), "vatVice did not increase as expected");
 }
 
+rule cull_revert(bytes32 ilk) {
+    env e;
+
+    uint256 vatLive = vat.live();
+    uint256 tic = tic(ilk);
+    uint256 ward = wards(e.msg.sender);
+    uint256 culled = culled(ilk);
+    uint256 ink;
+    uint256 art;
+    ink, art = vat.urns(ilk, pool(ilk));
+    uint256 vatWard = vat.wards(currentContract);
+    uint256 Art;
+    uint256 rate;
+    uint256 spot;
+    uint256 line;
+    uint256 dust;
+    Art, rate, spot, line, dust = vat.ilks(ilk);
+    require(Art >= art);
+    require(rate == RAY());
+    uint256 gem = vat.gem(ilk, pool(ilk));
+    uint256 sin = vat.sin(vow());
+    uint256 vice = vat.vice();
+
+    cull@withrevert(e, ilk);
+
+    bool revert1  = e.msg.value > 0;
+    bool revert2  = vatLive != 1;
+    bool revert3  = tic == 0;
+    bool revert4  = tic > e.block.timestamp && ward != 1;
+    bool revert5  = culled != 0;
+    bool revert6  = ink > max_int256();
+    bool revert7  = art > max_int256();
+    bool revert8  = vatWard != 1;
+    bool revert9  = to_mathint(rate) * -1 * to_mathint(art) < min_int256();
+    bool revert10 = gem + ink > max_uint256;
+    bool revert11 = sin + art * RAY() > max_uint256;
+    bool revert12 = vice + art * RAY() > max_uint256;
+
+    assert(revert1  => lastReverted, "revert1 failed");
+    assert(revert2  => lastReverted, "revert2 failed");
+    assert(revert3  => lastReverted, "revert3 failed");
+    assert(revert4  => lastReverted, "revert4 failed");
+    assert(revert5  => lastReverted, "revert5 failed");
+    assert(revert6  => lastReverted, "revert6 failed");
+    assert(revert7  => lastReverted, "revert7 failed");
+    assert(revert8  => lastReverted, "revert8 failed");
+    assert(revert9  => lastReverted, "revert9 failed");
+    assert(revert10 => lastReverted, "revert10 failed");
+    assert(revert11 => lastReverted, "revert11 failed");
+    assert(revert12 => lastReverted, "revert12 failed");
+
+    assert(lastReverted => revert1  || revert2  || revert3 ||
+                           revert4  || revert5  || revert6 ||
+                           revert7  || revert8  || revert9 ||
+                           revert10 || revert11 || revert12, "Revert rules are not covering all the cases");
+}
+
 rule uncull(bytes32 ilk) {
     env e;
 
