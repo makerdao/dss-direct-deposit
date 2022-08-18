@@ -19,6 +19,7 @@ methods {
     tic(bytes32) returns (uint256) envfree
     tau(bytes32) returns (uint256) envfree
     culled(bytes32) returns (uint256) envfree
+    wards(address) returns (uint256) envfree
     vat.can(address, address) returns (uint256) envfree
     vat.debt() returns (uint256) envfree
     vat.dai(address) returns (uint256) envfree
@@ -540,6 +541,38 @@ rule cage(bytes32 ilk) {
     cage(e, ilk);
 
     assert(tic(ilk) == e.block.timestamp + tau(ilk), "tic was not set as expected");
+}
+
+rule cage_revert(bytes32 ilk) {
+    env e;
+
+    require(vat() == vat);
+    require(pool(ilk) == pool);
+    require(pool.hub() == currentContract);
+    require(pool.vat() == vat);
+    require(pool.share() == share);
+
+    uint256 ward = wards(e.msg.sender);
+    uint256 vatLive = vat.live();
+    uint256 tic = tic(ilk);
+    uint256 tau = tau(ilk);
+
+    cage@withrevert(e, ilk);
+
+    bool revert1 = e.msg.value > 0;
+    bool revert2 = ward != 1;
+    bool revert3 = vatLive != 1;
+    bool revert4 = tic != 0;
+    bool revert5 = e.block.timestamp + tau > max_uint256;
+
+    assert(revert1 => lastReverted, "revert1 failed");
+    assert(revert2 => lastReverted, "revert2 failed");
+    assert(revert3 => lastReverted, "revert3 failed");
+    assert(revert4 => lastReverted, "revert4 failed");
+    assert(revert5 => lastReverted, "revert5 failed");
+
+    assert(lastReverted => revert1 || revert2 || revert3 ||
+                           revert4 || revert5, "Revert rules are not covering all the cases");
 }
 
 rule cull(bytes32 ilk) {
