@@ -149,6 +149,40 @@ rule file_ilk_uint256_revert(bytes32 ilk, bytes32 what, uint256 data) {
     assert(lastReverted => revert1 || revert2 || revert3, "Revert rules are not covering all the cases");
 }
 
+rule file_ilk_address(bytes32 ilk, bytes32 what, address data) {
+    env e;
+
+    file(e, ilk, what, data);
+
+    assert(what == 0x706f6f6c00000000000000000000000000000000000000000000000000000000 => pool(ilk) == data, "file did not set pool as expected");
+    assert(what == 0x706c616e00000000000000000000000000000000000000000000000000000000 => plan(ilk) == data, "file did not set plan as expected");
+}
+
+rule file_ilk_address_revert(bytes32 ilk, bytes32 what, address data) {
+    env e;
+
+    uint256 ward = wards(e.msg.sender);
+    uint256 vatLive = vat.live();
+    uint256 tic = tic(ilk);
+
+    file@withrevert(e, ilk, what, data);
+
+    bool revert1 = e.msg.value > 0;
+    bool revert2 = ward != 1;
+    bool revert3 = vatLive != 1;
+    bool revert4 = tic != 0;
+    bool revert5 = what != 0x706f6f6c00000000000000000000000000000000000000000000000000000000 && what != 0x706c616e00000000000000000000000000000000000000000000000000000000;
+
+    assert(revert1 => lastReverted, "revert1 failed");
+    assert(revert2 => lastReverted, "revert2 failed");
+    assert(revert3 => lastReverted, "revert3 failed");
+    assert(revert4 => lastReverted, "revert4 failed");
+    assert(revert5 => lastReverted, "revert5 failed");
+
+    assert(lastReverted => revert1 || revert2 || revert3 ||
+                           revert4 || revert5, "Revert rules are not covering all the cases");
+}
+
 rule exec_normal(bytes32 ilk) {
     env e;
 
