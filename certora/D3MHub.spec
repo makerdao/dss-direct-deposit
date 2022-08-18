@@ -630,9 +630,9 @@ rule cull_revert(bytes32 ilk) {
     Art, rate, spot, line, dust = vat.ilks(ilk);
     require(Art >= art);
     require(rate == RAY());
-    uint256 gem = vat.gem(ilk, pool(ilk));
-    uint256 sin = vat.sin(vow());
-    uint256 vice = vat.vice();
+    uint256 vatGemPool = vat.gem(ilk, pool(ilk));
+    uint256 vatSinVow = vat.sin(vow());
+    uint256 vatVice = vat.vice();
 
     cull@withrevert(e, ilk);
 
@@ -645,9 +645,9 @@ rule cull_revert(bytes32 ilk) {
     bool revert7  = art > max_int256();
     bool revert8  = vatWard != 1;
     bool revert9  = to_mathint(rate) * -1 * to_mathint(art) < min_int256();
-    bool revert10 = gem + ink > max_uint256;
-    bool revert11 = sin + art * RAY() > max_uint256;
-    bool revert12 = vice + art * RAY() > max_uint256;
+    bool revert10 = vatGemPool + ink > max_uint256;
+    bool revert11 = vatSinVow + art * RAY() > max_uint256;
+    bool revert12 = vatVice + art * RAY() > max_uint256;
 
     assert(revert1  => lastReverted, "revert1 failed");
     assert(revert2  => lastReverted, "revert2 failed");
@@ -705,4 +705,63 @@ rule uncull(bytes32 ilk) {
     assert(vatGemPoolAfter == 0, "vatGemPool did not descrease to 0 as expected");
     assert(culledAfter == 0, "culled was not set to 0 as expected");
     assert(vatDaiVowAfter == vatDaiVowBefore + vatGemPoolBefore * RAY(), "vatDaiVow did not increase as expected");
+}
+
+rule uncull_revert(bytes32 ilk) {
+    env e;
+
+    uint256 culled = culled(ilk);
+    uint256 vatLive = vat.live();
+    uint256 vatGemPool = vat.gem(ilk, pool(ilk));
+    uint256 vatWard = vat.wards(currentContract);
+    uint256 vatSinVow = vat.sin(vow());
+    uint256 vatDaiVow = vat.dai(vow());
+    uint256 vatVice = vat.vice();
+    uint256 vatDebt = vat.debt();
+    uint256 Art;
+    uint256 rate;
+    uint256 spot;
+    uint256 line;
+    uint256 dust;
+    Art, rate, spot, line, dust = vat.ilks(ilk);
+    require(rate == RAY());
+    uint256 ink;
+    uint256 art;
+    ink, art = vat.urns(ilk, pool(ilk));
+
+    uncull@withrevert(e, ilk);
+
+    bool revert1  = e.msg.value > 0;
+    bool revert2  = culled != 1;
+    bool revert3  = vatLive != 0;
+    bool revert4  = vatGemPool > max_int256();
+    bool revert5  = vatWard != 1;
+    bool revert6  = vatSinVow + vatGemPool * RAY() > max_uint256;
+    bool revert7  = vatDaiVow + vatGemPool * RAY() > max_uint256;
+    bool revert8  = vatVice + vatGemPool * RAY() > max_uint256;
+    bool revert9  = vatDebt + vatGemPool * RAY() > max_uint256;
+    bool revert10 = ink + vatGemPool > max_uint256;
+    bool revert11 = art + vatGemPool > max_uint256;
+    bool revert12 = Art + vatGemPool > max_uint256;
+    bool revert13 = rate * vatGemPool > max_int256();
+
+    assert(revert1  => lastReverted, "revert1 failed");
+    assert(revert2  => lastReverted, "revert2 failed");
+    assert(revert3  => lastReverted, "revert3 failed");
+    assert(revert4  => lastReverted, "revert4 failed");
+    assert(revert5  => lastReverted, "revert5 failed");
+    assert(revert6  => lastReverted, "revert6 failed");
+    assert(revert7  => lastReverted, "revert7 failed");
+    assert(revert8  => lastReverted, "revert8 failed");
+    assert(revert9  => lastReverted, "revert9 failed");
+    assert(revert10 => lastReverted, "revert10 failed");
+    assert(revert11 => lastReverted, "revert11 failed");
+    assert(revert12 => lastReverted, "revert12 failed");
+    assert(revert13 => lastReverted, "revert13 failed");
+
+    assert(lastReverted => revert1  || revert2  || revert3  ||
+                           revert4  || revert5  || revert6  ||
+                           revert7  || revert8  || revert9  ||
+                           revert10 || revert11 || revert12 ||
+                           revert13, "Revert rules are not covering all the cases");
 }
