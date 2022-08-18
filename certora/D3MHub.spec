@@ -65,6 +65,64 @@ definition RAY() returns uint256 = 10^27;
 definition min_int256() returns mathint = -1 * 2^255;
 definition max_int256() returns mathint = 2^255 - 1;
 
+rule rely(address usr) {
+    env e;
+
+    address other;
+    require(other != usr);
+    uint256 wardOther = wards(other);
+
+    rely(e, usr);
+
+    assert(wards(usr) == 1, "rely did not set the wards as expected");
+    assert(wards(other) == wardOther, "rely affected other wards which wasn't expected");
+}
+
+rule rely_revert(address usr) {
+    env e;
+
+    uint256 ward = wards(e.msg.sender);
+
+    rely@withrevert(e, usr);
+
+    bool revert1 = e.msg.value > 0;
+    bool revert2 = ward != 1;
+
+    assert(revert1 => lastReverted, "revert1 failed");
+    assert(revert2 => lastReverted, "revert2 failed");
+
+    assert(lastReverted => revert1 || revert2, "Revert rules are not covering all the cases");
+}
+
+rule deny(address usr) {
+    env e;
+
+    address other;
+    require(other != usr);
+    uint256 wardOther = wards(other);
+
+    deny(e, usr);
+
+    assert(wards(usr) == 0, "deny did not set the wards as expected");
+    assert(wards(other) == wardOther, "deny affected other wards which wasn't expected");
+}
+
+rule deny_revert(address usr) {
+    env e;
+
+    uint256 ward = wards(e.msg.sender);
+
+    deny@withrevert(e, usr);
+
+    bool revert1 = e.msg.value > 0;
+    bool revert2 = ward != 1;
+
+    assert(revert1 => lastReverted, "revert1 failed");
+    assert(revert2 => lastReverted, "revert2 failed");
+
+    assert(lastReverted => revert1 || revert2, "Revert rules are not covering all the cases");
+}
+
 rule exec_normal(bytes32 ilk) {
     env e;
 
