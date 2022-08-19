@@ -493,6 +493,102 @@ rule exec_ilk_culled(bytes32 ilk) {
     assert(vatDaiVowAfter == vatDaiVowBefore + (assetsBefore - assetsAfter) * RAY(), "vatDaiVow did not increase as expected");
 }
 
+rule exec_ilk_culled_revert(bytes32 ilk) {
+    env e;
+
+    address vow = vow();
+
+    require(vat() == vat);
+    require(daiJoin() == daiJoin);
+    require(plan(ilk) == plan);
+    require(pool(ilk) == pool);
+    require(vow != daiJoin);
+    require(daiJoin.dai() == dai);
+    require(daiJoin.vat() == vat);
+    require(plan.dai() == dai);
+    require(pool.hub() == currentContract);
+    require(pool.vat() == vat);
+    require(pool.dai() == dai);
+
+    uint256 locked = locked();
+    uint256 Art;
+    uint256 rate;
+    uint256 spot;
+    uint256 line;
+    uint256 dust;
+    Art, rate, spot, line, dust = vat.ilks(ilk);
+    uint256 ink;
+    uint256 art;
+    ink, art = vat.urns(ilk, pool);
+    require(Art >= art);
+
+    uint256 maxWithdraw = pool.maxWithdraw(e);
+    uint256 assets = pool.assetBalance(e);
+
+    require(vat.live() == 1);
+    require(ink >= art);
+    require(assets >= ink);
+
+    cull(e, ilk);
+
+    uint256 vatGemPool = vat.gem(ilk, pool);
+    require(ink == 0 || vatGemPool == 0); // To ensure correct behavior
+    uint256 toSlip = vatGemPool < maxWithdraw ? vatGemPool : maxWithdraw;
+    uint256 vatWardHub = vat.wards(currentContract);
+    uint256 shareBalPool = share.balanceOf(pool);
+    uint256 shareSupply = share.totalSupply();
+    require(shareSupply >= shareBalPool); // To ensure correct behaviour
+    uint256 daiBalShare = dai.balanceOf(share);
+    uint256 daiSupply = dai.totalSupply();
+    require(daiSupply >= daiBalShare); // To ensure correct behaviour
+    uint256 daiAllowanceSharePool = dai.allowance(share, pool);
+    uint256 daiBalHub = dai.balanceOf(currentContract);
+    uint256 vatDaiDaiJoin = vat.dai(daiJoin);
+    uint256 daiAllowanceHubDaiJoin = dai.allowance(currentContract, daiJoin);
+    uint256 vatDaiHub = vat.dai(currentContract);
+    uint256 vatDaiVow = vat.dai(vow);
+
+    exec@withrevert(e, ilk);
+
+    bool revert1  = e.msg.value > 0;
+    bool revert2  = locked != 0;
+    bool revert3  = rate != RAY();
+    bool revert4  = spot != RAY();
+    bool revert5  = maxWithdraw > 0 && toSlip > max_int256();
+    bool revert6  = maxWithdraw > 0 && vatWardHub != 1;
+    bool revert7  = maxWithdraw > 0 && shareBalPool < maxWithdraw;
+    bool revert8  = maxWithdraw > 0 && daiBalShare < maxWithdraw;
+    bool revert9  = maxWithdraw > 0 && daiAllowanceSharePool < maxWithdraw;
+    bool revert10 = maxWithdraw > 0 && daiBalHub + maxWithdraw > max_uint256;
+    bool revert11 = maxWithdraw > 0 && maxWithdraw * RAY() > max_uint256;
+    bool revert12 = maxWithdraw > 0 && vatDaiDaiJoin < maxWithdraw * RAY();
+    bool revert13 = maxWithdraw > 0 && daiAllowanceHubDaiJoin < maxWithdraw;
+    bool revert14 = maxWithdraw > 0 && vatDaiHub + maxWithdraw * RAY() > max_uint256;
+    bool revert15 = maxWithdraw > 0 && vatDaiVow + maxWithdraw * RAY() > max_uint256;
+
+    assert(revert1  => lastReverted, "revert1 failed");
+    assert(revert2  => lastReverted, "revert2 failed");
+    assert(revert3  => lastReverted, "revert3 failed");
+    assert(revert4  => lastReverted, "revert4 failed");
+    assert(revert5  => lastReverted, "revert5 failed");
+    assert(revert6  => lastReverted, "revert6 failed");
+    assert(revert7  => lastReverted, "revert7 failed");
+    assert(revert8  => lastReverted, "revert8 failed");
+    assert(revert9  => lastReverted, "revert9 failed");
+    assert(revert10 => lastReverted, "revert10 failed");
+    assert(revert11 => lastReverted, "revert11 failed");
+    assert(revert12 => lastReverted, "revert12 failed");
+    assert(revert13 => lastReverted, "revert13 failed");
+    assert(revert14 => lastReverted, "revert14 failed");
+    assert(revert15 => lastReverted, "revert15 failed");
+
+    assert(lastReverted => revert1  || revert2  || revert3  ||
+                           revert4  || revert5  || revert6  ||
+                           revert7  || revert8  || revert9  ||
+                           revert10 || revert11 || revert12 ||
+                           revert13 || revert14 || revert15, "Revert rules are not covering all the cases");
+}
+
 rule exec_vat_caged(bytes32 ilk) {
     env e;
 
@@ -590,8 +686,6 @@ rule exec_vat_caged_revert(bytes32 ilk) {
     require(pool.dai() == dai);
 
     uint256 locked = locked();
-    uint256 Line = vat.Line();
-    uint256 debt = vat.debt();
     uint256 Art;
     uint256 rate;
     uint256 spot;
@@ -607,7 +701,6 @@ rule exec_vat_caged_revert(bytes32 ilk) {
 
     uint256 maxWithdraw = pool.maxWithdraw(e);
     uint256 assets = pool.assetBalance(e);
-    uint256 targetAssets = plan.getTargetAssets(e, assets);
 
     require(vat.live() == 0);
     uint256 tag = end.tag(ilk);
@@ -623,6 +716,8 @@ rule exec_vat_caged_revert(bytes32 ilk) {
     require(ink == 0 || vatGemEnd == 0); // To ensure correct behavior
     uint256 vatSinVow = vat.sin(vow);
     uint256 vatVice = vat.vice();
+    uint256 toSlip = vatGemEnd < maxWithdraw ? vatGemEnd : maxWithdraw;
+    uint256 vatWardHub = vat.wards(currentContract);
     uint256 shareBalPool = share.balanceOf(pool);
     uint256 shareSupply = share.totalSupply();
     require(shareSupply >= shareBalPool); // To ensure correct behaviour
@@ -633,8 +728,6 @@ rule exec_vat_caged_revert(bytes32 ilk) {
     uint256 daiBalHub = dai.balanceOf(currentContract);
     uint256 vatDaiDaiJoin = vat.dai(daiJoin);
     uint256 daiAllowanceHubDaiJoin = dai.allowance(currentContract, daiJoin);
-    uint256 toSlip = vatGemEnd < maxWithdraw ? vatGemEnd : maxWithdraw;
-    uint256 vatWardHub = vat.wards(currentContract);
     uint256 vatDaiHub = vat.dai(currentContract);
     uint256 vatDaiVow = vat.dai(vow);
 
