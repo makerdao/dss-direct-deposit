@@ -34,15 +34,21 @@ methods {
     vat.wards(address) returns (uint256) envfree
     dai.allowance(address, address) returns (uint256) envfree
     dai.balanceOf(address) returns (uint256) envfree
+    dai.totalSupply() returns (uint256) envfree
     daiJoin.dai() returns (address) envfree
     daiJoin.vat() returns (address) envfree
-    end.vat() returns (address) envfree
+    end.debt() returns (uint256) envfree
+    end.gap(bytes32) returns (uint256) envfree
     end.tag(bytes32) returns (uint256) envfree
+    end.vat() returns (address) envfree
+    end.vow() returns (address) envfree
     plan.dai() returns (address) envfree
     pool.hub() returns (address) envfree
     pool.vat() returns (address) envfree
     pool.dai() returns (address) envfree
     pool.share() returns (address) envfree
+    share.balanceOf(address) returns (uint256) envfree
+    share.totalSupply() returns (uint256) envfree
     debt() returns (uint256) => DISPATCHER(true)
     skim(bytes32, address) => DISPATCHER(true)
     active() returns (bool) => DISPATCHER(true)
@@ -563,6 +569,144 @@ rule exec_vat_caged(bytes32 ilk) {
     assert(vatDaiVowAfter == vatDaiVowBefore + (assetsBefore - assetsAfter) * RAY(), "vatDaiVow did not increase as expected");
 }
 
+rule exec_vat_caged_revert(bytes32 ilk) {
+    env e;
+
+    address vow = vow();
+
+    require(vat() == vat);
+    require(daiJoin() == daiJoin);
+    require(end() == end);
+    require(plan(ilk) == plan);
+    require(pool(ilk) == pool);
+    require(vow != daiJoin);
+    require(daiJoin.dai() == dai);
+    require(daiJoin.vat() == vat);
+    require(end.vat() == vat);
+    require(end.vow() == vow);
+    require(plan.dai() == dai);
+    require(pool.hub() == currentContract);
+    require(pool.vat() == vat);
+    require(pool.dai() == dai);
+
+    uint256 locked = locked();
+    uint256 Line = vat.Line();
+    uint256 debt = vat.debt();
+    uint256 Art;
+    uint256 rate;
+    uint256 spot;
+    uint256 line;
+    uint256 dust;
+    Art, rate, spot, line, dust = vat.ilks(ilk);
+    uint256 ink;
+    uint256 art;
+    ink, art = vat.urns(ilk, pool);
+    require(Art >= art);
+    uint256 endDebt = end.debt();
+    uint256 culled = culled(ilk);
+
+    uint256 maxWithdraw = pool.maxWithdraw(e);
+    uint256 assets = pool.assetBalance(e);
+    uint256 targetAssets = plan.getTargetAssets(e, assets);
+
+    require(vat.live() == 0);
+    uint256 tag = end.tag(ilk);
+    require(tag == RAY());
+    require(ink >= art);
+    require(assets >= ink);
+
+    uint256 vatWardEnd = vat.wards(end);
+    uint256 gap = end.gap(ilk);
+    uint256 owe   = art * rate / RAY() * tag / RAY();
+    uint256 wad   = ink < owe ? ink : owe;
+    uint256 vatGemEnd = vat.gem(ilk, end);
+    require(ink == 0 || vatGemEnd == 0); // To ensure correct behavior
+    uint256 vatSinVow = vat.sin(vow);
+    uint256 vatVice = vat.vice();
+    uint256 shareBalPool = share.balanceOf(pool);
+    uint256 shareSupply = share.totalSupply();
+    require(shareSupply >= shareBalPool); // To ensure correct behaviour
+    uint256 daiBalShare = dai.balanceOf(share);
+    uint256 daiSupply = dai.totalSupply();
+    require(daiSupply >= daiBalShare); // To ensure correct behaviour
+    uint256 daiAllowanceSharePool = dai.allowance(share, pool);
+    uint256 daiBalHub = dai.balanceOf(currentContract);
+    uint256 vatDaiDaiJoin = vat.dai(daiJoin);
+    uint256 daiAllowanceHubDaiJoin = dai.allowance(currentContract, daiJoin);
+    uint256 toSlip = vatGemEnd < maxWithdraw ? vatGemEnd : maxWithdraw;
+    uint256 vatWardHub = vat.wards(currentContract);
+    uint256 vatDaiHub = vat.dai(currentContract);
+    uint256 vatDaiVow = vat.dai(vow);
+
+    exec@withrevert(e, ilk);
+
+    bool revert1  = e.msg.value > 0;
+    bool revert2  = locked != 0;
+    bool revert3  = rate != RAY();
+    bool revert4  = spot != RAY();
+    bool revert5  = endDebt != 0;
+    bool revert6  = culled != 0;
+    bool revert7  = art * rate > max_uint256;
+    bool revert8  = art * tag > max_uint256;
+    bool revert9  = gap + (owe - wad) > max_uint256;
+    bool revert10 = wad > max_int256() + 1;
+    bool revert11 = art > max_int256() + 1;
+    bool revert12 = vatWardEnd != 1;
+    bool revert13 = to_mathint(rate) * -1 * to_mathint(art) < min_int256();
+    bool revert14 = vatGemEnd + wad > max_uint256;
+    bool revert15 = vatSinVow + art * RAY() > max_uint256;
+    bool revert16 = vatVice + art * RAY() > max_uint256;
+    bool revert17 = maxWithdraw > 0 && toSlip > max_int256();
+    bool revert18 = maxWithdraw > 0 && vatWardHub != 1;
+    bool revert19 = maxWithdraw > 0 && shareBalPool < maxWithdraw;
+    bool revert20 = maxWithdraw > 0 && daiBalShare < maxWithdraw;
+    bool revert21 = maxWithdraw > 0 && daiAllowanceSharePool < maxWithdraw;
+    bool revert22 = maxWithdraw > 0 && daiBalHub + maxWithdraw > max_uint256;
+    bool revert23 = maxWithdraw > 0 && maxWithdraw * RAY() > max_uint256;
+    bool revert24 = maxWithdraw > 0 && vatDaiDaiJoin < maxWithdraw * RAY();
+    bool revert25 = maxWithdraw > 0 && daiAllowanceHubDaiJoin < maxWithdraw;
+    bool revert26 = maxWithdraw > 0 && vatDaiHub + maxWithdraw * RAY() > max_uint256;
+    bool revert27 = maxWithdraw > 0 && vatDaiVow + maxWithdraw * RAY() > max_uint256;
+
+    assert(revert1  => lastReverted, "revert1 failed");
+    assert(revert2  => lastReverted, "revert2 failed");
+    assert(revert3  => lastReverted, "revert3 failed");
+    assert(revert4  => lastReverted, "revert4 failed");
+    assert(revert5  => lastReverted, "revert5 failed");
+    assert(revert6  => lastReverted, "revert6 failed");
+    assert(revert7  => lastReverted, "revert7 failed");
+    assert(revert8  => lastReverted, "revert8 failed");
+    assert(revert9  => lastReverted, "revert9 failed");
+    assert(revert10 => lastReverted, "revert10 failed");
+    assert(revert11 => lastReverted, "revert11 failed");
+    assert(revert12 => lastReverted, "revert12 failed");
+    assert(revert13 => lastReverted, "revert13 failed");
+    assert(revert14 => lastReverted, "revert14 failed");
+    assert(revert15 => lastReverted, "revert15 failed");
+    assert(revert16 => lastReverted, "revert16 failed");
+    assert(revert17 => lastReverted, "revert17 failed");
+    assert(revert18 => lastReverted, "revert18 failed");
+    assert(revert19 => lastReverted, "revert19 failed");
+    assert(revert20 => lastReverted, "revert20 failed");
+    assert(revert21 => lastReverted, "revert21 failed");
+    assert(revert22 => lastReverted, "revert22 failed");
+    assert(revert23 => lastReverted, "revert23 failed");
+    assert(revert24 => lastReverted, "revert24 failed");
+    assert(revert25 => lastReverted, "revert25 failed");
+    assert(revert26 => lastReverted, "revert26 failed");
+    assert(revert27 => lastReverted, "revert27 failed");
+
+    assert(lastReverted => revert1  || revert2  || revert3  ||
+                           revert4  || revert5  || revert6  ||
+                           revert7  || revert8  || revert9  ||
+                           revert10 || revert11 || revert12 ||
+                           revert13 || revert14 || revert15 ||
+                           revert16 || revert17 || revert18 ||
+                           revert19 || revert20 || revert21 ||
+                           revert22 || revert23 || revert24 ||
+                           revert25 || revert26 || revert27, "Revert rules are not covering all the cases");
+}
+
 rule exec_exec(bytes32 ilk) {
     env e;
 
@@ -614,12 +758,12 @@ rule exit(bytes32 ilk, address usr, uint256 wad) {
     require(pool.share() == share);
 
     uint256 vatGemSenderBefore = vat.gem(ilk, e.msg.sender);
-    uint256 poolShareUsrBefore = share.balanceOf(e, usr);
+    uint256 poolShareUsrBefore = share.balanceOf(usr);
 
     exit(e, ilk, usr, wad);
 
     uint256 vatGemSenderAfter = vat.gem(ilk, e.msg.sender);
-    uint256 poolShareUsrAfter = share.balanceOf(e, usr);
+    uint256 poolShareUsrAfter = share.balanceOf(usr);
 
     assert(vatGemSenderAfter == vatGemSenderBefore - wad, "vatGemSender did not decrease by wad amount");
     assert(usr != pool => poolShareUsrAfter == poolShareUsrBefore + wad, "poolShareUsr did not increase by wad amount");
@@ -637,8 +781,8 @@ rule exit_revert(bytes32 ilk, address usr, uint256 wad) {
     uint256 locked = locked();
     uint256 gem = vat.gem(ilk, e.msg.sender);
     uint256 vatWard = vat.wards(currentContract);
-    uint256 balPool = share.balanceOf(e, pool);
-    uint256 balUsr = share.balanceOf(e, usr);
+    uint256 balPool = share.balanceOf(pool);
+    uint256 balUsr = share.balanceOf(usr);
 
     exit@withrevert(e, ilk, usr, wad);
 
