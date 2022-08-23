@@ -8,9 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        d3m:
-          - hub
 
     steps:
       - name: Checkout
@@ -37,9 +34,29 @@ jobs:
         run: solc-select install 0.8.14
 
       - name: Install Certora
-        run: pip3 install certora-cli==3.3.2
+        run: pip3 install certora-cli-alpha-master
 
-      - name: Verify ${{ matrix.d3m }}
-        run: make certora-${{ matrix.d3m }}
+      - name: Certora Hub admin & getters
+        run: make certora-hub short=1 rule="rely rely_revert deny deny_revert file_ilk_uint256 file_ilk_uint256_revert file_ilk_address file_ilk_address_revert ilk_getters"
+        env:
+          CERTORAKEY: ${{ secrets.CERTORAKEY }}
+
+      - name: Certora Hub exit, cage, cull, uncull and their reverts
+        run: make certora-hub short=1 rule="exit exit_revert cage cage_revert cull cull_revert uncull uncull_revert"
+        env:
+          CERTORAKEY: ${{ secrets.CERTORAKEY }}
+
+      - name: Certora Hub exec non revert
+        run: make certora-hub short=1 rule="exec_normal exec_ilk_culled exec_vat_caged"
+        env:
+          CERTORAKEY: ${{ secrets.CERTORAKEY }}
+
+      - name: Certora Hub exec ilk culled and vat caged revert
+        run: make certora-hub short=1 rule="exec_ilk_culled_revert exec_vat_caged_revert"
+        env:
+          CERTORAKEY: ${{ secrets.CERTORAKEY }}
+
+      - name: Certora Hub double exec
+        run: make certora-hub short=1 rule="exec_exec"
         env:
           CERTORAKEY: ${{ secrets.CERTORAKEY }}
