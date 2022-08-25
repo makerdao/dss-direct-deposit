@@ -35,7 +35,9 @@ methods {
     dai.allowance(address, address) returns (uint256) envfree
     dai.balanceOf(address) returns (uint256) envfree
     dai.totalSupply() returns (uint256) envfree
+    dai.wards(address) returns (uint256) envfree
     daiJoin.dai() returns (address) envfree
+    daiJoin.live() returns (uint256) envfree
     daiJoin.vat() returns (address) envfree
     end.debt() returns (uint256) envfree
     end.gap(bytes32) returns (uint256) envfree
@@ -49,6 +51,7 @@ methods {
     pool.share() returns (address) envfree
     share.balanceOf(address) returns (uint256) envfree
     share.totalSupply() returns (uint256) envfree
+    share.wards(address) returns (uint256) envfree
     debt() returns (uint256) => DISPATCHER(true)
     skim(bytes32, address) => DISPATCHER(true)
     active() returns (bool) => DISPATCHER(true)
@@ -71,6 +74,11 @@ definition RAY() returns uint256 = 10^27;
 
 definition min_int256() returns mathint = -1 * 2^255;
 definition max_int256() returns mathint = 2^255 - 1;
+
+definition min(mathint x, mathint y) returns mathint = x < y ? x : y;
+definition max(mathint x, mathint y) returns mathint = x > y ? x : y;
+
+definition divup(mathint x, mathint y) returns mathint = x != 0 ? ((x - 1) / y) + 1 : 0;
 
 rule rely(address usr) {
     env e;
@@ -419,6 +427,239 @@ rule exec_normal(bytes32 ilk) {
         inkBefore > lineWad
             => artAfter == inkBefore, "unwind: error 11"
     );
+}
+
+rule exec_normal_revert(bytes32 ilk) {
+    env e;
+
+    address vow = vow();
+
+    require(vat() == vat);
+    require(daiJoin() == daiJoin);
+    require(plan(ilk) == plan);
+    require(pool(ilk) == pool);
+    require(vow != currentContract);
+    require(vow != daiJoin);
+    require(daiJoin.dai() == dai);
+    require(daiJoin.vat() == vat);
+    require(plan.dai() == dai);
+    require(pool.hub() == currentContract);
+    require(pool.vat() == vat);
+    require(pool.dai() == dai);
+
+    uint256 locked = locked();
+    uint256 Line = vat.Line();
+    uint256 Art;
+    uint256 rate;
+    uint256 spot;
+    uint256 line;
+    uint256 dust;
+    Art, rate, spot, line, dust = vat.ilks(ilk);
+    uint256 ink;
+    uint256 art;
+    ink, art = vat.urns(ilk, pool);
+    uint256 assets = pool.assetBalance(e);
+
+    require(vat.live() == 1);
+    require(culled(ilk) == 0);
+    require(ink >= art);
+    require(assets >= ink);
+    require(dust == 0);
+    require(dai.wards(daiJoin) == 1);
+    require(share.wards(pool) == 1);
+
+    uint256 maxWithdraw = pool.maxWithdraw(e);
+    uint256 maxDeposit = pool.maxDeposit(e);
+    uint256 lineWad = line / RAY();
+    uint256 debt = vat.debt();
+    uint256 underLine = ink < lineWad ? lineWad - ink : 0;
+    uint256 fixInk = assets > ink
+                     ? assets - ink < underLine + maxWithdraw
+                        ? assets - ink
+                        : underLine + maxWithdraw
+                     : 0;
+    mathint inkFixed = ink + fixInk;
+    mathint fixArt = inkFixed - art;
+    mathint artFixed = art + fixArt;
+    mathint debtMiddle = debt + fixArt * RAY();
+
+    uint256 tic = tic(ilk);
+    bool active = plan.active(e);
+
+    uint256 targetAssets = plan.getTargetAssets(e, assets);
+
+    mathint toUnwindAux = (tic > 0 || !active)
+                        ? to_mathint(max_uint256)
+                        : max(
+                            artFixed > lineWad ? artFixed - to_mathint(lineWad) : 0,
+                            max(
+                                debtMiddle > Line ? divup(debtMiddle - to_mathint(Line), to_mathint(RAY())) : 0,
+                                targetAssets < assets ? to_mathint(assets - targetAssets) : 0
+                            )
+                        );
+    mathint toUnwind = toUnwindAux > 0 ? min(toUnwindAux, to_mathint(maxWithdraw)) : 0;
+
+    mathint toWind = toUnwindAux == 0
+                    ? min(
+                        to_mathint(lineWad - artFixed),
+                        min(
+                            (to_mathint(Line) - debtMiddle) / to_mathint(RAY()),
+                            min(
+                                to_mathint(targetAssets - assets),
+                                to_mathint(maxDeposit)
+                            )
+                        )
+                    )
+                    : 0;
+
+    uint256 vatGemPool = vat.gem(ilk, pool);
+    require(ink == 0 || vatGemPool == 0); // To ensure correct behavior
+    uint256 toSlip = vatGemPool < maxWithdraw ? vatGemPool : maxWithdraw;
+    uint256 vatWardHub = vat.wards(currentContract);
+    uint256 shareBalPool = share.balanceOf(pool);
+    uint256 shareSupply = share.totalSupply();
+    require(shareSupply >= shareBalPool); // To ensure correct behaviour
+    uint256 daiBalShare = dai.balanceOf(share);
+    uint256 daiBalPool = dai.balanceOf(pool);
+    uint256 daiSupply = dai.totalSupply();
+    require(daiSupply >= daiBalShare + daiBalPool); // To ensure correct behaviour
+    uint256 daiAllowanceSharePool = dai.allowance(share, pool);
+    uint256 daiBalHub = dai.balanceOf(currentContract);
+    uint256 vatDaiDaiJoin = vat.dai(daiJoin);
+    uint256 vatDaiHub = vat.dai(currentContract);
+    uint256 daiAllowanceHubDaiJoin = dai.allowance(currentContract, daiJoin);
+    uint256 vatSinVow = vat.sin(vow);
+    uint256 vatDaiVow = vat.dai(vow);
+    uint256 vatVice = vat.vice();
+    uint256 vatDebt = vat.debt();
+    require(vatDebt >= art * rate); // To ensure correct behaviour
+    uint256 vatCanPoolHub = vat.can(pool, currentContract);
+    uint256 vatCanHubDaiJoin = vat.can(currentContract, daiJoin);
+    uint256 daiJoinLive = daiJoin.live();
+
+    exec@withrevert(e, ilk);
+
+    bool revert1  = e.msg.value > 0;
+    bool revert2  = locked != 0;
+    bool revert3  = rate != RAY();
+    bool revert4  = spot != RAY();
+    bool revert5  = art != Art;
+    bool revert6  = assets > ink && ink < lineWad && (lineWad - ink) + maxWithdraw > max_uint256;
+    bool revert7  = assets > ink && fixInk > max_int256();
+    // vat.slip:
+    bool revert8  = assets > ink && vatWardHub != 1;
+    bool revert9  = assets > ink && vatGemPool + fixInk > max_uint256;
+    // vat.frob:
+    bool revert10 = assets > ink && fixInk > 0 && vatCanPoolHub != 1;
+    bool revert11 = assets > ink && inkFixed > max_uint256;
+    bool revert12 = assets > ink && rate * art > max_uint256;
+    bool revert13 = assets > ink && inkFixed * spot > max_uint256;
+    //
+    bool revert14 = art < inkFixed && artFixed > max_int256();
+    //              art < inkFixed && fixArt * RAY() > max_uint256; Not necessary as covered by revert20
+    // vat.suck:
+    bool revert15 = art < inkFixed && vatWardHub != 1;
+    bool revert16 = art < inkFixed && vatSinVow + rate * fixArt > max_uint256;
+    bool revert17 = art < inkFixed && vatDaiVow + rate * fixArt > max_uint256;
+    bool revert18 = art < inkFixed && vatVice + rate * fixArt > max_uint256;
+    bool revert19 = art < inkFixed && vatDebt + rate * fixArt > max_uint256;
+    // vat.grab:
+    bool revert20 = art < inkFixed && rate * fixArt > max_int256();
+    //
+    bool revert21 = toUnwind > max_int256();
+    // pool.withdraw:
+    bool revert22 = toUnwind > 0 && shareBalPool < toUnwind;
+    bool revert23 = toUnwind > 0 && daiBalShare < toUnwind;
+    bool revert24 = toUnwind > 0 && daiAllowanceSharePool < toUnwind;
+    bool revert25 = toUnwind > 0 && daiBalHub + toUnwind > max_uint256;
+    // daiJoin.join:
+    bool revert26 = toUnwind > 0 && toUnwind * RAY() > max_uint256;
+    bool revert27 = toUnwind > 0 && vatDaiDaiJoin < toUnwind * RAY();
+    bool revert28 = toUnwind > 0 && vatDaiHub + toUnwind * RAY() > max_uint256;
+    bool revert29 = toUnwind > 0 && daiAllowanceHubDaiJoin < toUnwind;
+    // vat.frob:
+    bool revert30 = toUnwind > 0 && to_mathint(rate) * -1 * to_mathint(toUnwind) < min_int256();
+    bool revert31 = toUnwind > 0 && vatCanPoolHub != 1;
+    // vat.slip:
+    bool revert32 = toUnwind > 0 && vatWardHub != 1;
+    //
+    bool revert33 = toWind > 0 && artFixed + toWind > max_int256();
+    // vat.slip:
+    bool revert34 = toWind > 0 && vatWardHub != 1;
+    bool revert35 = toWind > 0 && vatGemPool + toWind > max_uint256;
+    // vat.frob:
+    bool revert36 = toWind > 0 && rate * toWind > max_int256();
+    bool revert37 = toWind > 0 && rate * artFixed > max_uint256;
+    bool revert38 = toWind > 0 && vatCanPoolHub != 1;
+    bool revert39 = toWind > 0 && vatDaiHub + rate * toWind > max_uint256;
+    // daiJoin.exit:
+    bool revert40 = toWind > 0 && daiJoinLive != 1;
+    bool revert41 = toWind > 0 && vatCanHubDaiJoin != 1;
+    bool revert42 = toWind > 0 && vatDaiDaiJoin + toWind * RAY() > max_uint256;
+    bool revert43 = toWind > 0 && daiSupply + toWind > max_uint256;
+    // pool.deposit:
+    bool revert44 = toWind > 0 && shareSupply + toWind > max_uint256;
+
+    assert(revert1  => lastReverted, "revert1 failed");
+    assert(revert2  => lastReverted, "revert2 failed");
+    assert(revert3  => lastReverted, "revert3 failed");
+    assert(revert4  => lastReverted, "revert4 failed");
+    assert(revert5  => lastReverted, "revert5 failed");
+    assert(revert6  => lastReverted, "revert6 failed");
+    assert(revert7  => lastReverted, "revert7 failed");
+    assert(revert8  => lastReverted, "revert8 failed");
+    assert(revert9  => lastReverted, "revert9 failed");
+    assert(revert10 => lastReverted, "revert10 failed");
+    assert(revert11 => lastReverted, "revert11 failed");
+    assert(revert12 => lastReverted, "revert12 failed");
+    assert(revert13 => lastReverted, "revert13 failed");
+    assert(revert14 => lastReverted, "revert14 failed");
+    assert(revert15 => lastReverted, "revert15 failed");
+    assert(revert16 => lastReverted, "revert16 failed");
+    assert(revert17 => lastReverted, "revert17 failed");
+    assert(revert18 => lastReverted, "revert18 failed");
+    assert(revert19 => lastReverted, "revert19 failed");
+    assert(revert20 => lastReverted, "revert20 failed");
+    assert(revert21 => lastReverted, "revert21 failed");
+    assert(revert22 => lastReverted, "revert22 failed");
+    assert(revert23 => lastReverted, "revert23 failed");
+    assert(revert24 => lastReverted, "revert24 failed");
+    assert(revert25 => lastReverted, "revert25 failed");
+    assert(revert26 => lastReverted, "revert26 failed");
+    assert(revert27 => lastReverted, "revert27 failed");
+    assert(revert28 => lastReverted, "revert28 failed");
+    assert(revert29 => lastReverted, "revert29 failed");
+    assert(revert30 => lastReverted, "revert30 failed");
+    assert(revert31 => lastReverted, "revert31 failed");
+    assert(revert32 => lastReverted, "revert32 failed");
+    assert(revert33 => lastReverted, "revert33 failed");
+    assert(revert34 => lastReverted, "revert34 failed");
+    assert(revert35 => lastReverted, "revert35 failed");
+    assert(revert36 => lastReverted, "revert36 failed");
+    assert(revert37 => lastReverted, "revert37 failed");
+    assert(revert38 => lastReverted, "revert38 failed");
+    assert(revert39 => lastReverted, "revert39 failed");
+    assert(revert40 => lastReverted, "revert40 failed");
+    assert(revert41 => lastReverted, "revert41 failed");
+    assert(revert42 => lastReverted, "revert42 failed");
+    assert(revert43 => lastReverted, "revert43 failed");
+    assert(revert44 => lastReverted, "revert44 failed");
+
+    // assert(lastReverted => revert1  || revert2  || revert3  ||
+    //                        revert4  || revert5  || revert6  ||
+    //                        revert7  || revert8  || revert9  ||
+    //                        revert10 || revert11 || revert12 ||
+    //                        revert13 || revert14 || revert15 ||
+    //                        revert16 || revert17 || revert18 ||
+    //                        revert19 || revert20 || revert21 ||
+    //                        revert22 || revert23 || revert24 ||
+    //                        revert25 || revert26 || revert27 ||
+    //                        revert28 || revert29 || revert30 ||
+    //                        revert31 || revert32 || revert33 ||
+    //                        revert34 || revert35 || revert36 ||
+    //                        revert37 || revert38 || revert39 ||
+    //                        revert40 || revert41 || revert42 ||
+    //                        revert43 || revert44, "Revert rules are not covering all the cases");
 }
 
 rule exec_ilk_culled(bytes32 ilk) {
