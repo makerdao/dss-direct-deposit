@@ -286,6 +286,7 @@ rule exec_normal(bytes32 ilk) {
     assert(artAfter == ArtAfter, "art should be same than Art");
     assert(inkAfter == artAfter, "ink and art should end up being the same");
     assert(inkAfter <= lineWad || inkAfter <= inkBefore, "ink can not overpass debt ceiling or be higher than prev one");
+    assert(inkBefore <= max_int256() => inkAfter <= max_int256(), "ink can not overpass max_int256");
     assert(vatDaiVowAfter == vatDaiVowBefore + fixArt * RAY(), "vatDaiVow did not increase as expected");
     // Winding to targetAssets
     assert(
