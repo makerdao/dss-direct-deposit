@@ -272,7 +272,10 @@ contract D3MHub {
         }
         if (art < ink) { // If there was permissionless DAI paid or fees added as collateral
             address _vow = vow;
-            uint256 fixArt = ink - art; // Amount of fees + permissionless DAI paid we will now transform to debt
+            uint256 fixArt;
+            unchecked {
+                fixArt = ink - art; // Amount of fees + permissionless DAI paid we will now transform to debt
+            }
             art += fixArt;
             require(art <= MAXINT256, "D3MHub/overflow");
             vat.suck(_vow, _vow, fixArt * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
