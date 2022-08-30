@@ -218,27 +218,7 @@ contract D3MHub {
     }
 
     // --- Deposit controls ---
-    function _wind(bytes32 ilk, ID3MPool _pool, uint256 amount) internal {
-        if (amount > 0) {
-            vat.slip(ilk, address(_pool), int256(amount));
-            vat.frob(ilk, address(_pool), address(_pool), address(this), int256(amount), int256(amount));
-            daiJoin.exit(address(_pool), amount);
-            _pool.deposit(amount);
-        }
-        emit Wind(ilk, amount);
-    }
-
-    function _unwind(bytes32 ilk, ID3MPool _pool, uint256 amount) internal {
-        if (amount > 0) {
-            _pool.withdraw(amount);
-            daiJoin.join(address(this), amount);
-            vat.frob(ilk, address(_pool), address(_pool), address(this), -int256(amount), -int256(amount));
-            vat.slip(ilk, address(_pool), -int256(amount));
-        }
-        emit Unwind(ilk, amount);
-    }
-
-    function _unwind(bytes32 ilk, ID3MPool _pool, address urn) internal {
+    function _wipe(bytes32 ilk, ID3MPool _pool, address urn) internal {
         uint256 amount = _pool.maxWithdraw();
         if (amount > 0) {
             uint256 toSlip = _min(vat.gem(ilk, urn), amount);
@@ -252,7 +232,7 @@ contract D3MHub {
         emit Unwind(ilk, amount);
     }
 
-    function _normal(bytes32 ilk, ID3MPool _pool, uint256 Art, uint256 lineWad) internal {
+    function _exec(bytes32 ilk, ID3MPool _pool, uint256 Art, uint256 lineWad) internal {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(_pool));
         require(art == Art, "D3MHub/more-than-one-urn");
         uint256 currentAssets = _pool.assetBalance(); // Should return DAI owned by D3MPool
@@ -315,7 +295,13 @@ contract D3MHub {
                 maxWithdraw
             );
             require(toUnwind <= MAXINT256, "D3MHub/overflow");
-            _unwind(ilk, _pool, toUnwind);
+            if (toUnwind > 0) {
+                _pool.withdraw(toUnwind);
+                daiJoin.join(address(this), toUnwind);
+                vat.frob(ilk, address(_pool), address(_pool), address(this), -int256(toUnwind), -int256(toUnwind));
+                vat.slip(ilk, address(_pool), -int256(toUnwind));
+            }
+            emit Unwind(ilk, toUnwind);
         } else {
             uint256 toWind;
             // Determine up to which value to wind:
@@ -333,7 +319,13 @@ contract D3MHub {
                         );
             }
             require(art + toWind <= MAXINT256, "D3MHub/wind-overflow");
-            _wind(ilk, _pool, toWind);
+            if (toWind > 0) {
+                vat.slip(ilk, address(_pool), int256(toWind));
+                vat.frob(ilk, address(_pool), address(_pool), address(this), int256(toWind), int256(toWind));
+                daiJoin.exit(address(_pool), toWind);
+                _pool.deposit(toWind);
+            }
+            emit Wind(ilk, toWind);
         }
     }
 
@@ -410,19 +402,19 @@ contract D3MHub {
             require(_end.debt() == 0, "D3MHub/end-debt-already-set");
             require(ilks[ilk].culled == 0, "D3MHub/module-has-to-be-unculled-first");
             _end.skim(ilk, address(_pool));
-            _unwind(
+            _wipe(
                 ilk,
                 _pool,
                 address(_end)
             );
         } else if (ilks[ilk].culled == 1) {
-            _unwind(
+            _wipe(
                 ilk,
                 _pool,
                 address(_pool)
             );
         } else {
-            _normal(
+            _exec(
                 ilk,
                 _pool,
                 Art,
