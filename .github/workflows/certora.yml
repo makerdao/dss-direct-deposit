@@ -1,0 +1,56 @@
+name: Certora
+
+on: [push]
+
+jobs:
+  certora:
+    name: Certora
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Hub admin & getters
+            rules: rely rely_revert deny deny_revert file_ilk_uint256 file_ilk_uint256_revert file_ilk_address file_ilk_address_revert ilk_getters
+          - name: Hub exit, cage, cull, uncull and their reverts
+            rules: exit exit_revert cage cage_revert cull cull_revert uncull uncull_revert
+          - name: Hub exec non revert
+            rules: exec_normal exec_ilk_culled exec_vat_caged
+          - name: Hub exec normal revert
+            rules: exec_normal_revert
+          - name: Hub exec ilk culled and vat caged revert
+            rules: exec_ilk_culled_revert exec_vat_caged_revert
+          - name: Hub double exec
+            rules: exec_exec
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+          java-package: jre
+
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v3
+        with:
+          python-version: 3.8
+
+      - name: Install solc-select
+        run: pip3 install solc-select
+
+      - name: Solc Select 0.5.12
+        run: solc-select install 0.5.12
+
+      - name: Solc Select 0.8.14
+        run: solc-select install 0.8.14
+
+      - name: Install Certora
+        run: pip3 install certora-cli-alpha-master==20220824.13.29
+
+      - name: Certora ${{ matrix.name }}
+        run: make certora-hub short=1 rule="${{ matrix.rules }}"
+        env:
+          CERTORAKEY: ${{ secrets.CERTORAKEY }}

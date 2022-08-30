@@ -1,3 +1,10 @@
 /out
 /cache
 resource_errors.json
+
+# certora
+.*certora*
+.last_confs/
+*.zip
+.zip-output-url.txt
+certora_debug_log.txt
