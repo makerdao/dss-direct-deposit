@@ -217,7 +217,8 @@ contract D3MHub {
         emit File(ilk, what, data);
     }
 
-    // --- Deposit controls ---
+    // --- Internal functions that are called from exec(bytes32 ilk) ---
+
     function _wipe(bytes32 ilk, ID3MPool _pool, address urn) internal {
         uint256 amount = _pool.maxWithdraw();
         if (amount > 0) {
@@ -327,52 +328,6 @@ contract D3MHub {
             }
             emit Wind(ilk, toWind);
         }
-    }
-
-    // Ilk Getters
-    /**
-        @notice Return pool of an ilk
-        @param ilk   bytes32 of the D3M ilk
-        @return pool address of pool contract
-    */
-    function pool(bytes32 ilk) external view returns (address) {
-        return address(ilks[ilk].pool);
-    }
-
-    /**
-        @notice Return plan of an ilk
-        @param ilk   bytes32 of the D3M ilk
-        @return plan address of plan contract
-    */
-    function plan(bytes32 ilk) external view returns (address) {
-        return address(ilks[ilk].plan);
-    }
-
-    /**
-        @notice Return tau of an ilk
-        @param ilk  bytes32 of the D3M ilk
-        @return tau sec until debt can be written off
-    */
-    function tau(bytes32 ilk) external view returns (uint256) {
-        return ilks[ilk].tau;
-    }
-
-    /**
-        @notice Return culled status of an ilk
-        @param ilk  bytes32 of the D3M ilk
-        @return culled whether or not the d3m has been culled
-    */
-    function culled(bytes32 ilk) external view returns (uint256) {
-        return ilks[ilk].culled;
-    }
-
-    /**
-        @notice Return tic of an ilk
-        @param ilk  bytes32 of the D3M ilk
-        @return tic timestamp of when d3m is caged
-    */
-    function tic(bytes32 ilk) external view returns (uint256) {
-        return ilks[ilk].tic;
     }
 
     /**
@@ -507,5 +462,51 @@ contract D3MHub {
 
         ilks[ilk].culled = 0;
         emit Uncull(ilk, wad);
+    }
+
+    // Ilk Getters
+    /**
+        @notice Return pool of an ilk
+        @param ilk   bytes32 of the D3M ilk
+        @return pool address of pool contract
+    */
+    function pool(bytes32 ilk) external view returns (address) {
+        return address(ilks[ilk].pool);
+    }
+
+    /**
+        @notice Return plan of an ilk
+        @param ilk   bytes32 of the D3M ilk
+        @return plan address of plan contract
+    */
+    function plan(bytes32 ilk) external view returns (address) {
+        return address(ilks[ilk].plan);
+    }
+
+    /**
+        @notice Return tau of an ilk
+        @param ilk  bytes32 of the D3M ilk
+        @return tau sec until debt can be written off
+    */
+    function tau(bytes32 ilk) external view returns (uint256) {
+        return ilks[ilk].tau;
+    }
+
+    /**
+        @notice Return culled status of an ilk
+        @param ilk  bytes32 of the D3M ilk
+        @return culled whether or not the d3m has been culled
+    */
+    function culled(bytes32 ilk) external view returns (uint256) {
+        return ilks[ilk].culled;
+    }
+
+    /**
+        @notice Return tic of an ilk
+        @param ilk  bytes32 of the D3M ilk
+        @return tic timestamp of when d3m is caged
+    */
+    function tic(bytes32 ilk) external view returns (uint256) {
+        return ilks[ilk].tic;
     }
 }
