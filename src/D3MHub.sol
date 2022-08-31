@@ -258,8 +258,8 @@ contract D3MHub {
             uint256 fixArt;
             unchecked {
                 fixArt = ink - art; // Amount of fees + permissionless DAI paid we will now transform to debt
-                art = ink;
             }
+            art = ink;
             vat.suck(_vow, _vow, fixArt * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
             // No need for `fixArt <= MAXINT256` require as:
             // MAXINT256 * RAY >>> MAXUINT256 which is already restricted above
