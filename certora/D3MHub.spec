@@ -556,50 +556,49 @@ rule exec_normal_revert(bytes32 ilk) {
     bool revert12 = assets > ink && rate * art > max_uint256;
     bool revert13 = assets > ink && inkFixed * spot > max_uint256;
     //
-    bool revert14 = art < inkFixed && artFixed > max_int256();
     //              art < inkFixed && fixArt * RAY() > max_uint256; Not necessary as covered by revert20
     // vat.suck:
-    bool revert15 = art < inkFixed && vatWardHub != 1;
-    bool revert16 = art < inkFixed && vatSinVow + rate * fixArt > max_uint256;
-    bool revert17 = art < inkFixed && vatDaiVow + rate * fixArt > max_uint256;
-    bool revert18 = art < inkFixed && vatVice + rate * fixArt > max_uint256;
-    bool revert19 = art < inkFixed && vatDebt + rate * fixArt > max_uint256;
+    bool revert14 = art < inkFixed && vatWardHub != 1;
+    bool revert15 = art < inkFixed && vatSinVow + rate * fixArt > max_uint256;
+    bool revert16 = art < inkFixed && vatDaiVow + rate * fixArt > max_uint256;
+    bool revert17 = art < inkFixed && vatVice + rate * fixArt > max_uint256;
+    bool revert18 = art < inkFixed && vatDebt + rate * fixArt > max_uint256;
     // vat.grab:
-    bool revert20 = art < inkFixed && rate * fixArt > max_int256();
+    bool revert19 = art < inkFixed && rate * fixArt > max_int256();
     //
-    bool revert21 = toUnwind > max_int256();
+    bool revert20 = toUnwind > max_int256();
     // pool.withdraw:
-    bool revert22 = toUnwind > 0 && shareBalPool < toUnwind;
-    bool revert23 = toUnwind > 0 && daiBalShare < toUnwind;
-    bool revert24 = toUnwind > 0 && daiAllowanceSharePool < toUnwind;
-    bool revert25 = toUnwind > 0 && daiBalHub + toUnwind > max_uint256;
+    bool revert21 = toUnwind > 0 && shareBalPool < toUnwind;
+    bool revert22 = toUnwind > 0 && daiBalShare < toUnwind;
+    bool revert23 = toUnwind > 0 && daiAllowanceSharePool < toUnwind;
+    bool revert24 = toUnwind > 0 && daiBalHub + toUnwind > max_uint256;
     // daiJoin.join:
-    bool revert26 = toUnwind > 0 && toUnwind * RAY() > max_uint256;
-    bool revert27 = toUnwind > 0 && vatDaiDaiJoin < toUnwind * RAY();
-    bool revert28 = toUnwind > 0 && vatDaiHub + toUnwind * RAY() > max_uint256;
-    bool revert29 = toUnwind > 0 && daiAllowanceHubDaiJoin < toUnwind;
+    bool revert25 = toUnwind > 0 && toUnwind * RAY() > max_uint256;
+    bool revert26 = toUnwind > 0 && vatDaiDaiJoin < toUnwind * RAY();
+    bool revert27 = toUnwind > 0 && vatDaiHub + toUnwind * RAY() > max_uint256;
+    bool revert28 = toUnwind > 0 && daiAllowanceHubDaiJoin < toUnwind;
     // vat.frob:
-    bool revert30 = toUnwind > 0 && to_mathint(rate) * -1 * to_mathint(toUnwind) < min_int256();
-    bool revert31 = toUnwind > 0 && vatCanPoolHub != 1;
+    bool revert29 = toUnwind > 0 && to_mathint(rate) * -1 * to_mathint(toUnwind) < min_int256();
+    bool revert30 = toUnwind > 0 && vatCanPoolHub != 1;
     // vat.slip:
-    bool revert32 = toUnwind > 0 && vatWardHub != 1;
+    bool revert31 = toUnwind > 0 && vatWardHub != 1;
     //
-    bool revert33 = toWind > 0 && artFixed + toWind > max_int256();
+    bool revert32 = toWind > 0 && artFixed + toWind > max_int256();
     // vat.slip:
-    bool revert34 = toWind > 0 && vatWardHub != 1;
-    bool revert35 = toWind > 0 && vatGemPool + toWind > max_uint256;
+    bool revert33 = toWind > 0 && vatWardHub != 1;
+    bool revert34 = toWind > 0 && vatGemPool + toWind > max_uint256;
     // vat.frob:
-    bool revert36 = toWind > 0 && rate * toWind > max_int256();
-    bool revert37 = toWind > 0 && rate * artFixed > max_uint256;
-    bool revert38 = toWind > 0 && vatCanPoolHub != 1;
-    bool revert39 = toWind > 0 && vatDaiHub + rate * toWind > max_uint256;
+    bool revert35 = toWind > 0 && rate * toWind > max_int256();
+    bool revert36 = toWind > 0 && rate * artFixed > max_uint256;
+    bool revert37 = toWind > 0 && vatCanPoolHub != 1;
+    bool revert38 = toWind > 0 && vatDaiHub + rate * toWind > max_uint256;
     // daiJoin.exit:
-    bool revert40 = toWind > 0 && daiJoinLive != 1;
-    bool revert41 = toWind > 0 && vatCanHubDaiJoin != 1;
-    bool revert42 = toWind > 0 && vatDaiDaiJoin + toWind * RAY() > max_uint256;
-    bool revert43 = toWind > 0 && daiSupply + toWind > max_uint256;
+    bool revert39 = toWind > 0 && daiJoinLive != 1;
+    bool revert40 = toWind > 0 && vatCanHubDaiJoin != 1;
+    bool revert41 = toWind > 0 && vatDaiDaiJoin + toWind * RAY() > max_uint256;
+    bool revert42 = toWind > 0 && daiSupply + toWind > max_uint256;
     // pool.deposit:
-    bool revert44 = toWind > 0 && shareSupply + toWind > max_uint256;
+    bool revert43 = toWind > 0 && shareSupply + toWind > max_uint256;
 
     assert(revert1  => lastReverted, "revert1 failed");
     assert(revert2  => lastReverted, "revert2 failed");
@@ -644,7 +643,6 @@ rule exec_normal_revert(bytes32 ilk) {
     assert(revert41 => lastReverted, "revert41 failed");
     assert(revert42 => lastReverted, "revert42 failed");
     assert(revert43 => lastReverted, "revert43 failed");
-    assert(revert44 => lastReverted, "revert44 failed");
 
     // assert(lastReverted => revert1  || revert2  || revert3  ||
     //                        revert4  || revert5  || revert6  ||
@@ -660,7 +658,7 @@ rule exec_normal_revert(bytes32 ilk) {
     //                        revert34 || revert35 || revert36 ||
     //                        revert37 || revert38 || revert39 ||
     //                        revert40 || revert41 || revert42 ||
-    //                        revert43 || revert44, "Revert rules are not covering all the cases");
+    //                        revert43, "Revert rules are not covering all the cases");
 }
 
 rule exec_ilk_culled(bytes32 ilk) {

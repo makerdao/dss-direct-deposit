@@ -248,7 +248,9 @@ contract D3MHub {
             require(fixInk <= MAXINT256, "D3MHub/overflow");
             vat.slip(ilk, address(_pool), int256(fixInk)); // Generate extra collateral
             vat.frob(ilk, address(_pool), address(_pool), address(this), int256(fixInk), 0); // Lock it
-            ink += fixInk;
+            unchecked {
+                ink += fixInk; // can not overflow as worst case will be the value of currentAssets
+            }
             emit Fees(ilk, fixInk);
         }
         if (art < ink) { // If there was permissionless DAI paid or fees added as collateral
@@ -256,10 +258,11 @@ contract D3MHub {
             uint256 fixArt;
             unchecked {
                 fixArt = ink - art; // Amount of fees + permissionless DAI paid we will now transform to debt
+                art = ink;
             }
-            art += fixArt;
-            require(art <= MAXINT256, "D3MHub/overflow");
             vat.suck(_vow, _vow, fixArt * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+            // No need for `fixArt <= MAXINT256` require as:
+            // MAXINT256 * RAY >>> MAXUINT256 which is already restricted above
             vat.grab(ilk, address(_pool), address(_pool), _vow, 0, int256(fixArt)); // Generating the debt
         }
 
