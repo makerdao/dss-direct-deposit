@@ -137,6 +137,7 @@ contract D3MHub {
     // --- Math ---
     uint256 internal constant RAY = 10 ** 27;
     uint256 internal constant MAXINT256 = uint256(type(int256).max);
+    uint256 internal constant MAXINT256WAD = MAXINT256 / RAY;
 
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
@@ -234,18 +235,23 @@ contract D3MHub {
     }
 
     function _exec(bytes32 ilk, ID3MPool _pool, uint256 Art, uint256 lineWad) internal {
+        require(lineWad <= MAXINT256WAD, "D3MHub/lineWad-above-max-safe");
         (uint256 ink, uint256 art) = vat.urns(ilk, address(_pool));
+        require(ink <= MAXINT256WAD, "D3MHub/ink-above-max-safe");
+        require(ink >= art, "D3MHub/ink-not-greater-equal-art");
         require(art == Art, "D3MHub/more-than-one-urn");
         uint256 currentAssets = _pool.assetBalance(); // Should return DAI owned by D3MPool
         uint256 maxWithdraw = _pool.maxWithdraw();
         if (currentAssets > ink) { // If fees were generated
             uint256 fixInk = _min(
-                currentAssets - ink, // fees generated
-                ink < lineWad // if previously CDP was under debt ceiling
-                    ? (lineWad - ink) + maxWithdraw // up to gap to reach debt ceiling + maxWithdraw
-                    : maxWithdraw // up to maxWithdraw
+                _min(
+                    currentAssets - ink, // fees generated
+                    ink < lineWad // if previously CDP was under debt ceiling
+                        ? (lineWad - ink) + maxWithdraw // up to gap to reach debt ceiling + maxWithdraw
+                        : maxWithdraw // up to maxWithdraw
+                ),
+                MAXINT256WAD + art - ink //  ensures that fixArt * RAY (rate) will be <= MAXINT256 (in vat.grab)
             );
-            require(fixInk <= MAXINT256, "D3MHub/overflow");
             vat.slip(ilk, address(_pool), int256(fixInk)); // Generate extra collateral
             vat.frob(ilk, address(_pool), address(_pool), address(this), int256(fixInk), 0); // Lock it
             unchecked {
@@ -263,6 +269,7 @@ contract D3MHub {
             vat.suck(_vow, _vow, fixArt * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
             // No need for `fixArt <= MAXINT256` require as:
             // MAXINT256 * RAY >>> MAXUINT256 which is already restricted above
+            // Also fixArt should be always <= MAXINT256WAD
             vat.grab(ilk, address(_pool), address(_pool), _vow, 0, int256(fixArt)); // Generating the debt
         }
 
@@ -275,7 +282,7 @@ contract D3MHub {
 
         // Determine if it needs to fully unwind due to D3M ilk being caged (but not culled) or plan is not active
         if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) {
-            toUnwind = type(uint256).max; // We make sure to enter the unwind path
+            toUnwind = MAXINT256WAD; // We make sure to enter the unwind path
         } else {
             Line = vat.Line();
             debt = vat.debt();
@@ -295,10 +302,12 @@ contract D3MHub {
 
         if (toUnwind > 0) {
             toUnwind = _min(
-                toUnwind,
-                maxWithdraw
+                _min(
+                    toUnwind,
+                    maxWithdraw
+                ),
+                MAXINT256WAD
             );
-            require(toUnwind <= MAXINT256, "D3MHub/overflow");
             if (toUnwind > 0) {
                 _pool.withdraw(toUnwind);
                 daiJoin.join(address(this), toUnwind);
@@ -322,7 +331,7 @@ contract D3MHub {
                             _pool.maxDeposit() // restricts winding if the pool has a max deposit
                         );
             }
-            require(art + toWind <= MAXINT256, "D3MHub/wind-overflow");
+            require(art + toWind <= MAXINT256WAD, "D3MHub/wind-overflow");
             if (toWind > 0) {
                 vat.slip(ilk, address(_pool), int256(toWind));
                 vat.frob(ilk, address(_pool), address(_pool), address(this), int256(toWind), int256(toWind));

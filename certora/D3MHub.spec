@@ -74,6 +74,7 @@ definition RAY() returns uint256 = 10^27;
 
 definition min_int256() returns mathint = -1 * 2^255;
 definition max_int256() returns mathint = 2^255 - 1;
+definition max_int256_wad() returns mathint = max_int256() / RAY();
 
 definition min(mathint x, mathint y) returns mathint = x < y ? x : y;
 definition max(mathint x, mathint y) returns mathint = x > y ? x : y;
@@ -250,7 +251,6 @@ rule exec_normal(bytes32 ilk) {
 
     require(vat.live() == 1);
     require(culled == 0);
-    require(inkBefore >= artBefore);
     require(assetsBefore >= inkBefore);
 
     exec(e, ilk);
@@ -272,13 +272,17 @@ rule exec_normal(bytes32 ilk) {
 
     uint256 lineWad = lineBefore / RAY();
     uint256 underLine = inkBefore < lineWad ? lineWad - inkBefore : 0;
-    uint256 fixInk = assetsBefore > inkBefore
-                     ? assetsBefore - inkBefore < underLine + maxWithdraw
-                        ? assetsBefore - inkBefore
-                        : underLine + maxWithdraw
+    mathint fixInk = assetsBefore > inkBefore
+                     ?  min(
+                            min(
+                                assetsBefore - inkBefore,
+                                underLine + maxWithdraw
+                            ),
+                            max_int256_wad() + artBefore - inkBefore
+                        )
                      : 0;
-    uint256 fixArt = inkBefore + fixInk - artBefore;
-    uint256 debtMiddle = debtBefore + fixArt * RAY();
+    mathint fixArt = inkBefore + fixInk - artBefore;
+    mathint debtMiddle = debtBefore + fixArt * RAY();
 
     // General asserts
     assert(LineAfter == LineBefore, "Line should not change");
@@ -286,7 +290,7 @@ rule exec_normal(bytes32 ilk) {
     assert(artAfter == ArtAfter, "art should be same than Art");
     assert(inkAfter == artAfter, "ink and art should end up being the same");
     assert(inkAfter <= lineWad || inkAfter <= inkBefore, "ink can not overpass debt ceiling or be higher than prev one");
-    assert(inkBefore <= max_int256() => inkAfter <= max_int256(), "ink can not overpass max_int256");
+    assert(inkAfter <= max_int256_wad(), "ink can not overpass max_int256 / RAY");
     assert(vatDaiVowAfter == vatDaiVowBefore + fixArt * RAY(), "vatDaiVow did not increase as expected");
     // Winding to targetAssets
     assert(
@@ -329,7 +333,8 @@ rule exec_normal(bytes32 ilk) {
         targetAssets <= assetsBefore && // plan determines we need to go down (or keep the same)
         targetAssets <= lineWad && // target IS NOT restricted by ilk line
         (LineBefore - debtMiddle) / RAY() >= 0 && // target IS NOT restricted by global Line
-        maxWithdraw >= assetsBefore - targetAssets // target IS NOT restricted by maxWithdraw
+        maxWithdraw >= assetsBefore - targetAssets && // target IS NOT restricted by maxWithdraw
+        assetsBefore <= max_int256_wad() // target is NOT restricted by safe maxint256 wad
             => artAfter == targetAssets &&
                assetsAfter == artAfter,
                "unwind: error 1"
@@ -352,7 +357,8 @@ rule exec_normal(bytes32 ilk) {
         targetAssets <= lineWad && // target IS NOT restricted by ilk line
         (LineBefore - debtMiddle) / RAY() >= 0 && // target IS NOT restricted by global Line
         maxWithdraw < assetsBefore - targetAssets && // target IS restricted by maxWithdraw
-        inkBefore > lineWad &&
+        assetsBefore <= max_int256_wad() && // target is NOT restricted by safe maxint256 wad
+        inkBefore > lineWad && // ink before execution is not safe (over ilk line)
         assetsBefore - inkBefore > maxWithdraw
             => artAfter == inkBefore,
                "unwind: error 3"
@@ -363,6 +369,7 @@ rule exec_normal(bytes32 ilk) {
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         targetAssets > lineWad && // target IS restricted by ilk line
         (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
+        assetsBefore <= max_int256_wad() && // target is NOT restricted by safe maxint256 wad
         inkBefore > lineWad && // ink before execution is not safe (over ilk line)
         maxWithdraw >= assetsBefore - lineWad // enough to rebalance and decrease to ilk line value
             => artAfter == lineWad &&
@@ -375,6 +382,7 @@ rule exec_normal(bytes32 ilk) {
         targetAssets > lineWad && // target IS restricted by ilk line
         (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
         inkBefore > lineWad && // ink before execution is not safe (over ilk line)
+        assetsBefore <= max_int256_wad() && // target is NOT restricted by safe maxint256 wad
         maxWithdraw < assetsBefore - inkBefore // NOT enough for full rebalance
             => artAfter == inkBefore &&
                assetsAfter > artAfter,
@@ -397,6 +405,7 @@ rule exec_normal(bytes32 ilk) {
         targetAssets > lineWad && // target IS restricted by ilk line
         (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
         inkBefore > lineWad && // ink before execution is not safe (over ilk line)
+        assetsBefore <= max_int256_wad() && // target is NOT restricted by safe maxint256 wad
         maxWithdraw < assetsBefore - lineWad && // NOT enough to rebalance and decrease to ilk line value
         maxWithdraw >= assetsBefore - inkBefore // enough for full rebalance
             => artAfter == assetsBefore - maxWithdraw &&
@@ -408,22 +417,29 @@ rule exec_normal(bytes32 ilk) {
     // Force unwinding due to ilk caged (but not culled yet) or plan inactive:
     assert(
         (tic > 0 || !active) &&
-        assetsBefore == maxWithdraw
+        assetsBefore <= max_int256_wad() && // full unwinding is NOT restricted by safe maxint256 wad
+        assetsBefore <= maxWithdraw
             => artAfter == 0, "unwind: error 8"
     );
     assert(
         (tic > 0 || !active) &&
+        assetsBefore <= max_int256_wad() && // full unwinding is NOT restricted by safe maxint256 wad
+        assetsBefore > maxWithdraw &&
         assetsBefore - maxWithdraw < lineWad
             => artAfter == assetsBefore - maxWithdraw, "unwind: error 9"
     );
     assert(
         (tic > 0 || !active) &&
+        assetsBefore <= max_int256_wad() && // full unwinding is NOT restricted by safe maxint256 wad
+        assetsBefore > maxWithdraw &&
         assetsBefore - maxWithdraw >= lineWad &&
         inkBefore <= lineWad
             => artAfter == lineWad, "unwind: error 10"
     );
     assert(
         (tic > 0 || !active) &&
+        assetsBefore <= max_int256_wad() && // full unwinding is NOT restricted by safe maxint256 wad
+        assetsBefore > maxWithdraw &&
         assetsBefore - maxWithdraw >= inkBefore &&
         inkBefore > lineWad
             => artAfter == inkBefore, "unwind: error 11"
@@ -474,10 +490,14 @@ rule exec_normal_revert(bytes32 ilk) {
     uint256 lineWad = line / RAY();
     uint256 debt = vat.debt();
     uint256 underLine = ink < lineWad ? lineWad - ink : 0;
-    uint256 fixInk = assets > ink
-                     ? assets - ink < underLine + maxWithdraw
-                        ? assets - ink
-                        : underLine + maxWithdraw
+    mathint fixInk = assets > ink
+                     ?  min(
+                            min(
+                                assets - ink,
+                                underLine + maxWithdraw
+                            ),
+                            max_int256_wad() + art - ink >= 0 ? max_int256_wad() + art - ink : 0
+                        )
                      : 0;
     mathint inkFixed = ink + fixInk;
     mathint fixArt = inkFixed - art;
@@ -498,7 +518,15 @@ rule exec_normal_revert(bytes32 ilk) {
                                 targetAssets < assets ? to_mathint(assets - targetAssets) : 0
                             )
                         );
-    mathint toUnwind = toUnwindAux > 0 ? min(toUnwindAux, to_mathint(maxWithdraw)) : 0;
+    mathint toUnwind = toUnwindAux > 0
+                       ? min(
+                            min(
+                                toUnwindAux,
+                                to_mathint(maxWithdraw)
+                            ),
+                            max_int256_wad()
+                        )
+                        : 0;
 
     mathint toWind = toUnwindAux == 0
                     ? min(
@@ -544,61 +572,52 @@ rule exec_normal_revert(bytes32 ilk) {
     bool revert2  = locked != 0;
     bool revert3  = rate != RAY();
     bool revert4  = spot != RAY();
-    bool revert5  = art != Art;
-    bool revert6  = assets > ink && ink < lineWad && (lineWad - ink) + maxWithdraw > max_uint256;
-    bool revert7  = assets > ink && fixInk > max_int256();
+    bool revert5  = lineWad > max_int256_wad();
+    bool revert6  = ink > max_int256_wad();
+    bool revert7  = ink < art;
+    bool revert8  = art != Art;
+    bool revert9  = assets > ink && ink < lineWad && (lineWad - ink) + maxWithdraw > max_uint256;
+    bool revert10 = assets > ink && fixInk > max_int256();
     // vat.slip:
-    bool revert8  = assets > ink && vatWardHub != 1;
-    bool revert9  = assets > ink && vatGemPool + fixInk > max_uint256;
+    bool revert11 = assets > ink && vatWardHub != 1;
+    bool revert12 = assets > ink && vatGemPool + fixInk > max_uint256;
     // vat.frob:
-    bool revert10 = assets > ink && fixInk > 0 && vatCanPoolHub != 1;
-    bool revert11 = assets > ink && inkFixed > max_uint256;
-    bool revert12 = assets > ink && rate * art > max_uint256;
-    bool revert13 = assets > ink && inkFixed * spot > max_uint256;
-    //
-    //              art < inkFixed && fixArt * RAY() > max_uint256; Not necessary as covered by revert20
+    bool revert13 = assets > ink && fixInk > 0 && vatCanPoolHub != 1;
     // vat.suck:
     bool revert14 = art < inkFixed && vatWardHub != 1;
     bool revert15 = art < inkFixed && vatSinVow + rate * fixArt > max_uint256;
     bool revert16 = art < inkFixed && vatDaiVow + rate * fixArt > max_uint256;
     bool revert17 = art < inkFixed && vatVice + rate * fixArt > max_uint256;
     bool revert18 = art < inkFixed && vatDebt + rate * fixArt > max_uint256;
-    // vat.grab:
-    bool revert19 = art < inkFixed && rate * fixArt > max_int256();
     //
-    bool revert20 = toUnwind > max_int256();
     // pool.withdraw:
-    bool revert21 = toUnwind > 0 && shareBalPool < toUnwind;
-    bool revert22 = toUnwind > 0 && daiBalShare < toUnwind;
-    bool revert23 = toUnwind > 0 && daiAllowanceSharePool < toUnwind;
-    bool revert24 = toUnwind > 0 && daiBalHub + toUnwind > max_uint256;
+    bool revert19 = toUnwind > 0 && shareBalPool < toUnwind;
+    bool revert20 = toUnwind > 0 && daiBalShare < toUnwind;
+    bool revert21 = toUnwind > 0 && daiAllowanceSharePool < toUnwind;
+    bool revert22 = toUnwind > 0 && daiBalHub + toUnwind > max_uint256;
     // daiJoin.join:
-    bool revert25 = toUnwind > 0 && toUnwind * RAY() > max_uint256;
-    bool revert26 = toUnwind > 0 && vatDaiDaiJoin < toUnwind * RAY();
-    bool revert27 = toUnwind > 0 && vatDaiHub + toUnwind * RAY() > max_uint256;
-    bool revert28 = toUnwind > 0 && daiAllowanceHubDaiJoin < toUnwind;
+    bool revert23 = toUnwind > 0 && vatDaiDaiJoin < toUnwind * RAY();
+    bool revert24 = toUnwind > 0 && vatDaiHub + toUnwind * RAY() > max_uint256;
+    bool revert25 = toUnwind > 0 && daiAllowanceHubDaiJoin < toUnwind;
     // vat.frob:
-    bool revert29 = toUnwind > 0 && to_mathint(rate) * -1 * to_mathint(toUnwind) < min_int256();
-    bool revert30 = toUnwind > 0 && vatCanPoolHub != 1;
+    bool revert26 = toUnwind > 0 && vatCanPoolHub != 1;
     // vat.slip:
-    bool revert31 = toUnwind > 0 && vatWardHub != 1;
+    bool revert27 = toUnwind > 0 && vatWardHub != 1;
     //
-    bool revert32 = toWind > 0 && artFixed + toWind > max_int256();
+    bool revert28 = toWind > 0 && artFixed + toWind > max_int256_wad();
     // vat.slip:
-    bool revert33 = toWind > 0 && vatWardHub != 1;
-    bool revert34 = toWind > 0 && vatGemPool + toWind > max_uint256;
+    bool revert29 = toWind > 0 && vatWardHub != 1;
+    bool revert30 = toWind > 0 && vatGemPool + toWind > max_uint256;
     // vat.frob:
-    bool revert35 = toWind > 0 && rate * toWind > max_int256();
-    bool revert36 = toWind > 0 && rate * artFixed > max_uint256;
-    bool revert37 = toWind > 0 && vatCanPoolHub != 1;
-    bool revert38 = toWind > 0 && vatDaiHub + rate * toWind > max_uint256;
+    bool revert31 = toWind > 0 && vatCanPoolHub != 1;
+    bool revert32 = toWind > 0 && vatDaiHub + rate * toWind > max_uint256;
     // daiJoin.exit:
-    bool revert39 = toWind > 0 && daiJoinLive != 1;
-    bool revert40 = toWind > 0 && vatCanHubDaiJoin != 1;
-    bool revert41 = toWind > 0 && vatDaiDaiJoin + toWind * RAY() > max_uint256;
-    bool revert42 = toWind > 0 && daiSupply + toWind > max_uint256;
+    bool revert33 = toWind > 0 && daiJoinLive != 1;
+    bool revert34 = toWind > 0 && vatCanHubDaiJoin != 1;
+    bool revert35 = toWind > 0 && vatDaiDaiJoin + toWind * RAY() > max_uint256;
+    bool revert36 = toWind > 0 && daiSupply + toWind > max_uint256;
     // pool.deposit:
-    bool revert43 = toWind > 0 && shareSupply + toWind > max_uint256;
+    bool revert37 = toWind > 0 && shareSupply + toWind > max_uint256;
 
     assert(revert1  => lastReverted, "revert1 failed");
     assert(revert2  => lastReverted, "revert2 failed");
@@ -637,28 +656,20 @@ rule exec_normal_revert(bytes32 ilk) {
     assert(revert35 => lastReverted, "revert35 failed");
     assert(revert36 => lastReverted, "revert36 failed");
     assert(revert37 => lastReverted, "revert37 failed");
-    assert(revert38 => lastReverted, "revert38 failed");
-    assert(revert39 => lastReverted, "revert39 failed");
-    assert(revert40 => lastReverted, "revert40 failed");
-    assert(revert41 => lastReverted, "revert41 failed");
-    assert(revert42 => lastReverted, "revert42 failed");
-    assert(revert43 => lastReverted, "revert43 failed");
 
-    // assert(lastReverted => revert1  || revert2  || revert3  ||
-    //                        revert4  || revert5  || revert6  ||
-    //                        revert7  || revert8  || revert9  ||
-    //                        revert10 || revert11 || revert12 ||
-    //                        revert13 || revert14 || revert15 ||
-    //                        revert16 || revert17 || revert18 ||
-    //                        revert19 || revert20 || revert21 ||
-    //                        revert22 || revert23 || revert24 ||
-    //                        revert25 || revert26 || revert27 ||
-    //                        revert28 || revert29 || revert30 ||
-    //                        revert31 || revert32 || revert33 ||
-    //                        revert34 || revert35 || revert36 ||
-    //                        revert37 || revert38 || revert39 ||
-    //                        revert40 || revert41 || revert42 ||
-    //                        revert43, "Revert rules are not covering all the cases");
+    assert(lastReverted => revert1  || revert2  || revert3  ||
+                           revert4  || revert5  || revert6  ||
+                           revert7  || revert8  || revert9  ||
+                           revert10 || revert11 || revert12 ||
+                           revert13 || revert14 || revert15 ||
+                           revert16 || revert17 || revert18 ||
+                           revert19 || revert20 || revert21 ||
+                           revert22 || revert23 || revert24 ||
+                           revert25 || revert26 || revert27 ||
+                           revert28 || revert29 || revert30 ||
+                           revert31 || revert32 || revert33 ||
+                           revert34 || revert35 || revert36 ||
+                           revert37, "Revert rules are not covering all the cases");
 }
 
 rule exec_ilk_culled(bytes32 ilk) {
