@@ -244,7 +244,7 @@ rule exec_normal(bytes32 ilk) {
 
     bool active = plan.active(e);
     uint256 maxDeposit = pool.maxDeposit(e);
-    uint256 maxWithdraw = pool.maxWithdraw(e);
+    mathint maxWithdraw = min(to_mathint(pool.maxWithdraw(e)), max_int256_wad());
     uint256 assetsBefore = pool.assetBalance(e);
     uint256 targetAssets = plan.getTargetAssets(e, assetsBefore);
     uint256 vatDaiVowBefore = vat.dai(vow);
@@ -485,7 +485,7 @@ rule exec_normal_revert(bytes32 ilk) {
     require(dai.wards(daiJoin) == 1);
     require(share.wards(pool) == 1);
 
-    uint256 maxWithdraw = pool.maxWithdraw(e);
+    mathint maxWithdraw = min(to_mathint(pool.maxWithdraw(e)), max_int256_wad());
     uint256 maxDeposit = pool.maxDeposit(e);
     uint256 lineWad = line / RAY();
     uint256 debt = vat.debt();
@@ -509,26 +509,19 @@ rule exec_normal_revert(bytes32 ilk) {
 
     uint256 targetAssets = plan.getTargetAssets(e, assets);
 
-    mathint toUnwindAux = (tic > 0 || !active)
-                        ? to_mathint(max_uint256)
-                        : max(
-                            artFixed > lineWad ? artFixed - to_mathint(lineWad) : 0,
+    mathint toUnwindAux = max(
                             max(
-                                debtMiddle > Line ? divup(debtMiddle - to_mathint(Line), to_mathint(RAY())) : 0,
-                                targetAssets < assets ? to_mathint(assets - targetAssets) : 0
-                            )
-                        );
-    mathint toUnwind = toUnwindAux > 0
-                       ? min(
-                            min(
-                                toUnwindAux,
-                                to_mathint(maxWithdraw)
+                                artFixed > lineWad ? artFixed - to_mathint(lineWad) : 0,
+                                debtMiddle > Line ? divup(debtMiddle - to_mathint(Line), to_mathint(RAY())) : 0
                             ),
-                            max_int256_wad()
-                        )
-                        : 0;
+                            targetAssets < assets ? to_mathint(assets - targetAssets) : 0
+                        );
 
-    mathint toWind = toUnwindAux == 0
+    mathint toUnwind = (tic > 0 || !active)
+                        ? maxWithdraw
+                        : min(toUnwindAux, maxWithdraw);
+
+    mathint toWind = tic == 0 && active && toUnwindAux == 0
                     ? min(
                         to_mathint(lineWad - artFixed),
                         min(
@@ -543,7 +536,6 @@ rule exec_normal_revert(bytes32 ilk) {
 
     uint256 vatGemPool = vat.gem(ilk, pool);
     require(ink == 0 || vatGemPool == 0); // To ensure correct behavior
-    uint256 toSlip = vatGemPool < maxWithdraw ? vatGemPool : maxWithdraw;
     uint256 vatWardHub = vat.wards(currentContract);
     uint256 shareBalPool = share.balanceOf(pool);
     uint256 shareSupply = share.totalSupply();

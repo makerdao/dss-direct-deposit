@@ -100,6 +100,7 @@ contract D3MHub {
     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
     event Wind(bytes32 indexed ilk, uint256 amt);
     event Unwind(bytes32 indexed ilk, uint256 amt);
+    event NoOp(bytes32 indexed ilk);
     event Fees(bytes32 indexed ilk, uint256 amt);
     event Exit(bytes32 indexed ilk, address indexed usr, uint256 amt);
     event Cage(bytes32 indexed ilk);
@@ -241,8 +242,10 @@ contract D3MHub {
         require(ink >= art, "D3MHub/ink-not-greater-equal-art");
         require(art == Art, "D3MHub/more-than-one-urn");
         uint256 currentAssets = _pool.assetBalance(); // Should return DAI owned by D3MPool
-        uint256 maxWithdraw = _pool.maxWithdraw();
-        if (currentAssets > ink) { // If fees were generated
+        uint256 maxWithdraw = _min(_pool.maxWithdraw(), MAXINT256WAD);
+
+        // Determine if fees were generated and try to account them (or the most that it is possible)
+        if (currentAssets > ink) {
             uint256 fixInk = _min(
                 _min(
                     currentAssets - ink, // fees generated
@@ -259,7 +262,8 @@ contract D3MHub {
             }
             emit Fees(ilk, fixInk);
         }
-        if (art < ink) { // If there was permissionless DAI paid or fees added as collateral
+        // Get the DAI and send as surplus (if there was permissionless DAI paid or fees accounted)
+        if (art < ink) {
             address _vow = vow;
             uint256 fixArt;
             unchecked {
@@ -274,19 +278,16 @@ contract D3MHub {
         }
 
         // Determine if it needs to unwind or wind
-
-        uint256 Line;
-        uint256 debt;
-        uint256 targetAssets;
         uint256 toUnwind;
+        uint256 toWind;
 
         // Determine if it needs to fully unwind due to D3M ilk being caged (but not culled) or plan is not active
         if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) {
-            toUnwind = MAXINT256WAD; // We make sure to enter the unwind path
+            toUnwind = maxWithdraw;
         } else {
-            Line = vat.Line();
-            debt = vat.debt();
-            targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
+            uint256 Line = vat.Line();
+            uint256 debt = vat.debt();
+            uint256 targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
 
             // Determine if it needs to unwind due to:
             unchecked {
@@ -297,48 +298,40 @@ contract D3MHub {
                                 ),
                                 targetAssets < currentAssets ? currentAssets - targetAssets : 0 // plan targetAssets
                             );
+                if (toUnwind == 0) {
+                    // Determine up to which value to wind:
+                    // (subtractions are safe as otherwise toUnwind is > 0)
+                    toWind = _min(
+                                _min(
+                                    _min(
+                                        lineWad - art, // amount to reach ilk debt ceiling
+                                        (Line - debt) / RAY  // amount to reach global debt ceiling
+                                    ),
+                                    targetAssets - currentAssets // plan targetAssets
+                                ),
+                                _pool.maxDeposit() // restricts winding if the pool has a max deposit
+                            );
+                } else {
+                    toUnwind = _min(toUnwind, maxWithdraw);
+                }
             }
         }
 
         if (toUnwind > 0) {
-            toUnwind = _min(
-                _min(
-                    toUnwind,
-                    maxWithdraw
-                ),
-                MAXINT256WAD
-            );
-            if (toUnwind > 0) {
-                _pool.withdraw(toUnwind);
-                daiJoin.join(address(this), toUnwind);
-                vat.frob(ilk, address(_pool), address(_pool), address(this), -int256(toUnwind), -int256(toUnwind));
-                vat.slip(ilk, address(_pool), -int256(toUnwind));
-            }
+            _pool.withdraw(toUnwind);
+            daiJoin.join(address(this), toUnwind);
+            vat.frob(ilk, address(_pool), address(_pool), address(this), -int256(toUnwind), -int256(toUnwind));
+            vat.slip(ilk, address(_pool), -int256(toUnwind));
             emit Unwind(ilk, toUnwind);
-        } else {
-            uint256 toWind;
-            // Determine up to which value to wind:
-            // (subtractions are safe as otherwise toUnwind is > 0)
-            unchecked {
-                toWind = _min(
-                            _min(
-                                _min(
-                                    lineWad - art, // amount to reach ilk debt ceiling
-                                    (Line - debt) / RAY  // amount to reach global debt ceiling
-                                ),
-                                targetAssets - currentAssets // plan targetAssets
-                            ),
-                            _pool.maxDeposit() // restricts winding if the pool has a max deposit
-                        );
-            }
+        } else if (toWind > 0) {
             require(art + toWind <= MAXINT256WAD, "D3MHub/wind-overflow");
-            if (toWind > 0) {
-                vat.slip(ilk, address(_pool), int256(toWind));
-                vat.frob(ilk, address(_pool), address(_pool), address(this), int256(toWind), int256(toWind));
-                daiJoin.exit(address(_pool), toWind);
-                _pool.deposit(toWind);
-            }
+            vat.slip(ilk, address(_pool), int256(toWind));
+            vat.frob(ilk, address(_pool), address(_pool), address(this), int256(toWind), int256(toWind));
+            daiJoin.exit(address(_pool), toWind);
+            _pool.deposit(toWind);
             emit Wind(ilk, toWind);
+        } else {
+            emit NoOp(ilk);
         }
     }
 
