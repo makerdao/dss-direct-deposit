@@ -231,8 +231,10 @@ contract D3MHub {
             uint256 toSlip = _min(vat.gem(ilk, urn), amount);
             // amount bounds toSlip and amount * RAY bounds amount to be much less than MAXINT256
             vat.slip(ilk, urn, -int256(toSlip));
+            emit Unwind(ilk, amount);
+        } else {
+            emit NoOp(ilk);
         }
-        emit Unwind(ilk, amount);
     }
 
     function _exec(bytes32 ilk, ID3MPool _pool, uint256 Art, uint256 lineWad) internal {
