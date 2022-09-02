@@ -224,13 +224,13 @@ contract D3MHub {
     function _wipe(bytes32 ilk, ID3MPool _pool, address urn) internal {
         uint256 amount = _pool.maxWithdraw();
         if (amount > 0) {
-            uint256 toSlip = _min(vat.gem(ilk, urn), amount);
-            require(toSlip <= MAXINT256, "D3MHub/overflow");
-            vat.slip(ilk, urn, -int256(toSlip));
-
             _pool.withdraw(amount);
             daiJoin.join(address(this), amount);
             vat.move(address(this), vow, amount * RAY);
+
+            uint256 toSlip = _min(vat.gem(ilk, urn), amount);
+            // amount bounds toSlip and amount * RAY bounds amount to be much less than MAXINT256
+            vat.slip(ilk, urn, -int256(toSlip));
         }
         emit Unwind(ilk, amount);
     }
@@ -461,8 +461,8 @@ contract D3MHub {
 
         address _vow = vow;
         uint256 wad = vat.gem(ilk, address(_pool));
-        require(wad <= MAXINT256, "D3MHub/overflow");
         vat.suck(_vow, _vow, wad * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+        // wad * RAY bounds wad to be much less than MAXINT256
         vat.grab(ilk, address(_pool), address(_pool), _vow, int256(wad), int256(wad));
 
         ilks[ilk].culled = 0;

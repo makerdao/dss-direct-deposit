@@ -797,17 +797,16 @@ rule exec_ilk_culled_revert(bytes32 ilk) {
     bool revert2  = locked != 0;
     bool revert3  = rate != RAY();
     bool revert4  = spot != RAY();
-    bool revert5  = maxWithdraw > 0 && toSlip > max_int256();
-    bool revert6  = maxWithdraw > 0 && vatWardHub != 1;
-    bool revert7  = maxWithdraw > 0 && shareBalPool < maxWithdraw;
-    bool revert8  = maxWithdraw > 0 && daiBalShare < maxWithdraw;
-    bool revert9  = maxWithdraw > 0 && daiAllowanceSharePool < maxWithdraw;
-    bool revert10 = maxWithdraw > 0 && daiBalHub + maxWithdraw > max_uint256;
-    bool revert11 = maxWithdraw > 0 && maxWithdraw * RAY() > max_uint256;
-    bool revert12 = maxWithdraw > 0 && vatDaiDaiJoin < maxWithdraw * RAY();
-    bool revert13 = maxWithdraw > 0 && daiAllowanceHubDaiJoin < maxWithdraw;
-    bool revert14 = maxWithdraw > 0 && vatDaiHub + maxWithdraw * RAY() > max_uint256;
-    bool revert15 = maxWithdraw > 0 && vatDaiVow + maxWithdraw * RAY() > max_uint256;
+    bool revert5  = maxWithdraw > 0 && vatWardHub != 1;
+    bool revert6  = maxWithdraw > 0 && shareBalPool < maxWithdraw;
+    bool revert7  = maxWithdraw > 0 && daiBalShare < maxWithdraw;
+    bool revert8  = maxWithdraw > 0 && daiAllowanceSharePool < maxWithdraw;
+    bool revert9  = maxWithdraw > 0 && daiBalHub + maxWithdraw > max_uint256;
+    bool revert10 = maxWithdraw > 0 && maxWithdraw * RAY() > max_uint256;
+    bool revert11 = maxWithdraw > 0 && vatDaiDaiJoin < maxWithdraw * RAY();
+    bool revert12 = maxWithdraw > 0 && daiAllowanceHubDaiJoin < maxWithdraw;
+    bool revert13 = maxWithdraw > 0 && vatDaiHub + maxWithdraw * RAY() > max_uint256;
+    bool revert14 = maxWithdraw > 0 && vatDaiVow + maxWithdraw * RAY() > max_uint256;
 
     assert(revert1  => lastReverted, "revert1 failed");
     assert(revert2  => lastReverted, "revert2 failed");
@@ -823,13 +822,12 @@ rule exec_ilk_culled_revert(bytes32 ilk) {
     assert(revert12 => lastReverted, "revert12 failed");
     assert(revert13 => lastReverted, "revert13 failed");
     assert(revert14 => lastReverted, "revert14 failed");
-    assert(revert15 => lastReverted, "revert15 failed");
 
     assert(lastReverted => revert1  || revert2  || revert3  ||
                            revert4  || revert5  || revert6  ||
                            revert7  || revert8  || revert9  ||
                            revert10 || revert11 || revert12 ||
-                           revert13 || revert14 || revert15, "Revert rules are not covering all the cases");
+                           revert13 || revert14, "Revert rules are not covering all the cases");
 }
 
 rule exec_vat_caged(bytes32 ilk) {
@@ -1344,16 +1342,15 @@ rule uncull_revert(bytes32 ilk) {
     bool revert1  = e.msg.value > 0;
     bool revert2  = culled != 1;
     bool revert3  = vatLive != 0;
-    bool revert4  = vatGemPool > max_int256();
-    bool revert5  = vatWard != 1;
-    bool revert6  = vatSinVow + vatGemPool * RAY() > max_uint256;
-    bool revert7  = vatDaiVow + vatGemPool * RAY() > max_uint256;
-    bool revert8  = vatVice + vatGemPool * RAY() > max_uint256;
-    bool revert9  = vatDebt + vatGemPool * RAY() > max_uint256;
-    bool revert10 = ink + vatGemPool > max_uint256;
-    bool revert11 = art + vatGemPool > max_uint256;
-    bool revert12 = Art + vatGemPool > max_uint256;
-    bool revert13 = rate * vatGemPool > max_int256();
+    bool revert4  = vatWard != 1;
+    bool revert5  = vatSinVow + vatGemPool * RAY() > max_uint256;
+    bool revert6  = vatDaiVow + vatGemPool * RAY() > max_uint256;
+    bool revert7  = vatVice + vatGemPool * RAY() > max_uint256;
+    bool revert8  = vatDebt + vatGemPool * RAY() > max_uint256;
+    bool revert9  = ink + vatGemPool > max_uint256;
+    bool revert10 = art + vatGemPool > max_uint256;
+    bool revert11 = Art + vatGemPool > max_uint256;
+    bool revert12 = rate * vatGemPool > max_int256();
 
     assert(revert1  => lastReverted, "revert1 failed");
     assert(revert2  => lastReverted, "revert2 failed");
@@ -1367,11 +1364,9 @@ rule uncull_revert(bytes32 ilk) {
     assert(revert10 => lastReverted, "revert10 failed");
     assert(revert11 => lastReverted, "revert11 failed");
     assert(revert12 => lastReverted, "revert12 failed");
-    assert(revert13 => lastReverted, "revert13 failed");
 
     assert(lastReverted => revert1  || revert2  || revert3  ||
                            revert4  || revert5  || revert6  ||
                            revert7  || revert8  || revert9  ||
-                           revert10 || revert11 || revert12 ||
-                           revert13, "Revert rules are not covering all the cases");
+                           revert10 || revert11 || revert12, "Revert rules are not covering all the cases");
 }
