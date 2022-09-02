@@ -298,9 +298,11 @@ contract D3MHub {
                                 ),
                                 targetAssets < currentAssets ? currentAssets - targetAssets : 0 // plan targetAssets
                             );
-                if (toUnwind == 0) {
+                if (toUnwind > 0) {
+                    toUnwind = _min(toUnwind, maxWithdraw);
+                } else {
                     // Determine up to which value to wind:
-                    // (subtractions are safe as otherwise toUnwind is > 0)
+                    // subtractions are safe as otherwise toUnwind > 0 conditional would be true
                     toWind = _min(
                                 _min(
                                     _min(
@@ -311,8 +313,6 @@ contract D3MHub {
                                 ),
                                 _pool.maxDeposit() // restricts winding if the pool has a max deposit
                             );
-                } else {
-                    toUnwind = _min(toUnwind, maxWithdraw);
                 }
             }
         }
@@ -320,6 +320,7 @@ contract D3MHub {
         if (toUnwind > 0) {
             _pool.withdraw(toUnwind);
             daiJoin.join(address(this), toUnwind);
+            // MAXINT256WAD bounds toUnwind making sure is <<< than MAXINT256
             vat.frob(ilk, address(_pool), address(_pool), address(this), -int256(toUnwind), -int256(toUnwind));
             vat.slip(ilk, address(_pool), -int256(toUnwind));
             emit Unwind(ilk, toUnwind);
