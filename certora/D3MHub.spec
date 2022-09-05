@@ -1060,6 +1060,7 @@ rule exec_exec(bytes32 ilk) {
     uint256 targetAssets = plan.getTargetAssets(e, assetsBefore);
 
     require(maxDeposit > targetAssets - assetsBefore);
+    require(assetsBefore <= safe_max());
 
     exec(e, ilk);
 
