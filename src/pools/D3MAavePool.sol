@@ -87,12 +87,13 @@ contract D3MAavePool is ID3MPool {
     event Collect(address indexed king, address indexed gift, uint256 amt);
 
     constructor(address hub_, address dai_, address pool_) {
-        pool = LendingPoolLike(pool_);
         dai = TokenLike(dai_);
+        pool = LendingPoolLike(pool_);
 
         // Fetch the reserve data from Aave
-        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, ,) = pool.getReserveData(dai_);
-        require(stableDebt_ != address(0), "D3MAavePool/invalid-stableDebt");
+        (,,,,,,, address adai_, address stableDebt_, address variableDebt_,,) = pool.getReserveData(dai_);
+        require(adai_         != address(0), "D3MAavePool/invalid-adai");
+        require(stableDebt_   != address(0), "D3MAavePool/invalid-stableDebt");
         require(variableDebt_ != address(0), "D3MAavePool/invalid-variableDebt");
 
         adai = ATokenLike(adai_);
