@@ -361,6 +361,13 @@ contract D3MHub {
 
         if (vat.live() == 0) {
             // MCD caged
+            // The main reason to have this case is trying to unwind the highest amount of DAI from the pool before end.debt is established.
+            // That has the advantage to simplify End process, the best scenario would be unwinding everything which will decrease to the
+            // minimum the amount of circulating supply of DAI, giving directly more value of other collaterals for each unit of DAI.
+            // If this is not called, anyone can still call end.skim permissionlesly at any moment leaving remaining amount of pool shares
+            // available to DAI holders to redeem it. This type of collateral is a cyclical one though, where user will need to go from
+            // DAI -> pool share -> DAI -> ... making it not the most practical to handle. However, at the end, the net value of other
+            // collaterals received per unit of DAI should end up being the same one (assuming there is liquidity in the pool to withdraw).
             EndLike _end = end;
             require(_end.debt() == 0, "D3MHub/end-debt-already-set");
             require(ilks[ilk].culled == 0, "D3MHub/module-has-to-be-unculled-first");
