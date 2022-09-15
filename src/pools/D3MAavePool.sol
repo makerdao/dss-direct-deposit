@@ -150,7 +150,7 @@ contract D3MAavePool is ID3MPool {
         emit File(what, data);
     }
 
-    // Deposits Dai to Aave in exchange for adai which gets sent to the msg.sender
+    // Deposits Dai to Aave in exchange for adai which is received by this contract
     // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
     function deposit(uint256 wad) external override onlyHub {
         uint256 scaledPrev = adai.scaledBalanceOf(address(this));
