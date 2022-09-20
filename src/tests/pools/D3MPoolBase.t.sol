@@ -99,7 +99,7 @@ contract D3MPoolBase is ID3MPool {
 
     function withdraw(uint256 wad) external onlyHub override {}
 
-    function transfer(address dst, uint256 wad) onlyHub external override {}
+    function exit(address dst, uint256 wad) onlyHub external override {}
 
     function preDebtChange() external override {}
 
@@ -129,8 +129,21 @@ contract FakeVat {
     function nope(address usr) external { can[msg.sender][usr] = 0; }
 }
 
+contract FakeEnd {
+    uint256 internal Art_;
+
+    function setArt(uint256 _Art) external {
+        Art_ = _Art;
+    }
+
+    function Art(bytes32) external view returns (uint256) {
+        return Art_;
+    }
+}
+
 contract FakeHub {
     address public immutable vat;
+    FakeEnd public immutable end = new FakeEnd();
 
     constructor(address vat_) {
         vat = vat_;
@@ -261,8 +274,8 @@ contract D3MPoolBaseTest is DSSTest {
         assertRevert(address(d3mTestPool), abi.encodeWithSignature("withdraw(uint256)", uint256(1)), string(abi.encodePacked(contractName, "/only-hub")));
     }
 
-    function test_transfer_not_hub() public {
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("transfer(address,uint256)", address(this), uint256(0)), string(abi.encodePacked(contractName, "/only-hub")));
+    function test_exit_not_hub() public {
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("exit(address,uint256)", address(this), uint256(0)), string(abi.encodePacked(contractName, "/only-hub")));
     }
 
     function test_quit_no_auth() public {

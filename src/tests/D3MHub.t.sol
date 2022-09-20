@@ -1623,21 +1623,21 @@ contract D3MHubTest is DSSTest {
         assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
         assertEq(d3mTestPool.assetBalance(), 50 * WAD);
 
-        _giveTokens(TokenLike(address(testGem)), address(d3mTestPool), 0);
+        _giveTokens(TokenLike(address(testGem)), address(d3mTestPool), 20 * WAD); // Lost 30 tokens
 
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
-        assertEq(d3mTestPool.assetBalance(), 0);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 20 * WAD);
+        assertEq(d3mTestPool.assetBalance(), 20 * WAD);
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 50 * WAD);
         assertEq(art, 50 * WAD);
 
-        // This should only fill another 10 because the debt ceiling
+        // This should force unwind
         d3mHub.exec(ilk);
 
-        assertEq(d3mTestPool.assetBalance(), 10 * WAD);
+        assertEq(d3mTestPool.assetBalance(), 0);
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 60 * WAD);
-        assertEq(art, 60 * WAD);
+        assertEq(ink, 30 * WAD);
+        assertEq(art, 30 * WAD);
     }
 
     function test_exec_fixInk_full_under_debt_ceiling() public {

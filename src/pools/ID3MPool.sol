@@ -51,7 +51,7 @@ interface ID3MPool {
         @param dst address that should receive the redeemable tokens
         @param wad amount in Dai terms that we want to withdraw
     */
-    function transfer(address dst, uint256 wad) external;
+    function exit(address dst, uint256 wad) external;
 
     /**
         @notice Transfer all shares from this pool.

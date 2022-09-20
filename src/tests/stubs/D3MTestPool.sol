@@ -78,6 +78,11 @@ contract D3MTestPool is ID3MPool {
         _;
     }
 
+    // --- Math ---
+    function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = x <= y ? x : y;
+    }
+
     // --- Testing Admin ---
     function file(bytes32 what, bool data) external auth {
         if (what == "preDebt") preDebt = data;
@@ -119,7 +124,7 @@ contract D3MTestPool is ID3MPool {
         TokenLike(dai).transferFrom(share, msg.sender, wad);
     }
 
-    function transfer(address dst, uint256 wad) public override onlyHub {
+    function exit(address dst, uint256 wad) public override onlyHub {
         require(TokenLike(share).transfer(dst, wad), "D3MTestPool/transfer-failed");
     }
 
@@ -135,7 +140,7 @@ contract D3MTestPool is ID3MPool {
         postDebt = true;
     }
 
-    function assetBalance() external view override returns (uint256) {
+    function assetBalance() public view override returns (uint256) {
         return convertToAssets(shareBalance());
     }
 
@@ -144,7 +149,7 @@ contract D3MTestPool is ID3MPool {
     }
 
     function maxWithdraw() external view override returns (uint256) {
-        return TokenLike(dai).balanceOf(share);
+        return _min(TokenLike(dai).balanceOf(share), assetBalance());
     }
 
     function shareBalance() public view returns (uint256) {

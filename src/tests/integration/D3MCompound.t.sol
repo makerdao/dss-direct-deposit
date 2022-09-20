@@ -119,7 +119,7 @@ contract D3MCompoundTest is DSSTest {
         _giveAuthAccess(address(spot), address(this));
 
         d3mHub = new D3MHub(address(daiJoin));
-        d3mCompoundPool = new D3MCompoundPool(address(d3mHub), address(cDai));
+        d3mCompoundPool = new D3MCompoundPool(ilk, address(d3mHub), address(cDai));
         d3mCompoundPool.rely(address(d3mHub));
         d3mCompoundPlan = new D3MCompoundPlan(address(cDai));
 
@@ -989,7 +989,8 @@ contract D3MCompoundTest is DSSTest {
         _setRelBorrowTarget(7500);
 
         // Vat is caged for global settlement
-        vat.cage();
+        end.cage();
+        end.cage(ilk);
 
         // Simulate DAI holder gets some gems from GS
         vat.grab(ilk, address(d3mCompoundPool), address(this), address(this), -int256(100 * 1e18), -int256(0));
