@@ -151,8 +151,6 @@ contract FakeHub {
 }
 
 contract D3MPoolBaseTest is DSSTest {
-    Hevm hevm;
-
     string contractName;
 
     DaiLike dai;
@@ -162,10 +160,6 @@ contract D3MPoolBaseTest is DSSTest {
     address vat;
 
     function setUp() public virtual override {
-        hevm = Hevm(
-            address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
-        );
-
         contractName = "D3MPoolBase";
 
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
@@ -183,11 +177,11 @@ contract D3MPoolBaseTest is DSSTest {
 
         for (int256 i = 0; i < 100; i++) {
             // Scan the storage for the balance storage slot
-            bytes32 prevValue = hevm.load(
+            bytes32 prevValue = vm.load(
                 address(token),
                 keccak256(abi.encode(address(this), uint256(i)))
             );
-            hevm.store(
+            vm.store(
                 address(token),
                 keccak256(abi.encode(address(this), uint256(i))),
                 bytes32(amount)
@@ -197,7 +191,7 @@ contract D3MPoolBaseTest is DSSTest {
                 return;
             } else {
                 // Keep going after restoring the original value
-                hevm.store(
+                vm.store(
                     address(token),
                     keccak256(abi.encode(address(this), uint256(i))),
                     prevValue

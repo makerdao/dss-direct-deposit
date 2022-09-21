@@ -57,17 +57,11 @@ contract D3MTestHub {
 }
 
 contract D3MOracleTest is DSSTest {
-    Hevm hevm;
-
     D3MTestVat vat;
     D3MTestHub hub;
     D3MOracle oracle;
 
     function setUp() public override {
-        hevm = Hevm(
-            address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
-        );
-
         vat = new D3MTestVat();
         hub = new D3MTestHub();
 

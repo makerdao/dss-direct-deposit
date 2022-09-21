@@ -151,10 +151,6 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
     FakeEnd end;
 
     function setUp() override public {
-        hevm = Hevm(
-            address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
-        );
-
         contractName = "D3MAavePool";
 
         dai = DaiLike(address(new D3MTestGem(18)));

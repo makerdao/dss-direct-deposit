@@ -69,8 +69,6 @@ interface InterestRateModelLike {
 }
 
 contract D3MCompoundTest is DSSTest {
-    Hevm hevm;
-
     VatLike vat;
     EndLike end;
     CErc20Like cDai;
@@ -99,8 +97,6 @@ contract D3MCompoundTest is DSSTest {
         emit log_named_uint("block", block.number);
         emit log_named_uint("timestamp", block.timestamp);
 
-        hevm = Hevm(address(bytes20(uint160(uint256(keccak256('hevm cheat code'))))));
-
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         cDai = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
@@ -113,7 +109,7 @@ contract D3MCompoundTest is DSSTest {
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
         pauseProxy = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
 
-        // Force give admin access to these contracts via hevm magic
+        // Force give admin access to these contracts via vm magic
         _giveAuthAccess(address(vat), address(this));
         _giveAuthAccess(address(end), address(this));
         _giveAuthAccess(address(spot), address(this));
@@ -172,11 +168,11 @@ contract D3MCompoundTest is DSSTest {
 
         for (int i = 0; i < 100; i++) {
             // Scan the storage for the ward storage slot
-            bytes32 prevValue = hevm.load(
+            bytes32 prevValue = vm.load(
                 address(base),
                 keccak256(abi.encode(target, uint256(i)))
             );
-            hevm.store(
+            vm.store(
                 address(base),
                 keccak256(abi.encode(target, uint256(i))),
                 bytes32(uint256(1))
@@ -186,7 +182,7 @@ contract D3MCompoundTest is DSSTest {
                 return;
             } else {
                 // Keep going after restoring the original value
-                hevm.store(
+                vm.store(
                     address(base),
                     keccak256(abi.encode(target, uint256(i))),
                     prevValue
@@ -204,11 +200,11 @@ contract D3MCompoundTest is DSSTest {
 
         for (int i = 0; i < 100; i++) {
             // Scan the storage for the balance storage slot
-            bytes32 prevValue = hevm.load(
+            bytes32 prevValue = vm.load(
                 address(token),
                 keccak256(abi.encode(address(this), uint256(i)))
             );
-            hevm.store(
+            vm.store(
                 address(token),
                 keccak256(abi.encode(address(this), uint256(i))),
                 bytes32(amount)
@@ -218,7 +214,7 @@ contract D3MCompoundTest is DSSTest {
                 return;
             } else {
                 // Keep going after restoring the original value
-                hevm.store(
+                vm.store(
                     address(token),
                     keccak256(abi.encode(address(this), uint256(i))),
                     prevValue
@@ -423,7 +419,7 @@ contract D3MCompoundTest is DSSTest {
         assertEq(dai.balanceOf(address(cDai)), 0);
 
         // Someone else repays some Dai so we can unwind the rest
-        hevm.warp(block.timestamp + 1 days);
+        vm.warp(block.timestamp + 1 days);
         assertEq(cDai.repayBorrow(amountToBorrow), 0);
 
         d3mHub.exec(ilk);
@@ -461,7 +457,7 @@ contract D3MCompoundTest is DSSTest {
         assertEq(dai.balanceOf(address(cDai)), 0);
 
         // In this case nobody deposits more DAI so we have to write off the bad debt
-        hevm.warp(block.timestamp + 7 days);
+        vm.warp(block.timestamp + 7 days);
 
         uint256 sin = vat.sin(vow);
         uint256 vowDai = vat.dai(vow);
@@ -476,7 +472,7 @@ contract D3MCompoundTest is DSSTest {
         assertEq(vat.dai(vow), vowDai);
 
         // Some time later the pool gets some liquidity
-        hevm.warp(block.timestamp + 180 days);
+        vm.warp(block.timestamp + 180 days);
         assertEq(cDai.repayBorrow(amountToBorrow), 0);
 
         // Close out the remainder of the position
@@ -529,7 +525,7 @@ contract D3MCompoundTest is DSSTest {
 
     function test_collect_interest() public {
         _setRelBorrowTarget(7500);
-        hevm.roll(block.number + 5760);     // Collect ~one day of interest
+        vm.roll(block.number + 5760);     // Collect ~one day of interest
 
         uint256 vowDai = vat.dai(vow);
         d3mHub.exec(ilk);
@@ -558,7 +554,7 @@ contract D3MCompoundTest is DSSTest {
         assertEq(cDai.borrow(amountToBorrow), 0);
 
         // Accumulate a bunch of interest
-        hevm.roll(block.number + 180 * 5760);
+        vm.roll(block.number + 180 * 5760);
 
         uint256 feesAccrued = cDai.balanceOfUnderlying(address(d3mCompoundPool)) - pAssets;
 
@@ -603,7 +599,7 @@ contract D3MCompoundTest is DSSTest {
         assertEqRounding(pink, pAssets);
 
         // Accumulate a bunch of interest
-        hevm.roll(block.number + 180 * 5760);
+        vm.roll(block.number + 180 * 5760);
 
         // Someone else borrows almost all the liquidity
         assertEq(cDai.borrow(dai.balanceOf(address(cDai)) - 100 * WAD), 0);
@@ -680,7 +676,7 @@ contract D3MCompoundTest is DSSTest {
         }
 
         // Some time later the pool gets some liquidity
-        hevm.roll(block.number + 180 * 5760);
+        vm.roll(block.number + 180 * 5760);
         //compoundPool.repay(address(dai), amountToBorrow, 2, address(this));
         assertEq(cDai.repayBorrow(amountToBorrow), 0);
 
@@ -755,7 +751,7 @@ contract D3MCompoundTest is DSSTest {
         }
 
         // Some time later the pool gets some liquidity
-        hevm.roll(block.number + 180 * 5760);
+        vm.roll(block.number + 180 * 5760);
         //compoundPool.repay(address(dai), amountToBorrow, 2, address(this));
         assertEq(cDai.repayBorrow(amountToBorrow), 0);
 
@@ -789,10 +785,10 @@ contract D3MCompoundTest is DSSTest {
         end.cage();
         end.cage(ilk);
 
-        hevm.warp(block.timestamp + end.wait());
+        vm.warp(block.timestamp + end.wait());
 
         // Force remove all the dai from vow so it can call end.thaw()
-        hevm.store(
+        vm.store(
             address(vat),
             keccak256(abi.encode(address(vow), uint256(5))),
             bytes32(0)
@@ -824,8 +820,8 @@ contract D3MCompoundTest is DSSTest {
 
         (, , uint256 tau, , ) = d3mHub.ilks(ilk);
 
-        hevm.warp(block.timestamp + tau);
-        hevm.roll(block.number + tau / 15);
+        vm.warp(block.timestamp + tau);
+        vm.roll(block.number + tau / 15);
 
         uint256 daiEarned = cDai.balanceOfUnderlying(address(d3mCompoundPool)) - pink;
 
@@ -947,7 +943,7 @@ contract D3MCompoundTest is DSSTest {
         d3mHub.cage(ilk);
 
         (, , uint256 tau, , ) = d3mHub.ilks(ilk);
-        hevm.warp(block.timestamp + tau);
+        vm.warp(block.timestamp + tau);
 
         d3mHub.cull(ilk);
 
@@ -956,7 +952,7 @@ contract D3MCompoundTest is DSSTest {
 
     function test_collect_comp() public {
         _setRelBorrowTarget(7500);
-        hevm.roll(block.number + 5760);
+        vm.roll(block.number + 5760);
 
         // Set the king
         d3mCompoundPool.file("king", address(pauseProxy));
@@ -968,7 +964,7 @@ contract D3MCompoundTest is DSSTest {
         d3mCompoundPool.collect(true);
         assertGt(comp.balanceOf(address(pauseProxy)), compBefore);
 
-        hevm.roll(block.number + 5760);
+        vm.roll(block.number + 5760);
 
         // Collect some more rewards
         compBefore = comp.balanceOf(address(pauseProxy));
@@ -979,7 +975,7 @@ contract D3MCompoundTest is DSSTest {
     function test_collect_comp_king_not_set() public {
         _setRelBorrowTarget(7500);
 
-        hevm.roll(block.number + 5760);
+        vm.roll(block.number + 5760);
         if (ComptrollerLike(cDai.comptroller()).compBorrowSpeeds(address(cDai)) == 0) return; // Rewards are turned off
 
         assertRevert(address(d3mCompoundPool), abi.encodeWithSignature("collect(bool)", true), "D3MCompoundPool/king-not-set");
@@ -1012,7 +1008,7 @@ contract D3MCompoundTest is DSSTest {
         vat.cage();
 
         (, , uint256 tau, , ) = d3mHub.ilks(ilk);
-        hevm.warp(block.timestamp + tau);
+        vm.warp(block.timestamp + tau);
 
         assertRevert(address(d3mHub), abi.encodeWithSignature("cull(bytes32)", ilk), "D3MHub/no-cull-during-shutdown");
     }
@@ -1056,7 +1052,7 @@ contract D3MCompoundTest is DSSTest {
         d3mHub.cage(ilk);
 
         (, , uint256 tau, , ) = d3mHub.ilks(ilk);
-        hevm.warp(block.timestamp + tau);
+        vm.warp(block.timestamp + tau);
 
         d3mHub.cull(ilk);
 

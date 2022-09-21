@@ -65,10 +65,6 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
     }
 
     function setUp() public override {
-        hevm = Hevm(
-            address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
-        );
-
         contractName = "D3MCompoundPool";
 
         dai         = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
@@ -173,7 +169,7 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         pool.deposit(100 * WAD);
 
         uint256 compBefore = comp.balanceOf(king);
-        hevm.roll(block.number + 5760);
+        vm.roll(block.number + 5760);
 
         (,,,uint256 expected) = lens.getCompBalanceMetadataExt(address(comp), address(comptroller), address(pool));
         assertGt(expected, 0);
@@ -193,7 +189,7 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
 
         vm.prank(hub);
         pool.deposit(100 * WAD);
-        hevm.roll(block.number + 5760);
+        vm.roll(block.number + 5760);
         pool.collect(true);
 
         uint256 kingBalance = comp.balanceOf(address(king));

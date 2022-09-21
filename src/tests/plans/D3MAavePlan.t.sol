@@ -57,10 +57,6 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
     uint256 constant INTEREST_RATE_TOLERANCE = RAY / 10000;
 
     function setUp() override public {
-        hevm = Hevm(
-            address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
-        );
-
         contractName = "D3MAavePlan";
 
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
