@@ -37,6 +37,7 @@ interface DaiJoinLike {
 }
 
 interface EndLike {
+    function Art(bytes32) external view returns (uint256);
     function wait() external view returns (uint256);
     function cage() external;
     function cage(bytes32) external;
@@ -68,6 +69,7 @@ interface VatLike {
     function file(bytes32, uint256) external;
     function file(bytes32, bytes32, uint256) external;
     function cage() external;
+    function flux(bytes32, address, address, uint256) external;
     function frob(bytes32, address, address, address, int256, int256) external;
     function grab(bytes32, address, address, address, int256, int256) external;
     function fold(bytes32, address, int256) external;

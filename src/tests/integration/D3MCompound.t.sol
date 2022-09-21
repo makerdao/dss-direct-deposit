@@ -987,16 +987,61 @@ contract D3MCompoundTest is DSSTest {
         // Vat is caged for global settlement
         end.cage();
         end.cage(ilk);
+        end.skim(ilk, address(d3mCompoundPool));
 
         // Simulate DAI holder gets some gems from GS
-        vat.grab(ilk, address(d3mCompoundPool), address(this), address(this), -int256(100 * 1e18), -int256(0));
+        vm.prank(address(end));
+        vat.flux(ilk, address(end), address(this), 100 * 1e18);
+
+        uint256 totalArt = end.Art(ilk);
+
+        assertEq(cDai.balanceOf(address(this)), 0);
 
         // User can exit and get the cDAI
+        uint256 expectedCdai = 100 * 1e18 * cDai.balanceOf(address(d3mCompoundPool)) / totalArt;
         d3mHub.exit(ilk, address(this), 100 * 1e18);
-
-        uint256 expectedCdai = _wdiv(100 * 1e18, cDai.exchangeRateCurrent());
         assertEq(cDai.balanceOf(address(this)), expectedCdai);
-        assertEqRounding(100 * 1e18, cDai.balanceOfUnderlying(address(this)));
+        assertEqRounding(100 * 1e18, cDai.balanceOfUnderlying(address(this))); // As the whole thing happened in a block (no fees)
+    }
+
+    function test_cage_exit_multiple() public {
+        _setRelBorrowTarget(7500);
+
+        // Vat is caged for global settlement
+        end.cage();
+        end.cage(ilk);
+        end.skim(ilk, address(d3mCompoundPool));
+
+        // Simulate DAI holder gets some gems from GS
+        vm.prank(address(end));
+        vat.flux(ilk, address(end), address(this), 100 * 1e18);
+
+        uint256 initialCDaiBalance = cDai.balanceOf(address(d3mCompoundPool));
+        uint256 totalArt = end.Art(ilk);
+
+        assertEq(cDai.balanceOf(address(this)), 0);
+
+        // User can exit and get the cDAI
+        uint256 expectedCdai = 25 * 1e18 * initialCDaiBalance / totalArt;
+        d3mHub.exit(ilk, address(this), 25 * 1e18);
+        assertEq(cDai.balanceOf(address(this)), expectedCdai);
+        assertEqRounding(cDai.balanceOfUnderlying(address(this)), 25 * 1e18); // As the whole thing happened in a block (no fees)
+
+        vm.roll(block.number + 5);
+
+        uint256 expectedCdai2 = 25 * 1e18 * (initialCDaiBalance - expectedCdai) / (totalArt - 25 * 1e18);
+        assertEqApprox(expectedCdai2, expectedCdai, 1);
+        d3mHub.exit(ilk, address(this), 25 * 1e18);
+        assertEq(cDai.balanceOf(address(this)), expectedCdai + expectedCdai2);
+        assertGt(cDai.balanceOfUnderlying(address(this)), 50 * 1e18);
+
+        vm.roll(block.number + 5);
+
+        uint256 expectedCdai3 = 50 * 1e18 * (initialCDaiBalance - expectedCdai - expectedCdai2) / (totalArt - 50 * 1e18);
+        assertEqApprox(expectedCdai3, expectedCdai * 2, 1);
+        d3mHub.exit(ilk, address(this), 50 * 1e18);
+        assertEq(cDai.balanceOf(address(this)), expectedCdai + expectedCdai2 + expectedCdai3);
+        assertGt(cDai.balanceOfUnderlying(address(this)), 100 * 1e18);
     }
 
     function test_shutdown_cant_cull() public {

@@ -947,15 +947,59 @@ contract D3MAaveTest is DSSTest {
         // Vat is caged for global settlement
         end.cage();
         end.cage(ilk);
+        end.skim(ilk, address(d3mAavePool));
 
         // Simulate DAI holder gets some gems from GS
-        vat.grab(ilk, address(d3mAavePool), address(this), address(this), -int256(100 ether), -int256(0));
+        vm.prank(address(end));
+        vat.flux(ilk, address(end), address(this), 100 ether);
+
+        uint256 totalArt = end.Art(ilk);
+
+        assertEq(adai.balanceOf(address(this)), 0);
 
         // User can exit and get the aDAI
+        uint256 expectedAdai = 100 ether * adai.balanceOf(address(d3mAavePool)) / totalArt;
         d3mHub.exit(ilk, address(this), 100 ether);
-        assertEqApprox(adai.balanceOf(address(this)), 100 ether, 1);     // Slight rounding error may occur
+        assertEq(adai.balanceOf(address(this)), expectedAdai);
+        assertEqApprox(adai.balanceOf(address(this)), 100 ether, 1); // As the whole thing happened in a block (no fees)
     }
 
+    function test_cage_exit_multiple() public {
+        _setRelBorrowTarget(7500);
+
+        // Vat is caged for global settlement
+        end.cage();
+        end.cage(ilk);
+        end.skim(ilk, address(d3mAavePool));
+
+        // Simulate DAI holder gets some gems from GS
+        vm.prank(address(end));
+        vat.flux(ilk, address(end), address(this), 100 ether);
+
+        uint256 totalArt = end.Art(ilk);
+
+        assertEq(adai.balanceOf(address(this)), 0);
+
+        // User can exit and get the cDAI
+        uint256 expectedAdai = 25 ether * adai.balanceOf(address(d3mAavePool)) / totalArt;
+        d3mHub.exit(ilk, address(this), 25 ether);
+        assertEq(adai.balanceOf(address(this)), expectedAdai);
+        assertEqApprox(adai.balanceOf(address(this)), 25 ether, 1); // As the whole thing happened in a block (no fees)
+
+        vm.warp(block.timestamp + 3600);
+
+        uint256 expectedAdai2 = 25 ether * adai.balanceOf(address(d3mAavePool)) / (totalArt - 25 ether);
+        assertGt(expectedAdai2, expectedAdai);
+        d3mHub.exit(ilk, address(this), 25 ether);
+        assertGt(adai.balanceOf(address(this)), expectedAdai + expectedAdai2); // As fees were accrued
+
+        vm.warp(block.timestamp + 3600);
+
+        uint256 expectedAdai3 = 50 ether * adai.balanceOf(address(d3mAavePool)) / (totalArt - 50 ether);
+        assertGt(expectedAdai3, expectedAdai + expectedAdai2);
+        d3mHub.exit(ilk, address(this), 50 ether);
+        assertGt(adai.balanceOf(address(this)), expectedAdai + expectedAdai2 + expectedAdai3); // As fees were accrued
+    }
 
     function test_shutdown_cant_cull() public {
         _setRelBorrowTarget(7500);
