@@ -972,11 +972,11 @@ contract D3MAaveTest is DSSTest {
         end.cage(ilk);
         end.skim(ilk, address(d3mAavePool));
 
+        uint256 totalArt = end.Art(ilk);
+
         // Simulate DAI holder gets some gems from GS
         vm.prank(address(end));
-        vat.flux(ilk, address(end), address(this), 100 ether);
-
-        uint256 totalArt = end.Art(ilk);
+        vat.flux(ilk, address(end), address(this), totalArt);
 
         assertEq(adai.balanceOf(address(this)), 0);
 
@@ -999,6 +999,13 @@ contract D3MAaveTest is DSSTest {
         assertGt(expectedAdai3, expectedAdai + expectedAdai2);
         d3mHub.exit(ilk, address(this), 50 ether);
         assertGt(adai.balanceOf(address(this)), expectedAdai + expectedAdai2 + expectedAdai3); // As fees were accrued
+
+        vm.warp(block.timestamp + 3600);
+
+        uint256 expectedAdai4 = (totalArt - 100 ether) * adai.balanceOf(address(d3mAavePool)) / (totalArt - 100 ether);
+        d3mHub.exit(ilk, address(this), (totalArt - 100 ether));
+        assertGt(adai.balanceOf(address(this)), expectedAdai + expectedAdai2 + expectedAdai3 + expectedAdai4); // As fees were accrued
+        assertEq(adai.balanceOf(address(d3mAavePool)), 0);
     }
 
     function test_shutdown_cant_cull() public {
