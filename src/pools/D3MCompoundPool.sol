@@ -161,8 +161,9 @@ contract D3MCompoundPool is ID3MPool {
     }
 
     function exit(address dst, uint256 wad) external override onlyHub {
-        uint256 amt = wad * cDai.balanceOf(address(this)) / (D3mHubLike(hub).end().Art(ilk) - exited);
-        exited += wad;
+        uint256 exited_ = exited;
+        exited = exited_ + wad;
+        uint256 amt = wad * cDai.balanceOf(address(this)) / (D3mHubLike(hub).end().Art(ilk) - exited_);
         require(cDai.transfer(dst, amt), "D3MCompoundPool/transfer-failed");
     }
 
