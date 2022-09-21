@@ -3,6 +3,7 @@
 resource_errors.json
 
 # certora
+*autoFinder_*
 .*certora*
 .last_confs/
 *.zip

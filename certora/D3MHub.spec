@@ -479,8 +479,6 @@ rule exec_normal_revert(bytes32 ilk) {
 
     require(vat.live() == 1);
     require(culled(ilk) == 0);
-    require(ink >= art);
-    require(assets >= ink);
     require(dust == 0);
     require(dai.wards(daiJoin) == 1);
     require(share.wards(pool) == 1);
@@ -517,11 +515,11 @@ rule exec_normal_revert(bytes32 ilk) {
                             targetAssets < assets ? to_mathint(assets - targetAssets) : 0
                         );
 
-    mathint toUnwind = (tic > 0 || !active)
+    mathint toUnwind = (tic > 0 || !active || assets + WAD() < ink)
                         ? maxWithdraw
                         : min(toUnwindAux, maxWithdraw);
 
-    mathint toWind = tic == 0 && active && toUnwindAux == 0
+    mathint toWind = tic == 0 && active && assets + WAD() >= ink && toUnwindAux == 0
                     ? min(
                         to_mathint(lineWad - artFixed),
                         min(
@@ -582,34 +580,35 @@ rule exec_normal_revert(bytes32 ilk) {
     bool revert17 = art < inkFixed && vatVice + rate * fixArt > max_uint256;
     bool revert18 = art < inkFixed && vatDebt + rate * fixArt > max_uint256;
     //
+    bool revert19 = tic == 0 && active && assets + WAD() > max_uint256;
     // pool.withdraw:
-    bool revert19 = toUnwind > 0 && shareBalPool < toUnwind;
-    bool revert20 = toUnwind > 0 && daiBalShare < toUnwind;
-    bool revert21 = toUnwind > 0 && daiAllowanceSharePool < toUnwind;
-    bool revert22 = toUnwind > 0 && daiBalHub + toUnwind > max_uint256;
+    bool revert20 = toUnwind > 0 && shareBalPool < toUnwind;
+    bool revert21 = toUnwind > 0 && daiBalShare < toUnwind;
+    bool revert22 = toUnwind > 0 && daiAllowanceSharePool < toUnwind;
+    bool revert23 = toUnwind > 0 && daiBalHub + toUnwind > max_uint256;
     // daiJoin.join:
-    bool revert23 = toUnwind > 0 && vatDaiDaiJoin < toUnwind * RAY();
-    bool revert24 = toUnwind > 0 && vatDaiHub + toUnwind * RAY() > max_uint256;
-    bool revert25 = toUnwind > 0 && daiAllowanceHubDaiJoin < toUnwind;
+    bool revert24 = toUnwind > 0 && vatDaiDaiJoin < toUnwind * RAY();
+    bool revert25 = toUnwind > 0 && vatDaiHub + toUnwind * RAY() > max_uint256;
+    bool revert26 = toUnwind > 0 && daiAllowanceHubDaiJoin < toUnwind;
     // vat.frob:
-    bool revert26 = toUnwind > 0 && vatCanPoolHub != 1;
+    bool revert27 = toUnwind > 0 && vatCanPoolHub != 1;
     // vat.slip:
-    bool revert27 = toUnwind > 0 && vatWardHub != 1;
+    bool revert28 = toUnwind > 0 && vatWardHub != 1;
     //
-    bool revert28 = toWind > 0 && artFixed + toWind > safe_max();
+    bool revert29 = toWind > 0 && artFixed + toWind > safe_max();
     // vat.slip:
-    bool revert29 = toWind > 0 && vatWardHub != 1;
-    bool revert30 = toWind > 0 && vatGemPool + toWind > max_uint256;
+    bool revert30 = toWind > 0 && vatWardHub != 1;
+    bool revert31 = toWind > 0 && vatGemPool + toWind > max_uint256;
     // vat.frob:
-    bool revert31 = toWind > 0 && vatCanPoolHub != 1;
-    bool revert32 = toWind > 0 && vatDaiHub + rate * toWind > max_uint256;
+    bool revert32 = toWind > 0 && vatCanPoolHub != 1;
+    bool revert33 = toWind > 0 && vatDaiHub + rate * toWind > max_uint256;
     // daiJoin.exit:
-    bool revert33 = toWind > 0 && daiJoinLive != 1;
-    bool revert34 = toWind > 0 && vatCanHubDaiJoin != 1;
-    bool revert35 = toWind > 0 && vatDaiDaiJoin + toWind * RAY() > max_uint256;
-    bool revert36 = toWind > 0 && daiSupply + toWind > max_uint256;
+    bool revert34 = toWind > 0 && daiJoinLive != 1;
+    bool revert35 = toWind > 0 && vatCanHubDaiJoin != 1;
+    bool revert36 = toWind > 0 && vatDaiDaiJoin + toWind * RAY() > max_uint256;
+    bool revert37 = toWind > 0 && daiSupply + toWind > max_uint256;
     // pool.deposit:
-    bool revert37 = toWind > 0 && shareSupply + toWind > max_uint256;
+    bool revert38 = toWind > 0 && shareSupply + toWind > max_uint256;
 
     assert(revert1  => lastReverted, "revert1 failed");
     assert(revert2  => lastReverted, "revert2 failed");
@@ -648,6 +647,7 @@ rule exec_normal_revert(bytes32 ilk) {
     assert(revert35 => lastReverted, "revert35 failed");
     assert(revert36 => lastReverted, "revert36 failed");
     assert(revert37 => lastReverted, "revert37 failed");
+    assert(revert38 => lastReverted, "revert38 failed");
 
     assert(lastReverted => revert1  || revert2  || revert3  ||
                            revert4  || revert5  || revert6  ||
@@ -661,7 +661,7 @@ rule exec_normal_revert(bytes32 ilk) {
                            revert28 || revert29 || revert30 ||
                            revert31 || revert32 || revert33 ||
                            revert34 || revert35 || revert36 ||
-                           revert37, "Revert rules are not covering all the cases");
+                           revert37 || revert38, "Revert rules are not covering all the cases");
 }
 
 rule exec_ilk_culled(bytes32 ilk) {
