@@ -63,7 +63,7 @@ methods {
     withdraw(uint256) => DISPATCHER(true)
     preDebtChange() => DISPATCHER(true)
     postDebtChange() => DISPATCHER(true)
-    transfer(address, uint256) => DISPATCHER(true)
+    exit(address, uint256) => DISPATCHER(true)
     balanceOf(address) returns (uint256) => DISPATCHER(true)
     burn(address, uint256) => DISPATCHER(true)
     mint(address, uint256) => DISPATCHER(true)
