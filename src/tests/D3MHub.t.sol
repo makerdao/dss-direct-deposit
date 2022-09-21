@@ -1604,7 +1604,7 @@ contract D3MHubTest is DSSTest {
         assertRevert(address(d3mHub), abi.encodeWithSignature("exit(bytes32,address,uint256)", ilk, address(this), 1), "D3MHub/system-locked");
     }
 
-    function test_wind_limited_by_pool_loss() public {
+    function test_unwind_due_to_by_pool_loss() public {
         _windSystem(); // winds to 50 * WAD
 
         // Set debt ceiling to 60 to limit loss
