@@ -980,7 +980,7 @@ contract D3MAaveTest is DSSTest {
 
         assertEq(adai.balanceOf(address(this)), 0);
 
-        // User can exit and get the cDAI
+        // User can exit and get the aDAI
         uint256 expectedAdai = 25 ether * adai.balanceOf(address(d3mAavePool)) / totalArt;
         d3mHub.exit(ilk, address(this), 25 ether);
         assertEq(adai.balanceOf(address(this)), expectedAdai);
