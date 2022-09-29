@@ -519,7 +519,7 @@ contract D3MAaveTest is DSSTest {
 
         // Accumulate a bunch of interest
         vm.warp(block.timestamp + 180 days);
-        
+
         uint256 feesAccrued = adai.balanceOf(address(d3mAavePool)) - pAssets;
 
         currentLiquidity = dai.balanceOf(address(adai));
@@ -960,8 +960,8 @@ contract D3MAaveTest is DSSTest {
         // User can exit and get the aDAI
         uint256 expectedAdai = 100 ether * adai.balanceOf(address(d3mAavePool)) / totalArt;
         d3mHub.exit(ilk, address(this), 100 ether);
-        assertEq(adai.balanceOf(address(this)), expectedAdai);
-        assertEqApprox(adai.balanceOf(address(this)), 100 ether, 1); // As the whole thing happened in a block (no fees)
+        assertEq(expectedAdai, 100 ether);
+        assertEqApprox(adai.balanceOf(address(this)), expectedAdai, 1); // As the whole thing happened in a block (no fees)
     }
 
     function test_cage_exit_multiple() public {

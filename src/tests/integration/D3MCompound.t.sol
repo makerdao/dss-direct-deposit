@@ -991,17 +991,17 @@ contract D3MCompoundTest is DSSTest {
 
         // Simulate DAI holder gets some gems from GS
         vm.prank(address(end));
-        vat.flux(ilk, address(end), address(this), 100 * 1e18);
+        vat.flux(ilk, address(end), address(this), 100 * WAD);
 
         uint256 totalArt = end.Art(ilk);
 
         assertEq(cDai.balanceOf(address(this)), 0);
 
         // User can exit and get the cDAI
-        uint256 expectedCdai = 100 * 1e18 * cDai.balanceOf(address(d3mCompoundPool)) / totalArt;
-        d3mHub.exit(ilk, address(this), 100 * 1e18);
+        uint256 expectedCdai = 100 * WAD * cDai.balanceOf(address(d3mCompoundPool)) / totalArt;
+        d3mHub.exit(ilk, address(this), 100 * WAD);
         assertEq(cDai.balanceOf(address(this)), expectedCdai);
-        assertEqRounding(100 * 1e18, cDai.balanceOfUnderlying(address(this))); // As the whole thing happened in a block (no fees)
+        assertEqRounding(100 * WAD, cDai.balanceOfUnderlying(address(this))); // As the whole thing happened in a block (no fees)
     }
 
     function test_cage_exit_multiple() public {
@@ -1023,31 +1023,31 @@ contract D3MCompoundTest is DSSTest {
         assertEq(cDai.balanceOf(address(this)), 0);
 
         // User can exit and get the cDAI
-        uint256 expectedCDai = 25 * 1e18 * initialCDaiBalance / totalArt;
-        d3mHub.exit(ilk, address(this), 25 * 1e18);
+        uint256 expectedCDai = 25 * WAD * initialCDaiBalance / totalArt;
+        d3mHub.exit(ilk, address(this), 25 * WAD);
         assertEq(cDai.balanceOf(address(this)), expectedCDai);
-        assertEqRounding(cDai.balanceOfUnderlying(address(this)), 25 * 1e18); // As the whole thing happened in a block (no fees)
+        assertEqRounding(cDai.balanceOfUnderlying(address(this)), 25 * WAD); // As the whole thing happened in a block (no fees)
 
         vm.roll(block.number + 5);
 
-        uint256 expectedCDai2 = 25 * 1e18 * (initialCDaiBalance - expectedCDai) / (totalArt - 25 * 1e18);
+        uint256 expectedCDai2 = 25 * WAD * (initialCDaiBalance - expectedCDai) / (totalArt - 25 * WAD);
         assertEqApprox(expectedCDai2, expectedCDai, 1);
-        d3mHub.exit(ilk, address(this), 25 * 1e18);
+        d3mHub.exit(ilk, address(this), 25 * WAD);
         assertEq(cDai.balanceOf(address(this)), expectedCDai + expectedCDai2);
-        assertGt(cDai.balanceOfUnderlying(address(this)), 50 * 1e18);
+        assertGt(cDai.balanceOfUnderlying(address(this)), 50 * WAD);
 
         vm.roll(block.number + 5);
 
-        uint256 expectedCDai3 = 50 * 1e18 * (initialCDaiBalance - expectedCDai - expectedCDai2) / (totalArt - 50 * 1e18);
+        uint256 expectedCDai3 = 50 * WAD * (initialCDaiBalance - expectedCDai - expectedCDai2) / (totalArt - 50 * WAD);
         assertEqApprox(expectedCDai3, expectedCDai * 2, 1);
-        d3mHub.exit(ilk, address(this), 50 * 1e18);
+        d3mHub.exit(ilk, address(this), 50 * WAD);
         assertEq(cDai.balanceOf(address(this)), expectedCDai + expectedCDai2 + expectedCDai3);
-        assertGt(cDai.balanceOfUnderlying(address(this)), 100 * 1e18);
+        assertGt(cDai.balanceOfUnderlying(address(this)), 100 * WAD);
 
         vm.roll(block.number + 5);
 
-        uint256 expectedCDai4 = (totalArt - 100 * 1e18) * (initialCDaiBalance - expectedCDai - expectedCDai2 - expectedCDai3) / (totalArt - 100 * 1e18);
-        d3mHub.exit(ilk, address(this), totalArt - 100 * 1e18);
+        uint256 expectedCDai4 = (totalArt - 100 * WAD) * (initialCDaiBalance - expectedCDai - expectedCDai2 - expectedCDai3) / (totalArt - 100 * WAD);
+        d3mHub.exit(ilk, address(this), totalArt - 100 * WAD);
         assertEq(cDai.balanceOf(address(this)), expectedCDai + expectedCDai2 + expectedCDai3 + expectedCDai4);
         assertGt(cDai.balanceOfUnderlying(address(this)), totalArt);
         assertEq(cDai.balanceOf(address(d3mCompoundPool)), 0);
