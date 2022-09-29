@@ -261,21 +261,6 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(adai.balanceOf(d3mTestPool), 0);
     }
 
-    function test_exit_adai_vat_caged() public {
-        uint256 tokens = adai.totalSupply();
-        adai.transfer(d3mTestPool, tokens);
-        assertEq(adai.balanceOf(address(this)), 0);
-        assertEq(adai.balanceOf(d3mTestPool), tokens);
-
-        FakeVat(vat).cage();
-        end.setArt(tokens);
-        vm.prank(hub);
-        D3MAavePool(d3mTestPool).exit(address(this), tokens);
-
-        assertEq(adai.balanceOf(address(this)), tokens);
-        assertEq(adai.balanceOf(d3mTestPool), 0);
-    }
-
     function test_quit_moves_balance() public {
         uint256 tokens = adai.totalSupply();
         adai.transfer(d3mTestPool, tokens);

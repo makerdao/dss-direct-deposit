@@ -232,22 +232,6 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         assertEq(cDai.balanceOf(address(123)), balanceCdai / 2);
     }
 
-    function test_exit_cdai_vat_caged() public {
-        vm.prank(hub);
-        pool.deposit(100 * WAD);
-
-        uint256 balanceCdai = cDai.balanceOf(address(pool));
-        assertGt(balanceCdai, 2);
-
-        FakeVat(vat).cage();
-        end.setArt(100 * WAD);
-        vm.prank(hub);
-        pool.exit(address(123), 50 * WAD);
-
-        assertEq(balanceCdai - cDai.balanceOf(address(pool)), balanceCdai / 2);
-        assertEq(cDai.balanceOf(address(123)), balanceCdai / 2);
-    }
-
     function test_quit_moves_balance() public {
         vm.prank(hub);
         pool.deposit(100 * WAD);
