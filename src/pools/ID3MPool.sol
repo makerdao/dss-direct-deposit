@@ -44,14 +44,14 @@ interface ID3MPool {
     function withdraw(uint256 wad) external;
 
      /**
-        @notice Transfer shares.
+        @notice Exit proportional amount of shares.
         @dev If the external pool/token contract requires a different amount to be
-        passed in the conversion should occur here as the Hub passes Dai [wad]
+        passed in the conversion should occur here as the Hub passes Gem [wad]
         amounts. msg.sender must be the hub.
         @param dst address that should receive the redeemable tokens
-        @param wad amount in Dai terms that we want to withdraw
+        @param wad amount in Gem terms that we want to withdraw
     */
-    function transfer(address dst, uint256 wad) external;
+    function exit(address dst, uint256 wad) external;
 
     /**
         @notice Transfer all shares from this pool.

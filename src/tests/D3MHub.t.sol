@@ -42,8 +42,6 @@ interface Hevm {
 }
 
 contract D3MHubTest is DSSTest {
-    Hevm hevm;
-
     VatLike vat;
     EndLike end;
     D3MTestRewards rewardsClaimer;
@@ -63,10 +61,6 @@ contract D3MHubTest is DSSTest {
     D3MOracle pip;
 
     function setUp() public override {
-        hevm = Hevm(
-            address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
-        );
-
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
@@ -76,7 +70,7 @@ contract D3MHubTest is DSSTest {
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
         pauseProxy = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
 
-        // Force give admin access to these contracts via hevm magic
+        // Force give admin access to these contracts via vm magic
         _giveAuthAccess(address(vat), address(this));
         _giveAuthAccess(address(end), address(this));
         _giveAuthAccess(address(spot), address(this));
@@ -136,11 +130,11 @@ contract D3MHubTest is DSSTest {
 
         for (int256 i = 0; i < 100; i++) {
             // Scan the storage for the ward storage slot
-            bytes32 prevValue = hevm.load(
+            bytes32 prevValue = vm.load(
                 address(base),
                 keccak256(abi.encode(target, uint256(i)))
             );
-            hevm.store(
+            vm.store(
                 address(base),
                 keccak256(abi.encode(target, uint256(i))),
                 bytes32(uint256(1))
@@ -150,7 +144,7 @@ contract D3MHubTest is DSSTest {
                 return;
             } else {
                 // Keep going after restoring the original value
-                hevm.store(
+                vm.store(
                     address(base),
                     keccak256(abi.encode(target, uint256(i))),
                     prevValue
@@ -176,11 +170,11 @@ contract D3MHubTest is DSSTest {
 
         for (int256 i = 0; i < 100; i++) {
             // Scan the storage for the balance storage slot
-            bytes32 prevValue = hevm.load(
+            bytes32 prevValue = vm.load(
                 address(token),
                 keccak256(abi.encode(address(usr), uint256(i)))
             );
-            hevm.store(
+            vm.store(
                 address(token),
                 keccak256(abi.encode(address(usr), uint256(i))),
                 bytes32(amount)
@@ -190,7 +184,7 @@ contract D3MHubTest is DSSTest {
                 return;
             } else {
                 // Keep going after restoring the original value
-                hevm.store(
+                vm.store(
                     address(token),
                     keccak256(abi.encode(address(usr), uint256(i))),
                     prevValue
@@ -1088,7 +1082,7 @@ contract D3MHubTest is DSSTest {
         // with auth we can cull anytime
         d3mHub.deny(address(this));
         // but with enough time, anyone can cull
-        hevm.warp(block.timestamp + 7 days);
+        vm.warp(block.timestamp + 7 days);
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
         assertEq(pink, 50 * WAD);
@@ -1126,7 +1120,7 @@ contract D3MHubTest is DSSTest {
         _windSystem();
         d3mHub.cage(ilk);
         d3mHub.deny(address(this));
-        hevm.warp(block.timestamp + 6 days);
+        vm.warp(block.timestamp + 6 days);
 
         assertRevert(address(d3mHub), abi.encodeWithSignature("cull(bytes32)", ilk), "D3MHub/unauthorized-cull");
     }
@@ -1596,7 +1590,7 @@ contract D3MHubTest is DSSTest {
 
     function test_exec_lock_protection() public {
         // Store memory slot 0x3
-        hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
+        vm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
         assertEq(d3mHub.locked(), 1);
 
         assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", ilk), "D3MHub/system-locked");
@@ -1604,13 +1598,13 @@ contract D3MHubTest is DSSTest {
 
     function test_exit_lock_protection() public {
         // Store memory slot 0x3
-        hevm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
+        vm.store(address(d3mHub), bytes32(uint256(3)), bytes32(uint256(1)));
         assertEq(d3mHub.locked(), 1);
 
         assertRevert(address(d3mHub), abi.encodeWithSignature("exit(bytes32,address,uint256)", ilk, address(this), 1), "D3MHub/system-locked");
     }
 
-    function test_wind_limited_by_pool_loss() public {
+    function test_unwind_due_to_by_pool_loss() public {
         _windSystem(); // winds to 50 * WAD
 
         // Set debt ceiling to 60 to limit loss
@@ -1623,21 +1617,21 @@ contract D3MHubTest is DSSTest {
         assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
         assertEq(d3mTestPool.assetBalance(), 50 * WAD);
 
-        _giveTokens(TokenLike(address(testGem)), address(d3mTestPool), 0);
+        _giveTokens(TokenLike(address(testGem)), address(d3mTestPool), 20 * WAD); // Lost 30 tokens
 
-        assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
-        assertEq(d3mTestPool.assetBalance(), 0);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 20 * WAD);
+        assertEq(d3mTestPool.assetBalance(), 20 * WAD);
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
         assertEq(ink, 50 * WAD);
         assertEq(art, 50 * WAD);
 
-        // This should only fill another 10 because the debt ceiling
+        // This should force unwind
         d3mHub.exec(ilk);
 
-        assertEq(d3mTestPool.assetBalance(), 10 * WAD);
+        assertEq(d3mTestPool.assetBalance(), 0);
         (ink, art) = vat.urns(ilk, address(d3mTestPool));
-        assertEq(ink, 60 * WAD);
-        assertEq(art, 60 * WAD);
+        assertEq(ink, 30 * WAD);
+        assertEq(art, 30 * WAD);
     }
 
     function test_exec_fixInk_full_under_debt_ceiling() public {
@@ -1672,7 +1666,7 @@ contract D3MHubTest is DSSTest {
         _giveTokens(TokenLike(address(testGem)), 10 * WAD);
         testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
         assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
-        hevm.store(
+        vm.store(
             address(dai),
             keccak256(abi.encode(address(testGem), uint256(2))),
             bytes32(uint256(0))
@@ -1702,7 +1696,7 @@ contract D3MHubTest is DSSTest {
         _giveTokens(TokenLike(address(testGem)), 10 * WAD);
         testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
         assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
-        hevm.store(
+        vm.store(
             address(dai),
             keccak256(abi.encode(address(testGem), uint256(2))),
             bytes32(uint256(3 * WAD))
@@ -1757,7 +1751,7 @@ contract D3MHubTest is DSSTest {
         _giveTokens(TokenLike(address(testGem)), 10 * WAD);
         testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
         assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
-        hevm.store(
+        vm.store(
             address(dai),
             keccak256(abi.encode(address(testGem), uint256(2))),
             bytes32(uint256(0))
@@ -1787,7 +1781,7 @@ contract D3MHubTest is DSSTest {
         _giveTokens(TokenLike(address(testGem)), 10 * WAD);
         testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
         assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
-        hevm.store(
+        vm.store(
             address(dai),
             keccak256(abi.encode(address(testGem), uint256(2))),
             bytes32(uint256(3 * WAD))
@@ -1817,7 +1811,7 @@ contract D3MHubTest is DSSTest {
         _giveTokens(TokenLike(address(testGem)), 10 * WAD);
         testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
         assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
-        hevm.store(
+        vm.store(
             address(dai),
             keccak256(abi.encode(address(testGem), uint256(2))),
             bytes32(uint256(10 * WAD))
@@ -1847,7 +1841,7 @@ contract D3MHubTest is DSSTest {
         _giveTokens(TokenLike(address(testGem)), 10 * WAD);
         testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
         assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
-        hevm.store(
+        vm.store(
             address(dai),
             keccak256(abi.encode(address(testGem), uint256(2))),
             bytes32(uint256(0))
@@ -1877,7 +1871,7 @@ contract D3MHubTest is DSSTest {
         _giveTokens(TokenLike(address(testGem)), 10 * WAD);
         testGem.transfer(address(d3mTestPool), 10 * WAD); // Simulates 10 WAD of interest accumulated
         assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
-        hevm.store(
+        vm.store(
             address(dai),
             keccak256(abi.encode(address(testGem), uint256(2))),
             bytes32(uint256(3 * WAD))

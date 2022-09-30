@@ -15,4 +15,6 @@ jobs:
         run: forge install
 
       - name: Run tests
-        run: forge test -v --force --fork-url ${{ secrets.ETH_RPC_URL }} --use 0.8.14
+        run: make test
+        env:
+          ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}

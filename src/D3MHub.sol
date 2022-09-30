@@ -136,6 +136,7 @@ contract D3MHub {
     }
 
     // --- Math ---
+    uint256 internal constant WAD = 10 ** 18;
     uint256 internal constant RAY = 10 ** 27;
     uint256 internal constant MAXINT256 = uint256(type(int256).max);
     uint256 internal constant SAFEMAX = MAXINT256 / RAY;
@@ -283,8 +284,10 @@ contract D3MHub {
         uint256 toUnwind;
         uint256 toWind;
 
-        // Determine if it needs to fully unwind due to D3M ilk being caged (but not culled) or plan is not active
-        if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) {
+        // Determine if it needs to fully unwind due to D3M ilk being caged (but not culled), plan is not active or something
+        // wrong is going with the third party and we are entering in the ilegal situation of having less assets than registered
+        // It's adding up `WAD` due possible rounding errors
+        if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active() || currentAssets + WAD < ink) {
             toUnwind = maxWithdraw;
         } else {
             uint256 Line = vat.Line();
@@ -406,7 +409,7 @@ contract D3MHub {
     function exit(bytes32 ilk, address usr, uint256 wad) external lock {
         require(wad <= MAXINT256, "D3MHub/overflow");
         vat.slip(ilk, msg.sender, -int256(wad));
-        ilks[ilk].pool.transfer(usr, wad);
+        ilks[ilk].pool.exit(usr, wad);
         emit Exit(ilk, usr, wad);
     }
 

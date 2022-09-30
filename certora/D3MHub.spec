@@ -63,7 +63,7 @@ methods {
     withdraw(uint256) => DISPATCHER(true)
     preDebtChange() => DISPATCHER(true)
     postDebtChange() => DISPATCHER(true)
-    transfer(address, uint256) => DISPATCHER(true)
+    exit(address, uint256) => DISPATCHER(true)
     balanceOf(address) returns (uint256) => DISPATCHER(true)
     burn(address, uint256) => DISPATCHER(true)
     mint(address, uint256) => DISPATCHER(true)
@@ -251,7 +251,6 @@ rule exec_normal(bytes32 ilk) {
 
     require(vat.live() == 1);
     require(culled == 0);
-    require(assetsBefore >= inkBefore);
 
     exec(e, ilk);
 
@@ -294,7 +293,7 @@ rule exec_normal(bytes32 ilk) {
     assert(vatDaiVowAfter == vatDaiVowBefore + fixArt * RAY(), "vatDaiVow did not increase as expected");
     // Winding to targetAssets
     assert(
-        tic == 0 && active && // regular path in normal path
+        tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         maxDeposit >= targetAssets - assetsBefore && // target IS NOT restricted by maxDeposit
         targetAssets <= lineWad && // target IS NOT restricted by ilk line
@@ -303,9 +302,19 @@ rule exec_normal(bytes32 ilk) {
                assetsAfter == artAfter,
                "wind: error 1"
     );
+    assert(
+        tic == 0 && active && inkBefore > assetsBefore && inkBefore - assetsBefore <= WAD() && // regular path in normal path but assets right below ink
+        targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
+        maxDeposit >= targetAssets - assetsBefore && // target IS NOT restricted by maxDeposit
+        targetAssets + (inkBefore - assetsBefore) <= lineWad && // target IS NOT restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore // target IS NOT restricted by global Line
+            => artAfter == targetAssets + (inkBefore - assetsBefore) &&
+               assetsAfter == targetAssets,
+               "wind: error 2"
+    );
     // Winding to ilk line
     assert(
-        tic == 0 && active && // regular path in normal path
+        tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         maxDeposit >= targetAssets - assetsBefore && // target IS NOT restricted by maxDeposit
         targetAssets > lineWad && // target IS restricted by ilk line
@@ -313,10 +322,21 @@ rule exec_normal(bytes32 ilk) {
         inkBefore <= lineWad // ink before execution is safe under ilk line
             => artAfter == lineWad &&
                assetsAfter >= artAfter,
-               "wind: error 2"
+               "wind: error 3"
     );
     assert(
-        tic == 0 && active && // regular path in normal path
+        tic == 0 && active && inkBefore > assetsBefore && inkBefore - assetsBefore <= WAD() && // regular path in normal path but assets right below ink
+        targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
+        maxDeposit >= targetAssets - assetsBefore && // target IS NOT restricted by maxDeposit
+        targetAssets + (inkBefore - assetsBefore) > lineWad && // target IS restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
+        inkBefore <= lineWad // ink before execution is safe under ilk line
+            => artAfter == lineWad &&
+               assetsAfter == artAfter - (inkBefore - assetsBefore),
+               "wind: error 4"
+    );
+    assert(
+        tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         maxDeposit >= targetAssets - assetsBefore && // target IS NOT restricted by maxDeposit
         targetAssets > lineWad && // target IS restricted by ilk line
@@ -325,11 +345,11 @@ rule exec_normal(bytes32 ilk) {
         targetAssets >= lineWad // target is pointed above ilk line
             => artAfter == lineWad &&
                assetsAfter == artAfter,
-               "wind: error 3"
+               "wind: error 5"
     );
     // Unwinding to targetAssets
     assert(
-        tic == 0 && active && // regular path in normal path
+        tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets <= assetsBefore && // plan determines we need to go down (or keep the same)
         targetAssets <= lineWad && // target IS NOT restricted by ilk line
         (LineBefore - debtMiddle) / RAY() >= 0 && // target IS NOT restricted by global Line
@@ -339,9 +359,20 @@ rule exec_normal(bytes32 ilk) {
                assetsAfter == artAfter,
                "unwind: error 1"
     );
+    assert(
+        tic == 0 && active && inkBefore > assetsBefore && inkBefore - assetsBefore <= WAD() && // regular path in normal path but assets right below ink
+        targetAssets <= assetsBefore && // plan determines we need to go down (or keep the same)
+        targetAssets + (inkBefore - assetsBefore) <= lineWad && // target IS NOT restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= 0 && // target IS NOT restricted by global Line
+        maxWithdraw >= assetsBefore - targetAssets && // target IS NOT restricted by maxWithdraw
+        assetsBefore <= safe_max() // target is NOT restricted by safe maxint256 wad
+            => artAfter == targetAssets + (inkBefore - assetsBefore) &&
+               assetsAfter == targetAssets,
+               "unwind: error 2"
+    );
     // Unwinding due to targetAssets but restricted
     assert(
-        tic == 0 && active && // regular path in normal path
+        tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets <= assetsBefore && // plan determines we need to go down (or keep the same)
         targetAssets <= lineWad && // target IS NOT restricted by ilk line
         (LineBefore - debtMiddle) / RAY() >= 0 && // target IS NOT restricted by global Line
@@ -349,10 +380,21 @@ rule exec_normal(bytes32 ilk) {
         assetsBefore <= lineWad
             => artAfter == assetsBefore - maxWithdraw &&
                assetsAfter == artAfter,
-               "unwind: error 2"
+               "unwind: error 3"
     );
     assert(
-        tic == 0 && active && // regular path in normal path
+        tic == 0 && active && inkBefore > assetsBefore && inkBefore - assetsBefore <= WAD() && // regular path in normal path but assets right below ink
+        targetAssets <= assetsBefore && // plan determines we need to go down (or keep the same)
+        targetAssets <= lineWad && // target IS NOT restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= 0 && // target IS NOT restricted by global Line
+        maxWithdraw < assetsBefore - targetAssets && // target IS restricted by maxWithdraw
+        assetsBefore <= lineWad
+            => artAfter == assetsAfter + (inkBefore - assetsBefore) &&
+               assetsAfter == assetsBefore - maxWithdraw,
+               "unwind: error 4"
+    );
+    assert(
+        tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets <= assetsBefore && // plan determines we need to go down (or keep the same)
         targetAssets <= lineWad && // target IS NOT restricted by ilk line
         (LineBefore - debtMiddle) / RAY() >= 0 && // target IS NOT restricted by global Line
@@ -361,11 +403,11 @@ rule exec_normal(bytes32 ilk) {
         inkBefore > lineWad && // ink before execution is not safe (over ilk line)
         assetsBefore - inkBefore > maxWithdraw
             => artAfter == inkBefore,
-               "unwind: error 3"
+               "unwind: error 5"
     );
     // Unwinding due to line
     assert(
-        tic == 0 && active && // regular path in normal path
+        tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         targetAssets > lineWad && // target IS restricted by ilk line
         (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
@@ -374,10 +416,22 @@ rule exec_normal(bytes32 ilk) {
         maxWithdraw >= assetsBefore - lineWad // enough to rebalance and decrease to ilk line value
             => artAfter == lineWad &&
                assetsAfter == artAfter,
-               "unwind: error 4"
+               "unwind: error 6"
     );
     assert(
-        tic == 0 && active && // regular path in normal path
+        tic == 0 && active && inkBefore > assetsBefore && inkBefore - assetsBefore <= WAD() && // regular path in normal path but assets right below ink
+        targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
+        targetAssets + (inkBefore - assetsBefore) > lineWad && // target IS restricted by ilk line
+        (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
+        assetsBefore <= safe_max() && // target is NOT restricted by safe maxint256 wad
+        inkBefore > lineWad && // ink before execution is not safe (over ilk line)
+        maxWithdraw >= inkBefore - lineWad // enough to rebalance and decrease to ilk line value
+            => artAfter == lineWad &&
+               assetsAfter == artAfter - (inkBefore - assetsBefore),
+               "unwind: error 7"
+    );
+    assert(
+        tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         targetAssets > lineWad && // target IS restricted by ilk line
         (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
@@ -386,10 +440,10 @@ rule exec_normal(bytes32 ilk) {
         maxWithdraw < assetsBefore - inkBefore // NOT enough for full rebalance
             => artAfter == inkBefore &&
                assetsAfter > artAfter,
-               "unwind: error 5"
+               "unwind: error 8"
     );
     assert(
-        tic == 0 && active && // regular path in normal path
+        tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         targetAssets > lineWad && // target IS restricted by ilk line
         (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
@@ -397,10 +451,10 @@ rule exec_normal(bytes32 ilk) {
         maxWithdraw < inkBefore - lineWad // no way to decrease to ilk line value
             => artAfter == inkBefore + fixInk - maxWithdraw &&
                assetsAfter >= artAfter,
-               "unwind: error 6"
+               "unwind: error 9"
     );
     assert(
-        tic == 0 && active && // regular path in normal path
+        tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         targetAssets > lineWad && // target IS restricted by ilk line
         (LineBefore - debtMiddle) / RAY() >= targetAssets - assetsBefore && // target IS NOT restricted by global Line
@@ -412,37 +466,39 @@ rule exec_normal(bytes32 ilk) {
                artAfter <= inkBefore &&
                artAfter >= lineWad &&
                assetsAfter == artAfter,
-               "unwind: error 7"
+               "unwind: error 10"
     );
-    // Force unwinding due to ilk caged (but not culled yet) or plan inactive:
+    // Force unwinding due to ilk caged (but not culled yet) or plan inactive or assets being missing:
     assert(
-        (tic > 0 || !active) &&
+        (tic > 0 || !active || assetsBefore + WAD() < inkBefore) &&
         assetsBefore <= safe_max() && // full unwinding is NOT restricted by safe maxint256 wad
+        assetsBefore >= inkBefore &&
         assetsBefore <= maxWithdraw
-            => artAfter == 0, "unwind: error 8"
+            => artAfter == 0, "unwind: error 11"
     );
     assert(
-        (tic > 0 || !active) &&
+        (tic > 0 || !active || assetsBefore + WAD() < inkBefore) &&
         assetsBefore <= safe_max() && // full unwinding is NOT restricted by safe maxint256 wad
+        assetsBefore >= inkBefore &&
         assetsBefore > maxWithdraw &&
         assetsBefore - maxWithdraw < lineWad
-            => artAfter == assetsBefore - maxWithdraw, "unwind: error 9"
+            => artAfter == assetsBefore - maxWithdraw, "unwind: error 12"
     );
     assert(
-        (tic > 0 || !active) &&
+        (tic > 0 || !active || assetsBefore + WAD() < inkBefore) &&
         assetsBefore <= safe_max() && // full unwinding is NOT restricted by safe maxint256 wad
         assetsBefore > maxWithdraw &&
         assetsBefore - maxWithdraw >= lineWad &&
         inkBefore <= lineWad
-            => artAfter == lineWad, "unwind: error 10"
+            => artAfter == lineWad, "unwind: error 13"
     );
     assert(
-        (tic > 0 || !active) &&
+        (tic > 0 || !active || assetsBefore + WAD() < inkBefore) &&
         assetsBefore <= safe_max() && // full unwinding is NOT restricted by safe maxint256 wad
         assetsBefore > maxWithdraw &&
         assetsBefore - maxWithdraw >= inkBefore &&
         inkBefore > lineWad
-            => artAfter == inkBefore, "unwind: error 11"
+            => artAfter == inkBefore, "unwind: error 14"
     );
 }
 
@@ -479,8 +535,6 @@ rule exec_normal_revert(bytes32 ilk) {
 
     require(vat.live() == 1);
     require(culled(ilk) == 0);
-    require(ink >= art);
-    require(assets >= ink);
     require(dust == 0);
     require(dai.wards(daiJoin) == 1);
     require(share.wards(pool) == 1);
@@ -517,11 +571,11 @@ rule exec_normal_revert(bytes32 ilk) {
                             targetAssets < assets ? to_mathint(assets - targetAssets) : 0
                         );
 
-    mathint toUnwind = (tic > 0 || !active)
+    mathint toUnwind = (tic > 0 || !active || assets + WAD() < ink)
                         ? maxWithdraw
                         : min(toUnwindAux, maxWithdraw);
 
-    mathint toWind = tic == 0 && active && toUnwindAux == 0
+    mathint toWind = tic == 0 && active && assets + WAD() >= ink && toUnwindAux == 0
                     ? min(
                         to_mathint(lineWad - artFixed),
                         min(
@@ -582,34 +636,35 @@ rule exec_normal_revert(bytes32 ilk) {
     bool revert17 = art < inkFixed && vatVice + rate * fixArt > max_uint256;
     bool revert18 = art < inkFixed && vatDebt + rate * fixArt > max_uint256;
     //
+    bool revert19 = tic == 0 && active && assets + WAD() > max_uint256;
     // pool.withdraw:
-    bool revert19 = toUnwind > 0 && shareBalPool < toUnwind;
-    bool revert20 = toUnwind > 0 && daiBalShare < toUnwind;
-    bool revert21 = toUnwind > 0 && daiAllowanceSharePool < toUnwind;
-    bool revert22 = toUnwind > 0 && daiBalHub + toUnwind > max_uint256;
+    bool revert20 = toUnwind > 0 && shareBalPool < toUnwind;
+    bool revert21 = toUnwind > 0 && daiBalShare < toUnwind;
+    bool revert22 = toUnwind > 0 && daiAllowanceSharePool < toUnwind;
+    bool revert23 = toUnwind > 0 && daiBalHub + toUnwind > max_uint256;
     // daiJoin.join:
-    bool revert23 = toUnwind > 0 && vatDaiDaiJoin < toUnwind * RAY();
-    bool revert24 = toUnwind > 0 && vatDaiHub + toUnwind * RAY() > max_uint256;
-    bool revert25 = toUnwind > 0 && daiAllowanceHubDaiJoin < toUnwind;
+    bool revert24 = toUnwind > 0 && vatDaiDaiJoin < toUnwind * RAY();
+    bool revert25 = toUnwind > 0 && vatDaiHub + toUnwind * RAY() > max_uint256;
+    bool revert26 = toUnwind > 0 && daiAllowanceHubDaiJoin < toUnwind;
     // vat.frob:
-    bool revert26 = toUnwind > 0 && vatCanPoolHub != 1;
+    bool revert27 = toUnwind > 0 && vatCanPoolHub != 1;
     // vat.slip:
-    bool revert27 = toUnwind > 0 && vatWardHub != 1;
+    bool revert28 = toUnwind > 0 && vatWardHub != 1;
     //
-    bool revert28 = toWind > 0 && artFixed + toWind > safe_max();
+    bool revert29 = toWind > 0 && artFixed + toWind > safe_max();
     // vat.slip:
-    bool revert29 = toWind > 0 && vatWardHub != 1;
-    bool revert30 = toWind > 0 && vatGemPool + toWind > max_uint256;
+    bool revert30 = toWind > 0 && vatWardHub != 1;
+    bool revert31 = toWind > 0 && vatGemPool + toWind > max_uint256;
     // vat.frob:
-    bool revert31 = toWind > 0 && vatCanPoolHub != 1;
-    bool revert32 = toWind > 0 && vatDaiHub + rate * toWind > max_uint256;
+    bool revert32 = toWind > 0 && vatCanPoolHub != 1;
+    bool revert33 = toWind > 0 && vatDaiHub + rate * toWind > max_uint256;
     // daiJoin.exit:
-    bool revert33 = toWind > 0 && daiJoinLive != 1;
-    bool revert34 = toWind > 0 && vatCanHubDaiJoin != 1;
-    bool revert35 = toWind > 0 && vatDaiDaiJoin + toWind * RAY() > max_uint256;
-    bool revert36 = toWind > 0 && daiSupply + toWind > max_uint256;
+    bool revert34 = toWind > 0 && daiJoinLive != 1;
+    bool revert35 = toWind > 0 && vatCanHubDaiJoin != 1;
+    bool revert36 = toWind > 0 && vatDaiDaiJoin + toWind * RAY() > max_uint256;
+    bool revert37 = toWind > 0 && daiSupply + toWind > max_uint256;
     // pool.deposit:
-    bool revert37 = toWind > 0 && shareSupply + toWind > max_uint256;
+    bool revert38 = toWind > 0 && shareSupply + toWind > max_uint256;
 
     assert(revert1  => lastReverted, "revert1 failed");
     assert(revert2  => lastReverted, "revert2 failed");
@@ -648,6 +703,7 @@ rule exec_normal_revert(bytes32 ilk) {
     assert(revert35 => lastReverted, "revert35 failed");
     assert(revert36 => lastReverted, "revert36 failed");
     assert(revert37 => lastReverted, "revert37 failed");
+    assert(revert38 => lastReverted, "revert38 failed");
 
     assert(lastReverted => revert1  || revert2  || revert3  ||
                            revert4  || revert5  || revert6  ||
@@ -661,7 +717,7 @@ rule exec_normal_revert(bytes32 ilk) {
                            revert28 || revert29 || revert30 ||
                            revert31 || revert32 || revert33 ||
                            revert34 || revert35 || revert36 ||
-                           revert37, "Revert rules are not covering all the cases");
+                           revert37 || revert38, "Revert rules are not covering all the cases");
 }
 
 rule exec_ilk_culled(bytes32 ilk) {

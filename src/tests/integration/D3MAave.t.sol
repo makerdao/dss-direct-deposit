@@ -77,8 +77,6 @@ interface RewardsClaimerLike {
 }
 
 contract D3MAaveTest is DSSTest {
-    Hevm hevm;
-
     VatLike vat;
     EndLike end;
     LendingPoolLike aavePool;
@@ -108,8 +106,6 @@ contract D3MAaveTest is DSSTest {
         emit log_named_uint("block", block.number);
         emit log_named_uint("timestamp", block.timestamp);
 
-        hevm = Hevm(address(bytes20(uint160(uint256(keccak256('hevm cheat code'))))));
-
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
@@ -124,13 +120,13 @@ contract D3MAaveTest is DSSTest {
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
         pauseProxy = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
 
-        // Force give admin access to these contracts via hevm magic
+        // Force give admin access to these contracts via vm magic
         _giveAuthAccess(address(vat), address(this));
         _giveAuthAccess(address(end), address(this));
         _giveAuthAccess(address(spot), address(this));
 
         d3mHub = new D3MHub(address(daiJoin));
-        d3mAavePool = new D3MAavePool(address(d3mHub), address(dai), address(aavePool));
+        d3mAavePool = new D3MAavePool(ilk, address(d3mHub), address(dai), address(aavePool));
         d3mAavePool.rely(address(d3mHub));
         d3mAavePlan = new D3MAavePlan(address(dai), address(aavePool));
 
@@ -179,11 +175,11 @@ contract D3MAaveTest is DSSTest {
 
         for (int i = 0; i < 100; i++) {
             // Scan the storage for the ward storage slot
-            bytes32 prevValue = hevm.load(
+            bytes32 prevValue = vm.load(
                 address(base),
                 keccak256(abi.encode(target, uint256(i)))
             );
-            hevm.store(
+            vm.store(
                 address(base),
                 keccak256(abi.encode(target, uint256(i))),
                 bytes32(uint256(1))
@@ -193,7 +189,7 @@ contract D3MAaveTest is DSSTest {
                 return;
             } else {
                 // Keep going after restoring the original value
-                hevm.store(
+                vm.store(
                     address(base),
                     keccak256(abi.encode(target, uint256(i))),
                     prevValue
@@ -211,11 +207,11 @@ contract D3MAaveTest is DSSTest {
 
         for (int i = 0; i < 100; i++) {
             // Scan the storage for the balance storage slot
-            bytes32 prevValue = hevm.load(
+            bytes32 prevValue = vm.load(
                 address(token),
                 keccak256(abi.encode(address(this), uint256(i)))
             );
-            hevm.store(
+            vm.store(
                 address(token),
                 keccak256(abi.encode(address(this), uint256(i))),
                 bytes32(amount)
@@ -225,7 +221,7 @@ contract D3MAaveTest is DSSTest {
                 return;
             } else {
                 // Keep going after restoring the original value
-                hevm.store(
+                vm.store(
                     address(token),
                     keccak256(abi.encode(address(this), uint256(i))),
                     prevValue
@@ -388,7 +384,7 @@ contract D3MAaveTest is DSSTest {
         assertEq(getBorrowRate(), interestStrategy.getMaxVariableBorrowRate());
 
         // Someone else repays some Dai so we can unwind the rest
-        hevm.warp(block.timestamp + 1 days);
+        vm.warp(block.timestamp + 1 days);
         aavePool.repay(address(dai), amountToBorrow, 2, address(this));
 
         d3mHub.exec(ilk);
@@ -427,7 +423,7 @@ contract D3MAaveTest is DSSTest {
         assertEq(getBorrowRate(), interestStrategy.getMaxVariableBorrowRate());
 
         // In this case nobody deposits more DAI so we have to write off the bad debt
-        hevm.warp(block.timestamp + 7 days);
+        vm.warp(block.timestamp + 7 days);
 
         uint256 sin = vat.sin(vow);
         uint256 vowDai = vat.dai(vow);
@@ -442,7 +438,7 @@ contract D3MAaveTest is DSSTest {
         assertEq(vat.dai(vow), vowDai);
 
         // Some time later the pool gets some liquidity
-        hevm.warp(block.timestamp + 180 days);
+        vm.warp(block.timestamp + 180 days);
         aavePool.repay(address(dai), amountToBorrow, 2, address(this));
 
         // Close out the remainder of the position
@@ -493,7 +489,7 @@ contract D3MAaveTest is DSSTest {
     function test_collect_interest() public {
         _setRelBorrowTarget(7500);
 
-        hevm.warp(block.timestamp + 1 days);     // Collect one day of interest
+        vm.warp(block.timestamp + 1 days);     // Collect one day of interest
 
         uint256 vowDai = vat.dai(vow);
         d3mHub.exec(ilk);
@@ -522,8 +518,8 @@ contract D3MAaveTest is DSSTest {
         aavePool.borrow(address(dai), amountToBorrow, 2, 0, address(this));
 
         // Accumulate a bunch of interest
-        hevm.warp(block.timestamp + 180 days);
-        
+        vm.warp(block.timestamp + 180 days);
+
         uint256 feesAccrued = adai.balanceOf(address(d3mAavePool)) - pAssets;
 
         currentLiquidity = dai.balanceOf(address(adai));
@@ -567,7 +563,7 @@ contract D3MAaveTest is DSSTest {
         assertEqApprox(pink, pAssets, 1);
 
         // Accumulate a bunch of interest
-        hevm.warp(block.timestamp + 180 days);
+        vm.warp(block.timestamp + 180 days);
 
         // Someone else borrows almost all the liquidity
         aavePool.borrow(address(dai), dai.balanceOf(address(adai)) - 100 * WAD, 2, 0, address(this));
@@ -638,7 +634,7 @@ contract D3MAaveTest is DSSTest {
         }
 
         // Some time later the pool gets some liquidity
-        hevm.warp(block.timestamp + 180 days);
+        vm.warp(block.timestamp + 180 days);
         aavePool.repay(address(dai), amountToBorrow, 2, address(this));
 
         // Rest of the liquidity can be withdrawn
@@ -710,7 +706,7 @@ contract D3MAaveTest is DSSTest {
         }
 
         // Some time later the pool gets some liquidity
-        hevm.warp(block.timestamp + 180 days);
+        vm.warp(block.timestamp + 180 days);
         aavePool.repay(address(dai), amountToBorrow, 2, address(this));
 
         // Rest of the liquidity can be withdrawn
@@ -741,10 +737,10 @@ contract D3MAaveTest is DSSTest {
         end.cage();
         end.cage(ilk);
 
-        hevm.warp(block.timestamp + end.wait());
+        vm.warp(block.timestamp + end.wait());
 
         // Force remove all the dai from vow so it can call end.thaw()
-        hevm.store(
+        vm.store(
             address(vat),
             keccak256(abi.encode(address(vow), uint256(5))),
             bytes32(0)
@@ -775,7 +771,7 @@ contract D3MAaveTest is DSSTest {
 
         (, , uint256 tau, , ) = d3mHub.ilks(ilk);
 
-        hevm.warp(block.timestamp + tau);
+        vm.warp(block.timestamp + tau);
 
         uint256 daiEarned = adai.balanceOf(address(d3mAavePool)) - pink;
 
@@ -894,7 +890,7 @@ contract D3MAaveTest is DSSTest {
         d3mHub.cage(ilk);
 
         (, , uint256 tau, , ) = d3mHub.ilks(ilk);
-        hevm.warp(block.timestamp + tau);
+        vm.warp(block.timestamp + tau);
 
         d3mHub.cull(ilk);
 
@@ -904,7 +900,7 @@ contract D3MAaveTest is DSSTest {
     function test_collect_stkaave() public {
         _setRelBorrowTarget(7500);
 
-        hevm.warp(block.timestamp + 1 days);
+        vm.warp(block.timestamp + 1 days);
 
         // Set the king
         d3mAavePool.file("king", address(pauseProxy));
@@ -919,7 +915,7 @@ contract D3MAaveTest is DSSTest {
         assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed);
         assertEq(rewardsClaimer.getRewardsBalance(tokens, address(d3mHub)), 0);
 
-        hevm.warp(block.timestamp + 1 days);
+        vm.warp(block.timestamp + 1 days);
 
         // Collect some more rewards
         uint256 amountToClaim2 = rewardsClaimer.getRewardsBalance(tokens, address(d3mHub));
@@ -933,7 +929,7 @@ contract D3MAaveTest is DSSTest {
     function test_collect_stkaave_king_not_set() public {
         _setRelBorrowTarget(7500);
 
-        hevm.warp(block.timestamp + 1 days);
+        vm.warp(block.timestamp + 1 days);
 
         // Collect some stake rewards into the pause proxy
         address[] memory tokens = new address[](1);
@@ -949,16 +945,68 @@ contract D3MAaveTest is DSSTest {
         _setRelBorrowTarget(7500);
 
         // Vat is caged for global settlement
-        vat.cage();
+        end.cage();
+        end.cage(ilk);
+        end.skim(ilk, address(d3mAavePool));
 
         // Simulate DAI holder gets some gems from GS
-        vat.grab(ilk, address(d3mAavePool), address(this), address(this), -int256(100 ether), -int256(0));
+        vm.prank(address(end));
+        vat.flux(ilk, address(end), address(this), 100 ether);
+
+        uint256 totalArt = end.Art(ilk);
+
+        assertEq(adai.balanceOf(address(this)), 0);
 
         // User can exit and get the aDAI
+        uint256 expectedAdai = 100 ether * adai.balanceOf(address(d3mAavePool)) / totalArt;
         d3mHub.exit(ilk, address(this), 100 ether);
-        assertEqApprox(adai.balanceOf(address(this)), 100 ether, 1);     // Slight rounding error may occur
+        assertEq(expectedAdai, 100 ether);
+        assertEqApprox(adai.balanceOf(address(this)), expectedAdai, 1); // As the whole thing happened in a block (no fees)
     }
 
+    function test_cage_exit_multiple() public {
+        _setRelBorrowTarget(7500);
+
+        // Vat is caged for global settlement
+        end.cage();
+        end.cage(ilk);
+        end.skim(ilk, address(d3mAavePool));
+
+        uint256 totalArt = end.Art(ilk);
+
+        // Simulate DAI holder gets some gems from GS
+        vm.prank(address(end));
+        vat.flux(ilk, address(end), address(this), totalArt);
+
+        assertEq(adai.balanceOf(address(this)), 0);
+
+        // User can exit and get the aDAI
+        uint256 expectedAdai = 25 ether * adai.balanceOf(address(d3mAavePool)) / totalArt;
+        d3mHub.exit(ilk, address(this), 25 ether);
+        assertEq(expectedAdai, 25 ether);
+        assertEqApprox(adai.balanceOf(address(this)), expectedAdai, 1); // As the whole thing happened in a block (no fees)
+
+        vm.warp(block.timestamp + 3600);
+
+        uint256 expectedAdai2 = 25 ether * adai.balanceOf(address(d3mAavePool)) / (totalArt - 25 ether);
+        assertGt(expectedAdai2, expectedAdai);
+        d3mHub.exit(ilk, address(this), 25 ether);
+        assertGt(adai.balanceOf(address(this)), expectedAdai + expectedAdai2); // As fees were accrued
+
+        vm.warp(block.timestamp + 3600);
+
+        uint256 expectedAdai3 = 50 ether * adai.balanceOf(address(d3mAavePool)) / (totalArt - 50 ether);
+        assertGt(expectedAdai3, expectedAdai + expectedAdai2);
+        d3mHub.exit(ilk, address(this), 50 ether);
+        assertGt(adai.balanceOf(address(this)), expectedAdai + expectedAdai2 + expectedAdai3); // As fees were accrued
+
+        vm.warp(block.timestamp + 3600);
+
+        uint256 expectedAdai4 = (totalArt - 100 ether) * adai.balanceOf(address(d3mAavePool)) / (totalArt - 100 ether);
+        d3mHub.exit(ilk, address(this), (totalArt - 100 ether));
+        assertGt(adai.balanceOf(address(this)), expectedAdai + expectedAdai2 + expectedAdai3 + expectedAdai4); // As fees were accrued
+        assertEq(adai.balanceOf(address(d3mAavePool)), 0);
+    }
 
     function test_shutdown_cant_cull() public {
         _setRelBorrowTarget(7500);
@@ -969,7 +1017,7 @@ contract D3MAaveTest is DSSTest {
         vat.cage();
 
         (, , uint256 tau, , ) = d3mHub.ilks(ilk);
-        hevm.warp(block.timestamp + tau);
+        vm.warp(block.timestamp + tau);
 
         assertRevert(address(d3mHub), abi.encodeWithSignature("cull(bytes32)", ilk), "D3MHub/no-cull-during-shutdown");
     }
@@ -1012,7 +1060,7 @@ contract D3MAaveTest is DSSTest {
         d3mHub.cage(ilk);
 
         (, , uint256 tau, , ) = d3mHub.ilks(ilk);
-        hevm.warp(block.timestamp + tau);
+        vm.warp(block.timestamp + tau);
 
         d3mHub.cull(ilk);
 

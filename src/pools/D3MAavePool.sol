@@ -32,6 +32,11 @@ interface VatLike {
 
 interface D3mHubLike {
     function vat() external view returns (address);
+    function end() external view returns (EndLike);
+}
+
+interface EndLike {
+    function Art(bytes32) external view returns (uint256);
 }
 
 // aDai: https://etherscan.io/address/0x028171bCA77440897B824Ca71D1c56caC55b68A3
@@ -72,7 +77,9 @@ contract D3MAavePool is ID3MPool {
     mapping (address => uint256) public wards;
     address                      public hub;
     address                      public king; // Who gets the rewards
+    uint256                      public exited;
 
+    bytes32         public immutable ilk;
     VatLike         public immutable vat;
     LendingPoolLike public immutable pool;
     ATokenLike      public immutable stableDebt;
@@ -86,7 +93,8 @@ contract D3MAavePool is ID3MPool {
     event File(bytes32 indexed what, address data);
     event Collect(address indexed king, address indexed gift, uint256 amt);
 
-    constructor(address hub_, address dai_, address pool_) {
+    constructor(bytes32 ilk_, address hub_, address dai_, address pool_) {
+        ilk = ilk_;
         dai = TokenLike(dai_);
         pool = LendingPoolLike(pool_);
 
@@ -173,8 +181,11 @@ contract D3MAavePool is ID3MPool {
         require(dai.balanceOf(msg.sender) == prevDai + wad, "D3MAavePool/incorrect-dai-balance-received");
     }
 
-    function transfer(address dst, uint256 wad) external override onlyHub {
-        require(adai.transfer(dst, wad), "D3MAavePool/transfer-failed");
+    function exit(address dst, uint256 wad) external override onlyHub {
+        uint256 exited_ = exited;
+        exited = exited_ + wad;
+        uint256 amt = wad * assetBalance() / (D3mHubLike(hub).end().Art(ilk) - exited_);
+        require(adai.transfer(dst, amt), "D3MAavePool/transfer-failed");
     }
 
     function quit(address dst) external override auth {
