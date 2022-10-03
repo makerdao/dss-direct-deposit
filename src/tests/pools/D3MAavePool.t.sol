@@ -16,7 +16,7 @@
 
 pragma solidity ^0.8.14;
 
-import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat } from "./D3MPoolBase.t.sol";
+import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat, FakeEnd } from "./D3MPoolBase.t.sol";
 import { DaiLike, TokenLike } from "../interfaces/interfaces.sol";
 import { D3MTestGem } from "../stubs/D3MTestGem.sol";
 
@@ -135,6 +135,7 @@ contract FakeLendingPool {
             amt,
             dst
         );
+        D3MTestGem(asset).transfer(dst, amt);
     }
 
     function getReserveNormalizedIncome(address asset) external pure returns (uint256) {
@@ -147,12 +148,9 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
     AToken adai;
     LendingPoolLike aavePool;
+    FakeEnd end;
 
     function setUp() override public {
-        hevm = Hevm(
-            address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
-        );
-
         contractName = "D3MAavePool";
 
         dai = DaiLike(address(new D3MTestGem(18)));
@@ -162,8 +160,9 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         vat = address(new FakeVat());
 
         hub = address(new FakeHub(vat));
+        end = FakeHub(hub).end();
 
-        d3mTestPool = address(new D3MAavePool(hub, address(dai), address(aavePool)));
+        d3mTestPool = address(new D3MAavePool("", hub, address(dai), address(aavePool)));
     }
 
     function test_sets_dai_value() public {
@@ -190,7 +189,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
     function test_deposit_calls_lending_pool_deposit() public {
         D3MTestGem(address(adai)).rely(address(aavePool));
-        D3MAavePool(d3mTestPool).file("hub", address(this));
+        vm.prank(hub);
         D3MAavePool(d3mTestPool).deposit(1);
         (address asset, uint256 amt, address dst, uint256 code) = FakeLendingPool(address(aavePool)).lastDeposit();
         assertEq(asset, address(dai));
@@ -200,22 +199,28 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
     }
 
     function test_withdraw_calls_lending_pool_withdraw() public {
-        D3MAavePool(d3mTestPool).file("hub", address(this));
+        // make sure we have Dai to withdraw
+        D3MTestGem(address(dai)).mint(address(aavePool), 1);
+
+        vm.prank(hub);
         D3MAavePool(d3mTestPool).withdraw(1);
         (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
         assertEq(asset, address(dai));
         assertEq(amt, 1);
-        assertEq(dst, address(this));
+        assertEq(dst, hub);
     }
 
     function test_withdraw_calls_lending_pool_withdraw_vat_caged() public {
-        D3MAavePool(d3mTestPool).file("hub", address(this));
+        // make sure we have Dai to withdraw
+        D3MTestGem(address(dai)).mint(address(aavePool), 1);
+
         FakeVat(vat).cage();
+        vm.prank(hub);
         D3MAavePool(d3mTestPool).withdraw(1);
         (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
         assertEq(asset, address(dai));
         assertEq(amt, 1);
-        assertEq(dst, address(this));
+        assertEq(dst, hub);
     }
 
     function test_collect_claims_for_king() public {
@@ -242,28 +247,15 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(D3MAavePool(d3mTestPool).redeemable(), address(adai));
     }
 
-    function test_transfer_adai() public {
+    function test_exit_adai() public {
         uint256 tokens = adai.totalSupply();
         adai.transfer(d3mTestPool, tokens);
         assertEq(adai.balanceOf(address(this)), 0);
         assertEq(adai.balanceOf(d3mTestPool), tokens);
 
-        D3MAavePool(d3mTestPool).file("hub", address(this));
-        D3MAavePool(d3mTestPool).transfer(address(this), tokens);
-
-        assertEq(adai.balanceOf(address(this)), tokens);
-        assertEq(adai.balanceOf(d3mTestPool), 0);
-    }
-
-    function test_transfer_adai_vat_caged() public {
-        uint256 tokens = adai.totalSupply();
-        adai.transfer(d3mTestPool, tokens);
-        assertEq(adai.balanceOf(address(this)), 0);
-        assertEq(adai.balanceOf(d3mTestPool), tokens);
-
-        D3MAavePool(d3mTestPool).file("hub", address(this));
-        FakeVat(vat).cage();
-        D3MAavePool(d3mTestPool).transfer(address(this), tokens);
+        end.setArt(tokens);
+        vm.prank(hub);
+        D3MAavePool(d3mTestPool).exit(address(this), tokens);
 
         assertEq(adai.balanceOf(address(this)), tokens);
         assertEq(adai.balanceOf(d3mTestPool), 0);

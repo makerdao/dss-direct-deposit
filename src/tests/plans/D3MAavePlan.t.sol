@@ -57,10 +57,6 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
     uint256 constant INTEREST_RATE_TOLERANCE = RAY / 10000;
 
     function setUp() override public {
-        hevm = Hevm(
-            address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
-        );
-
         contractName = "D3MAavePlan";
 
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
@@ -89,6 +85,10 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
 
     function test_sets_adai() public {
         assertEq(address(adai), D3MAavePlan(d3mTestPlan).adai());
+    }
+
+    function test_sets_adaiRevision_value() public {
+        assertEq(D3MAavePlan(d3mTestPlan).adaiRevision(), 2);
     }
 
     function test_sets_dai_value() public {
@@ -170,7 +170,6 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
         D3MAavePlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 2 * RAY / 100);
 
         uint256 initialTargetAssets = D3MAavePlan(d3mTestPlan).getTargetAssets(0);
-        assertGt(initialTargetAssets, 0);
 
         // Reduce target rate (increase needed number of target Assets)
         D3MAavePlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);

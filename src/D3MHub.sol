@@ -76,8 +76,6 @@ contract D3MHub {
     VatLike     public immutable vat;
     DaiJoinLike public immutable daiJoin;
 
-    enum Mode { NORMAL, D3M_CULLED, MCD_CAGED }
-
     /**
         @notice Tracking struct for each of the D3M ilks.
         @param pool   Contract to access external pool and hold balances
@@ -100,9 +98,10 @@ contract D3MHub {
     event File(bytes32 indexed what, address data);
     event File(bytes32 indexed ilk, bytes32 indexed what, address data);
     event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
-    event Wind(bytes32 indexed ilk, uint256 amount);
-    event Unwind(bytes32 indexed ilk, uint256 amount, uint256 fees);
-    event Reap(bytes32 indexed ilk, uint256 amt);
+    event Wind(bytes32 indexed ilk, uint256 amt);
+    event Unwind(bytes32 indexed ilk, uint256 amt);
+    event NoOp(bytes32 indexed ilk);
+    event Fees(bytes32 indexed ilk, uint256 amt);
     event Exit(bytes32 indexed ilk, address indexed usr, uint256 amt);
     event Cage(bytes32 indexed ilk);
     event Cull(bytes32 indexed ilk, uint256 ink, uint256 art);
@@ -137,8 +136,10 @@ contract D3MHub {
     }
 
     // --- Math ---
+    uint256 internal constant WAD = 10 ** 18;
     uint256 internal constant RAY = 10 ** 27;
     uint256 internal constant MAXINT256 = uint256(type(int256).max);
+    uint256 internal constant SAFEMAX = MAXINT256 / RAY;
 
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
@@ -219,170 +220,125 @@ contract D3MHub {
         emit File(ilk, what, data);
     }
 
-    // --- Deposit controls ---
-    function _wind(bytes32 ilk, ID3MPool _pool, uint256 amount) internal {
-        // IMPORTANT: this function assumes Vat rate of D3M ilks will always be == 1 * RAY (no fees).
-        // That's why this module converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
-        // This module will have an unintended behaviour if rate is changed to some other value.
-        if (amount == 0) {
-            emit Wind(ilk, 0);
-            return;
+    // --- Internal functions that are called from exec(bytes32 ilk) ---
+
+    function _wipe(bytes32 ilk, ID3MPool _pool, address urn) internal {
+        uint256 amount = _pool.maxWithdraw();
+        if (amount > 0) {
+            _pool.withdraw(amount);
+            daiJoin.join(address(this), amount);
+            vat.move(address(this), vow, amount * RAY);
+
+            uint256 toSlip = _min(vat.gem(ilk, urn), amount);
+            // amount bounds toSlip and amount * RAY bounds amount to be much less than MAXINT256
+            vat.slip(ilk, urn, -int256(toSlip));
+            emit Unwind(ilk, amount);
+        } else {
+            emit NoOp(ilk);
         }
-
-        vat.slip(ilk, address(_pool), int256(amount));
-        vat.frob(ilk, address(_pool), address(_pool), address(this), int256(amount), int256(amount));
-        // normalized debt == erc20 DAI (Vat rate for D3M ilks fixed to 1 RAY)
-        daiJoin.exit(address(_pool), amount);
-        _pool.deposit(amount);
-
-        emit Wind(ilk, amount);
     }
 
-    function _unwind(
-                bytes32 ilk,
-                ID3MPool _pool,
-                uint256 supplyReduction, // [wad]
-                Mode mode,
-                uint256 assetBalance     // [wad]
-             ) internal {
-        // IMPORTANT: this function assumes Vat rate of D3M ilks will always be == 1 * RAY (no fees).
-        // That's why it converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
-        // This module will have an unintended behaviour if rate is changed to some other value.
+    function _exec(bytes32 ilk, ID3MPool _pool, uint256 Art, uint256 lineWad) internal {
+        require(lineWad <= SAFEMAX, "D3MHub/lineWad-above-max-safe");
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(_pool));
+        require(ink <= SAFEMAX, "D3MHub/ink-above-max-safe");
+        require(ink >= art, "D3MHub/ink-not-greater-equal-art");
+        require(art == Art, "D3MHub/more-than-one-urn");
+        uint256 currentAssets = _pool.assetBalance(); // Should return DAI owned by D3MPool
+        uint256 maxWithdraw = _min(_pool.maxWithdraw(), SAFEMAX);
 
-        EndLike _end;
-        uint256 daiDebt;
-        if (mode == Mode.NORMAL) {
-            // Normal mode or module just caged (no culled)
-            // debt is obtained from CDP art
-            (, daiDebt) = vat.urns(ilk, address(_pool));
-        } else if (mode == Mode.D3M_CULLED) {
-            // Module shutdown and culled
-            // debt is obtained from free collateral owned by the pool contract
-            // We rebalance the CDP after grabbing in `cull` so the gems represents
-            // the debt at time of cull
-            daiDebt = vat.gem(ilk, address(_pool));
-        } else if (mode == Mode.MCD_CAGED) {
-            // MCD caged
-            // debt is obtained from free collateral owned by the End module
-            _end = end;
-            _end.skim(ilk, address(_pool));
-            daiDebt = vat.gem(ilk, address(_end));
-        } else revert("D3MHub/unknown-mode");
-
-        uint256 availableAssets = _pool.maxWithdraw();
-
-        // Unwind amount is limited by how much:
-        // - max reduction desired
-        // - assets available
-        // - dai debt tracked in vat (CDP or free)
-        uint256 amount = _min(
-                            _min(
-                                supplyReduction,
-                                availableAssets
-                            ),
-                            daiDebt
-                        );
-        require(amount <= MAXINT256, "D3MHub/overflow");
-
-        // Determine the amount of fees to bring back
-        uint256 fees = 0;
-        if (assetBalance > daiDebt) {
+        // Determine if fees were generated and try to account them (or the most that it is possible)
+        if (currentAssets > ink) {
+            uint256 fixInk = _min(
+                _min(
+                    currentAssets - ink, // fees generated
+                    ink < lineWad // if previously CDP was under debt ceiling
+                        ? (lineWad - ink) + maxWithdraw // up to gap to reach debt ceiling + maxWithdraw
+                        : maxWithdraw // up to maxWithdraw
+                ),
+                SAFEMAX + art - ink //  ensures that fixArt * RAY (rate) will be <= MAXINT256 (in vat.grab)
+            );
+            vat.slip(ilk, address(_pool), int256(fixInk)); // Generate extra collateral
+            vat.frob(ilk, address(_pool), address(_pool), address(this), int256(fixInk), 0); // Lock it
             unchecked {
-                fees = assetBalance - daiDebt;
+                ink += fixInk; // can not overflow as worst case will be the value of currentAssets
             }
+            emit Fees(ilk, fixInk);
+        }
+        // Get the DAI and send as surplus (if there was permissionless DAI paid or fees accounted)
+        if (art < ink) {
+            address _vow = vow;
+            uint256 fixArt;
+            unchecked {
+                fixArt = ink - art; // Amount of fees + permissionless DAI paid we will now transform to debt
+            }
+            art = ink;
+            vat.suck(_vow, _vow, fixArt * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+            // No need for `fixArt <= MAXINT256` require as:
+            // MAXINT256 >>> MAXUINT256 / RAY which is already restricted above
+            // Also fixArt should be always <= SAFEMAX (MAXINT256 / RAY)
+            vat.grab(ilk, address(_pool), address(_pool), _vow, 0, int256(fixArt)); // Generating the debt
+        }
 
-            if (amount + fees > availableAssets) {
-                unchecked {
-                    fees = availableAssets - amount;
+        // Determine if it needs to unwind or wind
+        uint256 toUnwind;
+        uint256 toWind;
+
+        // Determine if it needs to fully unwind due to D3M ilk being caged (but not culled), plan is not active or something
+        // wrong is going with the third party and we are entering in the ilegal situation of having less assets than registered
+        // It's adding up `WAD` due possible rounding errors
+        if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active() || currentAssets + WAD < ink) {
+            toUnwind = maxWithdraw;
+        } else {
+            uint256 Line = vat.Line();
+            uint256 debt = vat.debt();
+            uint256 targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
+
+            // Determine if it needs to unwind due to:
+            unchecked {
+                toUnwind = _max(
+                                _max(
+                                    art > lineWad ? art - lineWad : 0, // ilk debt ceiling exceeded
+                                    debt > Line ? _divup(debt - Line, RAY) : 0 // global debt ceiling exceeded
+                                ),
+                                targetAssets < currentAssets ? currentAssets - targetAssets : 0 // plan targetAssets
+                            );
+                if (toUnwind > 0) {
+                    toUnwind = _min(toUnwind, maxWithdraw);
+                } else {
+                    // Determine up to which value to wind:
+                    // subtractions are safe as otherwise toUnwind > 0 conditional would be true
+                    toWind = _min(
+                                _min(
+                                    _min(
+                                        lineWad - art, // amount to reach ilk debt ceiling
+                                        (Line - debt) / RAY  // amount to reach global debt ceiling
+                                    ),
+                                    targetAssets - currentAssets // plan targetAssets
+                                ),
+                                _pool.maxDeposit() // restricts winding if the pool has a max deposit
+                            );
                 }
             }
         }
 
-        if (amount == 0 && fees == 0) {
-            emit Unwind(ilk, 0, 0);
-            return;
-        }
-
-        // To save gas you can bring the fees back with the unwind
-        uint256 total = amount + fees;
-        _pool.withdraw(total);
-        daiJoin.join(address(this), total);
-
-        // normalized debt == erc20 DAI to pool (Vat rate for D3M ilks fixed to 1 RAY)
-
-        if (mode == Mode.NORMAL) {
-            vat.frob(ilk, address(_pool), address(_pool), address(this), -int256(amount), -int256(amount));
-            vat.slip(ilk, address(_pool), -int256(amount));
-            vat.move(address(this), vow, fees * RAY);
-        } else if (mode == Mode.D3M_CULLED) {
-            vat.slip(ilk, address(_pool), -int256(amount));
-            vat.move(address(this), vow, total * RAY);
+        if (toUnwind > 0) {
+            _pool.withdraw(toUnwind);
+            daiJoin.join(address(this), toUnwind);
+            // SAFEMAX bounds toUnwind making sure is <<< than MAXINT256
+            vat.frob(ilk, address(_pool), address(_pool), address(this), -int256(toUnwind), -int256(toUnwind));
+            vat.slip(ilk, address(_pool), -int256(toUnwind));
+            emit Unwind(ilk, toUnwind);
+        } else if (toWind > 0) {
+            require(art + toWind <= SAFEMAX, "D3MHub/wind-overflow");
+            vat.slip(ilk, address(_pool), int256(toWind));
+            vat.frob(ilk, address(_pool), address(_pool), address(this), int256(toWind), int256(toWind));
+            daiJoin.exit(address(_pool), toWind);
+            _pool.deposit(toWind);
+            emit Wind(ilk, toWind);
         } else {
-            // This can be done with the assumption that the price of 1 collateral unit equals 1 DAI.
-            // That way we know that the prev End.skim call kept its gap[ilk] emptied as the CDP was always collateralized.
-            // Otherwise we couldn't just simply take away the collateral from the End module as the next line will be doing.
-            vat.slip(ilk, address(_end), -int256(amount));
-            vat.move(address(this), vow, total * RAY);
+            emit NoOp(ilk);
         }
-
-        emit Unwind(ilk, amount, fees);
-    }
-
-    function _fix(bytes32 ilk, address _pool) internal returns (uint256 diff) {
-        (uint256 ink, uint256 art) = vat.urns(ilk, _pool);
-        if (art < ink) {
-            address _vow = vow;
-            diff = ink - art;
-            require(diff <= MAXINT256, "D3MHub/overflow");
-            vat.suck(_vow, _vow, diff * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
-            vat.grab(ilk, _pool, _pool, _vow, 0, int256(diff));
-        }
-    }
-
-    // Ilk Getters
-    /**
-        @notice Return pool of an ilk
-        @param ilk   bytes32 of the D3M ilk
-        @return pool address of pool contract
-    */
-    function pool(bytes32 ilk) external view returns (address) {
-        return address(ilks[ilk].pool);
-    }
-
-    /**
-        @notice Return plan of an ilk
-        @param ilk   bytes32 of the D3M ilk
-        @return plan address of plan contract
-    */
-    function plan(bytes32 ilk) external view returns (address) {
-        return address(ilks[ilk].plan);
-    }
-
-    /**
-        @notice Return tau of an ilk
-        @param ilk  bytes32 of the D3M ilk
-        @return tau sec until debt can be written off
-    */
-    function tau(bytes32 ilk) external view returns (uint256) {
-        return ilks[ilk].tau;
-    }
-
-    /**
-        @notice Return culled status of an ilk
-        @param ilk  bytes32 of the D3M ilk
-        @return culled whether or not the d3m has been culled
-    */
-    function culled(bytes32 ilk) external view returns (uint256) {
-        return ilks[ilk].culled;
-    }
-
-    /**
-        @notice Return tic of an ilk
-        @param ilk  bytes32 of the D3M ilk
-        @return tic timestamp of when d3m is caged
-    */
-    function tic(bytes32 ilk) external view returns (uint256) {
-        return ilks[ilk].tic;
     }
 
     /**
@@ -395,126 +351,51 @@ contract D3MHub {
         @param ilk bytes32 of the D3M ilk name
     */
     function exec(bytes32 ilk) external lock {
+        // IMPORTANT: this function assumes Vat rate of D3M ilks will always be == 1 * RAY (no fees).
+        // That's why this module converts normalized debt (art) to Vat DAI generated with a simple RAY multiplication or division
+
         (uint256 Art, uint256 rate, uint256 spot, uint256 line,) = vat.ilks(ilk);
         require(rate == RAY, "D3MHub/rate-not-one");
         require(spot == RAY, "D3MHub/spot-not-one");
 
         ID3MPool _pool = ilks[ilk].pool;
 
-        _pool.preDebtChange("exec");
-        uint256 currentAssets = _pool.assetBalance();
+        _pool.preDebtChange();
 
         if (vat.live() == 0) {
             // MCD caged
-            require(end.debt() == 0, "D3MHub/end-debt-already-set");
+            // The main reason to have this case is trying to unwind the highest amount of DAI from the pool before end.debt is established.
+            // That has the advantage to simplify End process, the best scenario would be unwinding everything which will decrease to the
+            // minimum the amount of circulating supply of DAI, giving directly more value of other collaterals for each unit of DAI.
+            // If this is not called, anyone can still call end.skim permissionlesly at any moment leaving remaining amount of pool shares
+            // available to DAI holders to redeem it. This type of collateral is a cyclical one though, where user will need to go from
+            // DAI -> pool share -> DAI -> ... making it not the most practical to handle. However, at the end, the net value of other
+            // collaterals received per unit of DAI should end up being the same one (assuming there is liquidity in the pool to withdraw).
+            EndLike _end = end;
+            require(_end.debt() == 0, "D3MHub/end-debt-already-set");
             require(ilks[ilk].culled == 0, "D3MHub/module-has-to-be-unculled-first");
-            _unwind(
+            _end.skim(ilk, address(_pool));
+            _wipe(
                 ilk,
                 _pool,
-                type(uint256).max,
-                Mode.MCD_CAGED,
-                currentAssets
+                address(_end)
             );
-        } else if (ilks[ilk].tic != 0 || !ilks[ilk].plan.active()) {
-            _fix(ilk, address(_pool));
-
-            // pool caged
-            _unwind(
+        } else if (ilks[ilk].culled == 1) {
+            _wipe(
                 ilk,
                 _pool,
-                type(uint256).max,
-                ilks[ilk].culled == 1
-                ? Mode.D3M_CULLED
-                : Mode.NORMAL,
-                currentAssets
+                address(_pool)
             );
         } else {
-            Art += _fix(ilk, address(_pool));
-
-            // Determine if it needs to unwind due to debt ceilings
-            uint256 lineWad = line / RAY; // Round down to always be under the actual limit
-            uint256 Line = vat.Line();
-            uint256 debt = vat.debt();
-            uint256 toUnwind;
-            if (Art > lineWad) {
-                unchecked {
-                    toUnwind = Art - lineWad;
-                }
-            }
-            if (debt > Line) {
-                unchecked {
-                    toUnwind = _max(toUnwind, _divup(debt - Line, RAY));
-                }
-            }
-
-            // Determine if it needs to unwind due plan
-            uint256 targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
-            if (targetAssets < currentAssets) {
-                unchecked {
-                    toUnwind = _max(toUnwind, currentAssets - targetAssets);
-                }
-            }
-
-            if (toUnwind > 0) {
-                _unwind(
-                    ilk,
-                    _pool,
-                    toUnwind,
-                    Mode.NORMAL,
-                    currentAssets
-                );
-            } else {
-                uint256 toWind;
-                // All the subtractions are safe as otherwise toUnwind is > 0
-                unchecked {
-                    toWind = _min(
-                                _min(
-                                    _min(
-                                        targetAssets - currentAssets,
-                                        lineWad - Art
-                                    ),
-                                    (Line - debt) / RAY
-                                ),
-                                _pool.maxDeposit() // Determine if the pool limits our total deposits
-                             );
-                }
-                require(Art + toWind <= MAXINT256, "D3MHub/wind-overflow");
-                _wind(ilk, _pool, toWind);
-            }
+            _exec(
+                ilk,
+                _pool,
+                Art,
+                line / RAY // round down ilk line in wad format
+            );
         }
 
-        _pool.postDebtChange("exec");
-    }
-
-    /**
-        @notice Collect interest and send to vow.
-        Total collected will be constrained by the number of assets available to
-        be withdrawn from the pool.
-        @param ilk bytes32 of the D3M ilk name
-    */
-    function reap(bytes32 ilk) external lock {
-        ID3MPool _pool = ilks[ilk].pool;
-
-        require(vat.live() == 1, "D3MHub/no-reap-during-shutdown");
-        require(ilks[ilk].tic == 0, "D3MHub/pool-not-live");
-        require(ilks[ilk].plan.active(), "D3MHub/plan-not-active");
-
-        _pool.preDebtChange("reap");
-        uint256 assetBalance = _pool.assetBalance();
-        (, uint256 daiDebt) = vat.urns(ilk, address(_pool));
-        daiDebt += _fix(ilk, address(_pool));
-
-        if (assetBalance > daiDebt) {
-            uint256 fees;
-            unchecked {
-                fees = assetBalance - daiDebt;
-            }
-            fees = _min(fees, _pool.maxWithdraw());
-            _pool.withdraw(fees);
-            daiJoin.join(vow, fees);
-            emit Reap(ilk, fees);
-        }
-        _pool.postDebtChange("reap");
+        _pool.postDebtChange();
     }
 
     /**
@@ -528,7 +409,7 @@ contract D3MHub {
     function exit(bytes32 ilk, address usr, uint256 wad) external lock {
         require(wad <= MAXINT256, "D3MHub/overflow");
         vat.slip(ilk, msg.sender, -int256(wad));
-        ilks[ilk].pool.transfer(usr, wad);
+        ilks[ilk].pool.exit(usr, wad);
         emit Exit(ilk, usr, wad);
     }
 
@@ -593,11 +474,57 @@ contract D3MHub {
 
         address _vow = vow;
         uint256 wad = vat.gem(ilk, address(_pool));
-        require(wad <= MAXINT256, "D3MHub/overflow");
         vat.suck(_vow, _vow, wad * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+        // wad * RAY bounds wad to be much less than MAXINT256
         vat.grab(ilk, address(_pool), address(_pool), _vow, int256(wad), int256(wad));
 
         ilks[ilk].culled = 0;
         emit Uncull(ilk, wad);
+    }
+
+    // Ilk Getters
+    /**
+        @notice Return pool of an ilk
+        @param ilk   bytes32 of the D3M ilk
+        @return pool address of pool contract
+    */
+    function pool(bytes32 ilk) external view returns (address) {
+        return address(ilks[ilk].pool);
+    }
+
+    /**
+        @notice Return plan of an ilk
+        @param ilk   bytes32 of the D3M ilk
+        @return plan address of plan contract
+    */
+    function plan(bytes32 ilk) external view returns (address) {
+        return address(ilks[ilk].plan);
+    }
+
+    /**
+        @notice Return tau of an ilk
+        @param ilk  bytes32 of the D3M ilk
+        @return tau sec until debt can be written off
+    */
+    function tau(bytes32 ilk) external view returns (uint256) {
+        return ilks[ilk].tau;
+    }
+
+    /**
+        @notice Return culled status of an ilk
+        @param ilk  bytes32 of the D3M ilk
+        @return culled whether or not the d3m has been culled
+    */
+    function culled(bytes32 ilk) external view returns (uint256) {
+        return ilks[ilk].culled;
+    }
+
+    /**
+        @notice Return tic of an ilk
+        @param ilk  bytes32 of the D3M ilk
+        @return tic timestamp of when d3m is caged
+    */
+    function tic(bytes32 ilk) external view returns (uint256) {
+        return ilks[ilk].tic;
     }
 }

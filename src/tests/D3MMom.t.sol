@@ -35,16 +35,10 @@ interface Hevm {
 }
 
 contract D3MMomTest is DSSTest {
-    Hevm hevm;
-
     D3MTestPlan d3mTestPlan;
     D3MMom d3mMom;
 
     function setUp() public override {
-        hevm = Hevm(
-            address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
-        );
-
         d3mTestPlan = new D3MTestPlan(address(123));
 
         d3mTestPlan.file("maxBar_", type(uint256).max);

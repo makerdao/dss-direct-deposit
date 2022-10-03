@@ -32,6 +32,11 @@ interface VatLike {
 
 interface D3mHubLike {
     function vat() external view returns (address);
+    function end() external view returns (EndLike);
+}
+
+interface EndLike {
+    function Art(bytes32) external view returns (uint256);
 }
 
 // cDai - https://etherscan.io/token/0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643
@@ -58,7 +63,9 @@ contract D3MCompoundPool is ID3MPool {
     mapping (address => uint256) public wards;
     address                      public hub;
     address                      public king; // Who gets the rewards
+    uint256                      public exited;
 
+    bytes32         public immutable ilk;
     VatLike         public immutable vat;
     ComptrollerLike public immutable comptroller;
     TokenLike       public immutable comp;
@@ -71,7 +78,8 @@ contract D3MCompoundPool is ID3MPool {
     event File(bytes32 indexed what, address data);
     event Collect(address indexed king, address indexed gift, uint256 amt);
 
-    constructor(address hub_, address cDai_) {
+    constructor(bytes32 ilk_, address hub_, address cDai_) {
+        ilk         = ilk_;
         cDai        = CErc20Like(cDai_);
         dai         = TokenLike(cDai.underlying());
         comptroller = ComptrollerLike(cDai.comptroller());
@@ -144,12 +152,19 @@ contract D3MCompoundPool is ID3MPool {
     }
 
     function withdraw(uint256 wad) external override onlyHub {
+        uint256 prevDai = dai.balanceOf(msg.sender);
+
         require(cDai.redeemUnderlying(wad) == 0, "D3MCompoundPool/redeemUnderlying-failure");
         dai.transfer(msg.sender, wad);
+
+        require(dai.balanceOf(msg.sender) == prevDai + wad, "D3MCompoundPool/incorrect-dai-balance-received");
     }
 
-    function transfer(address dst, uint256 wad) external override onlyHub {
-        require(cDai.transfer(dst, _wdiv(wad, cDai.exchangeRateCurrent())), "D3MCompoundPool/transfer-failed");
+    function exit(address dst, uint256 wad) external override onlyHub {
+        uint256 exited_ = exited;
+        exited = exited_ + wad;
+        uint256 amt = wad * cDai.balanceOf(address(this)) / (D3mHubLike(hub).end().Art(ilk) - exited_);
+        require(cDai.transfer(dst, amt), "D3MCompoundPool/transfer-failed");
     }
 
     function quit(address dst) external override auth {
@@ -157,11 +172,11 @@ contract D3MCompoundPool is ID3MPool {
         require(cDai.transfer(dst, cDai.balanceOf(address(this))), "D3MCompoundPool/transfer-failed");
     }
 
-    function preDebtChange(bytes32) external override {
+    function preDebtChange() external override {
         require(cDai.accrueInterest() == 0, "D3MCompoundPool/accrueInterest-failure");
     }
 
-    function postDebtChange(bytes32) external override {}
+    function postDebtChange() external override {}
 
     // Does not accrue interest (as opposed to cToken's balanceOfUnderlying() which is not a view function).
     function assetBalance() public view override returns (uint256) {

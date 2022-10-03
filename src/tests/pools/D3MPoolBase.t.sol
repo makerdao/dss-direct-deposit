@@ -99,11 +99,11 @@ contract D3MPoolBase is ID3MPool {
 
     function withdraw(uint256 wad) external onlyHub override {}
 
-    function transfer(address dst, uint256 wad) onlyHub external override {}
+    function exit(address dst, uint256 wad) onlyHub external override {}
 
-    function preDebtChange(bytes32 what) external override {}
+    function preDebtChange() external override {}
 
-    function postDebtChange(bytes32 what) external override {}
+    function postDebtChange() external override {}
 
     function assetBalance() external view override returns (uint256) {}
 
@@ -129,8 +129,21 @@ contract FakeVat {
     function nope(address usr) external { can[msg.sender][usr] = 0; }
 }
 
+contract FakeEnd {
+    uint256 internal Art_;
+
+    function setArt(uint256 _Art) external {
+        Art_ = _Art;
+    }
+
+    function Art(bytes32) external view returns (uint256) {
+        return Art_;
+    }
+}
+
 contract FakeHub {
     address public immutable vat;
+    FakeEnd public immutable end = new FakeEnd();
 
     constructor(address vat_) {
         vat = vat_;
@@ -138,8 +151,6 @@ contract FakeHub {
 }
 
 contract D3MPoolBaseTest is DSSTest {
-    Hevm hevm;
-
     string contractName;
 
     DaiLike dai;
@@ -149,10 +160,6 @@ contract D3MPoolBaseTest is DSSTest {
     address vat;
 
     function setUp() public virtual override {
-        hevm = Hevm(
-            address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
-        );
-
         contractName = "D3MPoolBase";
 
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
@@ -170,11 +177,11 @@ contract D3MPoolBaseTest is DSSTest {
 
         for (int256 i = 0; i < 100; i++) {
             // Scan the storage for the balance storage slot
-            bytes32 prevValue = hevm.load(
+            bytes32 prevValue = vm.load(
                 address(token),
                 keccak256(abi.encode(address(this), uint256(i)))
             );
-            hevm.store(
+            vm.store(
                 address(token),
                 keccak256(abi.encode(address(this), uint256(i))),
                 bytes32(amount)
@@ -184,7 +191,7 @@ contract D3MPoolBaseTest is DSSTest {
                 return;
             } else {
                 // Keep going after restoring the original value
-                hevm.store(
+                vm.store(
                     address(token),
                     keccak256(abi.encode(address(this), uint256(i))),
                     prevValue
@@ -261,8 +268,8 @@ contract D3MPoolBaseTest is DSSTest {
         assertRevert(address(d3mTestPool), abi.encodeWithSignature("withdraw(uint256)", uint256(1)), string(abi.encodePacked(contractName, "/only-hub")));
     }
 
-    function test_transfer_not_hub() public {
-        assertRevert(address(d3mTestPool), abi.encodeWithSignature("transfer(address,uint256)", address(this), uint256(0)), string(abi.encodePacked(contractName, "/only-hub")));
+    function test_exit_not_hub() public {
+        assertRevert(address(d3mTestPool), abi.encodeWithSignature("exit(address,uint256)", address(this), uint256(0)), string(abi.encodePacked(contractName, "/only-hub")));
     }
 
     function test_quit_no_auth() public {
@@ -276,10 +283,10 @@ contract D3MPoolBaseTest is DSSTest {
     }
 
     function test_implements_preDebtChange() public {
-        D3MPoolBase(d3mTestPool).preDebtChange("test");
+        D3MPoolBase(d3mTestPool).preDebtChange();
     }
 
     function test_implements_postDebtChange() public {
-        D3MPoolBase(d3mTestPool).postDebtChange("test");
+        D3MPoolBase(d3mTestPool).postDebtChange();
     }
 }

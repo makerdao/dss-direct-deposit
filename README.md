@@ -13,7 +13,7 @@ The D3M is made of 3 components on the Maker side:
 
 The primary manager contract responsible for collecting all information and determining which action to take (if any). Each D3M instance is regsitered on the Hub using relevant `file(ilk, ...)` admin functions.
 
-A permissionless `exec(ilk)` function exists which will perform all necessary steps to update the provided liquidity within the debt ceiling and external protocol constraints. `exec(ilk)` will need to be called on a somewhat regular basis to keep the system running properly. Upon unwinding, interest will automatically be collected, but you can also permissionlessly call `reap(ilk)` to pull in all collected interest as well.
+A permissionless `exec(ilk)` function exists which will perform all necessary steps to update the provided liquidity within the debt ceiling and external protocol constraints. `exec(ilk)` will need to be called on a somewhat regular basis to keep the system running properly. During each call to this function, interest will automatically be collected.
 
 ### D3MPool
 

@@ -16,7 +16,7 @@
 
 pragma solidity ^0.8.14;
 
-import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat } from "./D3MPoolBase.t.sol";
+import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat, FakeEnd } from "./D3MPoolBase.t.sol";
 import { DaiLike, TokenLike } from "../interfaces/interfaces.sol";
 import { D3MCompoundPool } from "../../pools/D3MCompoundPool.sol";
 
@@ -42,6 +42,7 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
     ComptrollerLike comptroller;
     TokenLike       comp;
     LensLike        lens;
+    FakeEnd         end;
 
     function _wdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x * WAD / y;
@@ -64,10 +65,6 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
     }
 
     function setUp() public override {
-        hevm = Hevm(
-            address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
-        );
-
         contractName = "D3MCompoundPool";
 
         dai         = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
@@ -78,8 +75,9 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
 
         vat = address(new FakeVat());
         hub = address(new FakeHub(vat));
+        end = FakeHub(hub).end();
 
-        d3mTestPool = address(new D3MCompoundPool(hub, address(cDai)));
+        d3mTestPool = address(new D3MCompoundPool("", hub, address(cDai)));
         pool = D3MCompoundPool(d3mTestPool);
 
         // allocate some dai for the pool
@@ -121,7 +119,7 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         assertEq(cDai.balanceOf(address(pool)), 0);
         uint256 poolBefore = dai.balanceOf(address(pool));
 
-        pool.file("hub", address(this));
+        vm.prank(hub);
         pool.deposit(1 * WAD);
 
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 1 * WAD);
@@ -131,31 +129,32 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
     }
 
     function test_withdraw_calls_cdai_withdraw() public {
-        pool.file("hub", address(this));
+        vm.prank(hub);
         pool.deposit(1 * WAD);
 
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 1 * WAD);
-        uint256 before = dai.balanceOf(address(this));
+        uint256 before = dai.balanceOf(hub);
 
+        vm.prank(hub);
         pool.withdraw(1 * WAD);
 
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 0);
-        assertEq(dai.balanceOf(address(this)) - before, 1 * WAD);
+        assertEq(dai.balanceOf(hub) - before, 1 * WAD);
     }
 
     function test_withdraw_calls_cdai_withdraw_vat_caged() public {
-        pool.file("hub", address(this));
+        vm.prank(hub);
         pool.deposit(1 * WAD);
 
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 1 * WAD);
-        uint256 before = dai.balanceOf(address(this));
+        uint256 before = dai.balanceOf(hub);
 
-        pool.file("hub", address(this));
         FakeVat(vat).cage();
+        vm.prank(hub);
         pool.withdraw(1 * WAD);
 
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 0);
-        assertEq(dai.balanceOf(address(this)) - before, 1 * WAD);
+        assertEq(dai.balanceOf(hub) - before, 1 * WAD);
     }
 
     function test_collect_claims_for_king() public {
@@ -166,11 +165,11 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         address king = address(123);
         pool.file("king", king);
 
-        pool.file("hub", address(this));
+        vm.prank(hub);
         pool.deposit(100 * WAD);
 
         uint256 compBefore = comp.balanceOf(king);
-        hevm.roll(block.number + 5760);
+        vm.roll(block.number + 5760);
 
         (,,,uint256 expected) = lens.getCompBalanceMetadataExt(address(comp), address(comptroller), address(pool));
         assertGt(expected, 0);
@@ -188,9 +187,9 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         address king = address(this);
         pool.file("king", king);
 
-        pool.file("hub", address(this));
+        vm.prank(hub);
         pool.deposit(100 * WAD);
-        hevm.roll(block.number + 5760);
+        vm.roll(block.number + 5760);
         pool.collect(true);
 
         uint256 kingBalance = comp.balanceOf(address(king));
@@ -218,35 +217,23 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         assertEq(pool.redeemable(), address(cDai));
     }
 
-    function test_transfer_cdai() public {
-        pool.file("hub", address(this));
+    function test_exit_cdai() public {
+        vm.prank(hub);
         pool.deposit(100 * WAD);
 
         uint256 balanceCdai = cDai.balanceOf(address(pool));
         assertGt(balanceCdai, 2);
 
-        pool.transfer(address(123), 50 * WAD);
-
-        assertEq(balanceCdai - cDai.balanceOf(address(pool)), balanceCdai / 2);
-        assertEq(cDai.balanceOf(address(123)), balanceCdai / 2);
-    }
-
-    function test_transfer_cdai_vat_caged() public {
-        pool.file("hub", address(this));
-        pool.deposit(100 * WAD);
-
-        uint256 balanceCdai = cDai.balanceOf(address(pool));
-        assertGt(balanceCdai, 2);
-
-        FakeVat(vat).cage();
-        pool.transfer(address(123), 50 * WAD);
+        end.setArt(100 * WAD);
+        vm.prank(hub);
+        pool.exit(address(123), 50 * WAD);
 
         assertEq(balanceCdai - cDai.balanceOf(address(pool)), balanceCdai / 2);
         assertEq(cDai.balanceOf(address(123)), balanceCdai / 2);
     }
 
     function test_quit_moves_balance() public {
-        pool.file("hub", address(this));
+        vm.prank(hub);
         pool.deposit(100 * WAD);
 
         uint256 balanceCdai = cDai.balanceOf(address(pool));
@@ -260,13 +247,13 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
 
     function test_assetBalance_gets_dai_balanceOf_pool() public {
         uint256 before = pool.assetBalance();
-        pool.file("hub", address(this));
+        vm.prank(hub);
         pool.deposit(1 * WAD);
         _assertEqApprox(pool.assetBalance() - before, 1 * WAD);
     }
 
     function test_maxWithdraw_gets_available_assets() public {
-        pool.file("hub", address(this));
+        vm.prank(hub);
         pool.deposit(1 * WAD);
         assertEq(pool.assetBalance(), pool.maxWithdraw());
     }

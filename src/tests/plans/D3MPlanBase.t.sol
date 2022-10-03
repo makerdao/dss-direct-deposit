@@ -74,8 +74,6 @@ contract D3MPlanBase is ID3MPlan {
 }
 
 contract D3MPlanBaseTest is DSSTest {
-    Hevm hevm;
-
     string contractName;
 
     DaiLike dai;
@@ -83,9 +81,6 @@ contract D3MPlanBaseTest is DSSTest {
     address d3mTestPlan;
 
     function setUp() public virtual override {
-        hevm = Hevm(
-            address(bytes20(uint160(uint256(keccak256("hevm cheat code")))))
-        );
 
         contractName = "D3MPlanBase";
 
