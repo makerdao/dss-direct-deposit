@@ -210,6 +210,20 @@ contract D3MHubTest is DSSTest {
         d3mTestPool.file("postDebt", false); // reset postDebt
     }
 
+    function _windSystemNoop() internal {
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        d3mHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertTrue(d3mTestPool.preDebt());
+        assertTrue(d3mTestPool.postDebt());
+        d3mTestPool.file("preDebt", false); // reset preDebt
+        d3mTestPool.file("postDebt", false); // reset postDebt
+    }
+
     function test_approvals() public {
         assertEq(
             dai.allowance(address(d3mHub), address(daiJoin)),
@@ -338,6 +352,10 @@ contract D3MHubTest is DSSTest {
         assertRevert(address(d3mHub), abi.encodeWithSignature("exec(bytes32)", ilk), "D3MHub/spot-not-one");
     }
 
+    function test_wind_system() public {
+        _windSystem(); // winds to 50 * WAD
+    }
+
     function test_wind_limited_ilk_line() public {
         d3mTestPlan.file("bar", 10);
         d3mTestPlan.file("targetAssets", 50 * WAD);
@@ -351,9 +369,37 @@ contract D3MHubTest is DSSTest {
         assertTrue(d3mTestPool.postDebt());
     }
 
+    function test_wind_limited_ilk_line_over_Line() public {
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        vat.file("Line", vat.debt() + 45 * RAD);
+        vat.file(ilk, "line", 40 * RAD);
+        d3mHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 40 * WAD);
+        assertEq(art, 40 * WAD);
+        assertTrue(d3mTestPool.preDebt());
+        assertTrue(d3mTestPool.postDebt());
+    }
+
     function test_wind_limited_Line() public {
         d3mTestPlan.file("bar", 10);
         d3mTestPlan.file("targetAssets", 50 * WAD);
+        vat.file("Line", vat.debt() + 40 * RAD);
+        d3mHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 40 * WAD);
+        assertEq(art, 40 * WAD);
+        assertTrue(d3mTestPool.preDebt());
+        assertTrue(d3mTestPool.postDebt());
+    }
+
+    function test_wind_limited_Line_over_ilk_line() public {
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        vat.file(ilk, "line", 45 * RAD);
         vat.file("Line", vat.debt() + 40 * RAD);
         d3mHub.exec(ilk);
 
@@ -579,8 +625,76 @@ contract D3MHubTest is DSSTest {
         assertEq(dai.balanceOf(address(testGem)), 60 * WAD);
         assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
 
-        // unwind due to debt ceiling
+        // unwind due to ilk debt ceiling over global DC
         vat.file(ilk, "line", 20 * RAD);
+        vat.file("Line", vat.debt() - (35 * RAD));
+
+        // we can now execute the unwind to respect the line again
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 20 * WAD);
+        assertEq(art, 20 * WAD);
+        (Art, , , , ) = vat.ilks(ilk);
+        assertEq(Art, 20 * WAD);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        assertEq(vat.vice(), viceBefore);
+        assertEq(vat.sin(vow), sinBefore);
+        // we unwind and collect fees
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        assertEq(dai.balanceOf(address(testGem)), 20 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 20 * WAD);
+    }
+
+    function test_wind_unwind_Line_limited_debt_paid_back() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 40 * WAD);
+        (uint256 Art, , , , ) = vat.ilks(ilk);
+        assertEq(Art, 40 * WAD);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        uint256 viceBefore = vat.vice();
+        uint256 sinBefore = vat.sin(vow);
+        uint256 vowDaiBefore = vat.dai(vow);
+        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+
+        // limit wind with global debt ceiling
+        d3mTestPlan.file("targetAssets", 500 * WAD);
+        vat.file("Line", vat.debt() + (20 * RAD));
+
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 60 * WAD);
+        assertEq(art, 60 * WAD);
+        (Art, , , , ) = vat.ilks(ilk);
+        assertEq(Art, 60 * WAD);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        assertEq(vat.vice(), viceBefore);
+        assertEq(vat.sin(vow), sinBefore);
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        assertEq(dai.balanceOf(address(testGem)), 60 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 60 * WAD);
+
+        // unwind due to global debt ceiling over ilk line
+        vat.file(ilk, "line", 25 * RAD);
+        vat.file("Line", vat.debt() - (40 * RAD));
 
         // we can now execute the unwind to respect the line again
         d3mHub.exec(ilk);
@@ -716,6 +830,18 @@ contract D3MHubTest is DSSTest {
         assertTrue(d3mTestPool.postDebt());
     }
 
+    function test_wind_mcd_caged() public {
+        vat.file("Line", vat.debt() + 45 * RAD);
+        vat.file(ilk, "line", 40 * RAD);
+
+        // MCD shuts down
+        end.cage();
+        end.cage(ilk);
+
+        // try to wind the system
+        _windSystemNoop();
+    }
+
     function test_unwind_mcd_caged() public {
         _windSystem();
 
@@ -770,8 +896,188 @@ contract D3MHubTest is DSSTest {
         assertEq(vat.sin(vow), sinBefore + 40 * RAD);
     }
 
+    function test_wind_pool_caged() public {
+        vat.file("Line", vat.debt() + 45 * RAD);
+        vat.file(ilk, "line", 40 * RAD);
+
+        // Actions
+        d3mHub.cage(ilk);
+        // d3mHub.cull(ilk);
+        // end.cage();
+        // d3mHub.uncull(ilk);
+        // end.cage(ilk);
+
+        // try to wind the system
+        _windSystemNoop();
+    }
+
+    function test_wind_pool_caged_cull() public {
+        vat.file("Line", vat.debt() + 45 * RAD);
+        vat.file(ilk, "line", 40 * RAD);
+
+        // Actions
+        d3mHub.cage(ilk);
+        d3mHub.cull(ilk);
+        // end.cage();
+        // d3mHub.uncull(ilk);
+        // end.cage(ilk);
+
+        // try to wind the system
+        _windSystemNoop();
+    }
+
+    function test_wind_pool_caged_cull_es() public {
+        vat.file("Line", vat.debt() + 45 * RAD);
+        vat.file(ilk, "line", 40 * RAD);
+
+        // Actions
+        d3mHub.cage(ilk);
+        d3mHub.cull(ilk);
+        end.cage();
+        // d3mHub.uncull(ilk);
+        // end.cage(ilk);
+
+        // try to wind the system
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        assertRevert(
+            address(d3mHub),
+            abi.encodeWithSignature("exec(bytes32)", ilk),
+            "D3MHub/module-has-to-be-unculled-first"
+        );
+    }
+
+    function test_wind_pool_caged_cull_es_uncull() public {
+        vat.file("Line", vat.debt() + 45 * RAD);
+        vat.file(ilk, "line", 40 * RAD);
+
+        // Actions
+        d3mHub.cage(ilk);
+        d3mHub.cull(ilk);
+        end.cage();
+        d3mHub.uncull(ilk);
+        // end.cage(ilk);
+
+        // try to wind the system
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        assertRevert(
+            address(d3mHub),
+            abi.encodeWithSignature("exec(bytes32)", ilk),
+            "End/tag-ilk-not-defined"
+        );
+    }
+
+    function test_wind_pool_caged_cull_es_uncull_ilk_cage() public {
+        vat.file("Line", vat.debt() + 45 * RAD);
+        vat.file(ilk, "line", 40 * RAD);
+
+        // Actions
+        d3mHub.cage(ilk);
+        d3mHub.cull(ilk);
+        end.cage();
+        d3mHub.uncull(ilk);
+        end.cage(ilk);
+
+        // try to wind the system
+        _windSystemNoop();
+    }
+
+    function test_wind_pool_caged_es_uncull_ilk_cage() public {
+        vat.file("Line", vat.debt() + 45 * RAD);
+        vat.file(ilk, "line", 40 * RAD);
+
+        // Actions
+        d3mHub.cage(ilk);
+        // d3mHub.cull(ilk);
+        end.cage();
+        // d3mHub.uncull(ilk);
+        end.cage(ilk);
+
+        // try to wind the system
+        _windSystemNoop();
+    }
+
+    function test_wind_pool_es() public {
+        vat.file("Line", vat.debt() + 45 * RAD);
+        vat.file(ilk, "line", 40 * RAD);
+
+        // Actions
+        // d3mHub.cage(ilk);
+        // d3mHub.cull(ilk);
+        end.cage();
+        // d3mHub.uncull(ilk);
+        // end.cage(ilk);
+
+        // try to wind the system
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        assertRevert(
+            address(d3mHub),
+            abi.encodeWithSignature("exec(bytes32)", ilk),
+            "End/tag-ilk-not-defined"
+        );
+    }
+
+    function test_wind_pool_es_ilk_cage() public {
+        vat.file("Line", vat.debt() + 45 * RAD);
+        vat.file(ilk, "line", 40 * RAD);
+
+        // Actions
+        // d3mHub.cage(ilk);
+        // d3mHub.cull(ilk);
+        end.cage();
+        // d3mHub.uncull(ilk);
+        end.cage(ilk);
+
+        // try to wind the system
+        _windSystemNoop();
+    }
+
     function test_unwind_pool_caged() public {
         _windSystem();
+
+        // Module caged
+        d3mHub.cage(ilk);
+
+        d3mHub.exec(ilk);
+
+        // Ensure we unwound our position
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        // Make sure pre/post functions get called
+        assertTrue(d3mTestPool.preDebt());
+        assertTrue(d3mTestPool.postDebt());
+    }
+
+    function test_unwind_pool_caged_ignore_ilk_line() public {
+        _windSystem();
+
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        vat.file(ilk, "line", 40 * RAD);
+
+        // Module caged
+        d3mHub.cage(ilk);
+
+        d3mHub.exec(ilk);
+
+        // Ensure we unwound our position
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        // Make sure pre/post functions get called
+        assertTrue(d3mTestPool.preDebt());
+        assertTrue(d3mTestPool.postDebt());
+    }
+
+    function test_unwind_pool_caged_ignore_Line() public {
+        _windSystem();
+
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        vat.file("Line", vat.debt() + 40 * RAD);
 
         // Module caged
         d3mHub.cage(ilk);
@@ -1066,6 +1372,108 @@ contract D3MHubTest is DSSTest {
         assertEq(vat.dai(vow), vowDaiBefore);
         (, , , uint256 culled, ) = d3mHub.ilks(ilk);
         assertEq(culled, 1);
+
+        d3mHub.exec(ilk);
+
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        assertEq(vat.dai(address(d3mHub)), 0);
+        // Still 50 WAD because the extra 10 WAD from repayment are not
+        // accounted for in the fees from unwind
+        assertEq(vat.dai(vow), vowDaiBefore + 50 * RAD);
+    }
+
+    function test_cull_debt_paid_back_ignore_ilk_line() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        d3mHub.cage(ilk);
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(pink, 50 * WAD);
+        assertEq(part, 40 * WAD);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        uint256 sinBefore = vat.sin(vow);
+        uint256 vowDaiBefore = vat.dai(vow);
+
+        d3mHub.cull(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 50 * WAD);
+        assertEq(vat.dai(address(d3mHub)), 0);
+        // Sin only increases by 40 WAD since 10 was covered previously
+        assertEq(vat.sin(vow), sinBefore + 40 * RAD);
+        assertEq(vat.dai(vow), vowDaiBefore);
+        (, , , uint256 culled, ) = d3mHub.ilks(ilk);
+        assertEq(culled, 1);
+
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        vat.file(ilk, "line", 40 * RAD);
+
+        d3mHub.exec(ilk);
+
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        assertEq(vat.dai(address(d3mHub)), 0);
+        // Still 50 WAD because the extra 10 WAD from repayment are not
+        // accounted for in the fees from unwind
+        assertEq(vat.dai(vow), vowDaiBefore + 50 * RAD);
+    }
+
+    function test_cull_debt_paid_back_ignore_Line() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        d3mHub.cage(ilk);
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(pink, 50 * WAD);
+        assertEq(part, 40 * WAD);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        uint256 sinBefore = vat.sin(vow);
+        uint256 vowDaiBefore = vat.dai(vow);
+
+        d3mHub.cull(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 50 * WAD);
+        assertEq(vat.dai(address(d3mHub)), 0);
+        // Sin only increases by 40 WAD since 10 was covered previously
+        assertEq(vat.sin(vow), sinBefore + 40 * RAD);
+        assertEq(vat.dai(vow), vowDaiBefore);
+        (, , , uint256 culled, ) = d3mHub.ilks(ilk);
+        assertEq(culled, 1);
+
+        d3mTestPlan.file("bar", 10);
+        d3mTestPlan.file("targetAssets", 50 * WAD);
+        vat.file("Line", vat.debt() + 40 * RAD);
 
         d3mHub.exec(ilk);
 
