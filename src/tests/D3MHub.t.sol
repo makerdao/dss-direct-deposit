@@ -713,6 +713,214 @@ contract D3MHubTest is DSSTest {
         assertEq(testGem.balanceOf(address(d3mTestPool)), 20 * WAD);
     }
 
+    function test_wind_unwind_debt_repay_dc_changes_cage() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 40 * WAD);
+        (uint256 Art, , , , ) = vat.ilks(ilk);
+        assertEq(Art, 40 * WAD);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        uint256 viceBefore = vat.vice();
+        uint256 sinBefore = vat.sin(vow);
+        uint256 vowDaiBefore = vat.dai(vow);
+        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+
+        // set some values that will unwind, but won't apply
+        vat.file(ilk, "line", 25 * RAD);
+        vat.file("Line", vat.debt() - (40 * RAD));
+        
+        // Actions
+        d3mHub.cage(ilk);
+        // d3mHub.cull(ilk);
+        // end.cage();
+        // d3mHub.uncull(ilk);
+        // end.cage(ilk);
+
+        // unwind
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        (Art, , , , ) = vat.ilks(ilk);
+        assertEq(Art, 0);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        assertEq(vat.vice(), viceBefore);
+        assertEq(vat.sin(vow), sinBefore);
+        // we unwind and collect fees
+        assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
+        assertEq(dai.balanceOf(address(testGem)), 0);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
+    }
+
+    function test_wind_unwind_debt_repay_dc_changes_cage_cull() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 40 * WAD);
+        (uint256 Art, , , , ) = vat.ilks(ilk);
+        assertEq(Art, 40 * WAD);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        uint256 viceBefore = vat.vice();
+        uint256 sinBefore = vat.sin(vow);
+        uint256 vowDaiBefore = vat.dai(vow);
+        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+
+        // set some values that will unwind, but won't apply
+        vat.file(ilk, "line", 25 * RAD);
+        vat.file("Line", vat.debt() - (40 * RAD));
+        
+        // Actions
+        d3mHub.cage(ilk);
+        d3mHub.cull(ilk);
+        // end.cage();
+        // d3mHub.uncull(ilk);
+        // end.cage(ilk);
+
+        // unwind
+        d3mHub.exec(ilk);
+
+        (ink, art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 0);
+        assertEq(art, 0);
+        (Art, , , , ) = vat.ilks(ilk);
+        assertEq(Art, 0);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        assertEq(vat.vice(), viceBefore + 40 * RAD);
+        assertEq(vat.sin(vow), sinBefore + 40 * RAD);
+        // we unwind and collect fees
+        assertEq(vat.dai(vow), vowDaiBefore + 50 * RAD);
+        assertEq(dai.balanceOf(address(testGem)), 0);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 0);
+    }
+
+    function test_wind_unwind_debt_repay_dc_changes_cage_cull_es() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 40 * WAD);
+        (uint256 Art, , , , ) = vat.ilks(ilk);
+        assertEq(Art, 40 * WAD);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        // uint256 viceBefore = vat.vice();
+        // uint256 sinBefore = vat.sin(vow);
+        // uint256 vowDaiBefore = vat.dai(vow);
+        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+
+        // set some values that will unwind, but won't apply
+        vat.file(ilk, "line", 25 * RAD);
+        vat.file("Line", vat.debt() - (40 * RAD));
+        
+        // Actions
+        d3mHub.cage(ilk);
+        d3mHub.cull(ilk);
+        end.cage();
+        // d3mHub.uncull(ilk);
+        // end.cage(ilk);
+
+        // unwind
+        // d3mHub.exec(ilk);
+        assertRevert(
+            address(d3mHub),
+            abi.encodeWithSignature("exec(bytes32)", ilk),
+            "D3MHub/module-has-to-be-unculled-first"
+        );
+    }
+
+    function test_wind_unwind_debt_repay_dc_changes_cage_cull_es_uncull() public {
+        _windSystem();
+
+        // Someone pays back our debt
+        _giveTokens(dai, 10 * WAD);
+        dai.approve(address(daiJoin), type(uint256).max);
+        daiJoin.join(address(this), 10 * WAD);
+        vat.frob(
+            ilk,
+            address(d3mTestPool),
+            address(d3mTestPool),
+            address(this),
+            0,
+            -int256(10 * WAD)
+        );
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mTestPool));
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 40 * WAD);
+        (uint256 Art, , , , ) = vat.ilks(ilk);
+        assertEq(Art, 40 * WAD);
+        assertEq(vat.gem(ilk, address(d3mTestPool)), 0);
+        // uint256 viceBefore = vat.vice();
+        // uint256 sinBefore = vat.sin(vow);
+        // uint256 vowDaiBefore = vat.dai(vow);
+        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
+        assertEq(testGem.balanceOf(address(d3mTestPool)), 50 * WAD);
+
+        // set some values that will unwind, but won't apply
+        vat.file(ilk, "line", 25 * RAD);
+        vat.file("Line", vat.debt() - (40 * RAD));
+        
+        // Actions
+        d3mHub.cage(ilk);
+        d3mHub.cull(ilk);
+        end.cage();
+        d3mHub.uncull(ilk);
+        // end.cage(ilk);
+
+        // unwind
+        // d3mHub.exec(ilk);
+        assertRevert(
+            address(d3mHub),
+            abi.encodeWithSignature("exec(bytes32)", ilk),
+            "End/tag-ilk-not-defined"
+        );
+    }
+
     function test_exec_fees_debt_paid_back() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
