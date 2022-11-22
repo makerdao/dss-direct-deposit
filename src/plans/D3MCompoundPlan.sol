@@ -23,7 +23,8 @@
 // apy to rate per block off-chain conversion info:
 //         apy = ((1 + (borrowRatePerBlock / WAD) * blocksPerDay) ^ 365 - 1) * 100
 // (0)     borrowRatePerBlock = ((((apy / 100) + 1) ^ (1 / 365) - 1) / blocksPerDay) * WAD
-//         ATTOW the formula matches the borrow apy on (https://compound.finance/markets/DAI) using blocksPerDay = 6570
+//         Initially the formula matched the borrow apy on (https://compound.finance/markets/DAI) using blocksPerDay = 6570
+//         blocksPerDay was later updated to 7200.
 //
 // https://github.com/compound-finance/compound-protocol/blob/a3214f67b73310d547e00fc578e8355911c9d376/contracts/BaseJumpRateModelV2.sol#L96
 //
