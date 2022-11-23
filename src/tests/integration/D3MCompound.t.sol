@@ -45,6 +45,8 @@ interface CErc20Like {
     function balanceOfUnderlying(address owner) external returns (uint256);
     function repayBorrow(uint256 repayAmount) external returns (uint256);
     function exchangeRateCurrent() external returns (uint256);
+    function accrueInterest() external returns (uint256);
+    function borrowBalanceCurrent(address) external returns (uint256);
 }
 
 interface CEthLike {
@@ -320,6 +322,30 @@ contract D3MCompoundTest is DSSTest {
 
         assertEq(vat.gem(ilk, address(d3mCompoundPool)), 0);
         assertEq(vat.dai(address(d3mHub)), 0);
+    }
+
+    function test_borrow_apy() public {
+        // target 2% borrow apy, see top of D3MCompoundPlan for the formula explanation
+        uint256 targetBorrowRate = 7535450719; // ((2.00 / 100) + 1) ^ (1 / 365) - 1) / 7200) * 10^18
+
+        d3mCompoundPlan.file("barb", targetBorrowRate);
+        d3mHub.exec(ilk);
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        cDai.borrow(1 * WAD);
+
+        uint256 borrowBalanceBefore = cDai.borrowBalanceCurrent(address(this));
+
+        // fast forward 1 year while accruing interest each day
+        for (uint256 i = 1; i <= 365; i++) {
+            vm.roll(block.number + 7200);
+            cDai.accrueInterest();
+        }
+
+        uint256 borrowBalanceAfter = cDai.borrowBalanceCurrent(address(this));
+
+        // rates compound so we tolerate a larger difference
+        assertEqApprox(borrowBalanceAfter, borrowBalanceBefore * 102 / 100, INTEREST_RATE_TOLERANCE * 5);
     }
 
     function test_barb_zero() public {
