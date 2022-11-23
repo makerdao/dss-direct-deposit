@@ -302,6 +302,28 @@ contract D3MCompoundTest is DSSTest {
         assertEq(vat.dai(address(d3mHub)), 0);
     }
 
+    function test_target_increase() public {
+        // Lower by 50%
+        uint256 targetBorrowRate = _setRelBorrowTarget(5000);
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        uint256 amountSuppliedInitial = cDai.balanceOfUnderlying(address(d3mCompoundPool));
+
+        // Raise by 25%
+        targetBorrowRate = _setRelBorrowTarget(12500);
+        assertEqInterest(getBorrowRate(), targetBorrowRate);
+
+        uint256 amountSupplied = cDai.balanceOfUnderlying(address(d3mCompoundPool));
+        assertTrue(amountSupplied > 0);
+        assertLt(amountSupplied, amountSuppliedInitial);
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(d3mCompoundPool));
+        assertEqRounding(ink, amountSupplied);
+        assertEqRounding(art, amountSupplied);
+
+        assertEq(vat.gem(ilk, address(d3mCompoundPool)), 0);
+        assertEq(vat.dai(address(d3mHub)), 0);
+    }
+
     function test_borrow_apy() public {
         // target 2% borrow apy, see top of D3MCompoundPlan for the formula explanation
         uint256 targetBorrowRate = 7535450719; // ((2.00 / 100) + 1) ^ (1 / 365) - 1) / 7200) * 10^18
