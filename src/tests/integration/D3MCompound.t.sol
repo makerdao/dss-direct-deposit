@@ -71,9 +71,6 @@ interface InterestRateModelLike {
 }
 
 contract D3MCompoundTest is DSSTest {
-    Hevm hevm;
-    bytes20 constant CHEAT_CODE = bytes20(uint160(uint256(keccak256('hevm cheat code'))));
-
     VatLike vat;
     EndLike end;
     CErc20Like cDai;
@@ -102,7 +99,6 @@ contract D3MCompoundTest is DSSTest {
         emit log_named_uint("block", block.number);
         emit log_named_uint("timestamp", block.timestamp);
 
-        hevm = Hevm(address(CHEAT_CODE));
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         cDai = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
@@ -320,7 +316,7 @@ contract D3MCompoundTest is DSSTest {
 
         // fast forward 1 year while accruing interest each day
         for (uint256 i = 1; i <= 365; i++) {
-            hevm.roll(block.number + 7200);
+            vm.roll(block.number + 7200);
             cDai.accrueInterest();
         }
 
