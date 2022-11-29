@@ -3,6 +3,9 @@ set -e
 
 [[ "$ETH_RPC_URL" && "$(cast chain)" == "ethlive" ]] || { echo "Please set a mainnet ETH_RPC_URL"; exit 1; }
 
+export FOUNDRY_OPTIMIZER=true
+export FOUNDRY_OPTIMIZER_RUNS=200
+
 for ARGUMENT in "$@"
 do
     KEY=$(echo $ARGUMENT | cut -f1 -d=)
