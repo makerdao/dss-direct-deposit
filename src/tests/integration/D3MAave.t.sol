@@ -960,7 +960,7 @@ contract D3MAaveTest is DSSTest {
         // User can exit and get the aDAI
         uint256 expectedAdai = 100 ether * adai.balanceOf(address(d3mAavePool)) / totalArt;
         d3mHub.exit(ilk, address(this), 100 ether);
-        assertEq(expectedAdai, 100 ether);
+        assertEqApprox(expectedAdai, 100 ether, 1);
         assertEqApprox(adai.balanceOf(address(this)), expectedAdai, 1); // As the whole thing happened in a block (no fees)
     }
 
@@ -983,7 +983,7 @@ contract D3MAaveTest is DSSTest {
         // User can exit and get the aDAI
         uint256 expectedAdai = 25 ether * adai.balanceOf(address(d3mAavePool)) / totalArt;
         d3mHub.exit(ilk, address(this), 25 ether);
-        assertEq(expectedAdai, 25 ether);
+        assertEqApprox(expectedAdai, 25 ether, 1);
         assertEqApprox(adai.balanceOf(address(this)), expectedAdai, 1); // As the whole thing happened in a block (no fees)
 
         vm.warp(block.timestamp + 3600);
