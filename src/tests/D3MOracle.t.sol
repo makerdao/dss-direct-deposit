@@ -61,7 +61,7 @@ contract D3MOracleTest is DSSTest {
     D3MTestHub hub;
     D3MOracle oracle;
 
-    function setUp() public override {
+    function setUp() public {
         vat = new D3MTestVat();
         hub = new D3MTestHub();
 

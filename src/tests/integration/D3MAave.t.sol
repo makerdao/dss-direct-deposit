@@ -102,7 +102,7 @@ contract D3MAaveTest is DSSTest {
     uint256 constant INTEREST_RATE_TOLERANCE = RAY / 10000;
     uint256 constant EPSILON_TOLERANCE = 4;
 
-    function setUp() public override {
+    function setUp() public {
         emit log_named_uint("block", block.number);
         emit log_named_uint("timestamp", block.timestamp);
 

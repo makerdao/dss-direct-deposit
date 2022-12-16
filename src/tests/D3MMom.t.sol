@@ -38,7 +38,7 @@ contract D3MMomTest is DSSTest {
     D3MTestPlan d3mTestPlan;
     D3MMom d3mMom;
 
-    function setUp() public override {
+    function setUp() public {
         d3mTestPlan = new D3MTestPlan(address(123));
 
         d3mTestPlan.file("maxBar_", type(uint256).max);

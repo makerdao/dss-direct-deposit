@@ -95,7 +95,7 @@ contract D3MCompoundTest is DSSTest {
     // Note that here the rate is in WAD resolution
     uint256 constant INTEREST_RATE_TOLERANCE = WAD / 10000;
 
-    function setUp() public override {
+    function setUp() public {
         emit log_named_uint("block", block.number);
         emit log_named_uint("timestamp", block.timestamp);
 

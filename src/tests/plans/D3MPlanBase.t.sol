@@ -80,7 +80,7 @@ contract D3MPlanBaseTest is DSSTest {
 
     address d3mTestPlan;
 
-    function setUp() public virtual override {
+    function setUp() public virtual {
 
         contractName = "D3MPlanBase";
 

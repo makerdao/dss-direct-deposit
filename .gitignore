@@ -1,5 +1,6 @@
 /out
 /cache
+/broadcast
 resource_errors.json
 
 # certora

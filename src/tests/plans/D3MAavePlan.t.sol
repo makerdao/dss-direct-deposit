@@ -56,7 +56,7 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
     // Allow for a 1 BPS margin of error on interest rates
     uint256 constant INTEREST_RATE_TOLERANCE = RAY / 10000;
 
-    function setUp() override public {
+    function setUp() public override {
         contractName = "D3MAavePlan";
 
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
