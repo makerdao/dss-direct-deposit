@@ -42,7 +42,7 @@ contract DeployD3M is Script {
                 address(dss.vat),
                 dss.chainlog.getAddress("DIRECT_HUB"),
                 address(dss.dai),
-                config.readAddress(".aaveLendingPool", "D3M_AAVE_LENDING_POOL")
+                config.readAddress(".aave.lendingPool", "D3M_AAVE_LENDING_POOL")
             );
         } else if (d3mType == keccak256("compound")) {
             d3m = DssDirectDeposit.deployCompound(
@@ -51,16 +51,16 @@ contract DeployD3M is Script {
                 ilk,
                 address(dss.vat),
                 dss.chainlog.getAddress("DIRECT_HUB"),
-                config.readAddress(".compoundCDai", "D3M_COMPOUND_CDAI")
+                config.readAddress(".compound.cdai", "D3M_COMPOUND_CDAI")
             );
         } else {
             revert("unknown-d3m-type");
         }
         vm.stopBroadcast();
 
-        ScriptTools.logContract("POOL", address(d3m.pool));
-        ScriptTools.logContract("PLAN", address(d3m.plan));
-        ScriptTools.logContract("ORACLE", address(d3m.oracle));
+        ScriptTools.exportContract("POOL", address(d3m.pool));
+        ScriptTools.exportContract("PLAN", address(d3m.plan));
+        ScriptTools.exportContract("ORACLE", address(d3m.oracle));
     }
 
 }
