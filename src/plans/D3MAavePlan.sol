@@ -44,6 +44,48 @@ interface LendingPoolLike {
     );
 }
 
+// Need to use a struct as too many variables to return on the stack
+struct ReserveDataV3 {
+    //stores the reserve configuration
+    uint256 configuration;
+    //the liquidity index. Expressed in ray
+    uint128 liquidityIndex;
+    //the current supply rate. Expressed in ray
+    uint128 currentLiquidityRate;
+    //variable borrow index. Expressed in ray
+    uint128 variableBorrowIndex;
+    //the current variable borrow rate. Expressed in ray
+    uint128 currentVariableBorrowRate;
+    //the current stable borrow rate. Expressed in ray
+    uint128 currentStableBorrowRate;
+    //timestamp of last update
+    uint40 lastUpdateTimestamp;
+    //the id of the reserve. Represents the position in the list of the active reserves
+    uint16 id;
+    //aToken address
+    address aTokenAddress;
+    //stableDebtToken address
+    address stableDebtTokenAddress;
+    //variableDebtToken address
+    address variableDebtTokenAddress;
+    //address of the interest rate strategy
+    address interestRateStrategyAddress;
+    //the current treasury balance, scaled
+    uint128 accruedToTreasury;
+    //the outstanding unbacked aTokens minted through the bridging feature
+    uint128 unbacked;
+    //the outstanding debt borrowed against this asset in isolation mode
+    uint128 isolationModeTotalDebt;
+}
+
+// Aave Lending Pool v3
+// Interface changed slightly from v2 to v3
+interface LendingPoolReserveDataV3Like {
+    function POOL_REVISION() external view returns (uint256);
+    function getReserveData(address asset) external view returns (ReserveDataV3 memory);
+}
+
+
 interface InterestRateStrategyLike {
     function OPTIMAL_UTILIZATION_RATE() external view returns (uint256);
     function EXCESS_UTILIZATION_RATE() external view returns (uint256);
@@ -77,7 +119,7 @@ contract D3MAavePlan is ID3MPlan {
         pool = LendingPoolLike(pool_);
 
         // Fetch the reserve data from Aave
-        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address interestStrategy_,) = pool.getReserveData(dai_);
+        (address adai_, address stableDebt_, address variableDebt_, address interestStrategy_) = getReserveDataAddresses();
         require(adai_             != address(0), "D3MAavePlan/invalid-adai");
         require(stableDebt_       != address(0), "D3MAavePlan/invalid-stableDebt");
         require(variableDebt_     != address(0), "D3MAavePlan/invalid-variableDebt");
@@ -91,6 +133,18 @@ contract D3MAavePlan is ID3MPlan {
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
+    }
+
+    function getReserveDataAddresses() internal view returns (address adai_, address stableDebt_, address variableDebt_, address interestStrategy_) {
+         try LendingPoolReserveDataV3Like(address(pool)).POOL_REVISION() {
+            ReserveDataV3 memory data = LendingPoolReserveDataV3Like(address(pool)).getReserveData(address(dai));
+            adai_ = data.aTokenAddress;
+            stableDebt_ = data.stableDebtTokenAddress;
+            variableDebt_ = data.variableDebtTokenAddress;
+            interestStrategy_ = data.interestRateStrategyAddress;
+        } catch {
+            (,,,,,,, adai_, stableDebt_, variableDebt_, interestStrategy_,) = pool.getReserveData(address(dai));
+        }
     }
 
     modifier auth {
@@ -196,7 +250,7 @@ contract D3MAavePlan is ID3MPlan {
 
     function active() public view override returns (bool) {
         if (bar == 0) return false;
-        (,,,,,,, address adai_, address stableDebt_, address variableDebt_, address strategy,) = pool.getReserveData(address(dai));
+        (address adai_, address stableDebt_, address variableDebt_, address strategy) = getReserveDataAddresses();
         uint256 adaiRevision_ = ATokenLike(adai_).ATOKEN_REVISION();
         return strategy      == address(tack)          &&
                adai_         == address(adai)          &&
