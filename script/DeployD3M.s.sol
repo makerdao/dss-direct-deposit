@@ -27,7 +27,7 @@ contract DeployD3M is Script {
 
     function run() external {
         config = ScriptTools.readInput("config");
-        dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
+        dss = MCD.loadFromChainlog(config.readAddress(".chainlog", "D3M_CHAINLOG"));
 
         d3mType = keccak256(bytes(config.readString(".type", "D3M_TYPE")));
         admin = config.readAddress(".admin", "D3M_ADMIN");
