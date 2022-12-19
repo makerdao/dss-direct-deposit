@@ -8,9 +8,9 @@ import { MCD, DssInstance } from "dss-test/MCD.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
 
 import {
-    DssDirectDeposit,
+    D3MDeploy,
     D3MInstance
-} from "../src/deploy/DssDirectDeposit.sol";
+} from "../src/deploy/D3MDeploy.sol";
 
 contract DeployD3M is Script {
 
@@ -35,7 +35,7 @@ contract DeployD3M is Script {
 
         vm.startBroadcast();
         if (d3mType == keccak256("aave")) {
-            d3m = DssDirectDeposit.deployAave(
+            d3m = D3MDeploy.deployAave(
                 msg.sender,
                 admin,
                 ilk,
@@ -45,7 +45,7 @@ contract DeployD3M is Script {
                 config.readAddress(".aave.lendingPool", "D3M_AAVE_LENDING_POOL")
             );
         } else if (d3mType == keccak256("compound")) {
-            d3m = DssDirectDeposit.deployCompound(
+            d3m = D3MDeploy.deployCompound(
                 msg.sender,
                 admin,
                 ilk,
@@ -58,9 +58,9 @@ contract DeployD3M is Script {
         }
         vm.stopBroadcast();
 
-        ScriptTools.exportContract("POOL", address(d3m.pool));
-        ScriptTools.exportContract("PLAN", address(d3m.plan));
-        ScriptTools.exportContract("ORACLE", address(d3m.oracle));
+        ScriptTools.exportContract("POOL", d3m.pool);
+        ScriptTools.exportContract("PLAN", d3m.plan);
+        ScriptTools.exportContract("ORACLE", d3m.oracle);
     }
 
 }
