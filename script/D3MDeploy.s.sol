@@ -12,7 +12,7 @@ import {
     D3MInstance
 } from "../src/deploy/D3MDeploy.sol";
 
-contract DeployD3M is Script {
+contract D3MDeployScript is Script {
 
     using stdJson for string;
     using ScriptTools for string;

@@ -15,7 +15,7 @@ import {
     D3MCompoundConfig
 } from "../src/deploy/D3MInit.sol";
 
-contract InitD3M is Script {
+contract D3MInitScript is Script {
 
     using stdJson for string;
     using ScriptTools for string;
