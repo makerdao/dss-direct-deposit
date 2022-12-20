@@ -7,6 +7,7 @@ import { DssInstance } from "dss-test/MCD.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
 
 import { D3MInstance } from "./D3MInstance.sol";
+import { D3MDebtCeilingPlan } from "../plans/D3MDebtCeilingPlan.sol";
 import { D3MAavePlan } from "../plans/D3MAavePlan.sol";
 import { D3MAavePool } from "../pools/D3MAavePool.sol";
 import { D3MCompoundPlan } from "../plans/D3MCompoundPlan.sol";
@@ -37,13 +38,18 @@ library D3MDeploy {
     function deployAave(
         address deployer,
         address owner,
+        string memory planType,
         bytes32 ilk,
         address vat,
         address hub,
         address dai,
         address lendingPool
     ) internal returns (D3MInstance memory d3m) {
-        d3m.plan = address(new D3MAavePlan(dai, lendingPool));
+        if (keccak256(bytes(planType)) == keccak256("rate-target")) {
+            d3m.plan = address(new D3MAavePlan(dai, lendingPool));
+        } else {
+            d3m.plan = address(new D3MDebtCeilingPlan(vat, ilk));
+        }
         d3m.pool = address(new D3MAavePool(ilk, hub, dai, lendingPool));
         d3m.oracle = address(new D3MOracle(vat, ilk));
 
@@ -55,12 +61,17 @@ library D3MDeploy {
     function deployCompound(
         address deployer,
         address owner,
+        string memory planType,
         bytes32 ilk,
         address vat,
         address hub,
         address cdai
     ) internal returns (D3MInstance memory d3m) {
-        d3m.plan = address(new D3MCompoundPlan(cdai));
+        if (keccak256(bytes(planType)) == keccak256("rate-target")) {
+            d3m.plan = address(new D3MCompoundPlan(cdai));
+        } else {
+            d3m.plan = address(new D3MDebtCeilingPlan(vat, ilk));
+        }
         d3m.pool = address(new D3MCompoundPool(ilk, hub, cdai));
         d3m.oracle = address(new D3MOracle(vat, ilk));
 

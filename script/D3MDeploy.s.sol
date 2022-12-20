@@ -21,6 +21,7 @@ contract D3MDeployScript is Script {
     DssInstance dss;
 
     bytes32 d3mType;
+    string planType;
     address admin;
     bytes32 ilk;
     D3MInstance d3m;
@@ -30,6 +31,7 @@ contract D3MDeployScript is Script {
         dss = MCD.loadFromChainlog(config.readAddress(".chainlog", "D3M_CHAINLOG"));
 
         d3mType = keccak256(bytes(config.readString(".type", "D3M_TYPE")));
+        planType = config.readString(".planType", "D3M_PLAN_TYPE");
         admin = config.readAddress(".admin", "D3M_ADMIN");
         ilk = config.readString(".ilk", "D3M_ILK").stringToBytes32();
 
@@ -38,6 +40,7 @@ contract D3MDeployScript is Script {
             d3m = D3MDeploy.deployAave(
                 msg.sender,
                 admin,
+                planType,
                 ilk,
                 address(dss.vat),
                 dss.chainlog.getAddress("DIRECT_HUB"),
@@ -48,6 +51,7 @@ contract D3MDeployScript is Script {
             d3m = D3MDeploy.deployCompound(
                 msg.sender,
                 admin,
+                planType,
                 ilk,
                 address(dss.vat),
                 dss.chainlog.getAddress("DIRECT_HUB"),

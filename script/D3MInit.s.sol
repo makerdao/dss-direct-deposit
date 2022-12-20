@@ -28,6 +28,7 @@ contract D3MInitScript is Script {
     DssInstance dss;
 
     bytes32 d3mType;
+    string planType;
     bytes32 ilk;
     D3MInstance d3m;
     D3MCommonConfig cfg;
@@ -39,6 +40,7 @@ contract D3MInitScript is Script {
         dss = MCD.loadFromChainlog(config.readAddress(".chainlog", "D3M_CHAINLOG"));
 
         d3mType = keccak256(bytes(config.readString(".type", "D3M_TYPE")));
+        planType = config.readString(".planType", "D3M_PLAN_TYPE");
         ilk = config.readString(".ilk", "D3M_ILK").stringToBytes32();
 
         d3m = D3MInstance({
@@ -57,6 +59,7 @@ contract D3MInitScript is Script {
         vm.startBroadcast();
         if (d3mType == keccak256("aave")) {
             aaveCfg = D3MAaveConfig({
+                planType: planType,
                 king: config.readAddress(".aave.king", "D3M_AAVE_KING"),
                 bar: config.readUint(".aave.bar", "D3M_AAVE_BAR") * RAY / BPS
             });
@@ -68,6 +71,7 @@ contract D3MInitScript is Script {
             );
         } else if (d3mType == keccak256("compound")) {
             compoundCfg = D3MCompoundConfig({
+                planType: planType,
                 king: config.readAddress(".compound.king", "D3M_COMPOUND_KING"),
                 barb: config.readUint(".compound.barb", "D3M_COMPOUND_BARB")
             });

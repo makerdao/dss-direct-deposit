@@ -56,11 +56,13 @@ struct D3MCommonConfig {
 }
 
 struct D3MAaveConfig {
+    string planType;
     address king;
     uint256 bar;
 }
 
 struct D3MCompoundConfig {
+    string planType;
     address king;
     uint256 barb;
 }
@@ -134,7 +136,9 @@ library D3MInit {
 
         plan.rely(dss.chainlog.getAddress("DIRECT_MOM"));
         pool.file("king", aaveCfg.king);
-        plan.file("bar", aaveCfg.bar);
+        if (keccak256(bytes(aaveCfg.planType)) == keccak256("rate-target")) {
+            plan.file("bar", aaveCfg.bar);
+        }
     }
 
     function initCompound(
@@ -156,7 +160,9 @@ library D3MInit {
 
         plan.rely(dss.chainlog.getAddress("DIRECT_MOM"));
         pool.file("king", compoundCfg.king);
-        plan.file("barb", compoundCfg.barb);
+        if (keccak256(bytes(compoundCfg.planType)) == keccak256("rate-target")) {
+            plan.file("barb", compoundCfg.barb);
+        }
     }
 
 }
