@@ -144,6 +144,100 @@ contract FakeLendingPool {
     }
 }
 
+// Need to use a struct as too many variables to return on the stack
+struct ReserveDataV3 {
+    //stores the reserve configuration
+    uint256 configuration;
+    //the liquidity index. Expressed in ray
+    uint128 liquidityIndex;
+    //the current supply rate. Expressed in ray
+    uint128 currentLiquidityRate;
+    //variable borrow index. Expressed in ray
+    uint128 variableBorrowIndex;
+    //the current variable borrow rate. Expressed in ray
+    uint128 currentVariableBorrowRate;
+    //the current stable borrow rate. Expressed in ray
+    uint128 currentStableBorrowRate;
+    //timestamp of last update
+    uint40 lastUpdateTimestamp;
+    //the id of the reserve. Represents the position in the list of the active reserves
+    uint16 id;
+    //aToken address
+    address aTokenAddress;
+    //stableDebtToken address
+    address stableDebtTokenAddress;
+    //variableDebtToken address
+    address variableDebtTokenAddress;
+    //address of the interest rate strategy
+    address interestRateStrategyAddress;
+    //the current treasury balance, scaled
+    uint128 accruedToTreasury;
+    //the outstanding unbacked aTokens minted through the bridging feature
+    uint128 unbacked;
+    //the outstanding debt borrowed against this asset in isolation mode
+    uint128 isolationModeTotalDebt;
+}
+
+contract FakeLendingPoolV3 {
+    address public adai;
+
+    struct DepositCall {
+        address asset;
+        uint256 amt;
+        address forWhom;
+        uint16 code;
+    }
+    DepositCall public lastDeposit;
+
+    struct WithdrawCall {
+        address asset;
+        uint256 amt;
+        address dst;
+    }
+    WithdrawCall public lastWithdraw;
+
+    constructor(address adai_) {
+        adai = adai_;
+    }
+
+    function POOL_REVISION() external pure returns (uint256) {
+        return 1;
+    }
+
+    function getReserveData(address) external view returns(
+        ReserveDataV3 memory result
+    ) {
+        result.aTokenAddress = adai;
+        result.stableDebtTokenAddress = address(2);
+        result.variableDebtTokenAddress = address(3);
+        result.interestRateStrategyAddress = address(4);
+    }
+
+    function deposit(address asset, uint256 amt, address forWhom, uint16 code) external {
+        lastDeposit = DepositCall(
+            asset,
+            amt,
+            forWhom,
+            code
+        );
+        D3MTestGem(adai).mint(forWhom, amt);
+    }
+
+    function withdraw(address asset, uint256 amt, address dst) external {
+        lastWithdraw = WithdrawCall(
+            asset,
+            amt,
+            dst
+        );
+        D3MTestGem(asset).transfer(dst, amt);
+    }
+
+    function getReserveNormalizedIncome(address asset) external pure returns (uint256) {
+        asset;
+        return 10 ** 27;
+    }
+}
+
 contract D3MAavePoolTest is D3MPoolBaseTest {
 
     AToken adai;
@@ -304,5 +398,16 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
     function test_maxDeposit_returns_max_uint() public {
         assertEq(D3MAavePool(d3mTestPool).maxDeposit(), type(uint256).max);
+    }
+
+    function setupV3() internal {
+        aavePool = LendingPoolLike(address(new FakeLendingPoolV3(address(adai))));
+        d3mTestPool = address(new D3MAavePool("", hub, address(dai), address(aavePool)));
+    }
+
+    function test_aavev3_pool() public {
+        setupV3();
+
+        assertEq(address(D3MAavePool(d3mTestPool).adai()), address(adai));
     }
 }
