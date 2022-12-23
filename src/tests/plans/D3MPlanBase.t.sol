@@ -93,27 +93,8 @@ contract D3MPlanBaseTest is DSSTest {
         assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
     }
 
-    function test_can_rely() public {
-        assertEq(D3MPlanBase(d3mTestPlan).wards(address(123)), 0);
-
-        D3MPlanBase(d3mTestPlan).rely(address(123));
-
-        assertEq(D3MPlanBase(d3mTestPlan).wards(address(123)), 1);
-    }
-
-    function test_can_deny() public {
-        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
-
-        D3MPlanBase(d3mTestPlan).deny(address(this));
-
-        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 0);
-    }
-
-    function test_cannot_rely_without_auth() public {
-        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
-
-        D3MPlanBase(d3mTestPlan).deny(address(this));
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("rely(address)", address(this)), string(abi.encodePacked(contractName, "/not-authorized")));
+    function test_auth() public {
+        checkAuth(d3mTestPlan, contractName);
     }
 
     function test_implements_getTargetAssets() public virtual {

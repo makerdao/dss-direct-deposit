@@ -67,7 +67,7 @@ contract D3MDebtCeilingPlan is ID3MPlan {
 
     function file(bytes32 what, uint256 data) external auth {
         if (what == "enabled") {
-            require(enabled <= 1, "D3MDebtCeilingPlan/invalid-value");
+            require(data <= 1, "D3MDebtCeilingPlan/invalid-value");
             enabled = data;
         } else revert("D3MDebtCeilingPlan/file-unrecognized-param");
         emit File(what, data);
