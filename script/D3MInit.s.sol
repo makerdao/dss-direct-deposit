@@ -1,4 +1,18 @@
+// SPDX-FileCopyrightText: © 2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pragma solidity ^0.8.0;
 
@@ -27,7 +41,7 @@ contract D3MInitScript is Script {
     string config;
     DssInstance dss;
 
-    bytes32 d3mType;
+    string d3mType;
     bytes32 ilk;
     D3MInstance d3m;
     D3MCommonConfig cfg;
@@ -38,7 +52,7 @@ contract D3MInitScript is Script {
         config = ScriptTools.readInput("config");
         dss = MCD.loadFromChainlog(config.readAddress(".chainlog", "D3M_CHAINLOG"));
 
-        d3mType = keccak256(bytes(config.readString(".type", "D3M_TYPE")));
+        d3mType = config.readString(".type", "D3M_TYPE");
         ilk = config.readString(".ilk", "D3M_ILK").stringToBytes32();
 
         d3m = D3MInstance({
@@ -55,7 +69,7 @@ contract D3MInitScript is Script {
         });
 
         vm.startBroadcast();
-        if (d3mType == keccak256("aave")) {
+        if (d3mType.eq("aave")) {
             aaveCfg = D3MAaveConfig({
                 king: config.readAddress(".aave.king", "D3M_AAVE_KING"),
                 bar: config.readUint(".aave.bar", "D3M_AAVE_BAR") * RAY / BPS
@@ -66,7 +80,7 @@ contract D3MInitScript is Script {
                 cfg,
                 aaveCfg
             );
-        } else if (d3mType == keccak256("compound")) {
+        } else if (d3mType.eq("compound")) {
             compoundCfg = D3MCompoundConfig({
                 king: config.readAddress(".compound.king", "D3M_COMPOUND_KING"),
                 barb: config.readUint(".compound.barb", "D3M_COMPOUND_BARB")

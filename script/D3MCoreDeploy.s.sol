@@ -23,10 +23,10 @@ import { ScriptTools } from "dss-test/ScriptTools.sol";
 
 import {
     D3MDeploy,
-    D3MInstance
+    D3MCoreInstance
 } from "../src/deploy/D3MDeploy.sol";
 
-contract D3MDeployScript is Script {
+contract D3MCoreDeployScript is Script {
 
     using stdJson for string;
     using ScriptTools for string;
@@ -34,47 +34,25 @@ contract D3MDeployScript is Script {
     string config;
     DssInstance dss;
 
-    string d3mType;
     address admin;
-    bytes32 ilk;
-    D3MInstance d3m;
+    D3MCoreInstance d3mCore;
 
     function run() external {
         config = ScriptTools.readInput("config");
         dss = MCD.loadFromChainlog(config.readAddress(".chainlog", "D3M_CHAINLOG"));
 
-        d3mType = config.readString(".type", "D3M_TYPE");
         admin = config.readAddress(".admin", "D3M_ADMIN");
-        ilk = config.readString(".ilk", "D3M_ILK").stringToBytes32();
 
         vm.startBroadcast();
-        if (d3mType.eq("aave")) {
-            d3m = D3MDeploy.deployAave(
-                msg.sender,
-                admin,
-                ilk,
-                address(dss.vat),
-                dss.chainlog.getAddress("DIRECT_HUB"),
-                address(dss.dai),
-                config.readAddress(".aave.lendingPool", "D3M_AAVE_LENDING_POOL")
-            );
-        } else if (d3mType.eq("compound")) {
-            d3m = D3MDeploy.deployCompound(
-                msg.sender,
-                admin,
-                ilk,
-                address(dss.vat),
-                dss.chainlog.getAddress("DIRECT_HUB"),
-                config.readAddress(".compound.cdai", "D3M_COMPOUND_CDAI")
-            );
-        } else {
-            revert("unknown-d3m-type");
-        }
+        d3mCore = D3MDeploy.deployCore(
+            msg.sender,
+            admin,
+            address(dss.daiJoin)
+        );
         vm.stopBroadcast();
 
-        ScriptTools.exportContract("POOL", d3m.pool);
-        ScriptTools.exportContract("PLAN", d3m.plan);
-        ScriptTools.exportContract("ORACLE", d3m.oracle);
+        ScriptTools.exportContract("HUB", d3mCore.hub);
+        ScriptTools.exportContract("MOM", d3mCore.mom);
     }
 
 }
