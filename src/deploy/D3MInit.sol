@@ -1,4 +1,18 @@
+// SPDX-FileCopyrightText: © 2022 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pragma solidity >=0.8.0;
 
@@ -7,6 +21,7 @@ import { DssInstance } from "dss-test/MCD.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
 
 import { D3MInstance } from "./D3MInstance.sol";
+import { D3MCoreInstance } from "./D3MCoreInstance.sol";
 
 interface AavePoolLike {
     function hub() external view returns (address);
@@ -43,8 +58,15 @@ interface D3MOracleLike {
 }
 
 interface D3MHubLike {
+    function vat() external view returns (address);
+    function daiJoin() external view returns (address);
+    function file(bytes32, address) external;
     function file(bytes32, bytes32, address) external;
     function file(bytes32, bytes32, uint256) external;
+}
+
+interface D3MMomLike {
+    function setAuthority(address) external;
 }
 
 struct D3MCommonConfig {
@@ -69,6 +91,28 @@ struct D3MCompoundConfig {
 
 // Init a D3M instance
 library D3MInit {
+
+    function initCore(
+        DssInstance memory dss,
+        D3MCoreInstance memory d3mCore
+    ) internal {
+        D3MHubLike hub = D3MHubLike(d3mCore.hub);
+        D3MMomLike mom = D3MMomLike(d3mCore.mom);
+
+        // Sanity checks
+        require(hub.vat() == address(dss.vat), "Hub vat mismatch");
+        require(hub.daiJoin() == address(dss.daiJoin), "Hub daiJoin mismatch");
+
+        hub.file("vow", address(dss.vow));
+        hub.file("end", address(dss.end));
+
+        mom.setAuthority(dss.chainlog.getAddress("MCD_ADM"));
+
+        dss.vat.rely(address(hub));
+
+        dss.chainlog.setAddress("DIRECT_HUB", address(hub));
+        dss.chainlog.setAddress("DIRECT_MOM", address(mom));
+    }
 
     function _init(
         DssInstance memory dss,
@@ -115,6 +159,11 @@ library D3MInit {
             GemAbstract(gem).name(),
             GemAbstract(gem).symbol()
         );
+
+        string memory clPrefix = ScriptTools.ilkToChainlogFormat(ilk);
+        dss.chainlog.setAddress(ScriptTools.stringToBytes32(string(abi.encodePacked(clPrefix, "_POOL"))), d3m.pool);
+        dss.chainlog.setAddress(ScriptTools.stringToBytes32(string(abi.encodePacked(clPrefix, "_PLAN"))), d3m.plan);
+        dss.chainlog.setAddress(ScriptTools.stringToBytes32(string(abi.encodePacked(clPrefix, "_ORACLE"))), d3m.oracle);
     }
 
     function initAave(
