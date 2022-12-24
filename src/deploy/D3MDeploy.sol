@@ -56,7 +56,7 @@ library D3MDeploy {
         address dai,
         address lendingPool
     ) internal returns (D3MInstance memory d3m) {
-        if (keccak256(bytes(planType)) == keccak256("rate-target")) {
+        if (planType.eq("rate-target")) {
             d3m.plan = address(new D3MAavePlan(dai, lendingPool));
         } else {
             d3m.plan = address(new D3MDebtCeilingPlan(vat, ilk));
@@ -78,7 +78,7 @@ library D3MDeploy {
         address hub,
         address cdai
     ) internal returns (D3MInstance memory d3m) {
-        if (keccak256(bytes(planType)) == keccak256("rate-target")) {
+        if (planType.eq("rate-target")) {
             d3m.plan = address(new D3MCompoundPlan(cdai));
         } else {
             d3m.plan = address(new D3MDebtCeilingPlan(vat, ilk));

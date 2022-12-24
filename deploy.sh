@@ -10,6 +10,7 @@ do
     case "$KEY" in
             chainlog)        export D3M_CHAINLOG="$VALUE" ;;
             type)            export D3M_TYPE="$VALUE" ;;
+            plan-type)       export D3M_PLAN_TYPE="$VALUE" ;;
             admin)           export D3M_ADMIN="$VALUE" ;;
             ilk)             export D3M_ILK="$VALUE" ;;
             aave-pool)       export D3M_AAVE_LENDING_POOL="$VALUE" ;;
