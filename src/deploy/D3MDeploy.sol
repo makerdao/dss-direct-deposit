@@ -34,6 +34,8 @@ import { D3MOracle } from "../D3MOracle.sol";
 // Deploy a D3M instance
 library D3MDeploy {
 
+    using ScriptTools for string;
+
     function deployCore(
         address deployer,
         address owner,
