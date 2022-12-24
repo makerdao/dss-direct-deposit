@@ -26,7 +26,7 @@ import {
     D3MCoreInstance
 } from "../src/deploy/D3MInit.sol";
 
-contract D3MInitScript is Script {
+contract D3MCoreInitScript is Script {
 
     using stdJson for string;
     using ScriptTools for string;
