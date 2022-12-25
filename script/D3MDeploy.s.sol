@@ -37,6 +37,7 @@ contract D3MDeployScript is Script {
     string d3mType;
     string planType;
     address admin;
+    address hub;
     bytes32 ilk;
     D3MInstance d3m;
 
@@ -47,6 +48,7 @@ contract D3MDeployScript is Script {
         d3mType = config.readString(".type", "D3M_TYPE");
         planType = config.readString(".planType", "D3M_PLAN_TYPE");
         admin = config.readAddress(".admin", "D3M_ADMIN");
+        hub = config.readAddress(".hub", "D3M_HUB");
         ilk = config.readString(".ilk", "D3M_ILK").stringToBytes32();
 
         vm.startBroadcast();
@@ -57,7 +59,7 @@ contract D3MDeployScript is Script {
                 planType,
                 ilk,
                 address(dss.vat),
-                dss.chainlog.getAddress("DIRECT_HUB"),
+                hub,
                 address(dss.dai),
                 config.readAddress(".aave.lendingPool", "D3M_AAVE_LENDING_POOL")
             );
@@ -68,7 +70,7 @@ contract D3MDeployScript is Script {
                 planType,
                 ilk,
                 address(dss.vat),
-                dss.chainlog.getAddress("DIRECT_HUB"),
+                hub,
                 config.readAddress(".compound.cdai", "D3M_COMPOUND_CDAI")
             );
         } else {
