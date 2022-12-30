@@ -83,8 +83,8 @@ contract D3MInitScript is Script {
                 adai: AavePoolLike(d3m.pool).adai(),
                 stableDebt: AavePoolLike(d3m.pool).stableDebt(),
                 variableDebt: AavePoolLike(d3m.pool).variableDebt(),
-                tack: AavePlanLike(d3m.plan).tack(),
-                adaiRevision: AavePlanLike(d3m.plan).adaiRevision()
+                tack: planType.eq("rate-target") ? AavePlanLike(d3m.plan).tack() : address(0),
+                adaiRevision: planType.eq("rate-target") ? AavePlanLike(d3m.plan).adaiRevision() : 0
             });
             D3MInit.initAave(
                 dss,
@@ -100,8 +100,8 @@ contract D3MInitScript is Script {
                 cdai: CompoundPoolLike(d3m.pool).cDai(),
                 comptroller: CompoundPoolLike(d3m.pool).comptroller(),
                 comp: CompoundPoolLike(d3m.pool).comp(),
-                tack: CompoundPlanLike(d3m.plan).tack(),
-                delegate: CompoundPlanLike(d3m.plan).delegate()
+                tack: planType.eq("rate-target") ? CompoundPlanLike(d3m.plan).tack() : address(0),
+                delegate: planType.eq("rate-target") ? CompoundPlanLike(d3m.plan).delegate() : address(0)
             });
             D3MInit.initCompound(
                 dss,

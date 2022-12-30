@@ -123,6 +123,8 @@ struct D3MCompoundConfig {
 // Init a D3M instance
 library D3MInit {
 
+    using ScriptTools for string;
+
     function initCore(
         DssInstance memory dss,
         D3MCoreInstance memory d3mCore
@@ -218,16 +220,18 @@ library D3MInit {
         require(pool.stableDebt() == aaveCfg.stableDebt, "Pool stableDebt mismatch");
         require(pool.variableDebt() == aaveCfg.variableDebt, "Pool variableDebt mismatch");
 
-        require(plan.adai() == address(adai), "Plan adai mismatch");
-        require(plan.stableDebt() == aaveCfg.stableDebt, "Plan stableDebt mismatch");
-        require(plan.variableDebt() == aaveCfg.variableDebt, "Plan variableDebt mismatch");
-        require(plan.tack() == aaveCfg.tack, "Plan tack mismatch");
-        require(plan.adaiRevision() == aaveCfg.adaiRevision, "Plan adaiRevision mismatch");
-        require(adai.ATOKEN_REVISION() == aaveCfg.adaiRevision, "ADai adaiRevision mismatch");
+        if (aaveCfg.planType.eq("rate-target")) {
+            require(plan.adai() == address(adai), "Plan adai mismatch");
+            require(plan.stableDebt() == aaveCfg.stableDebt, "Plan stableDebt mismatch");
+            require(plan.variableDebt() == aaveCfg.variableDebt, "Plan variableDebt mismatch");
+            require(plan.tack() == aaveCfg.tack, "Plan tack mismatch");
+            require(plan.adaiRevision() == aaveCfg.adaiRevision, "Plan adaiRevision mismatch");
+            require(adai.ATOKEN_REVISION() == aaveCfg.adaiRevision, "ADai adaiRevision mismatch");
+        }
 
         plan.rely(dss.chainlog.getAddress("DIRECT_MOM"));
         pool.file("king", aaveCfg.king);
-        if (keccak256(bytes(aaveCfg.planType)) == keccak256("rate-target")) {
+        if (aaveCfg.planType.eq("rate-target")) {
             plan.file("bar", aaveCfg.bar);
         }
     }
@@ -253,15 +257,17 @@ library D3MInit {
         require(pool.comp() == compoundCfg.comp, "Pool comp mismatch");
         require(pool.cDai() == address(cdai), "Pool cDai mismatch");
 
-        require(plan.tack() == compoundCfg.tack, "Plan tack mismatch");
-        require(cdai.interestRateModel() == compoundCfg.tack, "CDai tack mismatch");
-        require(plan.delegate() == compoundCfg.delegate, "Plan delegate mismatch");
-        require(cdai.implementation() == compoundCfg.delegate, "CDai delegate mismatch");
-        require(plan.cDai() == address(cdai), "Plan cDai mismatch");
+        if (compoundCfg.planType.eq("rate-target")) {
+            require(plan.tack() == compoundCfg.tack, "Plan tack mismatch");
+            require(cdai.interestRateModel() == compoundCfg.tack, "CDai tack mismatch");
+            require(plan.delegate() == compoundCfg.delegate, "Plan delegate mismatch");
+            require(cdai.implementation() == compoundCfg.delegate, "CDai delegate mismatch");
+            require(plan.cDai() == address(cdai), "Plan cDai mismatch");
+        }
 
         plan.rely(dss.chainlog.getAddress("DIRECT_MOM"));
         pool.file("king", compoundCfg.king);
-        if (keccak256(bytes(compoundCfg.planType)) == keccak256("rate-target")) {
+        if (compoundCfg.planType.eq("rate-target")) {
             plan.file("barb", compoundCfg.barb);
         }
     }
