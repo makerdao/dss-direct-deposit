@@ -30,11 +30,22 @@ interface AavePoolLike {
     function vat() external view returns (address);
     function file(bytes32, address) external;
     function adai() external view returns (address);
+    function stableDebt() external view returns (address);
+    function variableDebt() external view returns (address);
 }
 
 interface AavePlanLike {
     function rely(address) external;
     function file(bytes32, uint256) external;
+    function adai() external view returns (address);
+    function stableDebt() external view returns (address);
+    function variableDebt() external view returns (address);
+    function tack() external view returns (address);
+    function adaiRevision() external view returns (uint256);
+}
+
+interface ADaiLike {
+    function ATOKEN_REVISION() external view returns (uint256);
 }
 
 interface CompoundPoolLike {
@@ -44,11 +55,21 @@ interface CompoundPoolLike {
     function vat() external view returns (address);
     function file(bytes32, address) external;
     function cDai() external view returns (address);
+    function comptroller() external view returns (address);
+    function comp() external view returns (address);
 }
 
 interface CompoundPlanLike {
     function rely(address) external;
     function file(bytes32, uint256) external;
+    function tack() external view returns (address);
+    function delegate() external view returns (address);
+    function cDai() external view returns (address);
+}
+
+interface CDaiLike {
+    function interestRateModel() external view returns (address);
+    function implementation() external view returns (address);
 }
 
 interface D3MOracleLike {
@@ -81,12 +102,22 @@ struct D3MAaveConfig {
     string planType;
     address king;
     uint256 bar;
+    address adai;
+    address stableDebt;
+    address variableDebt;
+    address tack;
+    uint256 adaiRevision;
 }
 
 struct D3MCompoundConfig {
     string planType;
     address king;
     uint256 barb;
+    address cdai;
+    address comptroller;
+    address comp;
+    address tack;
+    address delegate;
 }
 
 // Init a D3M instance
@@ -174,14 +205,25 @@ library D3MInit {
     ) internal {
         AavePlanLike plan = AavePlanLike(d3m.plan);
         AavePoolLike pool = AavePoolLike(d3m.pool);
+        ADaiLike adai = ADaiLike(aaveCfg.adai);
 
-        _init(dss, d3m, cfg, pool.adai());
+        _init(dss, d3m, cfg, address(adai));
 
         // Sanity checks
         require(pool.hub() == address(dss.chainlog.getAddress("DIRECT_HUB")), "Pool hub mismatch");
         require(pool.ilk() == cfg.ilk, "Pool ilk mismatch");
         require(pool.vat() == address(dss.vat), "Pool vat mismatch");
         require(pool.dai() == address(dss.dai), "Pool dai mismatch");
+        require(pool.adai() == address(adai), "Pool adai mismatch");
+        require(pool.stableDebt() == aaveCfg.stableDebt, "Pool stableDebt mismatch");
+        require(pool.variableDebt() == aaveCfg.variableDebt, "Pool variableDebt mismatch");
+
+        require(plan.adai() == address(adai), "Plan adai mismatch");
+        require(plan.stableDebt() == aaveCfg.stableDebt, "Plan stableDebt mismatch");
+        require(plan.variableDebt() == aaveCfg.variableDebt, "Plan variableDebt mismatch");
+        require(plan.tack() == aaveCfg.tack, "Plan tack mismatch");
+        require(plan.adaiRevision() == aaveCfg.adaiRevision, "Plan adaiRevision mismatch");
+        require(adai.ATOKEN_REVISION() == aaveCfg.adaiRevision, "ADai adaiRevision mismatch");
 
         plan.rely(dss.chainlog.getAddress("DIRECT_MOM"));
         pool.file("king", aaveCfg.king);
@@ -198,14 +240,24 @@ library D3MInit {
     ) internal {
         CompoundPlanLike plan = CompoundPlanLike(d3m.plan);
         CompoundPoolLike pool = CompoundPoolLike(d3m.pool);
+        CDaiLike cdai = CDaiLike(compoundCfg.cdai);
 
-        _init(dss, d3m, cfg, pool.cDai());
+        _init(dss, d3m, cfg, address(cdai));
 
         // Sanity checks
         require(pool.hub() == dss.chainlog.getAddress("DIRECT_HUB"), "Pool hub mismatch");
         require(pool.ilk() == cfg.ilk, "Pool ilk mismatch");
         require(pool.vat() == address(dss.vat), "Pool vat mismatch");
         require(pool.dai() == address(dss.dai), "Pool dai mismatch");
+        require(pool.comptroller() == compoundCfg.comptroller, "Pool comptroller mismatch");
+        require(pool.comp() == compoundCfg.comp, "Pool comp mismatch");
+        require(pool.cDai() == address(cdai), "Pool cDai mismatch");
+
+        require(plan.tack() == compoundCfg.tack, "Plan tack mismatch");
+        require(cdai.interestRateModel() == compoundCfg.tack, "CDai tack mismatch");
+        require(plan.delegate() == compoundCfg.delegate, "Plan delegate mismatch");
+        require(cdai.implementation() == compoundCfg.delegate, "CDai delegate mismatch");
+        require(plan.cDai() == address(cdai), "Plan cDai mismatch");
 
         plan.rely(dss.chainlog.getAddress("DIRECT_MOM"));
         pool.file("king", compoundCfg.king);

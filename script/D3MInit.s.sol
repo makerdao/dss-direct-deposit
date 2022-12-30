@@ -26,7 +26,11 @@ import {
     D3MInstance,
     D3MCommonConfig,
     D3MAaveConfig,
-    D3MCompoundConfig
+    D3MCompoundConfig,
+    AavePoolLike,
+    AavePlanLike,
+    CompoundPoolLike,
+    CompoundPlanLike
 } from "../src/deploy/D3MInit.sol";
 
 contract D3MInitScript is Script {
@@ -75,7 +79,12 @@ contract D3MInitScript is Script {
             aaveCfg = D3MAaveConfig({
                 planType: planType,
                 king: config.readAddress(".aave.king", "D3M_AAVE_KING"),
-                bar: config.readUint(".aave.bar", "D3M_AAVE_BAR") * RAY / BPS
+                bar: config.readUint(".aave.bar", "D3M_AAVE_BAR") * RAY / BPS,
+                adai: AavePoolLike(d3m.pool).adai(),
+                stableDebt: AavePoolLike(d3m.pool).stableDebt(),
+                variableDebt: AavePoolLike(d3m.pool).variableDebt(),
+                tack: AavePlanLike(d3m.plan).tack(),
+                adaiRevision: AavePlanLike(d3m.plan).adaiRevision()
             });
             D3MInit.initAave(
                 dss,
@@ -87,7 +96,12 @@ contract D3MInitScript is Script {
             compoundCfg = D3MCompoundConfig({
                 planType: planType,
                 king: config.readAddress(".compound.king", "D3M_COMPOUND_KING"),
-                barb: config.readUint(".compound.barb", "D3M_COMPOUND_BARB")
+                barb: config.readUint(".compound.barb", "D3M_COMPOUND_BARB"),
+                cdai: CompoundPoolLike(d3m.pool).cDai(),
+                comptroller: CompoundPoolLike(d3m.pool).comptroller(),
+                comp: CompoundPoolLike(d3m.pool).comp(),
+                tack: CompoundPlanLike(d3m.plan).tack(),
+                delegate: CompoundPlanLike(d3m.plan).delegate()
             });
             D3MInit.initCompound(
                 dss,
