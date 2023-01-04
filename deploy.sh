@@ -11,8 +11,8 @@ do
     fi
 
     case "$KEY" in
-            config)         FOUNDRY_SCRIPT_CONFIG="$VALUE" ;;
-            config-ext)     FOUNDRY_SCRIPT_CONFIG_TEXT=$(jq -c < $VALUE) ;;
+            config)         export FOUNDRY_SCRIPT_CONFIG="$VALUE" ;;
+            config-ext)     export FOUNDRY_SCRIPT_CONFIG_TEXT=$(jq -c < $VALUE) ;;
             *)
     esac
 done
