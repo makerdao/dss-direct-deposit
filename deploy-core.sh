@@ -6,6 +6,10 @@ do
     KEY=$(echo $ARGUMENT | cut -f1 -d=)
     VALUE=$(echo $ARGUMENT | cut -f2 -d=)
 
+    if [ "$VALUE" = "" ]; then
+        continue
+    fi
+
     case "$KEY" in
             config)         FOUNDRY_SCRIPT_CONFIG="$VALUE" ;;
             config-ext)     FOUNDRY_SCRIPT_CONFIG_TEXT=$(jq -c < $VALUE) ;;
