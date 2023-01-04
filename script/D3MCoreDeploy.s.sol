@@ -38,10 +38,10 @@ contract D3MCoreDeployScript is Script {
     D3MCoreInstance d3mCore;
 
     function run() external {
-        config = ScriptTools.readInput(vm.envString("FOUNDRY_SCRIPT_CONFIG"));
-        dss = MCD.loadFromChainlog(config.readAddress(".chainlog", "D3M_CHAINLOG"));
+        config = ScriptTools.loadConfig();
+        dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
 
-        admin = config.readAddress(".admin", "D3M_ADMIN");
+        admin = config.readAddress(".admin");
 
         vm.startBroadcast();
         d3mCore = D3MDeploy.deployCore(
