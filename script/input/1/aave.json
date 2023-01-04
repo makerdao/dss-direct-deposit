@@ -9,14 +9,7 @@
     "gap": 3000000,
     "ttl": 28800,
     "tau": 604800,
-    "aave": {
-        "lendingPool": "0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9",
-        "king": "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB",
-        "bar": 370
-    },
-    "compound": {
-        "cdai": "0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643",
-        "king": "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB",
-        "barb": 7535450719
-    }
+    "lendingPool": "0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9",
+    "king": "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB",
+    "bar": 370
 }

@@ -42,14 +42,14 @@ contract D3MDeployScript is Script {
     D3MInstance d3m;
 
     function run() external {
-        config = ScriptTools.readInput("config");
-        dss = MCD.loadFromChainlog(config.readAddress(".chainlog", "D3M_CHAINLOG"));
+        config = ScriptTools.loadConfig();
+        dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
 
-        d3mType = config.readString(".type", "D3M_TYPE");
-        planType = config.readString(".planType", "D3M_PLAN_TYPE");
-        admin = config.readAddress(".admin", "D3M_ADMIN");
-        hub = config.readAddress(".hub", "D3M_HUB");
-        ilk = config.readString(".ilk", "D3M_ILK").stringToBytes32();
+        d3mType = config.readString(".type");
+        planType = config.readString(".planType");
+        admin = config.readAddress(".admin");
+        hub = config.readAddress(".hub");
+        ilk = config.readString(".ilk").stringToBytes32();
 
         vm.startBroadcast();
         if (d3mType.eq("aave")) {
@@ -61,7 +61,7 @@ contract D3MDeployScript is Script {
                 address(dss.vat),
                 hub,
                 address(dss.dai),
-                config.readAddress(".aave.lendingPool", "D3M_AAVE_LENDING_POOL")
+                config.readAddress(".lendingPool")
             );
         } else if (d3mType.eq("compound")) {
             d3m = D3MDeploy.deployCompound(
@@ -71,7 +71,7 @@ contract D3MDeployScript is Script {
                 ilk,
                 address(dss.vat),
                 hub,
-                config.readAddress(".compound.cdai", "D3M_COMPOUND_CDAI")
+                config.readAddress(".cdai")
             );
         } else {
             revert("unknown-d3m-type");

@@ -54,12 +54,12 @@ contract D3MInitScript is Script {
     D3MCompoundConfig compoundCfg;
 
     function run() external {
-        config = ScriptTools.readInput("config");
-        dss = MCD.loadFromChainlog(config.readAddress(".chainlog", "D3M_CHAINLOG"));
+        config = ScriptTools.loadConfig();
+        dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
 
-        d3mType = config.readString(".type", "D3M_TYPE");
-        planType = config.readString(".planType", "D3M_PLAN_TYPE");
-        ilk = config.readString(".ilk", "D3M_ILK").stringToBytes32();
+        d3mType = config.readString(".type");
+        planType = config.readString(".planType");
+        ilk = config.readString(".ilk").stringToBytes32();
 
         d3m = D3MInstance({
             pool: ScriptTools.importContract("POOL"),
@@ -68,18 +68,18 @@ contract D3MInitScript is Script {
         });
         cfg = D3MCommonConfig({
             ilk: ilk,
-            maxLine: config.readUint(".maxLine", "D3M_MAX_LINE") * RAD,
-            gap: config.readUint(".gap", "D3M_GAP") * RAD,
-            ttl: config.readUint(".ttl", "D3M_TTL"),
-            tau: config.readUint(".tau", "D3M_TAU")
+            maxLine: config.readUint(".maxLine") * RAD,
+            gap: config.readUint(".gap") * RAD,
+            ttl: config.readUint(".ttl"),
+            tau: config.readUint(".tau")
         });
 
         vm.startBroadcast();
         if (d3mType.eq("aave")) {
             aaveCfg = D3MAaveConfig({
                 planType: planType,
-                king: config.readAddress(".aave.king", "D3M_AAVE_KING"),
-                bar: config.readUint(".aave.bar", "D3M_AAVE_BAR") * RAY / BPS,
+                king: config.readAddress(".king"),
+                bar: config.readUint(".bar") * RAY / BPS,
                 adai: AavePoolLike(d3m.pool).adai(),
                 stableDebt: AavePoolLike(d3m.pool).stableDebt(),
                 variableDebt: AavePoolLike(d3m.pool).variableDebt(),
@@ -95,8 +95,8 @@ contract D3MInitScript is Script {
         } else if (d3mType.eq("compound")) {
             compoundCfg = D3MCompoundConfig({
                 planType: planType,
-                king: config.readAddress(".compound.king", "D3M_COMPOUND_KING"),
-                barb: config.readUint(".compound.barb", "D3M_COMPOUND_BARB"),
+                king: config.readAddress(".king"),
+                barb: config.readUint(".barb"),
                 cdai: CompoundPoolLike(d3m.pool).cDai(),
                 comptroller: CompoundPoolLike(d3m.pool).comptroller(),
                 comp: CompoundPoolLike(d3m.pool).comp(),
