@@ -53,7 +53,7 @@ contract D3MInitScript is Script {
     D3MCompoundConfig compoundCfg;
 
     function run() external {
-        config = ScriptTools.readInput("config");
+        config = ScriptTools.readInput(vm.envString("FOUNDRY_SCRIPT_CONFIG"));
         dss = MCD.loadFromChainlog(config.readAddress(".chainlog", "D3M_CHAINLOG"));
 
         d3mType = config.readString(".type", "D3M_TYPE");
@@ -75,8 +75,8 @@ contract D3MInitScript is Script {
         vm.startBroadcast();
         if (d3mType.eq("aave")) {
             aaveCfg = D3MAaveConfig({
-                king: config.readAddress(".aave.king", "D3M_AAVE_KING"),
-                bar: config.readUint(".aave.bar", "D3M_AAVE_BAR") * RAY / BPS,
+                king: config.readAddress(".king", "D3M_AAVE_KING"),
+                bar: config.readUint(".bar", "D3M_AAVE_BAR") * RAY / BPS,
                 adai: AavePoolLike(d3m.pool).adai(),
                 stableDebt: AavePoolLike(d3m.pool).stableDebt(),
                 variableDebt: AavePoolLike(d3m.pool).variableDebt(),
@@ -91,8 +91,8 @@ contract D3MInitScript is Script {
             );
         } else if (d3mType.eq("compound")) {
             compoundCfg = D3MCompoundConfig({
-                king: config.readAddress(".compound.king", "D3M_COMPOUND_KING"),
-                barb: config.readUint(".compound.barb", "D3M_COMPOUND_BARB"),
+                king: config.readAddress(".king", "D3M_COMPOUND_KING"),
+                barb: config.readUint(".barb", "D3M_COMPOUND_BARB"),
                 cdai: CompoundPoolLike(d3m.pool).cDai(),
                 comptroller: CompoundPoolLike(d3m.pool).comptroller(),
                 comp: CompoundPoolLike(d3m.pool).comp(),

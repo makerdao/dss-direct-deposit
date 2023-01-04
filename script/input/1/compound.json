@@ -1,0 +1,14 @@
+{
+    "chainlog": "0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F",
+    "admin": "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB",
+    "hub": "0x12F36cdEA3A28C35aC8C6Cc71D9265c17C74A27F",
+    "type": "compound",
+    "ilk": "DIRECT-COMPV2-DAI",
+    "maxLine": 5000000,
+    "gap": 3000000,
+    "ttl": 28800,
+    "tau": 604800,
+    "cdai": "0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643",
+    "king": "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB",
+    "barb": 7535450719
+}

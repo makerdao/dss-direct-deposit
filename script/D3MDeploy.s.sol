@@ -41,7 +41,7 @@ contract D3MDeployScript is Script {
     D3MInstance d3m;
 
     function run() external {
-        config = ScriptTools.readInput("config");
+        config = ScriptTools.readInput(vm.envString("FOUNDRY_SCRIPT_CONFIG"));
         dss = MCD.loadFromChainlog(config.readAddress(".chainlog", "D3M_CHAINLOG"));
 
         d3mType = config.readString(".type", "D3M_TYPE");
@@ -58,7 +58,7 @@ contract D3MDeployScript is Script {
                 address(dss.vat),
                 hub,
                 address(dss.dai),
-                config.readAddress(".aave.lendingPool", "D3M_AAVE_LENDING_POOL")
+                config.readAddress(".lendingPool", "D3M_AAVE_LENDING_POOL")
             );
         } else if (d3mType.eq("compound")) {
             d3m = D3MDeploy.deployCompound(
@@ -67,7 +67,7 @@ contract D3MDeployScript is Script {
                 ilk,
                 address(dss.vat),
                 hub,
-                config.readAddress(".compound.cdai", "D3M_COMPOUND_CDAI")
+                config.readAddress(".cdai", "D3M_COMPOUND_CDAI")
             );
         } else {
             revert("unknown-d3m-type");
