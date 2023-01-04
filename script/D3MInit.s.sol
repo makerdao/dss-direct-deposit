@@ -25,8 +25,10 @@ import {
     D3MInit,
     D3MInstance,
     D3MCommonConfig,
-    D3MAaveConfig,
-    D3MCompoundConfig,
+    D3MAavePoolConfig,
+    D3MCompoundPoolConfig,
+    D3MAavePlanConfig,
+    D3MCompoundPlanConfig,
     AavePoolLike,
     AavePlanLike,
     CompoundPoolLike,
@@ -45,19 +47,17 @@ contract D3MInitScript is Script {
     string config;
     DssInstance dss;
 
-    string d3mType;
+    string poolType;
     string planType;
     bytes32 ilk;
     D3MInstance d3m;
     D3MCommonConfig cfg;
-    D3MAaveConfig aaveCfg;
-    D3MCompoundConfig compoundCfg;
 
     function run() external {
         config = ScriptTools.loadConfig();
         dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
 
-        d3mType = config.readString(".type");
+        poolType = config.readString(".poolType");
         planType = config.readString(".planType");
         ilk = config.readString(".ilk").stringToBytes32();
 
@@ -75,43 +75,83 @@ contract D3MInitScript is Script {
         });
 
         vm.startBroadcast();
-        if (d3mType.eq("aave")) {
-            aaveCfg = D3MAaveConfig({
-                planType: planType,
+
+        D3MInit.initCommon(
+            dss,
+            d3m,
+            cfg
+        );
+
+        // Pool
+        if (poolType.eq("aave")) {
+            D3MAavePoolConfig memory aaveCfg = D3MAavePoolConfig({
                 king: config.readAddress(".king"),
-                bar: config.readUint(".bar") * RAY / BPS,
                 adai: AavePoolLike(d3m.pool).adai(),
                 stableDebt: AavePoolLike(d3m.pool).stableDebt(),
-                variableDebt: AavePoolLike(d3m.pool).variableDebt(),
-                tack: planType.eq("rate-target") ? AavePlanLike(d3m.plan).tack() : address(0),
-                adaiRevision: planType.eq("rate-target") ? AavePlanLike(d3m.plan).adaiRevision() : 0
+                variableDebt: AavePoolLike(d3m.pool).variableDebt()
             });
-            D3MInit.initAave(
+            D3MInit.initAavePool(
                 dss,
                 d3m,
                 cfg,
                 aaveCfg
             );
-        } else if (d3mType.eq("compound")) {
-            compoundCfg = D3MCompoundConfig({
-                planType: planType,
+        } else if (poolType.eq("compound")) {
+            D3MCompoundPoolConfig memory compoundCfg = D3MCompoundPoolConfig({
                 king: config.readAddress(".king"),
-                barb: config.readUint(".barb"),
                 cdai: CompoundPoolLike(d3m.pool).cDai(),
                 comptroller: CompoundPoolLike(d3m.pool).comptroller(),
-                comp: CompoundPoolLike(d3m.pool).comp(),
-                tack: planType.eq("rate-target") ? CompoundPlanLike(d3m.plan).tack() : address(0),
-                delegate: planType.eq("rate-target") ? CompoundPlanLike(d3m.plan).delegate() : address(0)
+                comp: CompoundPoolLike(d3m.pool).comp()
             });
-            D3MInit.initCompound(
+            D3MInit.initCompoundPool(
                 dss,
                 d3m,
                 cfg,
                 compoundCfg
             );
         } else {
-            revert("unknown-d3m-type");
+            revert("Unknown pool type");
         }
+
+        // Plan
+        if (planType.eq("rate-target")) {
+            if (poolType.eq("aave")) {
+                D3MAavePlanConfig memory aaveCfg = D3MAavePlanConfig({
+                    bar: config.readUint(".bar") * RAY / BPS,
+                    adai: AavePoolLike(d3m.pool).adai(),
+                    stableDebt: AavePoolLike(d3m.pool).stableDebt(),
+                    variableDebt: AavePoolLike(d3m.pool).variableDebt(),
+                    tack: AavePlanLike(d3m.plan).tack(),
+                    adaiRevision: AavePlanLike(d3m.plan).adaiRevision()
+                });
+                D3MInit.initAavePlan(
+                    d3m,
+                    aaveCfg
+                );
+            } else if (poolType.eq("compound")) {
+                D3MCompoundPlanConfig memory compoundCfg = D3MCompoundPlanConfig({
+                    barb: config.readUint(".barb"),
+                    cdai: CompoundPoolLike(d3m.pool).cDai(),
+                    tack: CompoundPlanLike(d3m.plan).tack(),
+                    delegate: CompoundPlanLike(d3m.plan).delegate()
+                });
+                D3MInit.initCompoundPlan(
+                    d3m,
+                    compoundCfg
+                );
+            } else {
+                revert("Invalid pool type for rate target plan type");
+            }
+        } else if (planType.eq("debt-ceiling")) {
+            D3MInit.initDebtCeilingPlan(
+                dss,
+                d3m,
+                cfg
+            );
+        } else {
+            revert("Unknown plan type");
+        }
+
         vm.stopBroadcast();
     }
 

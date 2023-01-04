@@ -34,7 +34,7 @@ contract D3MDeployScript is Script {
     string config;
     DssInstance dss;
 
-    string d3mType;
+    string poolType;
     string planType;
     address admin;
     address hub;
@@ -45,37 +45,73 @@ contract D3MDeployScript is Script {
         config = ScriptTools.loadConfig();
         dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
 
-        d3mType = config.readString(".type");
+        poolType = config.readString(".poolType");
         planType = config.readString(".planType");
         admin = config.readAddress(".admin");
         hub = config.readAddress(".hub");
         ilk = config.readString(".ilk").stringToBytes32();
 
         vm.startBroadcast();
-        if (d3mType.eq("aave")) {
-            d3m = D3MDeploy.deployAave(
+
+        // Oracle
+        d3m.oracle = D3MDeploy.deployOracle(
+            msg.sender,
+            admin,
+            ilk,
+            address(dss.vat)
+        );
+
+        // Pool
+        if (poolType.eq("aave")) {
+            d3m.pool = D3MDeploy.deployAavePool(
                 msg.sender,
                 admin,
-                planType,
                 ilk,
-                address(dss.vat),
                 hub,
                 address(dss.dai),
                 config.readAddress(".lendingPool")
             );
-        } else if (d3mType.eq("compound")) {
-            d3m = D3MDeploy.deployCompound(
+        } else if (poolType.eq("compound")) {
+            d3m.pool = D3MDeploy.deployCompoundPool(
                 msg.sender,
                 admin,
-                planType,
                 ilk,
-                address(dss.vat),
                 hub,
                 config.readAddress(".cdai")
             );
         } else {
-            revert("unknown-d3m-type");
+            revert("Unknown pool type");
         }
+
+        // Plan
+        if (planType.eq("rate-target")) {
+            if (poolType.eq("aave")) {
+                d3m.plan = D3MDeploy.deployAavePlan(
+                    msg.sender,
+                    admin,
+                    address(dss.dai),
+                    config.readAddress(".lendingPool")
+                );
+            } else if (poolType.eq("compound")) {
+                d3m.plan = D3MDeploy.deployCompoundPlan(
+                    msg.sender,
+                    admin,
+                    config.readAddress(".cdai")
+                );
+            } else {
+                revert("Invalid pool type for rate target plan type");
+            }
+        } else if (planType.eq("debt-ceiling")) {
+            d3m.plan = D3MDeploy.deployDebtCeilingPlan(
+                msg.sender,
+                admin,
+                ilk,
+                address(dss.vat)
+            );
+        } else {
+            revert("Unknown plan type");
+        }
+        
         vm.stopBroadcast();
 
         ScriptTools.exportContract("POOL", d3m.pool);

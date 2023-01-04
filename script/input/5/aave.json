@@ -2,7 +2,7 @@
     "chainlog": "0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F",
     "admin": "0x5DCdbD3cCF9B09EAAD03bc5f50fA2B3d3ACA0121",
     "hub": "0x0000000000000000000000000000000000000000",
-    "type": "aave",
+    "poolType": "aave",
     "planType": "rate-target",
     "ilk": "DIRECT-AAVEV2-DAI",
     "maxLine": 5000000,
