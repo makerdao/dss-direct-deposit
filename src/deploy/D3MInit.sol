@@ -92,6 +92,7 @@ interface D3MMomLike {
 
 struct D3MCommonConfig {
     bytes32 ilk;
+    bool existingIlk;
     uint256 maxLine;
     uint256 gap;
     uint256 ttl;
@@ -165,8 +166,10 @@ library D3MInit {
 
         dss.spotter.file(ilk, "pip", address(oracle));
         dss.spotter.file(ilk, "mat", 10 ** 27);
-        dss.vat.init(ilk);
-        dss.jug.init(ilk);
+        if (!cfg.existingIlk) {
+            dss.vat.init(ilk);
+            dss.jug.init(ilk);
+        }
         dss.vat.file(ilk, "line", cfg.gap);
         dss.vat.file("Line", dss.vat.Line() + cfg.gap);
         DssAutoLineAbstract(dss.chainlog.getAddress("MCD_IAM_AUTO_LINE")).setIlk(

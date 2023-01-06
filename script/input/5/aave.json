@@ -4,6 +4,7 @@
     "hub": "0x0000000000000000000000000000000000000000",
     "type": "aave",
     "ilk": "DIRECT-AAVEV2-DAI",
+    "existingIlk": false,
     "maxLine": 5000000,
     "gap": 3000000,
     "ttl": 28800,

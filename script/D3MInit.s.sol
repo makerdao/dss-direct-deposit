@@ -66,6 +66,7 @@ contract D3MInitScript is Script {
         });
         cfg = D3MCommonConfig({
             ilk: ilk,
+            existingIlk: config.readBool(".existingIlk"),
             maxLine: config.readUint(".maxLine") * RAD,
             gap: config.readUint(".gap") * RAD,
             ttl: config.readUint(".ttl"),
