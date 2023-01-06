@@ -5,6 +5,7 @@
     "poolType": "compound",
     "planType": "rate-target",
     "ilk": "DIRECT-COMPV2-DAI",
+    "existingIlk": false,
     "maxLine": 5000000,
     "gap": 3000000,
     "ttl": 28800,
