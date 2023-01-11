@@ -85,7 +85,6 @@ interface LendingPoolReserveDataV3Like {
     function getReserveData(address asset) external view returns (ReserveDataV3 memory);
 }
 
-
 interface InterestRateStrategyLike {
     function OPTIMAL_UTILIZATION_RATE() external view returns (uint256);
     function EXCESS_UTILIZATION_RATE() external view returns (uint256);
