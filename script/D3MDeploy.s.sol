@@ -41,7 +41,7 @@ contract D3MDeployScript is Script {
     D3MInstance d3m;
 
     function run() external {
-        config = ScriptTools.loadConfig();
+        config = ScriptTools.loadConfig("aave");
         dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
 
         d3mType = config.readString(".type");

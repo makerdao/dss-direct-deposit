@@ -53,7 +53,7 @@ contract D3MInitScript is Script {
     D3MCompoundConfig compoundCfg;
 
     function run() external {
-        config = ScriptTools.loadConfig();
+        config = ScriptTools.loadConfig("aave");
         dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
 
         d3mType = config.readString(".type");

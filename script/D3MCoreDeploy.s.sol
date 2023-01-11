@@ -38,7 +38,7 @@ contract D3MCoreDeployScript is Script {
     D3MCoreInstance d3mCore;
 
     function run() external {
-        config = ScriptTools.loadConfig();
+        config = ScriptTools.loadConfig("core");
         dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
 
         admin = config.readAddress(".admin");
