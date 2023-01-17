@@ -115,11 +115,17 @@ interface RewardsClaimerLike {
 
 contract D3MAavePool is ID3MPool {
 
+    enum AaveVersion {
+        V2,
+        V3
+    }
+
     mapping (address => uint256) public wards;
     address                      public hub;
     address                      public king; // Who gets the rewards
     uint256                      public exited;
 
+    AaveVersion     public immutable version;
     bytes32         public immutable ilk;
     VatLike         public immutable vat;
     LendingPoolLike public immutable pool;
@@ -134,7 +140,8 @@ contract D3MAavePool is ID3MPool {
     event File(bytes32 indexed what, address data);
     event Collect(address indexed king, address indexed gift, uint256 amt);
 
-    constructor(bytes32 ilk_, address hub_, address dai_, address pool_) {
+    constructor(AaveVersion version_, bytes32 ilk_, address hub_, address dai_, address pool_) {
+        version = version_;
         ilk = ilk_;
         dai = TokenLike(dai_);
         pool = LendingPoolLike(pool_);
@@ -160,12 +167,12 @@ contract D3MAavePool is ID3MPool {
     }
 
     function getReserveDataAddresses() internal view returns (address adai_, address stableDebt_, address variableDebt_) {
-         try LendingPoolReserveDataV3Like(address(pool)).POOL_REVISION() {
+         if (version == AaveVersion.V3) {
             ReserveDataV3 memory data = LendingPoolReserveDataV3Like(address(pool)).getReserveData(address(dai));
             adai_ = data.aTokenAddress;
             stableDebt_ = data.stableDebtTokenAddress;
             variableDebt_ = data.variableDebtTokenAddress;
-        } catch {
+        } else {
             (,,,,,,, adai_, stableDebt_, variableDebt_,,) = pool.getReserveData(address(dai));
         }
     }

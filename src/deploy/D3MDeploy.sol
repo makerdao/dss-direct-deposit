@@ -62,12 +62,13 @@ library D3MDeploy {
     function deployAavePool(
         address deployer,
         address owner,
+        D3MAavePool.AaveVersion version,
         bytes32 ilk,
         address hub,
         address dai,
         address lendingPool
     ) internal returns (address pool) {
-        pool = address(new D3MAavePool(ilk, hub, dai, lendingPool));
+        pool = address(new D3MAavePool(version, ilk, hub, dai, lendingPool));
 
         ScriptTools.switchOwner(pool, deployer, owner);
     }
@@ -98,10 +99,11 @@ library D3MDeploy {
     function deployAavePlan(
         address deployer,
         address owner,
+        D3MAavePlan.AaveVersion version,
         address dai,
         address lendingPool
     ) internal returns (address plan) {
-        plan = address(new D3MAavePlan(dai, lendingPool));
+        plan = address(new D3MAavePlan(version, dai, lendingPool));
 
         ScriptTools.switchOwner(plan, deployer, owner);
     }

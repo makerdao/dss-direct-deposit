@@ -40,7 +40,7 @@ interface InterestRateStrategyLike {
 
 contract D3MAavePlanWrapper is D3MAavePlan {
 
-    constructor(address dai_, address pool_) D3MAavePlan(dai_, pool_) {}
+    constructor(AaveVersion version_, address dai_, address pool_) D3MAavePlan(version_, dai_, pool_) {}
 
     function calculateTargetSupply(uint256 targetInterestRate) external view returns (uint256) {
         uint256 totalDebt = stableDebt.totalSupply() + variableDebt.totalSupply();
@@ -64,7 +64,7 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
         adai = TokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
         interestStrategy = InterestRateStrategyLike(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
 
-        d3mTestPlan = address(new D3MAavePlanWrapper(address(dai), address(aavePool)));
+        d3mTestPlan = address(new D3MAavePlanWrapper(D3MAavePlan.AaveVersion.V2, address(dai), address(aavePool)));
     }
 
     function assertEqInterest(uint256 _a, uint256 _b) internal {

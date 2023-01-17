@@ -4,6 +4,7 @@
     "hub": "0x0000000000000000000000000000000000000000",
     "poolType": "aave",
     "planType": "rate-target",
+    "aaveVersion": "V2",
     "ilk": "DIRECT-AAVEV2-DAI",
     "existingIlk": false,
     "maxLine": 5000000,

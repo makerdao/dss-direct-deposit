@@ -200,10 +200,6 @@ contract FakeLendingPoolV3 {
         adai = adai_;
     }
 
-    function POOL_REVISION() external pure returns (uint256) {
-        return 1;
-    }
-
     function getReserveData(address) external view returns(
         ReserveDataV3 memory result
     ) {
@@ -256,7 +252,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         hub = address(new FakeHub(vat));
         end = FakeHub(hub).end();
 
-        d3mTestPool = address(new D3MAavePool("", hub, address(dai), address(aavePool)));
+        d3mTestPool = address(new D3MAavePool(D3MAavePool.AaveVersion.V2, "", hub, address(dai), address(aavePool)));
     }
 
     function test_sets_dai_value() public {
@@ -402,7 +398,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
     function setupV3() internal {
         aavePool = LendingPoolLike(address(new FakeLendingPoolV3(address(adai))));
-        d3mTestPool = address(new D3MAavePool("", hub, address(dai), address(aavePool)));
+        d3mTestPool = address(new D3MAavePool(D3MAavePool.AaveVersion.V3, "", hub, address(dai), address(aavePool)));
     }
 
     function test_aavev3_pool() public {

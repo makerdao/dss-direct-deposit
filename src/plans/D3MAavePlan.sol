@@ -81,7 +81,6 @@ struct ReserveDataV3 {
 // Aave Lending Pool v3
 // Interface changed slightly from v2 to v3
 interface LendingPoolReserveDataV3Like {
-    function POOL_REVISION() external view returns (uint256);
     function getReserveData(address asset) external view returns (ReserveDataV3 memory);
 }
 
@@ -96,10 +95,16 @@ interface InterestRateStrategyLike {
 
 contract D3MAavePlan is ID3MPlan {
 
+    enum AaveVersion {
+        V2,
+        V3
+    }
+
     mapping (address => uint256) public wards;
     InterestRateStrategyLike     public tack;
     uint256                      public bar; // Target Interest Rate [ray]
 
+    AaveVersion     public immutable version;
     LendingPoolLike public immutable pool;
     TokenLike       public immutable stableDebt;
     TokenLike       public immutable variableDebt;
@@ -113,7 +118,8 @@ contract D3MAavePlan is ID3MPlan {
     event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, address data);
 
-    constructor(address dai_, address pool_) {
+    constructor(AaveVersion version_, address dai_, address pool_) {
+        version = version_;
         dai = TokenLike(dai_);
         pool = LendingPoolLike(pool_);
 
@@ -135,13 +141,13 @@ contract D3MAavePlan is ID3MPlan {
     }
 
     function getReserveDataAddresses() internal view returns (address adai_, address stableDebt_, address variableDebt_, address interestStrategy_) {
-         try LendingPoolReserveDataV3Like(address(pool)).POOL_REVISION() {
+         if (version == AaveVersion.V3) {
             ReserveDataV3 memory data = LendingPoolReserveDataV3Like(address(pool)).getReserveData(address(dai));
             adai_ = data.aTokenAddress;
             stableDebt_ = data.stableDebtTokenAddress;
             variableDebt_ = data.variableDebtTokenAddress;
             interestStrategy_ = data.interestRateStrategyAddress;
-        } catch {
+        } else {
             (,,,,,,, adai_, stableDebt_, variableDebt_, interestStrategy_,) = pool.getReserveData(address(dai));
         }
     }
