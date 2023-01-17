@@ -85,12 +85,20 @@ interface LendingPoolReserveDataV3Like {
 }
 
 interface InterestRateStrategyLike {
+    // V2
     function OPTIMAL_UTILIZATION_RATE() external view returns (uint256);
     function EXCESS_UTILIZATION_RATE() external view returns (uint256);
     function variableRateSlope1() external view returns (uint256);
     function variableRateSlope2() external view returns (uint256);
     function baseVariableBorrowRate() external view returns (uint256);
     function getMaxVariableBorrowRate() external view returns (uint256);
+
+    // V3
+    function OPTIMAL_USAGE_RATIO() external view returns (uint256);
+    function MAX_EXCESS_USAGE_RATIO() external view returns (uint256);
+    function getVariableRateSlope1() external view returns (uint256);
+    function getVariableRateSlope2() external view returns (uint256);
+    function getBaseVariableBorrowRate() external view returns (uint256);
 }
 
 contract D3MAavePlan is ID3MPlan {
@@ -187,39 +195,55 @@ contract D3MAavePlan is ID3MPlan {
         emit File(what, data);
     }
 
+    function getInterestRateVariables() public view returns (uint256 base, uint256 slope1, uint256 slope2, uint256 max, uint256 optimal, uint256 excess) {
+        if (version == AaveVersion.V3) {
+            base    = tack.getBaseVariableBorrowRate();
+            slope1  = tack.getVariableRateSlope1();
+            slope2  = tack.getVariableRateSlope2();
+            max     = tack.getMaxVariableBorrowRate();
+            optimal = tack.OPTIMAL_USAGE_RATIO();
+            excess  = tack.MAX_EXCESS_USAGE_RATIO();
+        } else {
+            base    = tack.baseVariableBorrowRate();
+            slope1  = tack.variableRateSlope1();
+            slope2  = tack.variableRateSlope2();
+            max     = tack.getMaxVariableBorrowRate();
+            optimal = tack.OPTIMAL_UTILIZATION_RATE();
+            excess  = tack.EXCESS_UTILIZATION_RATE();
+        }
+    }
+
     // --- Automated Rate targeting ---
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 totalDebt) internal view returns (uint256) {
-        uint256 base = tack.baseVariableBorrowRate();
-        if (targetInterestRate <= base || targetInterestRate > tack.getMaxVariableBorrowRate()) {
+        (uint256 base, uint256 slope1, uint256 slope2, uint256 max, uint256 optimal, uint256 excess) = getInterestRateVariables();
+        if (targetInterestRate <= base || targetInterestRate > max) {
             return 0;
         }
 
         // Do inverse calculation of interestStrategy
-        uint256 variableRateSlope1 = tack.variableRateSlope1();
-
         uint256 targetUtil;
-        if (targetInterestRate > base + variableRateSlope1) {
+        if (targetInterestRate > base + slope1) {
             // Excess interest rate
             uint256 r;
             unchecked {
-                r = targetInterestRate - base - variableRateSlope1;
+                r = targetInterestRate - base - slope1;
             }
             targetUtil = _rdiv(
                             _rmul(
-                                tack.EXCESS_UTILIZATION_RATE(),
+                                excess,
                                 r
                             ),
-                            tack.variableRateSlope2()
-                         ) + tack.OPTIMAL_UTILIZATION_RATE();
+                            slope2
+                         ) + optimal;
         } else {
             // Optimal interest rate
             unchecked {
                 targetUtil = _rdiv(
                                 _rmul(
                                     targetInterestRate - base,
-                                    tack.OPTIMAL_UTILIZATION_RATE()
+                                    optimal
                                 ),
-                                variableRateSlope1
+                                slope1
                              );
             }
         }
