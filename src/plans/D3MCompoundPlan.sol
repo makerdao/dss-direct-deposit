@@ -79,10 +79,7 @@ contract D3MCompoundPlan is ID3MPlan {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
-    event AddTack(address indexed tack);
-    event RemoveTack(address indexed tack);
-    event AddDelegate(address indexed delegate);
-    event RemoveDelegate(address indexed delegate);
+    event File(bytes32 indexed what, address addr, uint256 data);
 
     constructor(address cDai_) {
         cDai = CErc20Like(cDai_);
@@ -131,26 +128,14 @@ contract D3MCompoundPlan is ID3MPlan {
         } else revert("D3MCompoundPlan/file-unrecognized-param");
         emit File(what, data);
     }
-
-    function addTack(address tack) external auth {
-        tacks[tack] = 1;
-        emit AddTack(tack);
+    function file(bytes32 what, address addr, uint256 data) external auth {
+        require(data == 0 || data == 1, "D3MCompoundPlan/file-invalid-data");
+        if (what == "tack") tacks[addr] = data;
+        else if (what == "delegate") delegates[addr] = data;
+        else revert("D3MCompoundPlan/file-unrecognized-param");
+        emit File(what, addr, data);
     }
 
-    function removeTack(address tack) external auth {
-        tacks[tack] = 0;
-        emit RemoveTack(tack);
-    }
-
-    function addDelegate(address delegate) external auth {
-        delegates[delegate] = 1;
-        emit AddDelegate(delegate);
-    }
-
-    function removeDelegate(address delegate) external auth {
-        delegates[delegate] = 0;
-        emit RemoveDelegate(delegate);
-    }
 
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 borrows) internal view returns (uint256) {
         InterestRateModelLike tack = InterestRateModelLike(cDai.interestRateModel());
