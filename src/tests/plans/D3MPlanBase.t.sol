@@ -16,7 +16,7 @@
 
 pragma solidity ^0.8.14;
 
-import {DSSTest} from "dss-test/DSSTest.sol";
+import {DssTest} from "dss-test/DssTest.sol";
 import "../interfaces/interfaces.sol";
 
 import "../../plans/ID3MPlan.sol";
@@ -73,7 +73,7 @@ contract D3MPlanBase is ID3MPlan {
     function disable() external override {}
 }
 
-contract D3MPlanBaseTest is DSSTest {
+contract D3MPlanBaseTest is DssTest {
     string contractName;
 
     DaiLike dai;

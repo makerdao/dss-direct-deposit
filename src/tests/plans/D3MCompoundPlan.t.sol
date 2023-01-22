@@ -16,7 +16,7 @@
 
 pragma solidity ^0.8.14;
 
-import {DSSTest} from "dss-test/DSSTest.sol";
+import {DssTest} from "dss-test/DssTest.sol";
 import "../interfaces/interfaces.sol";
 
 import { D3MPlanBaseTest } from "./D3MPlanBase.t.sol";

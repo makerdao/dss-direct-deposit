@@ -16,7 +16,7 @@
 
 pragma solidity ^0.8.14;
 
-import {DSSTest} from "dss-test/DSSTest.sol";
+import {DssTest} from "dss-test/DssTest.sol";
 import {DaiLike, CanLike, D3mHubLike} from "../interfaces/interfaces.sol";
 
 import "../../pools/ID3MPool.sol";
@@ -150,7 +150,7 @@ contract FakeHub {
     }
 }
 
-contract D3MPoolBaseTest is DSSTest {
+contract D3MPoolBaseTest is DssTest {
     string contractName;
 
     DaiLike dai;
