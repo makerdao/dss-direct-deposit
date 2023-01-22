@@ -16,7 +16,7 @@
 
 pragma solidity ^0.8.14;
 
-import {DSSTest} from "dss-test/DSSTest.sol";
+import {DssTest} from "dss-test/DssTest.sol";
 import "../interfaces/interfaces.sol";
 
 import { D3MHub } from "../../D3MHub.sol";
@@ -70,7 +70,7 @@ interface InterestRateModelLike {
     function utilizationRate(uint256 cash, uint256 borrows, uint256 reserves) external pure returns (uint256);
 }
 
-contract D3MCompoundTest is DSSTest {
+contract D3MCompoundTest is DssTest {
     VatLike vat;
     EndLike end;
     CErc20Like cDai;

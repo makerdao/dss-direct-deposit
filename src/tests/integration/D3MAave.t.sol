@@ -16,7 +16,7 @@
 
 pragma solidity ^0.8.14;
 
-import {DSSTest} from "dss-test/DSSTest.sol";
+import {DssTest} from "dss-test/DssTest.sol";
 import "../interfaces/interfaces.sol";
 
 import { D3MHub } from "../../D3MHub.sol";
@@ -76,7 +76,7 @@ interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 }
 
-contract D3MAaveTest is DSSTest {
+contract D3MAaveTest is DssTest {
     VatLike vat;
     EndLike end;
     LendingPoolLike aavePool;

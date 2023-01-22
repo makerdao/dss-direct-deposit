@@ -16,7 +16,7 @@
 
 pragma solidity ^0.8.14;
 
-import {DSSTest} from "dss-test/DSSTest.sol";
+import {DssTest} from "dss-test/DssTest.sol";
 
 import {D3MOracle} from "../D3MOracle.sol";
 
@@ -56,7 +56,7 @@ contract D3MTestHub {
     }
 }
 
-contract D3MOracleTest is DSSTest {
+contract D3MOracleTest is DssTest {
     D3MTestVat vat;
     D3MTestHub hub;
     D3MOracle oracle;

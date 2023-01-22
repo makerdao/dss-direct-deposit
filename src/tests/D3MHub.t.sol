@@ -16,7 +16,7 @@
 
 pragma solidity ^0.8.14;
 
-import {DSSTest} from "dss-test/DSSTest.sol";
+import {DssTest} from "dss-test/DssTest.sol";
 import "./interfaces/interfaces.sol";
 
 import {D3MHub} from "../D3MHub.sol";
@@ -41,7 +41,7 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
-contract D3MHubTest is DSSTest {
+contract D3MHubTest is DssTest {
     VatLike vat;
     EndLike end;
     D3MTestRewards rewardsClaimer;

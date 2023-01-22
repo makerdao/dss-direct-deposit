@@ -16,7 +16,7 @@
 
 pragma solidity ^0.8.14;
 
-import {DSSTest} from "dss-test/DSSTest.sol";
+import {DssTest} from "dss-test/DssTest.sol";
 import "./interfaces/interfaces.sol";
 
 import {D3MMom} from "../D3MMom.sol";
@@ -34,7 +34,7 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
-contract D3MMomTest is DSSTest {
+contract D3MMomTest is DssTest {
     D3MTestPlan d3mTestPlan;
     D3MMom d3mMom;
 
