@@ -47,6 +47,11 @@ interface CErc20Like {
     function exchangeRateCurrent() external returns (uint256);
     function accrueInterest() external returns (uint256);
     function borrowBalanceCurrent(address) external returns (uint256);
+
+    // TODO - consider moving to delegator specific interface
+    function admin() external view returns (address);
+    function _setImplementation(address, bool, bytes memory) external;
+    function _setInterestRateModel(address) external returns (uint256);
 }
 
 interface CEthLike {
@@ -68,6 +73,9 @@ interface InterestRateModelLike {
     function kink() external view returns (uint256);
     function getBorrowRate(uint256 cash, uint256 borrows, uint256 reserves) external view returns (uint256);
     function utilizationRate(uint256 cash, uint256 borrows, uint256 reserves) external pure returns (uint256);
+
+    // TODO - consider moving to dai IRM specific interface
+    function poke() external;
 }
 
 contract D3MCompoundTest is DSSTest {
@@ -1320,5 +1328,74 @@ contract D3MCompoundTest is DSSTest {
         assertEqVatDai(vat.dai(vow), vowDaiBefore + 10 * RAD);
         assertEqRounding(dai.balanceOf(address(cDai)), cdaiDaiBalanceBefore);
         assertEqCdai(cDai.balanceOf(address(d3mCompoundPool)), poolCdaiBalanceBefore);
+    }
+
+    // Note: this test is meant to act as a base for spell testing, do not merge as is
+    // https://www.comp.xyz/t/compound-dsr-proposal/3856/8
+    // https://github.com/fmorisan/comet/blob/6f16a1e547b3c96a84484c71e439e28ba7d1df38/deployments/mainnet/usdc/migrations/1673462854_v2_dai_dsr_restore.ts
+    function test_cdai_dsr_migration() public {
+
+        // Compound new contracts
+        address cDaiDelegate = 0xbB8bE4772fAA655C255309afc3c5207aA7b896Fd;
+        address daiIIRModel  = 0xfeD941d39905B23D6FAf02C8301d40bD4834E27F;
+
+        // Maker deployed addresses
+        bytes32 cilk = "DIRECT-COMPV2-DAI";
+        D3MHub hub           = D3MHub(0x12F36cdEA3A28C35aC8C6Cc71D9265c17C74A27F);
+        D3MCompoundPool pool = D3MCompoundPool(0x621fE4Fde2617ea8FFadE08D0FF5A862aD287EC2);
+        D3MCompoundPlan plan = D3MCompoundPlan(0xD0eA20f9f9e64A3582d569c8745DaCD746274AEe);
+        address pot          = 0x197E90f9FAD81970bA7976f33CbD77088E5D7cf7;
+
+        uint256 rateBefore = cDai.borrowRatePerBlock();
+        uint256 targetAssetsBefore = plan.getTargetAssets(pool.assetBalance());
+        uint256 depositBefore = cDai.balanceOfUnderlying(address(d3mCompoundPool));
+        uint256 barb = plan.barb();
+
+        // make sure plan is active initially
+        assertEq(plan.active(), true);
+
+        // imitate Compound's planned migration
+        vm.startPrank(cDai.admin());
+        cDai._setImplementation(cDaiDelegate, true, abi.encode(address(daiJoin), pot));
+        assertEq(cDai._setInterestRateModel(daiIIRModel), 0); // make sure no error
+        vm.stopPrank();
+
+        // plan is not active anymore, but Compound rates should stay roughly the same before poke() is called
+        assertEq(plan.active(), false);
+        uint256 rateBeforePoke = cDai.borrowRatePerBlock();
+        assertEqInterest(rateBeforePoke, rateBefore); // slightly different since Compound now get cash from the pot
+
+        // update rates on Compound's side
+        InterestRateModelLike(daiIIRModel).poke();
+
+        // utitlization stayed the same but borrow rate went up since:
+        //  - base rate changed to dsr
+        //  - rate at kink went up from 5.12% ("optimal rate") to max(dsr, eth-a rate) + gap, which attow is:
+        //    1.5% + 5.12% (eth-a rate and gap respectively)
+        assertGt(cDai.borrowRatePerBlock(), rateBefore);
+        assertGt(cDai.borrowRatePerBlock(), rateBeforePoke);
+
+        // target assets also went up since borrow rate went up
+        assertGt(plan.getTargetAssets(pool.assetBalance()), targetAssetsBefore);
+
+        // Maker reactivates plan
+        vm.startPrank(address(0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB));
+        plan.file("delegate", cDaiDelegate);
+        plan.file("tack", daiIIRModel);
+        plan.file("barb", barb); // important to set barb again in the spell to avoid plan `disable` before cast
+        vm.stopPrank();
+
+        // plan is active again
+        assertEq(plan.active(), true);
+
+        // Increase DC and make sure exec runs smoothly
+        vm.prank(address(0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB));
+        vat.file(cilk, "line", 30_000_000 * RAD);
+
+        hub.exec(cilk);
+
+        // make sure 30M DAI were deposited
+        assertGt(cDai.balanceOfUnderlying(address(pool)), depositBefore);
+        assertEqRounding(cDai.balanceOfUnderlying(address(pool)), 30_000_000 * WAD);
     }
 }
