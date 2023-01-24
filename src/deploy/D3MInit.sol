@@ -16,7 +16,11 @@
 
 pragma solidity >=0.8.0;
 
-import "dss-interfaces/Interfaces.sol";
+import {
+    DssAutoLineAbstract,
+    IlkRegistryAbstract,
+    GemAbstract
+} from "dss-interfaces/Interfaces.sol";
 import { DssInstance } from "dss-test/MCD.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
 
@@ -166,12 +170,15 @@ library D3MInit {
 
         dss.spotter.file(ilk, "pip", address(oracle));
         dss.spotter.file(ilk, "mat", 10 ** 27);
-        if (!cfg.existingIlk) {
+        uint256 previousIlkLine;
+        if (cfg.existingIlk) {
+            (,,, previousIlkLine,) = dss.vat.ilks(ilk);
+        } else {
             dss.vat.init(ilk);
             dss.jug.init(ilk);
         }
         dss.vat.file(ilk, "line", cfg.gap);
-        dss.vat.file("Line", dss.vat.Line() + cfg.gap);
+        dss.vat.file("Line", dss.vat.Line() + cfg.gap - previousIlkLine);
         DssAutoLineAbstract(dss.chainlog.getAddress("MCD_IAM_AUTO_LINE")).setIlk(
             ilk,
             cfg.maxLine,
