@@ -16,11 +16,9 @@
 
 pragma solidity >=0.8.0;
 
-import {
-    DssAutoLineAbstract,
-    IlkRegistryAbstract,
-    GemAbstract
-} from "dss-interfaces/Interfaces.sol";
+import "dss-interfaces/dss/DssAutoLineAbstract.sol";
+import "dss-interfaces/dss/IlkRegistryAbstract.sol";
+import "dss-interfaces/ERC/GemAbstract.sol";
 import { DssInstance } from "dss-test/MCD.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
 
