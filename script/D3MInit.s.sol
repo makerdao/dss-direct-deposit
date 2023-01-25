@@ -59,7 +59,7 @@ contract D3MInitScript is Script {
     function run() external {
         config = ScriptTools.loadConfig();
         deployedCoreContracts = ScriptTools.readOutput("core");
-        deployedContracts = ScriptTools.readOutput(string(abi.encodePacked("d3m-", vm.envOr("FOUNDRY_SCRIPT_CONFIG", string("custom")))));
+        deployedContracts = ScriptTools.readOutput(vm.envString("FOUNDRY_SCRIPT_CONFIG"));
         dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
 
         d3mType = config.readString("type");

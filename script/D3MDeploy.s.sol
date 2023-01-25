@@ -34,7 +34,6 @@ contract D3MDeployScript is Script {
     string config;
     string deployedCoreContracts;
     DssInstance dss;
-    string exportName;
 
     string d3mType;
     address admin;
@@ -46,7 +45,6 @@ contract D3MDeployScript is Script {
         config = ScriptTools.loadConfig();
         deployedCoreContracts = ScriptTools.readOutput("core");
         dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
-        exportName = string(abi.encodePacked("d3m-", vm.envOr("FOUNDRY_SCRIPT_CONFIG", string("custom"))));
 
         d3mType = config.readString("type");
         admin = config.readAddress("admin");
@@ -78,9 +76,9 @@ contract D3MDeployScript is Script {
         }
         vm.stopBroadcast();
 
-        ScriptTools.exportContract(exportName, "pool", d3m.pool);
-        ScriptTools.exportContract(exportName, "plan", d3m.plan);
-        ScriptTools.exportContract(exportName, "oracle", d3m.oracle);
+        ScriptTools.exportContract("pool", d3m.pool);
+        ScriptTools.exportContract("plan", d3m.plan);
+        ScriptTools.exportContract("oracle", d3m.oracle);
     }
 
 }

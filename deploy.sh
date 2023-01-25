@@ -39,4 +39,5 @@ done
 mkdir -p "script/output/$FOUNDRY_ROOT_CHAINID"
 
 export FOUNDRY_ROOT_CHAINID
+export FOUNDRY_EXPORTS_NAME="$FOUNDRY_SCRIPT_CONFIG"
 forge script script/D3MDeploy.s.sol:D3MDeployScript --use solc:0.8.14 --rpc-url "$ETH_RPC_URL" --sender "$ETH_FROM" --broadcast --verify
