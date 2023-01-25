@@ -35,6 +35,8 @@ import {
 
 contract D3MInitScript is Script {
 
+    string constant NAME = "d3m";
+
     using stdJson for string;
     using ScriptTools for string;
 
@@ -43,6 +45,8 @@ contract D3MInitScript is Script {
     uint256 constant RAD = 10 ** 45;
 
     string config;
+    string deployedCoreContracts;
+    string deployedContracts;
     DssInstance dss;
 
     string d3mType;
@@ -54,30 +58,34 @@ contract D3MInitScript is Script {
 
     function run() external {
         config = ScriptTools.loadConfig();
-        dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
+        deployedCoreContracts = ScriptTools.readOutput("core");
+        deployedContracts = ScriptTools.readOutput(string(abi.encodePacked("d3m-", vm.envOr("FOUNDRY_SCRIPT_CONFIG", string("custom")))));
+        dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
 
-        d3mType = config.readString(".type");
-        ilk = config.readString(".ilk").stringToBytes32();
+        d3mType = config.readString("type");
+        ilk = config.readString("ilk").stringToBytes32();
 
         d3m = D3MInstance({
-            pool: ScriptTools.importContract("POOL"),
-            plan: ScriptTools.importContract("PLAN"),
-            oracle: ScriptTools.importContract("ORACLE")
+            pool: deployedContracts.readAddress("pool"),
+            plan: deployedContracts.readAddress("plan"),
+            oracle: deployedContracts.readAddress("oracle")
         });
         cfg = D3MCommonConfig({
+            hub: deployedCoreContracts.readAddress("hub"),
+            mom: deployedCoreContracts.readAddress("mom"),
             ilk: ilk,
-            existingIlk: config.readBool(".existingIlk"),
-            maxLine: config.readUint(".maxLine") * RAD,
-            gap: config.readUint(".gap") * RAD,
-            ttl: config.readUint(".ttl"),
-            tau: config.readUint(".tau")
+            existingIlk: config.readBool("existingIlk"),
+            maxLine: config.readUint("maxLine") * RAD,
+            gap: config.readUint("gap") * RAD,
+            ttl: config.readUint("ttl"),
+            tau: config.readUint("tau")
         });
 
         vm.startBroadcast();
         if (d3mType.eq("aave")) {
             aaveCfg = D3MAaveConfig({
-                king: config.readAddress(".king"),
-                bar: config.readUint(".bar") * RAY / BPS,
+                king: config.readAddress("king"),
+                bar: config.readUint("bar") * RAY / BPS,
                 adai: AavePoolLike(d3m.pool).adai(),
                 stableDebt: AavePoolLike(d3m.pool).stableDebt(),
                 variableDebt: AavePoolLike(d3m.pool).variableDebt(),
@@ -92,8 +100,8 @@ contract D3MInitScript is Script {
             );
         } else if (d3mType.eq("compound")) {
             compoundCfg = D3MCompoundConfig({
-                king: config.readAddress(".king"),
-                barb: config.readUint(".barb"),
+                king: config.readAddress("king"),
+                barb: config.readUint("barb"),
                 cdai: CompoundPoolLike(d3m.pool).cDai(),
                 comptroller: CompoundPoolLike(d3m.pool).comptroller(),
                 comp: CompoundPoolLike(d3m.pool).comp(),

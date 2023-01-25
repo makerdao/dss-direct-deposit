@@ -28,21 +28,25 @@ import {
 
 contract D3MCoreInitScript is Script {
 
+    string constant NAME = "core";
+
     using stdJson for string;
     using ScriptTools for string;
 
     string config;
+    string deployedContracts;
     DssInstance dss;
 
     D3MCoreInstance d3mCore;
 
     function run() external {
-        config = ScriptTools.loadConfig("core");
-        dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
+        config = ScriptTools.loadConfig(NAME);
+        deployedContracts = ScriptTools.readOutput(NAME);
+        dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
 
         d3mCore = D3MCoreInstance({
-            hub: ScriptTools.importContract("HUB"),
-            mom: ScriptTools.importContract("MOM")
+            hub: deployedContracts.readAddress("hub"),
+            mom: deployedContracts.readAddress("mom")
         });
 
         vm.startBroadcast();

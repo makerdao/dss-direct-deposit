@@ -4,7 +4,7 @@ out = 'out'
 libs = ['lib']
 fs_permissions = [
     { access = "read", path = "./script/input/"},
-    { access = "read-write", path = "./out/contract-exports.env"}
+    { access = "read-write", path = "./script/output/"}
 ]
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config

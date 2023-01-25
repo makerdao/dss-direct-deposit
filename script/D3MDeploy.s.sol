@@ -32,7 +32,9 @@ contract D3MDeployScript is Script {
     using ScriptTools for string;
 
     string config;
+    string deployedCoreContracts;
     DssInstance dss;
+    string exportName;
 
     string d3mType;
     address admin;
@@ -42,12 +44,14 @@ contract D3MDeployScript is Script {
 
     function run() external {
         config = ScriptTools.loadConfig();
-        dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
+        deployedCoreContracts = ScriptTools.readOutput("core");
+        dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
+        exportName = string(abi.encodePacked("d3m-", vm.envOr("FOUNDRY_SCRIPT_CONFIG", string("custom"))));
 
-        d3mType = config.readString(".type");
-        admin = config.readAddress(".admin");
-        hub = config.readAddress(".hub");
-        ilk = config.readString(".ilk").stringToBytes32();
+        d3mType = config.readString("type");
+        admin = config.readAddress("admin");
+        hub = deployedCoreContracts.readAddress("hub");
+        ilk = config.readString("ilk").stringToBytes32();
 
         vm.startBroadcast();
         if (d3mType.eq("aave")) {
@@ -58,7 +62,7 @@ contract D3MDeployScript is Script {
                 address(dss.vat),
                 hub,
                 address(dss.dai),
-                config.readAddress(".lendingPool")
+                config.readAddress("lendingPool")
             );
         } else if (d3mType.eq("compound")) {
             d3m = D3MDeploy.deployCompound(
@@ -67,16 +71,16 @@ contract D3MDeployScript is Script {
                 ilk,
                 address(dss.vat),
                 hub,
-                config.readAddress(".cdai")
+                config.readAddress("cdai")
             );
         } else {
             revert("unknown-d3m-type");
         }
         vm.stopBroadcast();
 
-        ScriptTools.exportContract("POOL", d3m.pool);
-        ScriptTools.exportContract("PLAN", d3m.plan);
-        ScriptTools.exportContract("ORACLE", d3m.oracle);
+        ScriptTools.exportContract(exportName, "pool", d3m.pool);
+        ScriptTools.exportContract(exportName, "plan", d3m.plan);
+        ScriptTools.exportContract(exportName, "oracle", d3m.oracle);
     }
 
 }

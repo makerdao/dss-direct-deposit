@@ -28,6 +28,8 @@ import {
 
 contract D3MCoreDeployScript is Script {
 
+    string constant NAME = "core";
+
     using stdJson for string;
     using ScriptTools for string;
 
@@ -38,10 +40,10 @@ contract D3MCoreDeployScript is Script {
     D3MCoreInstance d3mCore;
 
     function run() external {
-        config = ScriptTools.loadConfig("core");
-        dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
+        config = ScriptTools.loadConfig(NAME);
+        dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
 
-        admin = config.readAddress(".admin");
+        admin = config.readAddress("admin");
 
         vm.startBroadcast();
         d3mCore = D3MDeploy.deployCore(
@@ -51,8 +53,8 @@ contract D3MCoreDeployScript is Script {
         );
         vm.stopBroadcast();
 
-        ScriptTools.exportContract("HUB", d3mCore.hub);
-        ScriptTools.exportContract("MOM", d3mCore.mom);
+        ScriptTools.exportContract(NAME, "hub", d3mCore.hub);
+        ScriptTools.exportContract(NAME, "mom", d3mCore.mom);
     }
 
 }

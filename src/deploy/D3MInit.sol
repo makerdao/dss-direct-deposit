@@ -93,6 +93,8 @@ interface D3MMomLike {
 }
 
 struct D3MCommonConfig {
+    address hub;
+    address mom;
     bytes32 ilk;
     bool existingIlk;
     uint256 maxLine;
@@ -153,7 +155,7 @@ library D3MInit {
         address gem
     ) private {
         bytes32 ilk = cfg.ilk;
-        D3MHubLike hub = D3MHubLike(dss.chainlog.getAddress("DIRECT_HUB"));
+        D3MHubLike hub = D3MHubLike(cfg.hub);
         D3MOracleLike oracle = D3MOracleLike(d3m.oracle);
 
         // Sanity checks
@@ -216,7 +218,7 @@ library D3MInit {
         _init(dss, d3m, cfg, address(adai));
 
         // Sanity checks
-        require(pool.hub() == address(dss.chainlog.getAddress("DIRECT_HUB")), "Pool hub mismatch");
+        require(pool.hub() == cfg.hub, "Pool hub mismatch");
         require(pool.ilk() == cfg.ilk, "Pool ilk mismatch");
         require(pool.vat() == address(dss.vat), "Pool vat mismatch");
         require(pool.dai() == address(dss.dai), "Pool dai mismatch");
@@ -231,7 +233,7 @@ library D3MInit {
         require(plan.adaiRevision() == aaveCfg.adaiRevision, "Plan adaiRevision mismatch");
         require(adai.ATOKEN_REVISION() == aaveCfg.adaiRevision, "ADai adaiRevision mismatch");
 
-        plan.rely(dss.chainlog.getAddress("DIRECT_MOM"));
+        plan.rely(cfg.mom);
         pool.file("king", aaveCfg.king);
         plan.file("bar", aaveCfg.bar);
     }
@@ -249,7 +251,7 @@ library D3MInit {
         _init(dss, d3m, cfg, address(cdai));
 
         // Sanity checks
-        require(pool.hub() == dss.chainlog.getAddress("DIRECT_HUB"), "Pool hub mismatch");
+        require(pool.hub() == cfg.hub, "Pool hub mismatch");
         require(pool.ilk() == cfg.ilk, "Pool ilk mismatch");
         require(pool.vat() == address(dss.vat), "Pool vat mismatch");
         require(pool.dai() == address(dss.dai), "Pool dai mismatch");
@@ -263,7 +265,7 @@ library D3MInit {
         require(cdai.implementation() == compoundCfg.delegate, "CDai delegate mismatch");
         require(plan.cDai() == address(cdai), "Plan cDai mismatch");
 
-        plan.rely(dss.chainlog.getAddress("DIRECT_MOM"));
+        plan.rely(cfg.mom);
         pool.file("king", compoundCfg.king);
         plan.file("barb", compoundCfg.barb);
     }
