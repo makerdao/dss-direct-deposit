@@ -38,6 +38,8 @@ import {
 
 contract D3MInitScript is Script {
 
+    string constant NAME = "d3m";
+
     using stdJson for string;
     using ScriptTools for string;
 
@@ -47,6 +49,8 @@ contract D3MInitScript is Script {
     uint256 constant RAD = 10 ** 45;
 
     string config;
+    string deployedCoreContracts;
+    string deployedContracts;
     DssInstance dss;
 
     string poolType;
@@ -57,24 +61,28 @@ contract D3MInitScript is Script {
 
     function run() external {
         config = ScriptTools.loadConfig();
-        dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
+        deployedCoreContracts = ScriptTools.readOutput("core");
+        deployedContracts = ScriptTools.readOutput(vm.envString("FOUNDRY_SCRIPT_CONFIG"));
+        dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
 
-        poolType = config.readString(".poolType");
-        planType = config.readString(".planType");
-        ilk = config.readString(".ilk").stringToBytes32();
+        poolType = config.readString("poolType");
+        planType = config.readString("planType");
+        ilk = config.readString("ilk").stringToBytes32();
 
         d3m = D3MInstance({
-            pool: ScriptTools.importContract("POOL"),
-            plan: ScriptTools.importContract("PLAN"),
-            oracle: ScriptTools.importContract("ORACLE")
+            pool: deployedContracts.readAddress("pool"),
+            plan: deployedContracts.readAddress("plan"),
+            oracle: deployedContracts.readAddress("oracle")
         });
         cfg = D3MCommonConfig({
+            hub: deployedCoreContracts.readAddress("hub"),
+            mom: deployedCoreContracts.readAddress("mom"),
             ilk: ilk,
-            existingIlk: config.readBool(".existingIlk"),
-            maxLine: config.readUint(".maxLine") * RAD,
-            gap: config.readUint(".gap") * RAD,
-            ttl: config.readUint(".ttl"),
-            tau: config.readUint(".tau")
+            existingIlk: config.readBool("existingIlk"),
+            maxLine: config.readUint("maxLine") * RAD,
+            gap: config.readUint("gap") * RAD,
+            ttl: config.readUint("ttl"),
+            tau: config.readUint("tau")
         });
 
         vm.startBroadcast();
@@ -88,7 +96,7 @@ contract D3MInitScript is Script {
         // Pool
         if (poolType.eq("aave")) {
             D3MAavePoolConfig memory aaveCfg = D3MAavePoolConfig({
-                king: config.readAddress(".king"),
+                king: config.readAddress("king"),
                 adai: AavePoolLike(d3m.pool).adai(),
                 stableDebt: AavePoolLike(d3m.pool).stableDebt(),
                 variableDebt: AavePoolLike(d3m.pool).variableDebt()
@@ -101,7 +109,7 @@ contract D3MInitScript is Script {
             );
         } else if (poolType.eq("compound")) {
             D3MCompoundPoolConfig memory compoundCfg = D3MCompoundPoolConfig({
-                king: config.readAddress(".king"),
+                king: config.readAddress("king"),
                 cdai: CompoundPoolLike(d3m.pool).cDai(),
                 comptroller: CompoundPoolLike(d3m.pool).comptroller(),
                 comp: CompoundPoolLike(d3m.pool).comp()
@@ -120,7 +128,7 @@ contract D3MInitScript is Script {
         if (planType.eq("rate-target")) {
             if (poolType.eq("aave")) {
                 D3MAavePlanConfig memory aaveCfg = D3MAavePlanConfig({
-                    bar: config.readUint(".bar") * RAY / BPS,
+                    bar: config.readUint("bar") * RAY / BPS,
                     adai: AavePoolLike(d3m.pool).adai(),
                     stableDebt: AavePoolLike(d3m.pool).stableDebt(),
                     variableDebt: AavePoolLike(d3m.pool).variableDebt(),
@@ -133,7 +141,7 @@ contract D3MInitScript is Script {
                 );
             } else if (poolType.eq("compound")) {
                 D3MCompoundPlanConfig memory compoundCfg = D3MCompoundPlanConfig({
-                    barb: config.readUint(".barb"),
+                    barb: config.readUint("barb"),
                     cdai: CompoundPoolLike(d3m.pool).cDai(),
                     tack: CompoundPlanLike(d3m.plan).tack(),
                     delegate: CompoundPlanLike(d3m.plan).delegate()
@@ -148,7 +156,7 @@ contract D3MInitScript is Script {
         } else if (planType.eq("liquidity-buffer")) {
             if (poolType.eq("aave")) {
                 D3MAaveBufferPlanConfig memory aaveCfg = D3MAaveBufferPlanConfig({
-                    buffer: config.readUint(".buffer") * WAD,
+                    buffer: config.readUint("buffer") * WAD,
                     adai: AavePoolLike(d3m.pool).adai(),
                     adaiRevision: AavePlanLike(d3m.plan).adaiRevision()
                 });

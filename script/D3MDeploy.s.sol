@@ -34,6 +34,7 @@ contract D3MDeployScript is Script {
     using ScriptTools for string;
 
     string config;
+    string deployedCoreContracts;
     DssInstance dss;
 
     string poolType;
@@ -45,13 +46,14 @@ contract D3MDeployScript is Script {
 
     function run() external {
         config = ScriptTools.loadConfig();
-        dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
+        deployedCoreContracts = ScriptTools.readOutput("core");
+        dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
 
-        poolType = config.readString(".poolType");
-        planType = config.readString(".planType");
-        admin = config.readAddress(".admin");
-        hub = config.readAddress(".hub");
-        ilk = config.readString(".ilk").stringToBytes32();
+        poolType = config.readString("poolType");
+        planType = config.readString("planType");
+        admin = config.readAddress("admin");
+        hub = config.readAddress("hub");
+        ilk = config.readString("ilk").stringToBytes32();
 
         vm.startBroadcast();
 
@@ -65,7 +67,7 @@ contract D3MDeployScript is Script {
 
         // Pool
         if (poolType.eq("aave")) {
-            string memory _version = config.readString(".aaveVersion");
+            string memory _version = config.readString("aaveVersion");
             D3MAavePool.AaveVersion version;
             if (_version.eq("V2")) {
                 version = D3MAavePool.AaveVersion.V2;
@@ -81,7 +83,7 @@ contract D3MDeployScript is Script {
                 ilk,
                 hub,
                 address(dss.dai),
-                config.readAddress(".lendingPool")
+                config.readAddress("lendingPool")
             );
         } else if (poolType.eq("compound")) {
             d3m.pool = D3MDeploy.deployCompoundPool(
@@ -89,7 +91,7 @@ contract D3MDeployScript is Script {
                 admin,
                 ilk,
                 hub,
-                config.readAddress(".cdai")
+                config.readAddress("cdai")
             );
         } else {
             revert("Unknown pool type");
@@ -98,7 +100,7 @@ contract D3MDeployScript is Script {
         // Plan
         if (planType.eq("rate-target")) {
             if (poolType.eq("aave")) {
-                string memory _version = config.readString(".aaveVersion");
+                string memory _version = config.readString("aaveVersion");
                 D3MAavePlan.AaveVersion version;
                 if (_version.eq("V2")) {
                     version = D3MAavePlan.AaveVersion.V2;
@@ -112,13 +114,13 @@ contract D3MDeployScript is Script {
                     admin,
                     version,
                     address(dss.dai),
-                    config.readAddress(".lendingPool")
+                    config.readAddress("lendingPool")
                 );
             } else if (poolType.eq("compound")) {
                 d3m.plan = D3MDeploy.deployCompoundPlan(
                     msg.sender,
                     admin,
-                    config.readAddress(".cdai")
+                    config.readAddress("cdai")
                 );
             } else {
                 revert("Invalid pool type for rate target plan type");
@@ -136,9 +138,9 @@ contract D3MDeployScript is Script {
         
         vm.stopBroadcast();
 
-        ScriptTools.exportContract("POOL", d3m.pool);
-        ScriptTools.exportContract("PLAN", d3m.plan);
-        ScriptTools.exportContract("ORACLE", d3m.oracle);
+        ScriptTools.exportContract("pool", d3m.pool);
+        ScriptTools.exportContract("plan", d3m.plan);
+        ScriptTools.exportContract("oracle", d3m.oracle);
     }
 
 }

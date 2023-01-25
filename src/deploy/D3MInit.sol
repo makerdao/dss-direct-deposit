@@ -18,6 +18,7 @@ pragma solidity >=0.8.0;
 
 import "dss-interfaces/dss/DssAutoLineAbstract.sol";
 import "dss-interfaces/dss/IlkRegistryAbstract.sol";
+import "dss-interfaces/utils/WardsAbstract.sol";
 import "dss-interfaces/ERC/GemAbstract.sol";
 import { DssInstance } from "dss-test/MCD.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
@@ -103,6 +104,8 @@ interface D3MMomLike {
 }
 
 struct D3MCommonConfig {
+    address hub;
+    address mom;
     bytes32 ilk;
     bool existingIlk;
     uint256 maxLine;
@@ -180,14 +183,14 @@ library D3MInit {
         D3MCommonConfig memory cfg
     ) internal {
         bytes32 ilk = cfg.ilk;
-        D3MHubLike hub = D3MHubLike(dss.chainlog.getAddress("DIRECT_HUB"));
+        D3MHubLike hub = D3MHubLike(cfg.hub);
         D3MOracleLike oracle = D3MOracleLike(d3m.oracle);
 
         // Sanity checks
         require(oracle.vat() == address(dss.vat), "Oracle vat mismatch");
         require(oracle.ilk() == ilk, "Oracle ilk mismatch");
 
-        WardsAbstract(d3m.plan).rely(dss.chainlog.getAddress("DIRECT_MOM"));
+        WardsAbstract(d3m.plan).rely(cfg.mom);
 
         hub.file(ilk, "pool", d3m.pool);
         hub.file(ilk, "plan", d3m.plan);
@@ -242,7 +245,7 @@ library D3MInit {
         AavePoolLike pool = AavePoolLike(d3m.pool);
 
         // Sanity checks
-        require(pool.hub() == address(dss.chainlog.getAddress("DIRECT_HUB")), "Pool hub mismatch");
+        require(pool.hub() == cfg.hub, "Pool hub mismatch");
         require(pool.ilk() == cfg.ilk, "Pool ilk mismatch");
         require(pool.vat() == address(dss.vat), "Pool vat mismatch");
         require(pool.dai() == address(dss.dai), "Pool dai mismatch");
@@ -263,7 +266,7 @@ library D3MInit {
         CDaiLike cdai = CDaiLike(compoundCfg.cdai);
 
         // Sanity checks
-        require(pool.hub() == dss.chainlog.getAddress("DIRECT_HUB"), "Pool hub mismatch");
+        require(pool.hub() == cfg.hub, "Pool hub mismatch");
         require(pool.ilk() == cfg.ilk, "Pool ilk mismatch");
         require(pool.vat() == address(dss.vat), "Pool vat mismatch");
         require(pool.dai() == address(dss.dai), "Pool dai mismatch");

@@ -16,6 +16,7 @@ set -e
 [[ "$FOUNDRY_ROOT_CHAINID" == "1" ]] && echo "Deploying D3M Core on Mainnet"
 [[ "$FOUNDRY_ROOT_CHAINID" == "5" ]] && echo "Deploying D3M Core on Goerli"
 
-rm -f out/contract-exports.env
+mkdir -p "script/output/$FOUNDRY_ROOT_CHAINID"
+
 export FOUNDRY_ROOT_CHAINID
 forge script script/D3MCoreDeploy.s.sol:D3MCoreDeployScript --use solc:0.8.14 --rpc-url "$ETH_RPC_URL" --sender "$ETH_FROM" --broadcast --verify

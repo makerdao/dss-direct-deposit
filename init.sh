@@ -1,4 +1,5 @@
 #!/bin/bash
+# NOTE: This can only be run against an anvil-node. Production initialization needs to be done in the spell.
 set -e
 
 for ARGUMENT in "$@"
@@ -21,6 +22,11 @@ done
     exit 1;
 }
 
+[[ -n "$MCD_PAUSE_PROXY" ]] || {
+    echo "Please set MCD_PAUSE_PROXY";
+    exit 1;
+}
+
 [[ -n "$FOUNDRY_ROOT_CHAINID" ]] || {
     [[ -n $ETH_RPC_URL ]] || {
         echo "Please set FOUNDRY_ROOT_CHAINID (1 or 5) or ETH_RPC_URL";
@@ -33,11 +39,14 @@ done
     exit 1;
 }
 
-[[ "$FOUNDRY_ROOT_CHAINID" == "1" ]] && echo "Deploying '$FOUNDRY_SCRIPT_CONFIG' D3M on Mainnet"
-[[ "$FOUNDRY_ROOT_CHAINID" == "5" ]] && echo "Deploying '$FOUNDRY_SCRIPT_CONFIG' D3M on Goerli"
-
-mkdir -p "script/output/$FOUNDRY_ROOT_CHAINID"
+[[ "$FOUNDRY_ROOT_CHAINID" == "1" ]] && echo "Initializing '$FOUNDRY_SCRIPT_CONFIG' D3M on Mainnet"
+[[ "$FOUNDRY_ROOT_CHAINID" == "5" ]] && echo "Initializing '$FOUNDRY_SCRIPT_CONFIG' D3M on Goerli"
 
 export FOUNDRY_ROOT_CHAINID
-export FOUNDRY_EXPORTS_NAME="$FOUNDRY_SCRIPT_CONFIG"
-forge script script/D3MDeploy.s.sol:D3MDeployScript --use solc:0.8.14 --rpc-url "$ETH_RPC_URL" --sender "$ETH_FROM" --broadcast --verify
+unset ETH_FROM
+cast rpc anvil_setBalance $MCD_PAUSE_PROXY 0x10000000000000000 > /dev/null
+cast rpc anvil_impersonateAccount $MCD_PAUSE_PROXY > /dev/null
+
+forge script script/D3MInit.s.sol:D3MInitScript --use solc:0.8.14 --rpc-url $ETH_RPC_URL --broadcast --unlocked --sender $MCD_PAUSE_PROXY
+
+cast rpc anvil_stopImpersonatingAccount $MCD_PAUSE_PROXY > /dev/null
