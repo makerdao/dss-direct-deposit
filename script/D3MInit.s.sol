@@ -56,7 +56,7 @@ contract D3MInitScript is Script {
     D3MCommonConfig cfg;
 
     function run() external {
-        config = ScriptTools.loadConfig("aave");
+        config = ScriptTools.loadConfig();
         dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
 
         poolType = config.readString(".poolType");

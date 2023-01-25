@@ -3,8 +3,8 @@ set -e
 
 for ARGUMENT in "$@"
 do
-    KEY=$(echo $ARGUMENT | cut -f1 -d=)
-    VALUE=$(echo $ARGUMENT | cut -f2 -d=)
+    KEY=$(echo "$ARGUMENT" | cut -f1 -d=)
+    VALUE=$(echo "$ARGUMENT" | cut -f2 -d=)
 
     if [ "$VALUE" = "" ]; then
         continue
@@ -38,4 +38,4 @@ done
 
 rm -f out/contract-exports.env
 export FOUNDRY_ROOT_CHAINID
-forge script script/D3MDeploy.s.sol:D3MDeployScript --use solc:0.8.14 --rpc-url $ETH_RPC_URL --sender $ETH_FROM --broadcast --verify
+forge script script/D3MDeploy.s.sol:D3MDeployScript --use solc:0.8.14 --rpc-url "$ETH_RPC_URL" --sender "$ETH_FROM" --broadcast --verify
