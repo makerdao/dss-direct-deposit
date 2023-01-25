@@ -2,6 +2,11 @@
 # NOTE: This can only be run against an anvil-node. Production initialization needs to be done in the spell.
 set -e
 
+[[ -n "$MCD_PAUSE_PROXY" ]] || {
+    echo "Please set MCD_PAUSE_PROXY";
+    exit 1;
+}
+
 [[ -n "$FOUNDRY_ROOT_CHAINID" ]] || {
     [[ -n $ETH_RPC_URL ]] || {
         echo "Please set FOUNDRY_ROOT_CHAINID (1 or 5) or ETH_RPC_URL";

@@ -22,6 +22,11 @@ done
     exit 1;
 }
 
+[[ -n "$MCD_PAUSE_PROXY" ]] || {
+    echo "Please set MCD_PAUSE_PROXY";
+    exit 1;
+}
+
 [[ -n "$FOUNDRY_ROOT_CHAINID" ]] || {
     [[ -n $ETH_RPC_URL ]] || {
         echo "Please set FOUNDRY_ROOT_CHAINID (1 or 5) or ETH_RPC_URL";
