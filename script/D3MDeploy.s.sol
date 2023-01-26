@@ -52,7 +52,7 @@ contract D3MDeployScript is Script {
         poolType = config.readString("poolType");
         planType = config.readString("planType");
         admin = config.readAddress("admin");
-        hub = config.readAddress("hub");
+        hub = deployedCoreContracts.readAddress("hub");
         ilk = config.readString("ilk").stringToBytes32();
 
         vm.startBroadcast();
