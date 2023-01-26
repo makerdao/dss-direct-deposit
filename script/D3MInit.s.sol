@@ -38,8 +38,6 @@ import {
 
 contract D3MInitScript is Script {
 
-    string constant NAME = "d3m";
-
     using stdJson for string;
     using ScriptTools for string;
 
