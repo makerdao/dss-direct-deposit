@@ -2,6 +2,8 @@
 /cache
 /broadcast
 resource_errors.json
+/script/output/*/*.json
+!/script/output/*/*-latest.json
 
 # certora
 *autoFinder_*
