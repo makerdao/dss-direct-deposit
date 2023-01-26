@@ -32,7 +32,7 @@ contract D3MDeployScript is Script {
     using ScriptTools for string;
 
     string config;
-    string deployedCoreContracts;
+    string dependencies;
     DssInstance dss;
 
     string d3mType;
@@ -43,12 +43,12 @@ contract D3MDeployScript is Script {
 
     function run() external {
         config = ScriptTools.loadConfig();
-        deployedCoreContracts = ScriptTools.readOutput("core");
+        dependencies = ScriptTools.loadDependencies("core");
         dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
 
         d3mType = config.readString("type");
         admin = config.readAddress("admin");
-        hub = deployedCoreContracts.readAddress("hub");
+        hub = dependencies.readAddress("hub");
         ilk = config.readString("ilk").stringToBytes32();
 
         vm.startBroadcast();

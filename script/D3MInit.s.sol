@@ -43,8 +43,7 @@ contract D3MInitScript is Script {
     uint256 constant RAD = 10 ** 45;
 
     string config;
-    string deployedCoreContracts;
-    string deployedContracts;
+    string dependencies;
     DssInstance dss;
 
     string d3mType;
@@ -56,21 +55,20 @@ contract D3MInitScript is Script {
 
     function run() external {
         config = ScriptTools.loadConfig();
-        deployedCoreContracts = ScriptTools.readOutput("core");
-        deployedContracts = ScriptTools.readOutput(vm.envString("FOUNDRY_SCRIPT_CONFIG"));
+        dependencies = ScriptTools.loadDependencies();
         dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
 
         d3mType = config.readString("type");
         ilk = config.readString("ilk").stringToBytes32();
 
         d3m = D3MInstance({
-            pool: deployedContracts.readAddress("pool"),
-            plan: deployedContracts.readAddress("plan"),
-            oracle: deployedContracts.readAddress("oracle")
+            pool: dependencies.readAddress("pool"),
+            plan: dependencies.readAddress("plan"),
+            oracle: dependencies.readAddress("oracle")
         });
         cfg = D3MCommonConfig({
-            hub: deployedCoreContracts.readAddress("hub"),
-            mom: deployedCoreContracts.readAddress("mom"),
+            hub: dependencies.readAddress("hub"),
+            mom: dependencies.readAddress("mom"),
             ilk: ilk,
             existingIlk: config.readBool("existingIlk"),
             maxLine: config.readUint("maxLine") * RAD,
