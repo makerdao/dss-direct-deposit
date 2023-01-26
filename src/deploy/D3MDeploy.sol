@@ -26,6 +26,7 @@ import { D3MMom } from "../D3MMom.sol";
 import { D3MInstance } from "./D3MInstance.sol";
 import { D3MDebtCeilingPlan } from "../plans/D3MDebtCeilingPlan.sol";
 import { D3MAavePlan } from "../plans/D3MAavePlan.sol";
+import { D3MAaveBufferPlan } from "../plans/D3MAaveBufferPlan.sol";
 import { D3MAavePool } from "../pools/D3MAavePool.sol";
 import { D3MCompoundPlan } from "../plans/D3MCompoundPlan.sol";
 import { D3MCompoundPool } from "../pools/D3MCompoundPool.sol";
@@ -104,6 +105,16 @@ library D3MDeploy {
         address lendingPool
     ) internal returns (address plan) {
         plan = address(new D3MAavePlan(version, dai, lendingPool));
+
+        ScriptTools.switchOwner(plan, deployer, owner);
+    }
+
+    function deployAaveBufferPlan(
+        address deployer,
+        address owner,
+        address adai
+    ) internal returns (address plan) {
+        plan = address(new D3MAaveBufferPlan(adai));
 
         ScriptTools.switchOwner(plan, deployer, owner);
     }
