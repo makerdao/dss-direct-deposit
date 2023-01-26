@@ -34,7 +34,7 @@ contract D3MDeployScript is Script {
     using ScriptTools for string;
 
     string config;
-    string deployedCoreContracts;
+    string dependencies;
     DssInstance dss;
 
     string poolType;
@@ -46,13 +46,13 @@ contract D3MDeployScript is Script {
 
     function run() external {
         config = ScriptTools.loadConfig();
-        deployedCoreContracts = ScriptTools.readOutput("core");
+        dependencies = ScriptTools.loadDependencies("core");
         dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
 
         poolType = config.readString("poolType");
         planType = config.readString("planType");
         admin = config.readAddress("admin");
-        hub = deployedCoreContracts.readAddress("hub");
+        hub = dependencies.readAddress("hub");
         ilk = config.readString("ilk").stringToBytes32();
 
         vm.startBroadcast();
