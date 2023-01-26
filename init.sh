@@ -18,7 +18,7 @@ do
 done
 
 [[ -n "$FOUNDRY_SCRIPT_CONFIG" ]] || {
-    echo "Please specify the D3M configration JSON. Example: ./deploy.sh config=aave";
+    echo "Please specify the D3M configration JSON. Example: ./init.sh config=aave";
     exit 1;
 }
 
