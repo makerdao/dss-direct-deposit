@@ -24,9 +24,9 @@ set -e
 
 export FOUNDRY_ROOT_CHAINID
 unset ETH_FROM
-cast rpc anvil_setBalance $MCD_PAUSE_PROXY 0x10000000000000000 > /dev/null
-cast rpc anvil_impersonateAccount $MCD_PAUSE_PROXY > /dev/null
+cast rpc anvil_setBalance "$MCD_PAUSE_PROXY" 0x10000000000000000 > /dev/null
+cast rpc anvil_impersonateAccount "$MCD_PAUSE_PROXY" > /dev/null
 
-forge script script/D3MCoreInit.s.sol:D3MCoreInitScript --use solc:0.8.14 --rpc-url $ETH_RPC_URL --broadcast --unlocked --sender $MCD_PAUSE_PROXY
+forge script script/D3MCoreInit.s.sol:D3MCoreInitScript --use solc:0.8.14 --rpc-url "$ETH_RPC_URL" --broadcast --unlocked --sender "$MCD_PAUSE_PROXY"
 
-cast rpc anvil_stopImpersonatingAccount $MCD_PAUSE_PROXY > /dev/null
+cast rpc anvil_stopImpersonatingAccount "$MCD_PAUSE_PROXY" > /dev/null
