@@ -44,7 +44,8 @@ done
 [[ "$FOUNDRY_ROOT_CHAINID" == "5" ]] && echo "Initializing '$FOUNDRY_SCRIPT_CONFIG' D3M on Goerli"
 
 export FOUNDRY_ROOT_CHAINID
-export FOUNDRY_SCRIPT_DEPS_TEXT=`jq -sc ".[0] * .[1]" script/output/$FOUNDRY_ROOT_CHAINID/core-latest.json script/output/$FOUNDRY_ROOT_CHAINID/$D3M-latest.json`
+FOUNDRY_SCRIPT_DEPS_TEXT=$(jq -sc ".[0] * .[1]" script/output/"$FOUNDRY_ROOT_CHAINID"/core-latest.json script/output/"$FOUNDRY_ROOT_CHAINID"/"$D3M"-latest.json)
+export FOUNDRY_SCRIPT_DEPS_TEXT
 unset ETH_FROM
 cast rpc anvil_setBalance "$MCD_PAUSE_PROXY" 0x10000000000000000 > /dev/null
 cast rpc anvil_impersonateAccount "$MCD_PAUSE_PROXY" > /dev/null
