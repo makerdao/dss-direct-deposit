@@ -130,12 +130,6 @@ struct D3MAavePlanConfig {
     uint256 adaiRevision;
 }
 
-struct D3MAaveBufferPlanConfig {
-    uint256 buffer;
-    address adai;
-    uint256 adaiRevision;
-}
-
 struct D3MCompoundPoolConfig {
     address king;
     address cdai;
@@ -277,18 +271,6 @@ library D3MInit {
         pool.file("king", compoundCfg.king);
     }
 
-    function initDebtCeilingPlan(
-        DssInstance memory dss,
-        D3MInstance memory d3m,
-        D3MCommonConfig memory cfg
-    ) internal view {
-        DebtCeilingPlanLike plan = DebtCeilingPlanLike(d3m.plan);
-
-        // Sanity checks
-        require(plan.vat() == address(dss.vat), "Plan vat mismatch");
-        require(plan.ilk() == cfg.ilk, "Plan ilk mismatch");
-    }
-
     function initAavePlan(
         D3MInstance memory d3m,
         D3MAavePlanConfig memory aaveCfg
@@ -305,21 +287,6 @@ library D3MInit {
         require(adai.ATOKEN_REVISION() == aaveCfg.adaiRevision, "ADai adaiRevision mismatch");
 
         plan.file("bar", aaveCfg.bar);
-    }
-
-    function initAaveBufferPlan(
-        D3MInstance memory d3m,
-        D3MAaveBufferPlanConfig memory aaveCfg
-    ) internal {
-        AaveBufferPlanLike plan = AaveBufferPlanLike(d3m.plan);
-        ADaiLike adai = ADaiLike(aaveCfg.adai);
-
-        // Sanity checks
-        require(plan.adai() == address(adai), "Plan adai mismatch");
-        require(plan.adaiRevision() == aaveCfg.adaiRevision, "Plan adaiRevision mismatch");
-        require(adai.ATOKEN_REVISION() == aaveCfg.adaiRevision, "ADai adaiRevision mismatch");
-
-        plan.file("buffer", aaveCfg.buffer);
     }
 
     function initCompoundPlan(
