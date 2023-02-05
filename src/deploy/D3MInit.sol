@@ -47,6 +47,12 @@ interface AavePlanLike {
     function adaiRevision() external view returns (uint256);
 }
 
+interface AaveBufferPlanLike {
+    function file(bytes32, uint256) external;
+    function adai() external view returns (address);
+    function adaiRevision() external view returns (uint256);
+}
+
 interface ADaiLike {
     function ATOKEN_REVISION() external view returns (uint256);
 }
@@ -116,6 +122,12 @@ struct D3MAavePlanConfig {
     address stableDebt;
     address variableDebt;
     address tack;
+    uint256 adaiRevision;
+}
+
+struct D3MAaveBufferPlanConfig {
+    uint256 buffer;
+    address adai;
     uint256 adaiRevision;
 }
 
@@ -276,6 +288,21 @@ library D3MInit {
         require(adai.ATOKEN_REVISION() == aaveCfg.adaiRevision, "ADai adaiRevision mismatch");
 
         plan.file("bar", aaveCfg.bar);
+    }
+
+    function initAaveBufferPlan(
+        D3MInstance memory d3m,
+        D3MAaveBufferPlanConfig memory aaveCfg
+    ) internal {
+        AaveBufferPlanLike plan = AaveBufferPlanLike(d3m.plan);
+        ADaiLike adai = ADaiLike(aaveCfg.adai);
+
+        // Sanity checks
+        require(plan.adai() == address(adai), "Plan adai mismatch");
+        require(plan.adaiRevision() == aaveCfg.adaiRevision, "Plan adaiRevision mismatch");
+        require(adai.ATOKEN_REVISION() == aaveCfg.adaiRevision, "ADai adaiRevision mismatch");
+
+        plan.file("buffer", aaveCfg.buffer);
     }
 
     function initCompoundPlan(

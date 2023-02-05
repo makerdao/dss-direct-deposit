@@ -125,6 +125,16 @@ contract D3MDeployScript is Script {
             } else {
                 revert("Invalid pool type for rate target plan type");
             }
+        } else if (planType.eq("liquidity-buffer")) {
+            if (poolType.eq("aave")) {
+                d3m.plan = D3MDeploy.deployAaveBufferPlan(
+                    msg.sender,
+                    admin,
+                    config.readAddress("adai")
+                );
+            } else {
+                revert("Invalid pool type for rate target plan type");
+            }
         } else {
             revert("Unknown plan type");
         }
