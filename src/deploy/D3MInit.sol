@@ -47,12 +47,6 @@ interface AavePlanLike {
     function adaiRevision() external view returns (uint256);
 }
 
-interface AaveBufferPlanLike {
-    function file(bytes32, uint256) external;
-    function adai() external view returns (address);
-    function adaiRevision() external view returns (uint256);
-}
-
 interface ADaiLike {
     function ATOKEN_REVISION() external view returns (uint256);
 }
