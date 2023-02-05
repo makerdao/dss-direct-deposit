@@ -148,6 +148,12 @@ contract D3MInitScript is Script {
             } else {
                 revert("Invalid pool type for rate target plan type");
             }
+        } else if (planType.eq("debt-ceiling")) {
+            D3MInit.initDebtCeilingPlan(
+                dss,
+                d3m,
+                cfg
+            );
         } else {
             revert("Unknown plan type");
         }
