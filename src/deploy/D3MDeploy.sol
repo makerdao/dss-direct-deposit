@@ -24,9 +24,7 @@ import { D3MCoreInstance } from "./D3MCoreInstance.sol";
 import { D3MHub } from "../D3MHub.sol";
 import { D3MMom } from "../D3MMom.sol";
 import { D3MInstance } from "./D3MInstance.sol";
-import { D3MDebtCeilingPlan } from "../plans/D3MDebtCeilingPlan.sol";
 import { D3MAavePlan } from "../plans/D3MAavePlan.sol";
-import { D3MAaveBufferPlan } from "../plans/D3MAaveBufferPlan.sol";
 import { D3MAavePool } from "../pools/D3MAavePool.sol";
 import { D3MCompoundPlan } from "../plans/D3MCompoundPlan.sol";
 import { D3MCompoundPool } from "../pools/D3MCompoundPool.sol";
@@ -86,17 +84,6 @@ library D3MDeploy {
         ScriptTools.switchOwner(pool, deployer, owner);
     }
 
-    function deployDebtCeilingPlan(
-        address deployer,
-        address owner,
-        bytes32 ilk,
-        address vat
-    ) internal returns (address plan) {
-        plan = address(new D3MDebtCeilingPlan(vat, ilk));
-
-        ScriptTools.switchOwner(plan, deployer, owner);
-    }
-
     function deployAavePlan(
         address deployer,
         address owner,
@@ -105,16 +92,6 @@ library D3MDeploy {
         address lendingPool
     ) internal returns (address plan) {
         plan = address(new D3MAavePlan(version, dai, lendingPool));
-
-        ScriptTools.switchOwner(plan, deployer, owner);
-    }
-
-    function deployAaveBufferPlan(
-        address deployer,
-        address owner,
-        address adai
-    ) internal returns (address plan) {
-        plan = address(new D3MAaveBufferPlan(adai));
 
         ScriptTools.switchOwner(plan, deployer, owner);
     }
