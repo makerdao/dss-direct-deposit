@@ -19,7 +19,7 @@ pragma solidity ^0.8.14;
 import { Hevm, D3MPlanBaseTest } from "./D3MPlanBase.t.sol";
 import { DaiLike, TokenLike } from "../interfaces/interfaces.sol";
 
-import { D3MAavePlan, LendingPoolLike } from "../../plans/D3MAavePlan.sol";
+import { D3MAavePlan, LendingPoolV2Like } from "../../plans/D3MAavePlan.sol";
 
 interface InterestRateStrategyLike {
     function baseVariableBorrowRate() external view returns (uint256);
@@ -49,7 +49,7 @@ contract D3MAavePlanWrapper is D3MAavePlan {
 }
 
 contract D3MAavePlanTest is D3MPlanBaseTest {
-    LendingPoolLike aavePool;
+    LendingPoolV2Like aavePool;
     InterestRateStrategyLike interestStrategy;
     TokenLike adai;
 
@@ -60,7 +60,7 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
         contractName = "D3MAavePlan";
 
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
-        aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
+        aavePool = LendingPoolV2Like(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
         adai = TokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
         interestStrategy = InterestRateStrategyLike(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
 
@@ -96,13 +96,13 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
     }
 
     function test_sets_stableDebt() public {
-        (,,,,,,,, address stableDebt,,,) = LendingPoolLike(aavePool).getReserveData(address(dai));
+        (,,,,,,,, address stableDebt,,,) = LendingPoolV2Like(aavePool).getReserveData(address(dai));
 
         assertEq(stableDebt, address(D3MAavePlan(d3mTestPlan).stableDebt()));
     }
 
     function test_sets_variableDebt() public {
-        (,,,,,,,,, address variableDebt,,) = LendingPoolLike(aavePool).getReserveData(address(dai));
+        (,,,,,,,,, address variableDebt,,) = LendingPoolV2Like(aavePool).getReserveData(address(dai));
 
         assertEq(variableDebt, address(D3MAavePlan(d3mTestPlan).variableDebt()));
     }

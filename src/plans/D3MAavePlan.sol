@@ -27,7 +27,7 @@ interface ATokenLike {
     function ATOKEN_REVISION() external view returns (uint256);
 }
 
-interface LendingPoolLike {
+interface LendingPoolV2Like {
     function getReserveData(address asset) external view returns (
         uint256, // configuration
         uint128, // the liquidity index. Expressed in ray
@@ -44,44 +44,45 @@ interface LendingPoolLike {
     );
 }
 
-// Need to use a struct as too many variables to return on the stack
-struct ReserveDataV3 {
-    //stores the reserve configuration
-    uint256 configuration;
-    //the liquidity index. Expressed in ray
-    uint128 liquidityIndex;
-    //the current supply rate. Expressed in ray
-    uint128 currentLiquidityRate;
-    //variable borrow index. Expressed in ray
-    uint128 variableBorrowIndex;
-    //the current variable borrow rate. Expressed in ray
-    uint128 currentVariableBorrowRate;
-    //the current stable borrow rate. Expressed in ray
-    uint128 currentStableBorrowRate;
-    //timestamp of last update
-    uint40 lastUpdateTimestamp;
-    //the id of the reserve. Represents the position in the list of the active reserves
-    uint16 id;
-    //aToken address
-    address aTokenAddress;
-    //stableDebtToken address
-    address stableDebtTokenAddress;
-    //variableDebtToken address
-    address variableDebtTokenAddress;
-    //address of the interest rate strategy
-    address interestRateStrategyAddress;
-    //the current treasury balance, scaled
-    uint128 accruedToTreasury;
-    //the outstanding unbacked aTokens minted through the bridging feature
-    uint128 unbacked;
-    //the outstanding debt borrowed against this asset in isolation mode
-    uint128 isolationModeTotalDebt;
-}
-
 // Aave Lending Pool v3
 // Interface changed slightly from v2 to v3
-interface LendingPoolReserveDataV3Like {
-    function getReserveData(address asset) external view returns (ReserveDataV3 memory);
+interface LendingPoolV3Like {
+
+    // Need to use a struct as too many variables to return on the stack
+    struct ReserveData {
+        //stores the reserve configuration
+        uint256 configuration;
+        //the liquidity index. Expressed in ray
+        uint128 liquidityIndex;
+        //the current supply rate. Expressed in ray
+        uint128 currentLiquidityRate;
+        //variable borrow index. Expressed in ray
+        uint128 variableBorrowIndex;
+        //the current variable borrow rate. Expressed in ray
+        uint128 currentVariableBorrowRate;
+        //the current stable borrow rate. Expressed in ray
+        uint128 currentStableBorrowRate;
+        //timestamp of last update
+        uint40 lastUpdateTimestamp;
+        //the id of the reserve. Represents the position in the list of the active reserves
+        uint16 id;
+        //aToken address
+        address aTokenAddress;
+        //stableDebtToken address
+        address stableDebtTokenAddress;
+        //variableDebtToken address
+        address variableDebtTokenAddress;
+        //address of the interest rate strategy
+        address interestRateStrategyAddress;
+        //the current treasury balance, scaled
+        uint128 accruedToTreasury;
+        //the outstanding unbacked aTokens minted through the bridging feature
+        uint128 unbacked;
+        //the outstanding debt borrowed against this asset in isolation mode
+        uint128 isolationModeTotalDebt;
+    }
+
+    function getReserveData(address asset) external view returns (ReserveData memory);
 }
 
 interface InterestRateStrategyV2Like {
@@ -114,7 +115,7 @@ contract D3MAavePlan is ID3MPlan {
     uint256                      public bar; // Target Interest Rate [ray]
 
     AaveVersion     public immutable version;
-    LendingPoolLike public immutable pool;
+    address         public immutable pool;
     TokenLike       public immutable stableDebt;
     TokenLike       public immutable variableDebt;
     TokenLike       public immutable dai;
@@ -130,7 +131,7 @@ contract D3MAavePlan is ID3MPlan {
     constructor(AaveVersion version_, address dai_, address pool_) {
         version = version_;
         dai = TokenLike(dai_);
-        pool = LendingPoolLike(pool_);
+        pool = pool_;
 
         // Fetch the reserve data from Aave
         (address adai_, address stableDebt_, address variableDebt_, address interestStrategy_) = getReserveDataAddresses();
@@ -151,13 +152,13 @@ contract D3MAavePlan is ID3MPlan {
 
     function getReserveDataAddresses() internal view returns (address adai_, address stableDebt_, address variableDebt_, address interestStrategy_) {
          if (version == AaveVersion.V3) {
-            ReserveDataV3 memory data = LendingPoolReserveDataV3Like(address(pool)).getReserveData(address(dai));
+            LendingPoolV3Like.ReserveData memory data = LendingPoolV3Like(pool).getReserveData(address(dai));
             adai_ = data.aTokenAddress;
             stableDebt_ = data.stableDebtTokenAddress;
             variableDebt_ = data.variableDebtTokenAddress;
             interestStrategy_ = data.interestRateStrategyAddress;
         } else {
-            (,,,,,,, adai_, stableDebt_, variableDebt_, interestStrategy_,) = pool.getReserveData(address(dai));
+            (,,,,,,, adai_, stableDebt_, variableDebt_, interestStrategy_,) = LendingPoolV2Like(pool).getReserveData(address(dai));
         }
     }
 
@@ -196,7 +197,7 @@ contract D3MAavePlan is ID3MPlan {
         emit File(what, data);
     }
 
-    function getInterestRateVariables() public view returns (uint256 base, uint256 slope1, uint256 slope2, uint256 max, uint256 optimal, uint256 excess) {
+    function getInterestRateVariables() internal view returns (uint256 base, uint256 slope1, uint256 slope2, uint256 max, uint256 optimal, uint256 excess) {
         if (version == AaveVersion.V3) {
             InterestRateStrategyV3Like _tack = InterestRateStrategyV3Like(tack);
             base    = _tack.getBaseVariableBorrowRate();

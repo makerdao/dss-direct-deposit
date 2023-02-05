@@ -20,7 +20,7 @@ import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat, FakeEnd } from "./D3MPoolBase.
 import { DaiLike, TokenLike } from "../interfaces/interfaces.sol";
 import { D3MTestGem } from "../stubs/D3MTestGem.sol";
 
-import { D3MAavePool, LendingPoolLike } from "../../pools/D3MAavePool.sol";
+import { D3MAavePool, LendingPoolV2Like } from "../../pools/D3MAavePool.sol";
 
 interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
@@ -237,7 +237,7 @@ contract FakeLendingPoolV3 {
 contract D3MAavePoolTest is D3MPoolBaseTest {
 
     AToken adai;
-    LendingPoolLike aavePool;
+    LendingPoolV2Like aavePool;
     FakeEnd end;
 
     function setUp() public override {
@@ -245,7 +245,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
         dai = DaiLike(address(new D3MTestGem(18)));
         adai = new AToken(18);
-        aavePool = LendingPoolLike(address(new FakeLendingPool(address(adai))));
+        aavePool = LendingPoolV2Like(address(new FakeLendingPool(address(adai))));
 
         vat = address(new FakeVat());
 
@@ -397,7 +397,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
     }
 
     function setupV3() internal {
-        aavePool = LendingPoolLike(address(new FakeLendingPoolV3(address(adai))));
+        aavePool = LendingPoolV2Like(address(new FakeLendingPoolV3(address(adai))));
         d3mTestPool = address(new D3MAavePool(D3MAavePool.AaveVersion.V3, "", hub, address(dai), address(aavePool)));
     }
 
