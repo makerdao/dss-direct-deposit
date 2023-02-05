@@ -27,11 +27,6 @@ import { ID3MPool } from "../pools/ID3MPool.sol";
 import { D3MInstance } from "./D3MInstance.sol";
 import { D3MCoreInstance } from "./D3MCoreInstance.sol";
 
-interface DebtCeilingPlanLike {
-    function ilk() external view returns (bytes32);
-    function vat() external view returns (address);
-}
-
 interface AavePoolLike {
     function hub() external view returns (address);
     function dai() external view returns (address);
