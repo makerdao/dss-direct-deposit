@@ -84,21 +84,22 @@ interface LendingPoolReserveDataV3Like {
     function getReserveData(address asset) external view returns (ReserveDataV3 memory);
 }
 
-interface InterestRateStrategyLike {
-    // V2
+interface InterestRateStrategyV2Like {
     function OPTIMAL_UTILIZATION_RATE() external view returns (uint256);
     function EXCESS_UTILIZATION_RATE() external view returns (uint256);
     function variableRateSlope1() external view returns (uint256);
     function variableRateSlope2() external view returns (uint256);
     function baseVariableBorrowRate() external view returns (uint256);
     function getMaxVariableBorrowRate() external view returns (uint256);
+}
 
-    // V3
+interface InterestRateStrategyV3Like {
     function OPTIMAL_USAGE_RATIO() external view returns (uint256);
     function MAX_EXCESS_USAGE_RATIO() external view returns (uint256);
     function getVariableRateSlope1() external view returns (uint256);
     function getVariableRateSlope2() external view returns (uint256);
     function getBaseVariableBorrowRate() external view returns (uint256);
+    function getMaxVariableBorrowRate() external view returns (uint256);
 }
 
 contract D3MAavePlan is ID3MPlan {
@@ -109,7 +110,7 @@ contract D3MAavePlan is ID3MPlan {
     }
 
     mapping (address => uint256) public wards;
-    InterestRateStrategyLike     public tack;
+    address                      public tack;
     uint256                      public bar; // Target Interest Rate [ray]
 
     AaveVersion     public immutable version;
@@ -142,7 +143,7 @@ contract D3MAavePlan is ID3MPlan {
         adaiRevision = ATokenLike(adai_).ATOKEN_REVISION();
         stableDebt   = TokenLike(stableDebt_);
         variableDebt = TokenLike(variableDebt_);
-        tack         = InterestRateStrategyLike(interestStrategy_);
+        tack         = interestStrategy_;
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -190,26 +191,28 @@ contract D3MAavePlan is ID3MPlan {
         emit File(what, data);
     }
     function file(bytes32 what, address data) external auth {
-        if (what == "tack") tack = InterestRateStrategyLike(data);
+        if (what == "tack") tack = data;
         else revert("D3MAavePlan/file-unrecognized-param");
         emit File(what, data);
     }
 
     function getInterestRateVariables() public view returns (uint256 base, uint256 slope1, uint256 slope2, uint256 max, uint256 optimal, uint256 excess) {
         if (version == AaveVersion.V3) {
-            base    = tack.getBaseVariableBorrowRate();
-            slope1  = tack.getVariableRateSlope1();
-            slope2  = tack.getVariableRateSlope2();
-            max     = tack.getMaxVariableBorrowRate();
-            optimal = tack.OPTIMAL_USAGE_RATIO();
-            excess  = tack.MAX_EXCESS_USAGE_RATIO();
+            InterestRateStrategyV3Like _tack = InterestRateStrategyV3Like(tack);
+            base    = _tack.getBaseVariableBorrowRate();
+            slope1  = _tack.getVariableRateSlope1();
+            slope2  = _tack.getVariableRateSlope2();
+            max     = _tack.getMaxVariableBorrowRate();
+            optimal = _tack.OPTIMAL_USAGE_RATIO();
+            excess  = _tack.MAX_EXCESS_USAGE_RATIO();
         } else {
-            base    = tack.baseVariableBorrowRate();
-            slope1  = tack.variableRateSlope1();
-            slope2  = tack.variableRateSlope2();
-            max     = tack.getMaxVariableBorrowRate();
-            optimal = tack.OPTIMAL_UTILIZATION_RATE();
-            excess  = tack.EXCESS_UTILIZATION_RATE();
+            InterestRateStrategyV2Like _tack = InterestRateStrategyV2Like(tack);
+            base    = _tack.baseVariableBorrowRate();
+            slope1  = _tack.variableRateSlope1();
+            slope2  = _tack.variableRateSlope2();
+            max     = _tack.getMaxVariableBorrowRate();
+            optimal = _tack.OPTIMAL_UTILIZATION_RATE();
+            excess  = _tack.EXCESS_UTILIZATION_RATE();
         }
     }
 
@@ -281,7 +284,7 @@ contract D3MAavePlan is ID3MPlan {
         if (bar == 0) return false;
         (address adai_, address stableDebt_, address variableDebt_, address strategy) = getReserveDataAddresses();
         uint256 adaiRevision_ = ATokenLike(adai_).ATOKEN_REVISION();
-        return strategy      == address(tack)          &&
+        return strategy      == tack                   &&
                adai_         == address(adai)          &&
                adaiRevision_ == adaiRevision           &&
                stableDebt_   == address(stableDebt)    &&
