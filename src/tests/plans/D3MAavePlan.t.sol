@@ -227,4 +227,18 @@ contract D3MAavePlanTest is D3MPlanBaseTest {
 
         assertRevert(d3mTestPlan, abi.encodeWithSignature("disable()"), "D3MAavePlan/not-authorized");
     }
+
+    function test_aavev2_incorrect_pool() public {
+        vm.expectRevert();  // Will error on parsing the pool response
+        new D3MAavePlanWrapper(D3MAavePlan.AaveVersion.V3, address(dai), address(aavePool));
+    }
+
+    function test_aavev3_pool() public {
+        new D3MAavePlanWrapper(D3MAavePlan.AaveVersion.V3, address(dai), 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);
+    }
+
+    function test_aavev3_incorrect_pool() public {
+        vm.expectRevert();  // Will error on parsing the pool response
+        new D3MAavePlanWrapper(D3MAavePlan.AaveVersion.V2, address(dai), 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);
+    }
 }
