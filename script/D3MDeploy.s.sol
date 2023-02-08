@@ -26,6 +26,14 @@ import {
     D3MInstance
 } from "../src/deploy/D3MDeploy.sol";
 
+contract OptionalLoadDependencies {
+
+    function loadDependencies(string memory name) external returns (string memory) {
+        return ScriptTools.loadDependencies(name);
+    }
+
+}
+
 contract D3MDeployScript is Script {
 
     using stdJson for string;
@@ -43,12 +51,17 @@ contract D3MDeployScript is Script {
 
     function run() external {
         config = ScriptTools.loadConfig();
-        dependencies = ScriptTools.loadDependencies("core");
+        OptionalLoadDependencies lp = new OptionalLoadDependencies();   // Try catch needs external function
+        try lp.loadDependencies("core") returns (string memory deps) {
+            dependencies = deps;
+        } catch {
+            // Fallback to chainlog
+        }
         dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
 
         d3mType = config.readString("type");
         admin = config.readAddress("admin");
-        hub = dependencies.readAddress("hub");
+        hub = dependencies.eq("") ? dss.chainlog.getAddress("DIRECT_HUB") : dependencies.readAddress("hub");
         ilk = config.readString("ilk").stringToBytes32();
 
         vm.startBroadcast();
