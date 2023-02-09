@@ -150,7 +150,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
     LendingPoolLike aavePool;
     FakeEnd end;
 
-    function setUp() override public {
+    function setUp() public override {
         contractName = "D3MAavePool";
 
         dai = DaiLike(address(new D3MTestGem(18)));

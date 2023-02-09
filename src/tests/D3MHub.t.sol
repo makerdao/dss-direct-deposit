@@ -16,7 +16,7 @@
 
 pragma solidity ^0.8.14;
 
-import {DSSTest} from "dss-test/DSSTest.sol";
+import {DssTest} from "dss-test/DssTest.sol";
 import "./interfaces/interfaces.sol";
 
 import {D3MHub} from "../D3MHub.sol";
@@ -41,7 +41,7 @@ interface Hevm {
     function load(address, bytes32) external view returns (bytes32);
 }
 
-contract D3MHubTest is DSSTest {
+contract D3MHubTest is DssTest {
     VatLike vat;
     EndLike end;
     D3MTestRewards rewardsClaimer;
@@ -60,7 +60,7 @@ contract D3MHubTest is DSSTest {
     D3MTestPlan d3mTestPlan;
     D3MOracle pip;
 
-    function setUp() public override {
+    function setUp() public {
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
