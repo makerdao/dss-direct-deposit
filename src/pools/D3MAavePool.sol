@@ -281,6 +281,7 @@ contract D3MAavePool is ID3MPool {
     // --- Collect any rewards ---
     function collect() external returns (uint256 amt) {
         require(king != address(0), "D3MAavePool/king-not-set");
+        require(version == AaveVersion.V2, "D3MAavePool/only-v2");
 
         address[] memory assets = new address[](1);
         assets[0] = address(adai);
@@ -291,8 +292,9 @@ contract D3MAavePool is ID3MPool {
         address gift = rewardsClaimer.REWARD_TOKEN();
         emit Collect(king, gift, amt);
     }
-    function collectV3(address reward) external returns (uint256 amt) {
+    function collect(address reward) external returns (uint256 amt) {
         require(king != address(0), "D3MAavePool/king-not-set");
+        require(version == AaveVersion.V3, "D3MAavePool/only-v3");
 
         address[] memory assets = new address[](1);
         assets[0] = address(adai);

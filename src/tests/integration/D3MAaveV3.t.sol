@@ -95,7 +95,7 @@ interface ATokenLike is TokenLike {
 }
 
 interface RewardsClaimerLike {
-    function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
+    function getUserRewards(address[] calldata assets, address user, address reward) external view returns (uint256);
 }
 
 contract D3MAaveV3Test is DssTest {
@@ -103,7 +103,7 @@ contract D3MAaveV3Test is DssTest {
     EndLike end;
     LendingPoolLike aavePool;
     InterestRateStrategyLike interestStrategy;
-    //RewardsClaimerLike rewardsClaimer;
+    RewardsClaimerLike rewardsClaimer;
     DaiLike dai;
     DaiJoinLike daiJoin;
     ATokenLike adai;
@@ -132,11 +132,11 @@ contract D3MAaveV3Test is DssTest {
         end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         aavePool = LendingPoolLike(0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);
         adai = ATokenLike(0x018008bfb33d285247A21d44E50697654f754e63);
-        //stkAave = TokenLike(0x4da27a545c0c5B758a6BA100e3a049001de870f5);  // Rewards are unused in Aave V3 so disabling for now
+        stkAave = TokenLike(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         daiJoin = DaiJoinLike(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
         interestStrategy = InterestRateStrategyLike(0x694d4cFdaeE639239df949b6E24Ff8576A00d1f2);
-        //rewardsClaimer = RewardsClaimerLike(0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5);
+        rewardsClaimer = RewardsClaimerLike(0x8164Cc65827dcFe994AB23944CBC90e0aa80bFcb);
         spot = SpotLike(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
         weth = TokenLike(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
@@ -920,7 +920,7 @@ contract D3MAaveV3Test is DssTest {
         assertRevert(address(d3mHub), abi.encodeWithSignature("uncull(bytes32)", ilk), "D3MHub/no-uncull-normal-operation");
     }
 
-    /*function test_collect_stkaave() public {
+    function test_collect_stkaave() public {
         _setRelBorrowTarget(7500);
 
         vm.warp(block.timestamp + 1 days);
@@ -931,22 +931,22 @@ contract D3MAaveV3Test is DssTest {
         // Collect some stake rewards into the pause proxy
         address[] memory tokens = new address[](1);
         tokens[0] = address(adai);
-        uint256 amountToClaim = rewardsClaimer.getRewardsBalance(tokens, address(d3mHub));
+        uint256 amountToClaim = rewardsClaimer.getUserRewards(tokens, address(d3mHub), address(stkAave));
         if (amountToClaim == 0) return;     // Rewards are turned off - this is still an acceptable state
-        uint256 amountClaimed = d3mAavePool.collect();
+        uint256 amountClaimed = d3mAavePool.collect(address(stkAave));
         assertEq(amountClaimed, amountToClaim);
         assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed);
-        assertEq(rewardsClaimer.getRewardsBalance(tokens, address(d3mHub)), 0);
+        assertEq(rewardsClaimer.getUserRewards(tokens, address(d3mHub), address(stkAave)), 0);
 
         vm.warp(block.timestamp + 1 days);
 
         // Collect some more rewards
-        uint256 amountToClaim2 = rewardsClaimer.getRewardsBalance(tokens, address(d3mHub));
+        uint256 amountToClaim2 = rewardsClaimer.getUserRewards(tokens, address(d3mHub), address(stkAave));
         assertGt(amountToClaim2, 0);
         uint256 amountClaimed2 = d3mAavePool.collect();
         assertEq(amountClaimed2, amountToClaim2);
         assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed + amountClaimed2);
-        assertEq(rewardsClaimer.getRewardsBalance(tokens, address(d3mHub)), 0);
+        assertEq(rewardsClaimer.getUserRewards(tokens, address(d3mHub), address(stkAave)), 0);
     }
 
     function test_collect_stkaave_king_not_set() public {
@@ -957,12 +957,12 @@ contract D3MAaveV3Test is DssTest {
         // Collect some stake rewards into the pause proxy
         address[] memory tokens = new address[](1);
         tokens[0] = address(adai);
-        rewardsClaimer.getRewardsBalance(tokens, address(d3mAavePool));
+        rewardsClaimer.getUserRewards(tokens, address(d3mAavePool), address(stkAave));
 
         assertEq(d3mAavePool.king(), address(0));
 
-        assertRevert(address(d3mAavePool), abi.encodeWithSignature("collect()"), "D3MAavePool/king-not-set");
-    }*/
+        assertRevert(address(d3mAavePool), abi.encodeWithSignature("collect(address)", address(stkAave)), "D3MAavePool/king-not-set");
+    }
 
     function test_cage_exit() public {
         _setRelBorrowTarget(7500);
