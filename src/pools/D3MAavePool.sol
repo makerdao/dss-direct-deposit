@@ -107,10 +107,15 @@ interface LendingPoolV3Like {
     function getReserveData(address asset) external view returns (ReserveData memory);
 }
 
-// Aave Incentives Controller: https://etherscan.io/address/0xd784927ff2f95ba542bfc824c8a8a98f3495f6b5
-interface RewardsClaimerLike {
+// Aave Incentives Controller V2: https://etherscan.io/address/0xd784927ff2f95ba542bfc824c8a8a98f3495f6b5
+interface RewardsClaimerV2Like {
     function REWARD_TOKEN() external returns (address);
     function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
+}
+
+// Aave Incentives Controller V3: https://etherscan.io/address/0x8164Cc65827dcFe994AB23944CBC90e0aa80bFcb
+interface RewardsClaimerV3Like {
+    function claimRewards(address[] calldata assets, uint256 amount, address to, address reward) external returns (uint256);
 }
 
 contract D3MAavePool is ID3MPool {
@@ -280,10 +285,21 @@ contract D3MAavePool is ID3MPool {
         address[] memory assets = new address[](1);
         assets[0] = address(adai);
 
-        RewardsClaimerLike rewardsClaimer = RewardsClaimerLike(adai.getIncentivesController());
+        RewardsClaimerV2Like rewardsClaimer = RewardsClaimerV2Like(adai.getIncentivesController());
 
         amt = rewardsClaimer.claimRewards(assets, type(uint256).max, king);
         address gift = rewardsClaimer.REWARD_TOKEN();
         emit Collect(king, gift, amt);
+    }
+    function collectV3(address reward) external returns (uint256 amt) {
+        require(king != address(0), "D3MAavePool/king-not-set");
+
+        address[] memory assets = new address[](1);
+        assets[0] = address(adai);
+
+        RewardsClaimerV3Like rewardsClaimer = RewardsClaimerV3Like(adai.getIncentivesController());
+
+        amt = rewardsClaimer.claimRewards(assets, type(uint256).max, king, reward);
+        emit Collect(king, reward, amt);
     }
 }
