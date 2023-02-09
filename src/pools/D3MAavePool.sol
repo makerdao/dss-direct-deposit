@@ -173,7 +173,7 @@ contract D3MAavePool is ID3MPool {
 
     function getReserveDataAddresses() internal view returns (address adai_, address stableDebt_, address variableDebt_) {
          if (version == AaveVersion.V3) {
-            LendingPoolV3Like.ReserveData memory data = LendingPoolV3Like(address(pool)).getReserveData(address(dai));
+            LendingPoolV3Like.ReserveData memory data = LendingPoolV3Like(pool).getReserveData(address(dai));
             adai_ = data.aTokenAddress;
             stableDebt_ = data.stableDebtTokenAddress;
             variableDebt_ = data.variableDebtTokenAddress;
