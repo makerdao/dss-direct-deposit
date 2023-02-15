@@ -23,9 +23,7 @@ import { ScriptTools } from "dss-test/ScriptTools.sol";
 
 import {
     D3MDeploy,
-    D3MInstance,
-    D3MAavePool,
-    D3MAavePlan
+    D3MInstance
 } from "../src/deploy/D3MDeploy.sol";
 
 contract OptionalLoadDependencies {
@@ -79,20 +77,19 @@ contract D3MDeployScript is Script {
         );
 
         // Pool
-        if (poolType.eq("aave")) {
-            string memory _version = config.readString("aaveVersion");
-            D3MAavePool.AaveVersion version;
-            if (_version.eq("V2")) {
-                version = D3MAavePool.AaveVersion.V2;
-            } else if (_version.eq("V3")) {
-                version = D3MAavePool.AaveVersion.V3;
-            } else {
-                revert("Unknown Aave version");
-            }
-            d3m.pool = D3MDeploy.deployAavePool(
+        if (poolType.eq("aave-v2")) {
+            d3m.pool = D3MDeploy.deployAaveV2Pool(
                 msg.sender,
                 admin,
-                version,
+                ilk,
+                hub,
+                address(dss.dai),
+                config.readAddress("lendingPool")
+            );
+        } else if (poolType.eq("aave-v3")) {
+            d3m.pool = D3MDeploy.deployAaveV3Pool(
+                msg.sender,
+                admin,
                 ilk,
                 hub,
                 address(dss.dai),
@@ -112,20 +109,17 @@ contract D3MDeployScript is Script {
 
         // Plan
         if (planType.eq("rate-target")) {
-            if (poolType.eq("aave")) {
-                string memory _version = config.readString("aaveVersion");
-                D3MAavePlan.AaveVersion version;
-                if (_version.eq("V2")) {
-                    version = D3MAavePlan.AaveVersion.V2;
-                } else if (_version.eq("V3")) {
-                    version = D3MAavePlan.AaveVersion.V3;
-                } else {
-                    revert("Unknown Aave version");
-                }
-                d3m.plan = D3MDeploy.deployAavePlan(
+            if (poolType.eq("aave-v2")) {
+                d3m.plan = D3MDeploy.deployAaveV2Plan(
                     msg.sender,
                     admin,
-                    version,
+                    address(dss.dai),
+                    config.readAddress("lendingPool")
+                );
+            } else if (poolType.eq("aave-v3")) {
+                d3m.plan = D3MDeploy.deployAaveV3Plan(
+                    msg.sender,
+                    admin,
                     address(dss.dai),
                     config.readAddress("lendingPool")
                 );

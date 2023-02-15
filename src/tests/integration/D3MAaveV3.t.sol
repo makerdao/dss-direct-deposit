@@ -23,16 +23,10 @@ import { D3MHub } from "../../D3MHub.sol";
 import { D3MMom } from "../../D3MMom.sol";
 import { D3MOracle } from "../../D3MOracle.sol";
 
-import { D3MAavePlan } from "../../plans/D3MAavePlan.sol";
-import { D3MAavePool } from "../../pools/D3MAavePool.sol";
+import { D3MAaveV3Plan, InterestRateStrategyLike } from "../../plans/D3MAaveV3Plan.sol";
+import { D3MAaveV3Pool } from "../../pools/D3MAaveV3Pool.sol";
 
-interface Hevm {
-    function warp(uint256) external;
-    function store(address,bytes32,bytes32) external;
-    function load(address,bytes32) external view returns (bytes32);
-}
-
-interface LendingPoolLike {
+interface PoolLike {
 
     // Need to use a struct as too many variables to return on the stack
     struct ReserveData {
@@ -67,27 +61,13 @@ interface LendingPoolLike {
         //the outstanding debt borrowed against this asset in isolation mode
         uint128 isolationModeTotalDebt;
     }
-
+    
     function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
     function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external;
     function repay(address asset, uint256 amount, uint256 rateMode, address onBehalfOf) external;
+    function withdraw(address asset, uint256 amount, address to) external;
+    function getReserveNormalizedIncome(address asset) external view returns (uint256);
     function getReserveData(address asset) external view returns (ReserveData memory);
-}
-
-interface InterestRateStrategyLike {
-    function getMaxVariableBorrowRate() external view returns (uint256);
-    function calculateInterestRates(
-        address reserve,
-        uint256 availableLiquidity,
-        uint256 totalStableDebt,
-        uint256 totalVariableDebt,
-        uint256 averageStableBorrowRate,
-        uint256 reserveFactor
-    ) external returns (
-        uint256,
-        uint256,
-        uint256
-    );
 }
 
 interface ATokenLike is TokenLike {
@@ -101,7 +81,7 @@ interface RewardsClaimerLike {
 contract D3MAaveV3Test is DssTest {
     VatLike vat;
     EndLike end;
-    LendingPoolLike aavePool;
+    PoolLike aavePool;
     InterestRateStrategyLike interestStrategy;
     RewardsClaimerLike rewardsClaimer;
     DaiLike dai;
@@ -115,8 +95,8 @@ contract D3MAaveV3Test is DssTest {
 
     bytes32 constant ilk = "DD-DAI-A";
     D3MHub d3mHub;
-    D3MAavePool d3mAavePool;
-    D3MAavePlan d3mAavePlan;
+    D3MAaveV3Pool d3mAavePool;
+    D3MAaveV3Plan d3mAavePlan;
     D3MMom d3mMom;
     D3MOracle pip;
 
@@ -130,7 +110,7 @@ contract D3MAaveV3Test is DssTest {
 
         vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
-        aavePool = LendingPoolLike(0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);
+        aavePool = PoolLike(0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);
         adai = ATokenLike(0x018008bfb33d285247A21d44E50697654f754e63);
         stkAave = TokenLike(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
         dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
@@ -148,9 +128,9 @@ contract D3MAaveV3Test is DssTest {
         _giveAuthAccess(address(spot), address(this));
 
         d3mHub = new D3MHub(address(daiJoin));
-        d3mAavePool = new D3MAavePool(D3MAavePool.AaveVersion.V3, ilk, address(d3mHub), address(dai), address(aavePool));
+        d3mAavePool = new D3MAaveV3Pool(ilk, address(d3mHub), address(dai), address(aavePool));
         d3mAavePool.rely(address(d3mHub));
-        d3mAavePlan = new D3MAavePlan(D3MAavePlan.AaveVersion.V3, address(dai), address(aavePool));
+        d3mAavePlan = new D3MAaveV3Plan(address(dai), address(aavePool));
 
         d3mHub.file(ilk, "pool", address(d3mAavePool));
         d3mHub.file(ilk, "plan", address(d3mAavePlan));
@@ -305,7 +285,7 @@ contract D3MAaveV3Test is DssTest {
     }
 
     function getBorrowRate() public view returns (uint256 borrowRate) {
-        LendingPoolLike.ReserveData memory data = aavePool.getReserveData(address(dai));
+        PoolLike.ReserveData memory data = aavePool.getReserveData(address(dai));
         borrowRate = data.currentVariableBorrowRate;
     }
 
@@ -919,7 +899,7 @@ contract D3MAaveV3Test is DssTest {
 
         assertRevert(address(d3mHub), abi.encodeWithSignature("uncull(bytes32)", ilk), "D3MHub/no-uncull-normal-operation");
     }
-
+    
     function test_collect_stkaave() public {
         _setRelBorrowTarget(7500);
 
@@ -943,7 +923,7 @@ contract D3MAaveV3Test is DssTest {
         // Collect some more rewards
         uint256 amountToClaim2 = rewardsClaimer.getUserRewards(tokens, address(d3mHub), address(stkAave));
         assertGt(amountToClaim2, 0);
-        uint256 amountClaimed2 = d3mAavePool.collect();
+        uint256 amountClaimed2 = d3mAavePool.collect(address(stkAave));
         assertEq(amountClaimed2, amountToClaim2);
         assertEq(stkAave.balanceOf(address(pauseProxy)), amountClaimed + amountClaimed2);
         assertEq(rewardsClaimer.getUserRewards(tokens, address(d3mHub), address(stkAave)), 0);
@@ -961,7 +941,7 @@ contract D3MAaveV3Test is DssTest {
 
         assertEq(d3mAavePool.king(), address(0));
 
-        assertRevert(address(d3mAavePool), abi.encodeWithSignature("collect(address)", address(stkAave)), "D3MAavePool/king-not-set");
+        assertRevert(address(d3mAavePool), abi.encodeWithSignature("collect(address)", address(stkAave)), "D3MAaveV3Pool/king-not-set");
     }
 
     function test_cage_exit() public {

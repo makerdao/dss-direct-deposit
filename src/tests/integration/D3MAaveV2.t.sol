@@ -23,14 +23,8 @@ import { D3MHub } from "../../D3MHub.sol";
 import { D3MMom } from "../../D3MMom.sol";
 import { D3MOracle } from "../../D3MOracle.sol";
 
-import { D3MAavePlan } from "../../plans/D3MAavePlan.sol";
-import { D3MAavePool } from "../../pools/D3MAavePool.sol";
-
-interface Hevm {
-    function warp(uint256) external;
-    function store(address,bytes32,bytes32) external;
-    function load(address,bytes32) external view returns (bytes32);
-}
+import { D3MAaveV2Plan } from "../../plans/D3MAaveV2Plan.sol";
+import { D3MAaveV2Pool } from "../../pools/D3MAaveV2Pool.sol";
 
 interface LendingPoolLike {
     function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
@@ -76,7 +70,7 @@ interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 }
 
-contract D3MAaveTest is DssTest {
+contract D3MAaveV2Test is DssTest {
     VatLike vat;
     EndLike end;
     LendingPoolLike aavePool;
@@ -93,8 +87,8 @@ contract D3MAaveTest is DssTest {
 
     bytes32 constant ilk = "DD-DAI-A";
     D3MHub d3mHub;
-    D3MAavePool d3mAavePool;
-    D3MAavePlan d3mAavePlan;
+    D3MAaveV2Pool d3mAavePool;
+    D3MAaveV2Plan d3mAavePlan;
     D3MMom d3mMom;
     D3MOracle pip;
 
@@ -126,9 +120,9 @@ contract D3MAaveTest is DssTest {
         _giveAuthAccess(address(spot), address(this));
 
         d3mHub = new D3MHub(address(daiJoin));
-        d3mAavePool = new D3MAavePool(D3MAavePool.AaveVersion.V2, ilk, address(d3mHub), address(dai), address(aavePool));
+        d3mAavePool = new D3MAaveV2Pool(ilk, address(d3mHub), address(dai), address(aavePool));
         d3mAavePool.rely(address(d3mHub));
-        d3mAavePlan = new D3MAavePlan(D3MAavePlan.AaveVersion.V2, address(dai), address(aavePool));
+        d3mAavePlan = new D3MAaveV2Plan(address(dai), address(aavePool));
 
         d3mHub.file(ilk, "pool", address(d3mAavePool));
         d3mHub.file(ilk, "plan", address(d3mAavePlan));
@@ -938,7 +932,7 @@ contract D3MAaveTest is DssTest {
 
         assertEq(d3mAavePool.king(), address(0));
 
-        assertRevert(address(d3mAavePool), abi.encodeWithSignature("collect()"), "D3MAavePool/king-not-set");
+        assertRevert(address(d3mAavePool), abi.encodeWithSignature("collect()"), "D3MAaveV2Pool/king-not-set");
     }
 
     function test_cage_exit() public {

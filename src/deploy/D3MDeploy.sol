@@ -24,8 +24,10 @@ import { D3MCoreInstance } from "./D3MCoreInstance.sol";
 import { D3MHub } from "../D3MHub.sol";
 import { D3MMom } from "../D3MMom.sol";
 import { D3MInstance } from "./D3MInstance.sol";
-import { D3MAavePlan } from "../plans/D3MAavePlan.sol";
-import { D3MAavePool } from "../pools/D3MAavePool.sol";
+import { D3MAaveV2Plan } from "../plans/D3MAaveV2Plan.sol";
+import { D3MAaveV3Plan } from "../plans/D3MAaveV3Plan.sol";
+import { D3MAaveV2Pool } from "../pools/D3MAaveV2Pool.sol";
+import { D3MAaveV3Pool } from "../pools/D3MAaveV3Pool.sol";
 import { D3MCompoundPlan } from "../plans/D3MCompoundPlan.sol";
 import { D3MCompoundPool } from "../pools/D3MCompoundPool.sol";
 import { D3MOracle } from "../D3MOracle.sol";
@@ -58,16 +60,28 @@ library D3MDeploy {
         ScriptTools.switchOwner(oracle, deployer, owner);
     }
     
-    function deployAavePool(
+    function deployAaveV2Pool(
         address deployer,
         address owner,
-        D3MAavePool.AaveVersion version,
         bytes32 ilk,
         address hub,
         address dai,
         address lendingPool
     ) internal returns (address pool) {
-        pool = address(new D3MAavePool(version, ilk, hub, dai, lendingPool));
+        pool = address(new D3MAaveV2Pool(ilk, hub, dai, lendingPool));
+
+        ScriptTools.switchOwner(pool, deployer, owner);
+    }
+    
+    function deployAaveV3Pool(
+        address deployer,
+        address owner,
+        bytes32 ilk,
+        address hub,
+        address dai,
+        address lendingPool
+    ) internal returns (address pool) {
+        pool = address(new D3MAaveV3Pool(ilk, hub, dai, lendingPool));
 
         ScriptTools.switchOwner(pool, deployer, owner);
     }
@@ -84,14 +98,24 @@ library D3MDeploy {
         ScriptTools.switchOwner(pool, deployer, owner);
     }
 
-    function deployAavePlan(
+    function deployAaveV2Plan(
         address deployer,
         address owner,
-        D3MAavePlan.AaveVersion version,
         address dai,
         address lendingPool
     ) internal returns (address plan) {
-        plan = address(new D3MAavePlan(version, dai, lendingPool));
+        plan = address(new D3MAaveV2Plan(dai, lendingPool));
+
+        ScriptTools.switchOwner(plan, deployer, owner);
+    }
+
+    function deployAaveV3Plan(
+        address deployer,
+        address owner,
+        address dai,
+        address lendingPool
+    ) internal returns (address plan) {
+        plan = address(new D3MAaveV3Plan(dai, lendingPool));
 
         ScriptTools.switchOwner(plan, deployer, owner);
     }
