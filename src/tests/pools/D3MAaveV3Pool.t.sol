@@ -28,6 +28,7 @@ interface RewardsClaimerLike {
 
 contract AToken is D3MTestGem {
     address public rewardsClaimer;
+    uint256 public scaledTotalSupply;
 
     constructor(uint256 decimals_) D3MTestGem(decimals_) {
         rewardsClaimer = address(new FakeRewardsClaimer());
@@ -35,6 +36,10 @@ contract AToken is D3MTestGem {
 
     function scaledBalanceOf(address who) external view returns (uint256) {
         return balanceOf[who];
+    }
+
+    function setScaledTotalSupply(uint256 amount) external {
+        scaledTotalSupply = amount;
     }
 
     function getIncentivesController() external view returns (address) {
@@ -103,6 +108,9 @@ contract FakeLendingPool {
     }
 
     address public adai;
+    uint256 public supplyCap;
+    uint256 public liquidityIndex = 10 ** 27;
+    uint256 public accruedToTreasury;
 
     struct DepositCall {
         address asset;
@@ -126,10 +134,13 @@ contract FakeLendingPool {
     function getReserveData(address) external view returns(
         ReserveData memory result
     ) {
+        result.configuration = supplyCap << 116;
         result.aTokenAddress = adai;
+        result.liquidityIndex = uint128(liquidityIndex);
         result.stableDebtTokenAddress = address(2);
         result.variableDebtTokenAddress = address(3);
         result.interestRateStrategyAddress = address(4);
+        result.accruedToTreasury = uint128(accruedToTreasury);
     }
 
     function deposit(address asset, uint256 amt, address forWhom, uint16 code) external {
@@ -155,12 +166,24 @@ contract FakeLendingPool {
         asset;
         return 10 ** 27;
     }
+
+    function setSupplyCap(uint256 cap) external {
+        supplyCap = cap;
+    }
+
+    function setLiquidityIndex(uint256 index) external {
+        liquidityIndex = index;
+    }
+
+    function setAccruedToTreasury(uint256 amt) external {
+        accruedToTreasury = amt;
+    }
 }
 
 contract D3MAaveV3PoolTest is D3MPoolBaseTest {
 
     AToken adai;
-    PoolLike aavePool;
+    FakeLendingPool aavePool;
     FakeEnd end;
 
     function setUp() public override {
@@ -168,7 +191,7 @@ contract D3MAaveV3PoolTest is D3MPoolBaseTest {
 
         dai = DaiLike(address(new D3MTestGem(18)));
         adai = new AToken(18);
-        aavePool = PoolLike(address(new FakeLendingPool(address(adai))));
+        aavePool = new FakeLendingPool(address(adai));
 
         vat = address(new FakeVat());
 
@@ -318,5 +341,35 @@ contract D3MAaveV3PoolTest is D3MPoolBaseTest {
 
     function test_maxDeposit_returns_max_uint() public {
         assertEq(D3MAaveV3Pool(d3mTestPool).maxDeposit(), type(uint256).max);
+    }
+
+    function test_maxDeposit_supply_cap_active() public {
+        aavePool.setSupplyCap(100);
+        assertEq(D3MAaveV3Pool(d3mTestPool).maxDeposit(), 100 ether);
+    }
+
+    function test_maxDeposit_supply_cap_adai_scaledTotalSupply() public {
+        aavePool.setSupplyCap(100);
+        adai.setScaledTotalSupply(50 ether);
+        assertEq(D3MAaveV3Pool(d3mTestPool).maxDeposit(), 50 ether);
+    }
+
+    function test_maxDeposit_supply_cap_accruedToTreasury() public {
+        aavePool.setSupplyCap(100);
+        aavePool.setAccruedToTreasury(50 ether);
+        assertEq(D3MAaveV3Pool(d3mTestPool).maxDeposit(), 50 ether);
+    }
+
+    function test_maxDeposit_supply_cap_liquidityIndex() public {
+        aavePool.setSupplyCap(100);
+        adai.setScaledTotalSupply(25 ether);
+        aavePool.setLiquidityIndex(2 * RAY);    // 100% interest accrued
+        assertEq(D3MAaveV3Pool(d3mTestPool).maxDeposit(), 50 ether);
+    }
+
+    function test_maxDeposit_supply_cap_over_limit() public {
+        aavePool.setSupplyCap(100);
+        adai.setScaledTotalSupply(150 ether);
+        assertEq(D3MAaveV3Pool(d3mTestPool).maxDeposit(), 0);
     }
 }

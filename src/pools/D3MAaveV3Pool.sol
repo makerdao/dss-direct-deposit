@@ -22,6 +22,7 @@ interface TokenLike {
     function balanceOf(address) external view returns (uint256);
     function approve(address, uint256) external returns (bool);
     function transfer(address, uint256) external returns (bool);
+    function decimals() external view returns (uint8);
 }
 
 interface VatLike {
@@ -41,6 +42,7 @@ interface EndLike {
 
 interface ATokenLike is TokenLike {
     function scaledBalanceOf(address) external view returns (uint256);
+    function scaledTotalSupply() external view returns (uint256);
     function getIncentivesController() external view returns (address);
 }
 
@@ -104,6 +106,9 @@ contract D3MAaveV3Pool is ID3MPool {
     ATokenLike public immutable variableDebt;
     ATokenLike public immutable adai;
     TokenLike  public immutable dai; // Asset
+
+    uint256 internal constant SUPPLY_CAP_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFF000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+    uint256 internal constant SUPPLY_CAP_START_BIT_POSITION = 116;
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -220,8 +225,17 @@ contract D3MAaveV3Pool is ID3MPool {
         return adai.balanceOf(address(this));
     }
 
-    function maxDeposit() external pure override returns (uint256) {
-        return type(uint256).max;
+    function maxDeposit() external view override returns (uint256) {
+        // Supply cap logic adapted from https://github.com/aave/aave-v3-core/blob/94e571f3a7465201881a59555314cd550ccfda57/contracts/protocol/libraries/logic/ValidationLogic.sol#L71
+        PoolLike.ReserveData memory data = pool.getReserveData(address(dai));
+        uint256 supplyCap = ((data.configuration & ~SUPPLY_CAP_MASK) >> SUPPLY_CAP_START_BIT_POSITION) * (10 ** dai.decimals());
+        if (supplyCap == 0) return type(uint256).max;
+        uint256 supplyUsed = (adai.scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex / RAY;
+        if (supplyCap >= supplyUsed) {
+            return supplyCap - supplyUsed;
+        } else {
+            return 0;
+        }
     }
 
     function maxWithdraw() external view override returns (uint256) {
