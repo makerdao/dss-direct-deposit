@@ -136,8 +136,6 @@ struct D3MCompoundPlanConfig {
 // Init a D3M instance
 library D3MInit {
 
-    using ScriptTools for string;
-
     function initCore(
         DssInstance memory dss,
         D3MCoreInstance memory d3mCore
