@@ -227,6 +227,7 @@ contract D3MAaveV3Pool is ID3MPool {
 
     function maxDeposit() external view override returns (uint256) {
         // Supply cap logic adapted from https://github.com/aave/aave-v3-core/blob/94e571f3a7465201881a59555314cd550ccfda57/contracts/protocol/libraries/logic/ValidationLogic.sol#L71
+        // Reserve configuration logic from https://github.com/aave/aave-v3-core/blob/94e571f3a7465201881a59555314cd550ccfda57/contracts/protocol/libraries/configuration/ReserveConfiguration.sol#L426
         PoolLike.ReserveData memory data = pool.getReserveData(address(dai));
         uint256 supplyCap = ((data.configuration & ~SUPPLY_CAP_MASK) >> SUPPLY_CAP_START_BIT_POSITION) * (10 ** dai.decimals());
         if (supplyCap == 0) return type(uint256).max;
