@@ -221,7 +221,9 @@ contract D3MAaveV3Pool is ID3MPool {
         // Execute a 1 wei flash loan to trigger an index update on everything
         // If the fee is less than 100% than the fee should always round down to zero
         // This also assumes that flash loans are enabled for the asset
-        pool.flashLoanSimple(address(this), address(dai), 1, "", 0);
+        if (dai.balanceOf(address(adai)) > 0) {
+            pool.flashLoanSimple(address(this), address(dai), 1, "", 0);
+        }
     }
     function executeOperation(
         address,
