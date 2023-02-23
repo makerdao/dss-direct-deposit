@@ -244,7 +244,6 @@ library D3MInit {
         D3MCompoundPoolConfig memory compoundCfg
     ) internal {
         CompoundPoolLike pool = CompoundPoolLike(d3m.pool);
-        CDaiLike cdai = CDaiLike(compoundCfg.cdai);
 
         // Sanity checks
         require(pool.hub() == cfg.hub, "Pool hub mismatch");
@@ -253,7 +252,7 @@ library D3MInit {
         require(pool.dai() == address(dss.dai), "Pool dai mismatch");
         require(pool.comptroller() == compoundCfg.comptroller, "Pool comptroller mismatch");
         require(pool.comp() == compoundCfg.comp, "Pool comp mismatch");
-        require(pool.cDai() == address(cdai), "Pool cDai mismatch");
+        require(pool.cDai() == compoundCfg.cdai, "Pool cDai mismatch");
 
         pool.file("king", compoundCfg.king);
     }
