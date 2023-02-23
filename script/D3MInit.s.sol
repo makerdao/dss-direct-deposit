@@ -89,7 +89,7 @@ contract D3MInitScript is Script {
         );
 
         // Pool
-        if (poolType.eq("aave")) {
+        if (poolType.eq("aave-v2") || poolType.eq("aave-v3")) {
             D3MAavePoolConfig memory aaveCfg = D3MAavePoolConfig({
                 king: config.readAddress("king"),
                 adai: AavePoolLike(d3m.pool).adai(),
@@ -121,7 +121,7 @@ contract D3MInitScript is Script {
 
         // Plan
         if (planType.eq("rate-target")) {
-            if (poolType.eq("aave")) {
+            if (poolType.eq("aave-v2") || poolType.eq("aave-v3")) {
                 D3MAavePlanConfig memory aaveCfg = D3MAavePlanConfig({
                     bar: config.readUint("bar") * RAY / BPS,
                     adai: AavePoolLike(d3m.pool).adai(),
