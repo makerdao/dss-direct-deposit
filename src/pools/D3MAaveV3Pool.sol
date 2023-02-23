@@ -86,6 +86,7 @@ interface PoolLike {
     function withdraw(address asset, uint256 amount, address to) external;
     function getReserveNormalizedIncome(address asset) external view returns (uint256);
     function getReserveData(address asset) external view returns (ReserveData memory);
+    function flashLoanSimple(address receiverAddress, address asset, uint256 amount, bytes calldata params, uint16 referralCode) external;
 }
 
 interface RewardsClaimerLike {
@@ -216,7 +217,22 @@ contract D3MAaveV3Pool is ID3MPool {
         require(adai.transfer(dst, adai.balanceOf(address(this))), "D3MAaveV3Pool/transfer-failed");
     }
 
-    function preDebtChange() external override {}
+    function preDebtChange() external override {
+        // Execute a 1 wei flash loan to trigger an index update on everything
+        // If the fee is less than 100% than the fee should always round down to zero
+        // This also assumes that flash loans are enabled for the asset
+        pool.flashLoanSimple(address(this), address(dai), 1, "", 0);
+    }
+    function executeOperation(
+        address,
+        uint256,
+        uint256,
+        address,
+        bytes calldata
+    ) external pure returns (bool) {
+        // Flashloan callback just immediately returns
+        return true;
+    }
 
     function postDebtChange() external override {}
 

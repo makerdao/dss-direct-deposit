@@ -71,6 +71,16 @@ contract FakeRewardsClaimer {
     }
 }
 
+interface FlashLoanReceiverLike {
+    function executeOperation(
+        address,
+        uint256,
+        uint256,
+        address,
+        bytes calldata
+    ) external returns (bool);
+}
+
 contract FakeLendingPool {
 
     // Need to use a struct as too many variables to return on the stack
@@ -108,6 +118,8 @@ contract FakeLendingPool {
     }
 
     address public adai;
+    address public dai;
+    address public poolAdapter;
     uint256 public supplyCap;
     uint256 public liquidityIndex = 10 ** 27;
     uint256 public accruedToTreasury;
@@ -127,8 +139,9 @@ contract FakeLendingPool {
     }
     WithdrawCall public lastWithdraw;
 
-    constructor(address adai_) {
+    constructor(address adai_, address dai_) {
         adai = adai_;
+        dai = dai_;
     }
 
     function getReserveData(address) external view returns(
@@ -178,6 +191,19 @@ contract FakeLendingPool {
     function setAccruedToTreasury(uint256 amt) external {
         accruedToTreasury = amt;
     }
+
+    function setPoolAdapter(address a) external {
+        poolAdapter = a;
+    }
+
+    function flashLoanSimple(address receiverAddress, address asset, uint256 amount, bytes calldata params, uint16 referralCode) external {
+        require(receiverAddress == poolAdapter, "receiverAddress");
+        require(asset == dai, "asset");
+        require(amount == 1, "amount");
+        require(params.length == 0, "params");
+        require(referralCode == 0, "referralCode");
+        require(FlashLoanReceiverLike(receiverAddress).executeOperation(address(0), 0, 0, address(0), ""), "bad return");
+    }
 }
 
 contract D3MAaveV3PoolTest is D3MPoolBaseTest {
@@ -191,7 +217,7 @@ contract D3MAaveV3PoolTest is D3MPoolBaseTest {
 
         dai = DaiLike(address(new D3MTestGem(18)));
         adai = new AToken(18);
-        aavePool = new FakeLendingPool(address(adai));
+        aavePool = new FakeLendingPool(address(adai), address(dai));
 
         vat = address(new FakeVat());
 
@@ -199,6 +225,7 @@ contract D3MAaveV3PoolTest is D3MPoolBaseTest {
         end = FakeHub(hub).end();
 
         d3mTestPool = address(new D3MAaveV3Pool("", hub, address(dai), address(aavePool)));
+        aavePool.setPoolAdapter(d3mTestPool);
     }
 
     function test_sets_dai_value() public {
