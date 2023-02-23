@@ -247,7 +247,7 @@ contract D3MAaveV3Pool is ID3MPool {
     }
 
     // --- Collect any rewards ---
-    function collect(address reward) external returns (uint256 amt) {
+    function collect(address gift) external returns (uint256 amt) {
         require(king != address(0), "D3MAaveV3Pool/king-not-set");
 
         address[] memory assets = new address[](1);
@@ -255,7 +255,7 @@ contract D3MAaveV3Pool is ID3MPool {
 
         RewardsClaimerLike rewardsClaimer = RewardsClaimerLike(adai.getIncentivesController());
 
-        amt = rewardsClaimer.claimRewards(assets, type(uint256).max, king, reward);
-        emit Collect(king, reward, amt);
+        amt = rewardsClaimer.claimRewards(assets, type(uint256).max, king, gift);
+        emit Collect(king, gift, amt);
     }
 }
