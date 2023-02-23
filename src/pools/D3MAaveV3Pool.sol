@@ -108,6 +108,7 @@ contract D3MAaveV3Pool is ID3MPool {
     ATokenLike public immutable adai;
     TokenLike  public immutable dai; // Asset
 
+    uint256 internal constant FLASHLOAN_ENABLED_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFFFFFFFFFFFF;
     uint256 internal constant SUPPLY_CAP_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFF000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
     uint256 internal constant SUPPLY_CAP_START_BIT_POSITION = 116;
 
@@ -220,8 +221,14 @@ contract D3MAaveV3Pool is ID3MPool {
     function preDebtChange() external override {
         // Execute a 1 wei flash loan to trigger an index update on everything
         // If the fee is less than 100% than the fee should always round down to zero
-        // This also assumes that flash loans are enabled for the asset
-        if (dai.balanceOf(address(adai)) > 0) {
+        // Note: we can ignore indicies being up to date if the supply cap is 0
+        PoolLike.ReserveData memory data = pool.getReserveData(address(dai));
+        if (
+            // The next two lines can be slightly optimized, but it's easier to read like this
+            (data.configuration & ~FLASHLOAN_ENABLED_MASK) != 0 &&
+            (data.configuration & ~SUPPLY_CAP_MASK) != 0 &&
+            dai.balanceOf(address(adai)) > 0
+        ) {
             pool.flashLoanSimple(address(this), address(dai), 1, "", 0);
         }
     }
