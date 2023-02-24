@@ -18,7 +18,7 @@ pragma solidity ^0.8.14;
 
 import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat, FakeEnd } from "./D3MPoolBase.t.sol";
 import { DaiLike, TokenLike } from "../interfaces/interfaces.sol";
-import { D3MCompoundPool } from "../../pools/D3MCompoundPool.sol";
+import { D3MCompoundV2TypePool } from "../../pools/D3MCompoundV2TypePool.sol";
 
 interface CErc20Like {
     function balanceOf(address owner) external view returns (uint256);
@@ -35,10 +35,10 @@ interface LensLike {
     function getCompBalanceMetadataExt(address comp, address comptroller, address account) external returns (uint256, uint256, address, uint256);
 }
 
-contract D3MCompoundPoolTest is D3MPoolBaseTest {
+contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
 
     CErc20Like      cDai;
-    D3MCompoundPool pool;
+    D3MCompoundV2TypePool pool;
     ComptrollerLike comptroller;
     TokenLike       comp;
     LensLike        lens;
@@ -65,7 +65,7 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
     }
 
     function setUp() public override {
-        contractName = "D3MCompoundPool";
+        contractName = "D3MCompoundV2TypePool";
 
         dai         = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         cDai        = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
@@ -77,8 +77,8 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
         hub = address(new FakeHub(vat));
         end = FakeHub(hub).end();
 
-        d3mTestPool = address(new D3MCompoundPool("", hub, address(cDai)));
-        pool = D3MCompoundPool(d3mTestPool);
+        d3mTestPool = address(new D3MCompoundV2TypePool("", hub, address(cDai)));
+        pool = D3MCompoundV2TypePool(d3mTestPool);
 
         // allocate some dai for the pool
         _giveTokens(dai, 100 * WAD);
@@ -106,12 +106,12 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
 
     function test_cannot_file_king_no_auth() public {
         pool.deny(address(this));
-        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MCompoundPool/not-authorized");
+        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MCompoundV2TypePool/not-authorized");
     }
 
     function test_cannot_file_king_vat_caged() public {
         FakeVat(vat).cage();
-        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MCompoundPool/no-file-during-shutdown");
+        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MCompoundV2TypePool/no-file-during-shutdown");
     }
 
     function test_deposit_calls_cdai_deposit() public {
@@ -210,7 +210,7 @@ contract D3MCompoundPoolTest is D3MPoolBaseTest {
     function test_collect_no_king() public {
         assertEq(pool.king(), address(0));
 
-        assertRevert(d3mTestPool, abi.encodeWithSignature("collect(bool)", true), "D3MCompoundPool/king-not-set");
+        assertRevert(d3mTestPool, abi.encodeWithSignature("collect(bool)", true), "D3MCompoundV2TypePool/king-not-set");
     }
 
     function test_redeemable_returns_cdai() public {

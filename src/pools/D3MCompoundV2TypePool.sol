@@ -58,7 +58,7 @@ interface ComptrollerLike {
     function claimComp(address[] memory holders, address[] memory cTokens, bool borrowers, bool suppliers) external;
 }
 
-contract D3MCompoundPool is ID3MPool {
+contract D3MCompoundV2TypePool is ID3MPool {
 
     mapping (address => uint256) public wards;
     address                      public hub;
@@ -85,7 +85,7 @@ contract D3MCompoundPool is ID3MPool {
         comptroller = ComptrollerLike(cDai.comptroller());
         comp        = TokenLike(comptroller.getCompAddress());
 
-        require(address(comp) != address(0), "D3MCompoundPool/invalid-comp");
+        require(address(comp) != address(0), "D3MCompoundV2TypePool/invalid-comp");
 
         dai.approve(cDai_, type(uint256).max);
 
@@ -98,12 +98,12 @@ contract D3MCompoundPool is ID3MPool {
     }
 
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MCompoundPool/not-authorized");
+        require(wards[msg.sender] == 1, "D3MCompoundV2TypePool/not-authorized");
         _;
     }
 
     modifier onlyHub {
-        require(msg.sender == hub, "D3MCompoundPool/only-hub");
+        require(msg.sender == hub, "D3MCompoundV2TypePool/only-hub");
         _;
     }
 
@@ -130,50 +130,50 @@ contract D3MCompoundPool is ID3MPool {
     }
 
     function file(bytes32 what, address data) external auth {
-        require(vat.live() == 1, "D3MCompoundPool/no-file-during-shutdown");
+        require(vat.live() == 1, "D3MCompoundV2TypePool/no-file-during-shutdown");
         if (what == "hub") {
             vat.nope(hub);
             hub = data;
             vat.hope(data);
         } else if (what == "king") king = data;
-        else revert("D3MCompoundPool/file-unrecognized-param");
+        else revert("D3MCompoundV2TypePool/file-unrecognized-param");
         emit File(what, data);
     }
 
     function deposit(uint256 wad) external override onlyHub {
         uint256 prev = cDai.balanceOf(address(this));
-        require(cDai.mint(wad) == 0, "D3MCompoundPool/mint-failure");
+        require(cDai.mint(wad) == 0, "D3MCompoundV2TypePool/mint-failure");
 
         // As interest was accrued on `mint` we can use the non accruing `exchangeRateStored`
         require(
             cDai.balanceOf(address(this)) ==
-            prev + _wdiv(wad, cDai.exchangeRateStored()), "D3MCompoundPool/incorrect-cdai-credit"
+            prev + _wdiv(wad, cDai.exchangeRateStored()), "D3MCompoundV2TypePool/incorrect-cdai-credit"
         );
     }
 
     function withdraw(uint256 wad) external override onlyHub {
         uint256 prevDai = dai.balanceOf(msg.sender);
 
-        require(cDai.redeemUnderlying(wad) == 0, "D3MCompoundPool/redeemUnderlying-failure");
+        require(cDai.redeemUnderlying(wad) == 0, "D3MCompoundV2TypePool/redeemUnderlying-failure");
         dai.transfer(msg.sender, wad);
 
-        require(dai.balanceOf(msg.sender) == prevDai + wad, "D3MCompoundPool/incorrect-dai-balance-received");
+        require(dai.balanceOf(msg.sender) == prevDai + wad, "D3MCompoundV2TypePool/incorrect-dai-balance-received");
     }
 
     function exit(address dst, uint256 wad) external override onlyHub {
         uint256 exited_ = exited;
         exited = exited_ + wad;
         uint256 amt = wad * cDai.balanceOf(address(this)) / (D3mHubLike(hub).end().Art(ilk) - exited_);
-        require(cDai.transfer(dst, amt), "D3MCompoundPool/transfer-failed");
+        require(cDai.transfer(dst, amt), "D3MCompoundV2TypePool/transfer-failed");
     }
 
     function quit(address dst) external override auth {
-        require(vat.live() == 1, "D3MCompoundPool/no-quit-during-shutdown");
-        require(cDai.transfer(dst, cDai.balanceOf(address(this))), "D3MCompoundPool/transfer-failed");
+        require(vat.live() == 1, "D3MCompoundV2TypePool/no-quit-during-shutdown");
+        require(cDai.transfer(dst, cDai.balanceOf(address(this))), "D3MCompoundV2TypePool/transfer-failed");
     }
 
     function preDebtChange() external override {
-        require(cDai.accrueInterest() == 0, "D3MCompoundPool/accrueInterest-failure");
+        require(cDai.accrueInterest() == 0, "D3MCompoundV2TypePool/accrueInterest-failure");
     }
 
     function postDebtChange() external override {}
@@ -181,7 +181,7 @@ contract D3MCompoundPool is ID3MPool {
     // Does not accrue interest (as opposed to cToken's balanceOfUnderlying() which is not a view function).
     function assetBalance() public view override returns (uint256) {
         (uint256 error, uint256 cTokenBalance,, uint256 exchangeRate) = cDai.getAccountSnapshot(address(this));
-        require(error == 0, "D3MCompoundPool/getAccountSnapshot-failure");
+        require(error == 0, "D3MCompoundV2TypePool/getAccountSnapshot-failure");
         return _wmul(cTokenBalance, exchangeRate);
     }
 
@@ -198,7 +198,7 @@ contract D3MCompoundPool is ID3MPool {
     }
 
     function collect(bool claim) external {
-        require(king != address(0), "D3MCompoundPool/king-not-set");
+        require(king != address(0), "D3MCompoundV2TypePool/king-not-set");
 
         if (claim) {
             address[] memory holders = new address[](1);

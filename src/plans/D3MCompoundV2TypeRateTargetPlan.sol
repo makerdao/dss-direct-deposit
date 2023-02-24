@@ -63,7 +63,7 @@ interface InterestRateModelLike {
     function jumpMultiplierPerBlock() external view returns (uint256);
 }
 
-contract D3MCompoundPlan is ID3MPlan {
+contract D3MCompoundV2TypeRateTargetPlan is ID3MPlan {
 
     mapping (address => uint256) public wards;
     mapping (address => uint256) public tacks;     // supported rate models
@@ -87,8 +87,8 @@ contract D3MCompoundPlan is ID3MPlan {
         address rateModel_ = cDai.interestRateModel();
         address delegate_  = cDai.implementation();
 
-        require(rateModel_ != address(0), "D3MCompoundPlan/invalid-rateModel");
-        require(delegate_  != address(0), "D3MCompoundPlan/invalid-delegate");
+        require(rateModel_ != address(0), "D3MCompoundV2TypeRateTargetPlan/invalid-rateModel");
+        require(delegate_  != address(0), "D3MCompoundV2TypeRateTargetPlan/invalid-delegate");
 
         tacks[rateModel_]    = 1;
         delegates[delegate_] = 1;
@@ -98,7 +98,7 @@ contract D3MCompoundPlan is ID3MPlan {
     }
 
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MCompoundPlan/not-authorized");
+        require(wards[msg.sender] == 1, "D3MCompoundV2TypeRateTargetPlan/not-authorized");
         _;
     }
 
@@ -123,23 +123,23 @@ contract D3MCompoundPlan is ID3MPlan {
 
     function file(bytes32 what, uint256 data) external auth {
         if (what == "barb") {
-            require(data <= MAX_BORROW_RATE, "D3MCompoundPlan/barb-too-high");
+            require(data <= MAX_BORROW_RATE, "D3MCompoundV2TypeRateTargetPlan/barb-too-high");
             barb = data;
-        } else revert("D3MCompoundPlan/file-unrecognized-param");
+        } else revert("D3MCompoundV2TypeRateTargetPlan/file-unrecognized-param");
         emit File(what, data);
     }
     function file(bytes32 what, address addr, uint256 data) external auth {
-        require(data == 0 || data == 1, "D3MCompoundPlan/file-invalid-data");
+        require(data == 0 || data == 1, "D3MCompoundV2TypeRateTargetPlan/file-invalid-data");
         if (what == "tack") tacks[addr] = data;
         else if (what == "delegate") delegates[addr] = data;
-        else revert("D3MCompoundPlan/file-unrecognized-param");
+        else revert("D3MCompoundV2TypeRateTargetPlan/file-unrecognized-param");
         emit File(what, addr, data);
     }
 
 
     function _calculateTargetSupply(uint256 targetInterestRate, uint256 borrows) internal view returns (uint256) {
         InterestRateModelLike tack = InterestRateModelLike(cDai.interestRateModel());
-        require(tacks[address(tack)] == 1, "D3MCompoundPlan/invalid-tack");
+        require(tacks[address(tack)] == 1, "D3MCompoundV2TypeRateTargetPlan/invalid-tack");
 
         uint256 kink                   = tack.kink();
         uint256 multiplierPerBlock     = tack.multiplierPerBlock();
@@ -198,7 +198,7 @@ contract D3MCompoundPlan is ID3MPlan {
     }
 
     function disable() external override {
-        require(wards[msg.sender] == 1 || !active(), "D3MCompoundPlan/not-authorized");
+        require(wards[msg.sender] == 1 || !active(), "D3MCompoundV2TypeRateTargetPlan/not-authorized");
         barb = 0; // ensure deactivation even if active conditions return later
         emit Disable();
     }

@@ -20,7 +20,7 @@ import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat, FakeEnd } from "./D3MPoolBase.
 import { DaiLike, TokenLike } from "../interfaces/interfaces.sol";
 import { D3MTestGem } from "../stubs/D3MTestGem.sol";
 
-import { D3MAavePool, LendingPoolLike } from "../../pools/D3MAavePool.sol";
+import { D3MAaveV2TypePool, LendingPoolLike } from "../../pools/D3MAaveV2TypePool.sol";
 
 interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
@@ -144,14 +144,14 @@ contract FakeLendingPool {
     }
 }
 
-contract D3MAavePoolTest is D3MPoolBaseTest {
+contract D3MAaveV2TypePoolTest is D3MPoolBaseTest {
 
     AToken adai;
     LendingPoolLike aavePool;
     FakeEnd end;
 
     function setUp() public override {
-        contractName = "D3MAavePool";
+        contractName = "D3MAaveV2TypePool";
 
         dai = DaiLike(address(new D3MTestGem(18)));
         adai = new AToken(18);
@@ -162,35 +162,35 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         hub = address(new FakeHub(vat));
         end = FakeHub(hub).end();
 
-        d3mTestPool = address(new D3MAavePool("", hub, address(dai), address(aavePool)));
+        d3mTestPool = address(new D3MAaveV2TypePool("", hub, address(dai), address(aavePool)));
     }
 
     function test_sets_dai_value() public {
-        assertEq(address(D3MAavePool(d3mTestPool).dai()), address(dai));
+        assertEq(address(D3MAaveV2TypePool(d3mTestPool).dai()), address(dai));
     }
 
     function test_can_file_king() public {
-        assertEq(D3MAavePool(d3mTestPool).king(), address(0));
+        assertEq(D3MAaveV2TypePool(d3mTestPool).king(), address(0));
 
-        D3MAavePool(d3mTestPool).file("king", address(123));
+        D3MAaveV2TypePool(d3mTestPool).file("king", address(123));
 
-        assertEq(D3MAavePool(d3mTestPool).king(), address(123));
+        assertEq(D3MAaveV2TypePool(d3mTestPool).king(), address(123));
     }
 
     function test_cannot_file_king_no_auth() public {
-        D3MAavePool(d3mTestPool).deny(address(this));
-        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAavePool/not-authorized");
+        D3MAaveV2TypePool(d3mTestPool).deny(address(this));
+        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAaveV2TypePool/not-authorized");
     }
 
     function test_cannot_file_king_vat_caged() public {
         FakeVat(vat).cage();
-        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAavePool/no-file-during-shutdown");
+        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAaveV2TypePool/no-file-during-shutdown");
     }
 
     function test_deposit_calls_lending_pool_deposit() public {
         D3MTestGem(address(adai)).rely(address(aavePool));
         vm.prank(hub);
-        D3MAavePool(d3mTestPool).deposit(1);
+        D3MAaveV2TypePool(d3mTestPool).deposit(1);
         (address asset, uint256 amt, address dst, uint256 code) = FakeLendingPool(address(aavePool)).lastDeposit();
         assertEq(asset, address(dai));
         assertEq(amt, 1);
@@ -203,7 +203,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         D3MTestGem(address(dai)).mint(address(aavePool), 1);
 
         vm.prank(hub);
-        D3MAavePool(d3mTestPool).withdraw(1);
+        D3MAaveV2TypePool(d3mTestPool).withdraw(1);
         (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
         assertEq(asset, address(dai));
         assertEq(amt, 1);
@@ -216,7 +216,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
         FakeVat(vat).cage();
         vm.prank(hub);
-        D3MAavePool(d3mTestPool).withdraw(1);
+        D3MAaveV2TypePool(d3mTestPool).withdraw(1);
         (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
         assertEq(asset, address(dai));
         assertEq(amt, 1);
@@ -226,9 +226,9 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
     function test_collect_claims_for_king() public {
         address king = address(123);
         address rewardsClaimer = adai.getIncentivesController();
-        D3MAavePool(d3mTestPool).file("king", king);
+        D3MAaveV2TypePool(d3mTestPool).file("king", king);
 
-        D3MAavePool(d3mTestPool).collect();
+        D3MAaveV2TypePool(d3mTestPool).collect();
 
         (uint256 amt, address dst) = FakeRewardsClaimer(rewardsClaimer).lastClaim();
         address[] memory assets = FakeRewardsClaimer(rewardsClaimer).getAssetsFromClaim();
@@ -239,12 +239,12 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
     }
 
     function test_collect_no_king() public {
-        assertEq(D3MAavePool(d3mTestPool).king(), address(0));
-        assertRevert(d3mTestPool, abi.encodeWithSignature("collect()"), "D3MAavePool/king-not-set");
+        assertEq(D3MAaveV2TypePool(d3mTestPool).king(), address(0));
+        assertRevert(d3mTestPool, abi.encodeWithSignature("collect()"), "D3MAaveV2TypePool/king-not-set");
     }
 
     function test_redeemable_returns_adai() public {
-        assertEq(D3MAavePool(d3mTestPool).redeemable(), address(adai));
+        assertEq(D3MAaveV2TypePool(d3mTestPool).redeemable(), address(adai));
     }
 
     function test_exit_adai() public {
@@ -255,7 +255,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
         end.setArt(tokens);
         vm.prank(hub);
-        D3MAavePool(d3mTestPool).exit(address(this), tokens);
+        D3MAaveV2TypePool(d3mTestPool).exit(address(this), tokens);
 
         assertEq(adai.balanceOf(address(this)), tokens);
         assertEq(adai.balanceOf(d3mTestPool), 0);
@@ -267,7 +267,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(adai.balanceOf(address(this)), 0);
         assertEq(adai.balanceOf(d3mTestPool), tokens);
 
-        D3MAavePool(d3mTestPool).quit(address(this));
+        D3MAaveV2TypePool(d3mTestPool).quit(address(this));
 
         assertEq(adai.balanceOf(address(this)), tokens);
         assertEq(adai.balanceOf(d3mTestPool), 0);
@@ -275,12 +275,12 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
 
     function test_assetBalance_gets_adai_balanceOf_pool() public {
         uint256 tokens = adai.totalSupply();
-        assertEq(D3MAavePool(d3mTestPool).assetBalance(), 0);
+        assertEq(D3MAaveV2TypePool(d3mTestPool).assetBalance(), 0);
         assertEq(adai.balanceOf(d3mTestPool), 0);
 
         adai.transfer(d3mTestPool, tokens);
 
-        assertEq(D3MAavePool(d3mTestPool).assetBalance(), tokens);
+        assertEq(D3MAaveV2TypePool(d3mTestPool).assetBalance(), tokens);
         assertEq(adai.balanceOf(d3mTestPool), tokens);
     }
 
@@ -290,7 +290,7 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(dai.balanceOf(address(adai)), tokens);
         assertEq(adai.balanceOf(d3mTestPool), 0);
 
-        assertEq(D3MAavePool(d3mTestPool).maxWithdraw(), 0);
+        assertEq(D3MAaveV2TypePool(d3mTestPool).maxWithdraw(), 0);
     }
 
     function test_maxWithdraw_gets_available_assets_daiBal() public {
@@ -299,10 +299,10 @@ contract D3MAavePoolTest is D3MPoolBaseTest {
         assertEq(dai.balanceOf(address(adai)), 0);
         assertEq(adai.balanceOf(d3mTestPool), tokens);
 
-        assertEq(D3MAavePool(d3mTestPool).maxWithdraw(), 0);
+        assertEq(D3MAaveV2TypePool(d3mTestPool).maxWithdraw(), 0);
     }
 
     function test_maxDeposit_returns_max_uint() public {
-        assertEq(D3MAavePool(d3mTestPool).maxDeposit(), type(uint256).max);
+        assertEq(D3MAaveV2TypePool(d3mTestPool).maxDeposit(), type(uint256).max);
     }
 }

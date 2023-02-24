@@ -23,8 +23,8 @@ import { D3MHub } from "../../D3MHub.sol";
 import { D3MMom } from "../../D3MMom.sol";
 import { D3MOracle } from "../../D3MOracle.sol";
 
-import { D3MAavePlan } from "../../plans/D3MAavePlan.sol";
-import { D3MAavePool } from "../../pools/D3MAavePool.sol";
+import { D3MAaveV2TypeRateTargetPlan } from "../../plans/D3MAaveV2TypeRateTargetPlan.sol";
+import { D3MAaveV2TypePool } from "../../pools/D3MAaveV2TypePool.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -93,8 +93,8 @@ contract D3MAaveTest is DssTest {
 
     bytes32 constant ilk = "DD-DAI-A";
     D3MHub d3mHub;
-    D3MAavePool d3mAavePool;
-    D3MAavePlan d3mAavePlan;
+    D3MAaveV2TypePool d3mAavePool;
+    D3MAaveV2TypeRateTargetPlan d3mAavePlan;
     D3MMom d3mMom;
     D3MOracle pip;
 
@@ -126,9 +126,9 @@ contract D3MAaveTest is DssTest {
         _giveAuthAccess(address(spot), address(this));
 
         d3mHub = new D3MHub(address(daiJoin));
-        d3mAavePool = new D3MAavePool(ilk, address(d3mHub), address(dai), address(aavePool));
+        d3mAavePool = new D3MAaveV2TypePool(ilk, address(d3mHub), address(dai), address(aavePool));
         d3mAavePool.rely(address(d3mHub));
-        d3mAavePlan = new D3MAavePlan(address(dai), address(aavePool));
+        d3mAavePlan = new D3MAaveV2TypeRateTargetPlan(address(dai), address(aavePool));
 
         d3mHub.file(ilk, "pool", address(d3mAavePool));
         d3mHub.file(ilk, "plan", address(d3mAavePlan));
@@ -938,7 +938,7 @@ contract D3MAaveTest is DssTest {
 
         assertEq(d3mAavePool.king(), address(0));
 
-        assertRevert(address(d3mAavePool), abi.encodeWithSignature("collect()"), "D3MAavePool/king-not-set");
+        assertRevert(address(d3mAavePool), abi.encodeWithSignature("collect()"), "D3MAaveV2TypePool/king-not-set");
     }
 
     function test_cage_exit() public {
