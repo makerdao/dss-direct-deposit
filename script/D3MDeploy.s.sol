@@ -43,7 +43,8 @@ contract D3MDeployScript is Script {
     string dependencies;
     DssInstance dss;
 
-    string d3mType;
+    string poolType;
+    string planType;
     address admin;
     address hub;
     bytes32 ilk;
@@ -57,35 +58,66 @@ contract D3MDeployScript is Script {
         } catch {
             // Fallback to chainlog
         }
-        dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
+        dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
 
-        d3mType = config.readString("type");
-        admin = config.readAddress("admin");
-        hub = dependencies.eq("") ? dss.chainlog.getAddress("DIRECT_HUB") : dependencies.readAddress("hub");
-        ilk = config.readString("ilk").stringToBytes32();
+        poolType = config.readString(".poolType");
+        planType = config.readString(".planType");
+        admin = config.readAddress(".admin");
+        hub = dependencies.eq("") ? dss.chainlog.getAddress("DIRECT_HUB") : dependencies.readAddress(".hub");
+        ilk = config.readString(".ilk").stringToBytes32();
 
         vm.startBroadcast();
-        if (d3mType.eq("aave")) {
-            d3m = D3MDeploy.deployAave(
+
+        // Oracle
+        d3m.oracle = D3MDeploy.deployOracle(
+            msg.sender,
+            admin,
+            ilk,
+            address(dss.vat)
+        );
+
+        // Pool
+        if (poolType.eq("aave-v2")) {
+            d3m.pool = D3MDeploy.deployAaveV2TypePool(
                 msg.sender,
                 admin,
                 ilk,
-                address(dss.vat),
                 hub,
                 address(dss.dai),
-                config.readAddress("lendingPool")
+                config.readAddress(".lendingPool")
             );
-        } else if (d3mType.eq("compound")) {
-            d3m = D3MDeploy.deployCompound(
+        } else if (poolType.eq("compound-v2")) {
+            d3m.pool = D3MDeploy.deployCompoundV2TypePool(
                 msg.sender,
                 admin,
                 ilk,
-                address(dss.vat),
                 hub,
-                config.readAddress("cdai")
+                config.readAddress(".cdai")
             );
         } else {
-            revert("unknown-d3m-type");
+            revert("Unknown pool type");
+        }
+
+        // Plan
+        if (planType.eq("rate-target")) {
+            if (poolType.eq("aave-v2")) {
+                d3m.plan = D3MDeploy.deployAaveV2TypeRateTargetPlan(
+                    msg.sender,
+                    admin,
+                    address(dss.dai),
+                    config.readAddress(".lendingPool")
+                );
+            } else if (poolType.eq("compound-v2")) {
+                d3m.plan = D3MDeploy.deployCompoundV2TypeRateTargetPlan(
+                    msg.sender,
+                    admin,
+                    config.readAddress(".cdai")
+                );
+            } else {
+                revert("Invalid pool type for rate target plan type");
+            }
+        } else {
+            revert("Unknown plan type");
         }
         vm.stopBroadcast();
 

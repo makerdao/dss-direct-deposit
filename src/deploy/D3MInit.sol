@@ -18,14 +18,16 @@ pragma solidity >=0.8.0;
 
 import "dss-interfaces/dss/DssAutoLineAbstract.sol";
 import "dss-interfaces/dss/IlkRegistryAbstract.sol";
+import "dss-interfaces/utils/WardsAbstract.sol";
 import "dss-interfaces/ERC/GemAbstract.sol";
 import { DssInstance } from "dss-test/MCD.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
 
+import { ID3MPool } from "../pools/ID3MPool.sol";
 import { D3MInstance } from "./D3MInstance.sol";
 import { D3MCoreInstance } from "./D3MCoreInstance.sol";
 
-interface AavePoolLike {
+interface D3MAavePoolLike {
     function hub() external view returns (address);
     function dai() external view returns (address);
     function ilk() external view returns (bytes32);
@@ -36,7 +38,7 @@ interface AavePoolLike {
     function variableDebt() external view returns (address);
 }
 
-interface AavePlanLike {
+interface D3MAaveRateTargetPlanLike {
     function rely(address) external;
     function file(bytes32, uint256) external;
     function adai() external view returns (address);
@@ -50,7 +52,7 @@ interface ADaiLike {
     function ATOKEN_REVISION() external view returns (uint256);
 }
 
-interface CompoundPoolLike {
+interface D3MCompoundPoolLike {
     function hub() external view returns (address);
     function dai() external view returns (address);
     function ilk() external view returns (bytes32);
@@ -61,11 +63,11 @@ interface CompoundPoolLike {
     function comp() external view returns (address);
 }
 
-interface CompoundPlanLike {
+interface D3MCompoundRateTargetPlanLike {
     function rely(address) external;
     function file(bytes32, uint256) external;
-    function tack() external view returns (address);
-    function delegate() external view returns (address);
+    function tacks(address) external view returns (uint256);
+    function delegates(address) external view returns (uint256);
     function cDai() external view returns (address);
 }
 
@@ -103,8 +105,14 @@ struct D3MCommonConfig {
     uint256 tau;
 }
 
-struct D3MAaveConfig {
+struct D3MAavePoolConfig {
     address king;
+    address adai;
+    address stableDebt;
+    address variableDebt;
+}
+
+struct D3MAaveRateTargetPlanConfig {
     uint256 bar;
     address adai;
     address stableDebt;
@@ -113,12 +121,16 @@ struct D3MAaveConfig {
     uint256 adaiRevision;
 }
 
-struct D3MCompoundConfig {
+struct D3MCompoundPoolConfig {
     address king;
-    uint256 barb;
     address cdai;
     address comptroller;
     address comp;
+}
+
+struct D3MCompoundRateTargetPlanConfig {
+    uint256 barb;
+    address cdai;
     address tack;
     address delegate;
 }
@@ -148,12 +160,11 @@ library D3MInit {
         dss.chainlog.setAddress("DIRECT_MOM", address(mom));
     }
 
-    function _init(
+    function initCommon(
         DssInstance memory dss,
         D3MInstance memory d3m,
-        D3MCommonConfig memory cfg,
-        address gem
-    ) private {
+        D3MCommonConfig memory cfg
+    ) internal {
         bytes32 ilk = cfg.ilk;
         D3MHubLike hub = D3MHubLike(cfg.hub);
         D3MOracleLike oracle = D3MOracleLike(d3m.oracle);
@@ -161,6 +172,8 @@ library D3MInit {
         // Sanity checks
         require(oracle.vat() == address(dss.vat), "Oracle vat mismatch");
         require(oracle.ilk() == ilk, "Oracle ilk mismatch");
+
+        WardsAbstract(d3m.plan).rely(cfg.mom);
 
         hub.file(ilk, "pool", d3m.pool);
         hub.file(ilk, "plan", d3m.plan);
@@ -187,16 +200,17 @@ library D3MInit {
         );
         dss.spotter.poke(ilk);
 
+        GemAbstract gem = GemAbstract(ID3MPool(d3m.pool).redeemable());
         IlkRegistryAbstract(dss.chainlog.getAddress("ILK_REGISTRY")).put(
             ilk,
             address(hub),
             address(gem),
-            GemAbstract(gem).decimals(),
+            gem.decimals(),
             4,
             address(oracle),
             address(0),
-            GemAbstract(gem).name(),
-            GemAbstract(gem).symbol()
+            gem.name(),
+            gem.symbol()
         );
 
         string memory clPrefix = ScriptTools.ilkToChainlogFormat(ilk);
@@ -205,50 +219,33 @@ library D3MInit {
         dss.chainlog.setAddress(ScriptTools.stringToBytes32(string(abi.encodePacked(clPrefix, "_ORACLE"))), d3m.oracle);
     }
 
-    function initAave(
+    function initAavePool(
         DssInstance memory dss,
         D3MInstance memory d3m,
         D3MCommonConfig memory cfg,
-        D3MAaveConfig memory aaveCfg
+        D3MAavePoolConfig memory aaveCfg
     ) internal {
-        AavePlanLike plan = AavePlanLike(d3m.plan);
-        AavePoolLike pool = AavePoolLike(d3m.pool);
-        ADaiLike adai = ADaiLike(aaveCfg.adai);
-
-        _init(dss, d3m, cfg, address(adai));
+        D3MAavePoolLike pool = D3MAavePoolLike(d3m.pool);
 
         // Sanity checks
         require(pool.hub() == cfg.hub, "Pool hub mismatch");
         require(pool.ilk() == cfg.ilk, "Pool ilk mismatch");
         require(pool.vat() == address(dss.vat), "Pool vat mismatch");
         require(pool.dai() == address(dss.dai), "Pool dai mismatch");
-        require(pool.adai() == address(adai), "Pool adai mismatch");
+        require(pool.adai() == aaveCfg.adai, "Pool adai mismatch");
         require(pool.stableDebt() == aaveCfg.stableDebt, "Pool stableDebt mismatch");
         require(pool.variableDebt() == aaveCfg.variableDebt, "Pool variableDebt mismatch");
 
-        require(plan.adai() == address(adai), "Plan adai mismatch");
-        require(plan.stableDebt() == aaveCfg.stableDebt, "Plan stableDebt mismatch");
-        require(plan.variableDebt() == aaveCfg.variableDebt, "Plan variableDebt mismatch");
-        require(plan.tack() == aaveCfg.tack, "Plan tack mismatch");
-        require(plan.adaiRevision() == aaveCfg.adaiRevision, "Plan adaiRevision mismatch");
-        require(adai.ATOKEN_REVISION() == aaveCfg.adaiRevision, "ADai adaiRevision mismatch");
-
-        plan.rely(cfg.mom);
         pool.file("king", aaveCfg.king);
-        plan.file("bar", aaveCfg.bar);
     }
 
-    function initCompound(
+    function initCompoundPool(
         DssInstance memory dss,
         D3MInstance memory d3m,
         D3MCommonConfig memory cfg,
-        D3MCompoundConfig memory compoundCfg
+        D3MCompoundPoolConfig memory compoundCfg
     ) internal {
-        CompoundPlanLike plan = CompoundPlanLike(d3m.plan);
-        CompoundPoolLike pool = CompoundPoolLike(d3m.pool);
-        CDaiLike cdai = CDaiLike(compoundCfg.cdai);
-
-        _init(dss, d3m, cfg, address(cdai));
+        D3MCompoundPoolLike pool = D3MCompoundPoolLike(d3m.pool);
 
         // Sanity checks
         require(pool.hub() == cfg.hub, "Pool hub mismatch");
@@ -257,16 +254,43 @@ library D3MInit {
         require(pool.dai() == address(dss.dai), "Pool dai mismatch");
         require(pool.comptroller() == compoundCfg.comptroller, "Pool comptroller mismatch");
         require(pool.comp() == compoundCfg.comp, "Pool comp mismatch");
-        require(pool.cDai() == address(cdai), "Pool cDai mismatch");
+        require(pool.cDai() == compoundCfg.cdai, "Pool cDai mismatch");
 
-        require(plan.tack() == compoundCfg.tack, "Plan tack mismatch");
+        pool.file("king", compoundCfg.king);
+    }
+
+    function initAaveRateTargetPlan(
+        D3MInstance memory d3m,
+        D3MAaveRateTargetPlanConfig memory aaveCfg
+    ) internal {
+        D3MAaveRateTargetPlanLike plan = D3MAaveRateTargetPlanLike(d3m.plan);
+        ADaiLike adai = ADaiLike(aaveCfg.adai);
+
+        // Sanity checks
+        require(plan.adai() == address(adai), "Plan adai mismatch");
+        require(plan.stableDebt() == aaveCfg.stableDebt, "Plan stableDebt mismatch");
+        require(plan.variableDebt() == aaveCfg.variableDebt, "Plan variableDebt mismatch");
+        require(plan.tack() == aaveCfg.tack, "Plan tack mismatch");
+        require(plan.adaiRevision() == aaveCfg.adaiRevision, "Plan adaiRevision mismatch");
+        require(adai.ATOKEN_REVISION() == aaveCfg.adaiRevision, "ADai adaiRevision mismatch");
+
+        plan.file("bar", aaveCfg.bar);
+    }
+
+    function initCompoundRateTargetPlan(
+        D3MInstance memory d3m,
+        D3MCompoundRateTargetPlanConfig memory compoundCfg
+    ) internal {
+        D3MCompoundRateTargetPlanLike plan = D3MCompoundRateTargetPlanLike(d3m.plan);
+        CDaiLike cdai = CDaiLike(compoundCfg.cdai);
+
+        // Sanity checks
+        require(plan.tacks(compoundCfg.tack) == 1, "Plan tack mismatch");
         require(cdai.interestRateModel() == compoundCfg.tack, "CDai tack mismatch");
-        require(plan.delegate() == compoundCfg.delegate, "Plan delegate mismatch");
+        require(plan.delegates(compoundCfg.delegate) == 1, "Plan delegate mismatch");
         require(cdai.implementation() == compoundCfg.delegate, "CDai delegate mismatch");
         require(plan.cDai() == address(cdai), "Plan cDai mismatch");
 
-        plan.rely(cfg.mom);
-        pool.file("king", compoundCfg.king);
         plan.file("barb", compoundCfg.barb);
     }
 
