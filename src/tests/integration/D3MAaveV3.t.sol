@@ -71,6 +71,7 @@ interface PoolLike {
 }
 
 interface ATokenLike is TokenLike {
+    function scaledTotalSupply() external view returns (uint256);
     function scaledBalanceOf(address) external view returns (uint256);
 }
 
@@ -103,6 +104,9 @@ contract D3MAaveV3Test is DssTest {
     // Allow for a 1 BPS margin of error on interest rates
     uint256 constant INTEREST_RATE_TOLERANCE = RAY / 10000;
     uint256 constant EPSILON_TOLERANCE = 4;
+    uint256 constant FLASHLOAN_ENABLED_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFFFFFFFFFFFF;
+    uint256 constant SUPPLY_CAP_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFF000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+    uint256 constant SUPPLY_CAP_START_BIT_POSITION = 116;
 
     function setUp() public {
         emit log_named_uint("block", block.number);
@@ -1250,5 +1254,38 @@ contract D3MAaveV3Test is DssTest {
         assertEqApprox(vat.dai(vow), vowDaiBefore + 10 * RAD, RAY);
         assertEqRoundingAgainst(dai.balanceOf(address(adai)), adaiDaiBalanceBefore);
         assertEqApprox(adai.balanceOf(address(d3mAavePool)), poolAdaiBalanceBefore, 2); // rounding may affect twice
+    }
+
+    function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        unchecked {
+            z = x != 0 ? ((x - 1) / y) + 1 : 0;
+        }
+    }
+    function test_supplyCap_hit() public {
+        PoolLike.ReserveData memory data = aavePool.getReserveData(address(dai));
+        uint256 supplyCap = ((data.configuration & ~SUPPLY_CAP_MASK) >> SUPPLY_CAP_START_BIT_POSITION) * (1 ether);
+        bool flashLoansEnabled = (data.configuration & ~FLASHLOAN_ENABLED_MASK) != 0;
+        uint256 supplyUsed = (adai.scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex / RAY;
+
+        // Pre-requisites for executing the flash loan to correct liquidity index and accrued treasury amounts
+        assertGt(supplyCap, 0, "supply cap should be greater than 0");
+        assertLt(supplyUsed, supplyCap, "supply used should be less than supply cap");
+        assertEq(flashLoansEnabled, true, "flash loans should be enabled");
+        assertGt(dai.balanceOf(address(adai)), 0, "adai should have dai balance");
+        assertGt(data.currentLiquidityRate, 0, "current liquidity rate should be greater than 0");
+
+        // Warp a bit so we gaurantee there is new interest
+        vm.warp(block.timestamp + 1 days);
+
+        uint256 prevMaxDeposit = supplyCap - _divup((adai.scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
+        assertEq(d3mAavePool.maxDeposit(), prevMaxDeposit, "max deposit should be equal to validation logic");
+
+        // Set a very small value to max out the deposit
+        _setRelBorrowTarget(1);
+
+        uint256 amountMinted = adai.balanceOf(address(d3mAavePool));
+        assertGt(amountMinted, 0, "amount minted should be greater than 0");
+        assertLt(amountMinted, prevMaxDeposit, "amounted minted should be less than previous max deposit"); // This number should be less due to interest collection being deductated after flash loan
+        assertLt(d3mAavePool.maxDeposit(), 1, "max deposit should be ~0");
     }
 }

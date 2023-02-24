@@ -161,6 +161,11 @@ contract D3MAaveV3Pool is ID3MPool {
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
     }
+    function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        unchecked {
+            z = x != 0 ? ((x - 1) / y) + 1 : 0;
+        }
+    }
 
     // --- Admin ---
     function rely(address usr) external auth {
@@ -256,7 +261,7 @@ contract D3MAaveV3Pool is ID3MPool {
         PoolLike.ReserveData memory data = pool.getReserveData(address(dai));
         uint256 supplyCap = ((data.configuration & ~SUPPLY_CAP_MASK) >> SUPPLY_CAP_START_BIT_POSITION) * (10 ** dai.decimals());
         if (supplyCap == 0) return type(uint256).max;
-        uint256 supplyUsed = (adai.scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex / RAY;
+        uint256 supplyUsed = _divup((adai.scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);   // Over-estimate supply used to deal with rounding errors
         if (supplyCap >= supplyUsed) {
             return supplyCap - supplyUsed;
         } else {
