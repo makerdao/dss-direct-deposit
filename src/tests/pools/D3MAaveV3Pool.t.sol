@@ -121,8 +121,10 @@ contract FakeLendingPool {
     address public dai;
     address public poolAdapter;
     uint256 public supplyCap;
+    bool public flashLoanEnabled = true;
     uint256 public liquidityIndex = 10 ** 27;
     uint256 public accruedToTreasury;
+    bool public flashLoanWasCalled;
 
     struct DepositCall {
         address asset;
@@ -147,7 +149,7 @@ contract FakeLendingPool {
     function getReserveData(address) external view returns(
         ReserveData memory result
     ) {
-        result.configuration = supplyCap << 116;
+        result.configuration = supplyCap << 116 | uint256(flashLoanEnabled ? 1 : 0) << 63;
         result.aTokenAddress = adai;
         result.liquidityIndex = uint128(liquidityIndex);
         result.stableDebtTokenAddress = address(2);
@@ -184,6 +186,10 @@ contract FakeLendingPool {
         supplyCap = cap;
     }
 
+    function setFlashLoanEnabled(bool on) external {
+        flashLoanEnabled = on;
+    }
+
     function setLiquidityIndex(uint256 index) external {
         liquidityIndex = index;
     }
@@ -197,6 +203,7 @@ contract FakeLendingPool {
     }
 
     function flashLoanSimple(address receiverAddress, address asset, uint256 amount, bytes calldata params, uint16 referralCode) external {
+        flashLoanWasCalled = true;
         require(receiverAddress == poolAdapter, "receiverAddress");
         require(asset == dai, "asset");
         require(amount == 1, "amount");
@@ -398,5 +405,40 @@ contract D3MAaveV3PoolTest is D3MPoolBaseTest {
         aavePool.setSupplyCap(100);
         adai.setScaledTotalSupply(150 ether);
         assertEq(D3MAaveV3Pool(d3mTestPool).maxDeposit(), 0);
+    }
+
+    function test_preDebtChange_flashLoanCalled() public {
+        aavePool.setSupplyCap(100);
+        _giveTokens(dai, 100 ether);
+        dai.transfer(address(adai), 100 ether);
+        assertEq(aavePool.flashLoanEnabled(), true);
+        D3MAaveV3Pool(d3mTestPool).preDebtChange();
+        assertEq(aavePool.flashLoanWasCalled(), true);
+    }
+
+    function test_preDebtChange_no_flashLoanCalled_supplyCap() public {
+        aavePool.setSupplyCap(0);
+        _giveTokens(dai, 100 ether);
+        dai.transfer(address(adai), 100 ether);
+        assertEq(aavePool.flashLoanEnabled(), true);
+        D3MAaveV3Pool(d3mTestPool).preDebtChange();
+        assertEq(aavePool.flashLoanWasCalled(), false);
+    }
+
+    function test_preDebtChange_no_flashLoanCalled_no_liquidity() public {
+        aavePool.setSupplyCap(100);
+        assertEq(dai.balanceOf(address(adai)), 0);
+        assertEq(aavePool.flashLoanEnabled(), true);
+        D3MAaveV3Pool(d3mTestPool).preDebtChange();
+        assertEq(aavePool.flashLoanWasCalled(), false);
+    }
+
+    function test_preDebtChange_no_flashLoanCalled_flashloan_disabled() public {
+        aavePool.setSupplyCap(100);
+        _giveTokens(dai, 100 ether);
+        dai.transfer(address(adai), 100 ether);
+        aavePool.setFlashLoanEnabled(false);
+        D3MAaveV3Pool(d3mTestPool).preDebtChange();
+        assertEq(aavePool.flashLoanWasCalled(), false);
     }
 }
