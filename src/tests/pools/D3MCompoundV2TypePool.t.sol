@@ -37,12 +37,12 @@ interface LensLike {
 
 contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
 
-    CErc20Like      cDai;
+    CErc20Like            cDai;
     D3MCompoundV2TypePool pool;
-    ComptrollerLike comptroller;
-    TokenLike       comp;
-    LensLike        lens;
-    FakeEnd         end;
+    ComptrollerLike       comptroller;
+    TokenLike             comp;
+    LensLike              lens;
+    FakeEnd               end;
 
     function _wdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x * WAD / y;
