@@ -51,9 +51,9 @@ contract D3MCompoundV2TypeRateTargetPlanWrapper is D3MCompoundV2TypeRateTargetPl
 }
 
 contract D3MCompoundV2TypeRateTargetPlanTest is D3MPlanBaseTest {
-    CErc20Like             cDai;
-    InterestRateModelLike  model;
-    address                cDaiImplementation;
+    CErc20Like                             cDai;
+    InterestRateModelLike                  model;
+    address                                cDaiImplementation;
     D3MCompoundV2TypeRateTargetPlanWrapper plan;
 
     function _wmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
