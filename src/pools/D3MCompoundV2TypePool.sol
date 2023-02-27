@@ -39,7 +39,7 @@ interface EndLike {
     function Art(bytes32) external view returns (uint256);
 }
 
-// cDai - https://etherscan.io/token/0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643
+// cDai - https://github.com/compound-finance/compound-protocol/blob/master/contracts/CErc20.sol
 interface CErc20Like is TokenLike {
     function underlying() external view returns (address);
     function comptroller() external view returns (address);
@@ -52,7 +52,7 @@ interface CErc20Like is TokenLike {
     function exchangeRateCurrent() external returns (uint256);
 }
 
-// Comptroller - https://etherscan.io/address/0x3d9819210a31b4961b30ef54be2aed79b9c9cd3b
+// Comptroller - https://github.com/compound-finance/compound-protocol/blob/master/contracts/Comptroller.sol
 interface ComptrollerLike {
     function getCompAddress() external view returns (address);
     function claimComp(address[] memory holders, address[] memory cTokens, bool borrowers, bool suppliers) external;

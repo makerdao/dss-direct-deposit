@@ -39,13 +39,13 @@ interface EndLike {
     function Art(bytes32) external view returns (uint256);
 }
 
-// aDai: https://etherscan.io/address/0x028171bCA77440897B824Ca71D1c56caC55b68A3
+// aDai: https://github.com/aave/protocol-v2/blob/master/contracts/protocol/tokenization/AToken.sol
 interface ATokenLike is TokenLike {
     function scaledBalanceOf(address) external view returns (uint256);
     function getIncentivesController() external view returns (address);
 }
 
-// Aave Lending Pool v2: https://etherscan.io/address/0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9
+// Aave Lending Pool v2: https://github.com/aave/protocol-v2/blob/master/contracts/protocol/lendingpool/LendingPool.sol
 interface LendingPoolLike {
     function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
     function withdraw(address asset, uint256 amount, address to) external;
@@ -66,7 +66,7 @@ interface LendingPoolLike {
     );
 }
 
-// Aave Incentives Controller: https://etherscan.io/address/0xd784927ff2f95ba542bfc824c8a8a98f3495f6b5
+// Aave Incentives Controller: https://github.com/aave/aave-stake-v2/blob/master/contracts/stake/AaveIncentivesController.sol
 interface RewardsClaimerLike {
     function REWARD_TOKEN() external returns (address);
     function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
