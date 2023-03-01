@@ -25,15 +25,9 @@ import {
     D3MInit,
     D3MInstance,
     D3MCommonConfig,
-    D3MAaveConfig,
-    D3MCompoundConfig,
-    AavePoolLike,
-    AavePlanLike,
-    CompoundPoolLike,
-    CompoundPlanLike
-} from "../src/deploy/D3MInit.sol";
+} from "../../src/deploy/D3MInit.sol";
 
-contract D3MInitScript is Script {
+contract D3MInitBase is Script {
 
     using stdJson for string;
     using ScriptTools for string;
@@ -53,7 +47,7 @@ contract D3MInitScript is Script {
     D3MAaveConfig aaveCfg;
     D3MCompoundConfig compoundCfg;
 
-    function run() external {
+    function _setup() internal {
         config = ScriptTools.loadConfig();
         dependencies = ScriptTools.loadDependencies();
         dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
@@ -76,44 +70,6 @@ contract D3MInitScript is Script {
             ttl: config.readUint("ttl"),
             tau: config.readUint("tau")
         });
-
-        vm.startBroadcast();
-        if (d3mType.eq("aave")) {
-            aaveCfg = D3MAaveConfig({
-                king: config.readAddress("king"),
-                bar: config.readUint("bar") * RAY / BPS,
-                adai: AavePoolLike(d3m.pool).adai(),
-                stableDebt: AavePoolLike(d3m.pool).stableDebt(),
-                variableDebt: AavePoolLike(d3m.pool).variableDebt(),
-                tack: AavePlanLike(d3m.plan).tack(),
-                adaiRevision: AavePlanLike(d3m.plan).adaiRevision()
-            });
-            D3MInit.initAave(
-                dss,
-                d3m,
-                cfg,
-                aaveCfg
-            );
-        } else if (d3mType.eq("compound")) {
-            compoundCfg = D3MCompoundConfig({
-                king: config.readAddress("king"),
-                barb: config.readUint("barb"),
-                cdai: CompoundPoolLike(d3m.pool).cDai(),
-                comptroller: CompoundPoolLike(d3m.pool).comptroller(),
-                comp: CompoundPoolLike(d3m.pool).comp(),
-                tack: CompoundPlanLike(d3m.plan).tack(),
-                delegate: CompoundPlanLike(d3m.plan).delegate()
-            });
-            D3MInit.initCompound(
-                dss,
-                d3m,
-                cfg,
-                compoundCfg
-            );
-        } else {
-            revert("unknown-d3m-type");
-        }
-        vm.stopBroadcast();
     }
 
 }
