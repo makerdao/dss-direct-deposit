@@ -24,7 +24,7 @@ import { ScriptTools } from "dss-test/ScriptTools.sol";
 import {
     D3MDeploy,
     D3MInstance
-} from "../src/deploy/D3MDeploy.sol";
+} from "../../src/deploy/D3MDeploy.sol";
 
 contract OptionalLoadDependencies {
 
@@ -34,7 +34,7 @@ contract OptionalLoadDependencies {
 
 }
 
-contract D3MDeployScript is Script {
+contract D3MDeployBase is Script {
 
     using stdJson for string;
     using ScriptTools for string;
@@ -49,7 +49,7 @@ contract D3MDeployScript is Script {
     bytes32 ilk;
     D3MInstance d3m;
 
-    function run() external {
+    function _setup() internal {
         config = ScriptTools.loadConfig();
         OptionalLoadDependencies lp = new OptionalLoadDependencies();   // Try catch needs external function
         try lp.loadDependencies("core") returns (string memory deps) {
@@ -63,32 +63,9 @@ contract D3MDeployScript is Script {
         admin = config.readAddress("admin");
         hub = dependencies.eq("") ? dss.chainlog.getAddress("DIRECT_HUB") : dependencies.readAddress("hub");
         ilk = config.readString("ilk").stringToBytes32();
+    }
 
-        vm.startBroadcast();
-        if (d3mType.eq("aave")) {
-            d3m = D3MDeploy.deployAave(
-                msg.sender,
-                admin,
-                ilk,
-                address(dss.vat),
-                hub,
-                address(dss.dai),
-                config.readAddress("lendingPool")
-            );
-        } else if (d3mType.eq("compound")) {
-            d3m = D3MDeploy.deployCompound(
-                msg.sender,
-                admin,
-                ilk,
-                address(dss.vat),
-                hub,
-                config.readAddress("cdai")
-            );
-        } else {
-            revert("unknown-d3m-type");
-        }
-        vm.stopBroadcast();
-
+    function _export() internal {
         ScriptTools.exportContract("pool", d3m.pool);
         ScriptTools.exportContract("plan", d3m.plan);
         ScriptTools.exportContract("oracle", d3m.oracle);
