@@ -24,7 +24,7 @@ import { ScriptTools } from "dss-test/ScriptTools.sol";
 import {
     D3MInit,
     D3MInstance,
-    D3MCommonConfig,
+    D3MCommonConfig
 } from "../../src/deploy/D3MInit.sol";
 
 contract D3MInitBase is Script {
@@ -44,8 +44,6 @@ contract D3MInitBase is Script {
     bytes32 ilk;
     D3MInstance d3m;
     D3MCommonConfig cfg;
-    D3MAaveConfig aaveCfg;
-    D3MCompoundConfig compoundCfg;
 
     function _setup() internal {
         config = ScriptTools.loadConfig();

@@ -23,13 +23,15 @@ import { ScriptTools } from "dss-test/ScriptTools.sol";
 import {
     D3MAaveConfig,
     AavePoolLike,
-    AavePlanLike,
+    AavePlanLike
 } from "../../src/deploy/D3MInit.sol";
 
-contract D3MInitScript is D3MInitBase {
+contract D3MInitAaveV2Script is D3MInitBase {
 
     using stdJson for string;
     using ScriptTools for string;
+
+    D3MAaveConfig aaveCfg;
 
     function run() external {
         _setup();

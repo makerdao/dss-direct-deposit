@@ -26,10 +26,12 @@ import {
     CompoundPlanLike
 } from "../../src/deploy/D3MInit.sol";
 
-contract D3MInitScript is D3MInitBase {
+contract D3MInitCompoundV2Script is D3MInitBase {
 
     using stdJson for string;
     using ScriptTools for string;
+
+    D3MCompoundConfig compoundCfg;
 
     function run() external {
         _setup();
