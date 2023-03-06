@@ -16,6 +16,8 @@
 
 pragma solidity ^0.8.14;
 
+import "lib/dss-test/lib/forge-std/src/console.sol";
+
 import {DSSTest} from "dss-test/DSSTest.sol";
 import "../interfaces/interfaces.sol";
 
@@ -35,6 +37,7 @@ interface Hevm {
 
 interface CErc20Like {
     function borrowRatePerBlock() external view returns (uint256);
+    function supplyRatePerBlock() external view returns (uint256);
     function getCash() external view returns (uint256);
     function totalBorrows() external view returns (uint256);
     function totalReserves() external view returns (uint256);
@@ -1347,6 +1350,8 @@ contract D3MCompoundTest is DSSTest {
         address pot          = 0x197E90f9FAD81970bA7976f33CbD77088E5D7cf7;
 
         uint256 rateBefore = cDai.borrowRatePerBlock();
+        uint256 supplyRateBefore = cDai.supplyRatePerBlock();
+
         uint256 targetAssetsBefore = plan.getTargetAssets(pool.assetBalance());
         uint256 depositBefore = cDai.balanceOfUnderlying(address(d3mCompoundPool));
         uint256 barb = plan.barb();
@@ -1374,6 +1379,13 @@ contract D3MCompoundTest is DSSTest {
         //    1.5% + 5.12% (eth-a rate and gap respectively)
         assertGt(cDai.borrowRatePerBlock(), rateBefore);
         assertGt(cDai.borrowRatePerBlock(), rateBeforePoke);
+
+        console.log("rateBefore: %s", rateBefore);
+        console.log("rateAfter", cDai.borrowRatePerBlock());
+
+        console.log("supplyRateBefore: %s", supplyRateBefore);
+        console.log("supplyRateAfter", cDai.supplyRatePerBlock());
+
 
         // target assets also went up since borrow rate went up
         assertGt(plan.getTargetAssets(pool.assetBalance()), targetAssetsBefore);
