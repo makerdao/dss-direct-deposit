@@ -43,7 +43,7 @@ contract D3MCoreDeployScript is Script {
         config = ScriptTools.loadConfig(NAME);
         dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
 
-        admin = config.readAddress("admin");
+        admin = config.readAddress(".admin");
 
         vm.startBroadcast();
         d3mCore = D3MDeploy.deployCore(
