@@ -23,8 +23,8 @@ import { D3MHub } from "../../D3MHub.sol";
 import { D3MMom } from "../../D3MMom.sol";
 import { D3MOracle } from "../../D3MOracle.sol";
 
-import { D3MCompoundPlan } from "../../plans/D3MCompoundPlan.sol";
-import { D3MCompoundPool } from "../../pools/D3MCompoundPool.sol";
+import { D3MCompoundV2TypeRateTargetPlan } from "../../plans/D3MCompoundV2TypeRateTargetPlan.sol";
+import { D3MCompoundV2TypePool } from "../../pools/D3MCompoundV2TypePool.sol";
 
 interface Hevm {
     function warp(uint256) external;
@@ -86,8 +86,8 @@ contract D3MCompoundTest is DssTest {
 
     bytes32 constant ilk = "DD-DAI-A";
     D3MHub d3mHub;
-    D3MCompoundPool d3mCompoundPool;
-    D3MCompoundPlan d3mCompoundPlan;
+    D3MCompoundV2TypePool d3mCompoundPool;
+    D3MCompoundV2TypeRateTargetPlan d3mCompoundPlan;
     D3MMom d3mMom;
     D3MOracle pip;
 
@@ -117,9 +117,9 @@ contract D3MCompoundTest is DssTest {
         _giveAuthAccess(address(spot), address(this));
 
         d3mHub = new D3MHub(address(daiJoin));
-        d3mCompoundPool = new D3MCompoundPool(ilk, address(d3mHub), address(cDai));
+        d3mCompoundPool = new D3MCompoundV2TypePool(ilk, address(d3mHub), address(cDai));
         d3mCompoundPool.rely(address(d3mHub));
-        d3mCompoundPlan = new D3MCompoundPlan(address(cDai));
+        d3mCompoundPlan = new D3MCompoundV2TypeRateTargetPlan(address(cDai));
 
         d3mHub.file(ilk, "pool", address(d3mCompoundPool));
         d3mHub.file(ilk, "plan", address(d3mCompoundPlan));
@@ -325,7 +325,7 @@ contract D3MCompoundTest is DssTest {
     }
 
     function test_borrow_apy() public {
-        // target 2% borrow apy, see top of D3MCompoundPlan for the formula explanation
+        // target 2% borrow apy, see top of D3MCompoundV2TypeRateTargetPlan for the formula explanation
         uint256 targetBorrowRate = 7535450719; // ((2.00 / 100) + 1) ^ (1 / 365) - 1) / 7200) * 10^18
 
         d3mCompoundPlan.file("barb", targetBorrowRate);
@@ -1004,7 +1004,7 @@ contract D3MCompoundTest is DssTest {
         vm.roll(block.number + 5760);
         if (ComptrollerLike(cDai.comptroller()).compBorrowSpeeds(address(cDai)) == 0) return; // Rewards are turned off
 
-        assertRevert(address(d3mCompoundPool), abi.encodeWithSignature("collect(bool)", true), "D3MCompoundPool/king-not-set");
+        assertRevert(address(d3mCompoundPool), abi.encodeWithSignature("collect(bool)", true), "D3MCompoundV2TypePool/king-not-set");
     }
 
     function test_cage_exit() public {

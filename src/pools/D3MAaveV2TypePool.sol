@@ -39,13 +39,13 @@ interface EndLike {
     function Art(bytes32) external view returns (uint256);
 }
 
-// aDai: https://etherscan.io/address/0x028171bCA77440897B824Ca71D1c56caC55b68A3
+// aDai: https://github.com/aave/protocol-v2/blob/master/contracts/protocol/tokenization/AToken.sol
 interface ATokenLike is TokenLike {
     function scaledBalanceOf(address) external view returns (uint256);
     function getIncentivesController() external view returns (address);
 }
 
-// Aave Lending Pool v2: https://etherscan.io/address/0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9
+// Aave Lending Pool v2: https://github.com/aave/protocol-v2/blob/master/contracts/protocol/lendingpool/LendingPool.sol
 interface LendingPoolLike {
     function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
     function withdraw(address asset, uint256 amount, address to) external;
@@ -66,13 +66,13 @@ interface LendingPoolLike {
     );
 }
 
-// Aave Incentives Controller: https://etherscan.io/address/0xd784927ff2f95ba542bfc824c8a8a98f3495f6b5
+// Aave Incentives Controller: https://github.com/aave/aave-stake-v2/blob/master/contracts/stake/AaveIncentivesController.sol
 interface RewardsClaimerLike {
     function REWARD_TOKEN() external returns (address);
     function claimRewards(address[] calldata assets, uint256 amount, address to) external returns (uint256);
 }
 
-contract D3MAavePool is ID3MPool {
+contract D3MAaveV2TypePool is ID3MPool {
 
     mapping (address => uint256) public wards;
     address                      public hub;
@@ -100,9 +100,9 @@ contract D3MAavePool is ID3MPool {
 
         // Fetch the reserve data from Aave
         (,,,,,,, address adai_, address stableDebt_, address variableDebt_,,) = pool.getReserveData(dai_);
-        require(adai_         != address(0), "D3MAavePool/invalid-adai");
-        require(stableDebt_   != address(0), "D3MAavePool/invalid-stableDebt");
-        require(variableDebt_ != address(0), "D3MAavePool/invalid-variableDebt");
+        require(adai_         != address(0), "D3MAaveV2TypePool/invalid-adai");
+        require(stableDebt_   != address(0), "D3MAaveV2TypePool/invalid-stableDebt");
+        require(variableDebt_ != address(0), "D3MAaveV2TypePool/invalid-variableDebt");
 
         adai = ATokenLike(adai_);
         stableDebt = ATokenLike(stableDebt_);
@@ -119,12 +119,12 @@ contract D3MAavePool is ID3MPool {
     }
 
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MAavePool/not-authorized");
+        require(wards[msg.sender] == 1, "D3MAaveV2TypePool/not-authorized");
         _;
     }
 
     modifier onlyHub {
-        require(msg.sender == hub, "D3MAavePool/only-hub");
+        require(msg.sender == hub, "D3MAaveV2TypePool/only-hub");
         _;
     }
 
@@ -148,13 +148,13 @@ contract D3MAavePool is ID3MPool {
     }
 
     function file(bytes32 what, address data) external auth {
-        require(vat.live() == 1, "D3MAavePool/no-file-during-shutdown");
+        require(vat.live() == 1, "D3MAaveV2TypePool/no-file-during-shutdown");
         if (what == "hub") {
             vat.nope(hub);
             hub = data;
             vat.hope(data);
         } else if (what == "king") king = data;
-        else revert("D3MAavePool/file-unrecognized-param");
+        else revert("D3MAaveV2TypePool/file-unrecognized-param");
         emit File(what, data);
     }
 
@@ -168,7 +168,7 @@ contract D3MAavePool is ID3MPool {
         // Verify the correct amount of adai shows up
         uint256 interestIndex = pool.getReserveNormalizedIncome(address(dai));
         uint256 scaledAmount = _rdiv(wad, interestIndex);
-        require(adai.scaledBalanceOf(address(this)) >= (scaledPrev + scaledAmount), "D3MAavePool/incorrect-adai-balance-received");
+        require(adai.scaledBalanceOf(address(this)) >= (scaledPrev + scaledAmount), "D3MAaveV2TypePool/incorrect-adai-balance-received");
     }
 
     // Withdraws Dai from Aave in exchange for adai
@@ -178,19 +178,19 @@ contract D3MAavePool is ID3MPool {
 
         pool.withdraw(address(dai), wad, msg.sender);
 
-        require(dai.balanceOf(msg.sender) == prevDai + wad, "D3MAavePool/incorrect-dai-balance-received");
+        require(dai.balanceOf(msg.sender) == prevDai + wad, "D3MAaveV2TypePool/incorrect-dai-balance-received");
     }
 
     function exit(address dst, uint256 wad) external override onlyHub {
         uint256 exited_ = exited;
         exited = exited_ + wad;
         uint256 amt = wad * assetBalance() / (D3mHubLike(hub).end().Art(ilk) - exited_);
-        require(adai.transfer(dst, amt), "D3MAavePool/transfer-failed");
+        require(adai.transfer(dst, amt), "D3MAaveV2TypePool/transfer-failed");
     }
 
     function quit(address dst) external override auth {
-        require(vat.live() == 1, "D3MAavePool/no-quit-during-shutdown");
-        require(adai.transfer(dst, adai.balanceOf(address(this))), "D3MAavePool/transfer-failed");
+        require(vat.live() == 1, "D3MAaveV2TypePool/no-quit-during-shutdown");
+        require(adai.transfer(dst, adai.balanceOf(address(this))), "D3MAaveV2TypePool/transfer-failed");
     }
 
     function preDebtChange() external override {}
@@ -216,7 +216,7 @@ contract D3MAavePool is ID3MPool {
 
     // --- Collect any rewards ---
     function collect() external returns (uint256 amt) {
-        require(king != address(0), "D3MAavePool/king-not-set");
+        require(king != address(0), "D3MAaveV2TypePool/king-not-set");
 
         address[] memory assets = new address[](1);
         assets[0] = address(adai);

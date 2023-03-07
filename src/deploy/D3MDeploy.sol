@@ -24,10 +24,10 @@ import { D3MCoreInstance } from "./D3MCoreInstance.sol";
 import { D3MHub } from "../D3MHub.sol";
 import { D3MMom } from "../D3MMom.sol";
 import { D3MInstance } from "./D3MInstance.sol";
-import { D3MAavePlan } from "../plans/D3MAavePlan.sol";
-import { D3MAavePool } from "../pools/D3MAavePool.sol";
-import { D3MCompoundPlan } from "../plans/D3MCompoundPlan.sol";
-import { D3MCompoundPool } from "../pools/D3MCompoundPool.sol";
+import { D3MAaveV2TypeRateTargetPlan } from "../plans/D3MAaveV2TypeRateTargetPlan.sol";
+import { D3MAaveV2TypePool } from "../pools/D3MAaveV2TypePool.sol";
+import { D3MCompoundV2TypeRateTargetPlan } from "../plans/D3MCompoundV2TypeRateTargetPlan.sol";
+import { D3MCompoundV2TypePool } from "../pools/D3MCompoundV2TypePool.sol";
 import { D3MOracle } from "../D3MOracle.sol";
 
 // Deploy a D3M instance
@@ -54,8 +54,8 @@ library D3MDeploy {
         address dai,
         address lendingPool
     ) internal returns (D3MInstance memory d3m) {
-        d3m.plan = address(new D3MAavePlan(dai, lendingPool));
-        d3m.pool = address(new D3MAavePool(ilk, hub, dai, lendingPool));
+        d3m.plan = address(new D3MAaveV2TypeRateTargetPlan(dai, lendingPool));
+        d3m.pool = address(new D3MAaveV2TypePool(ilk, hub, dai, lendingPool));
         d3m.oracle = address(new D3MOracle(vat, ilk));
 
         ScriptTools.switchOwner(d3m.plan, deployer, owner);
@@ -71,8 +71,8 @@ library D3MDeploy {
         address hub,
         address cdai
     ) internal returns (D3MInstance memory d3m) {
-        d3m.plan = address(new D3MCompoundPlan(cdai));
-        d3m.pool = address(new D3MCompoundPool(ilk, hub, cdai));
+        d3m.plan = address(new D3MCompoundV2TypeRateTargetPlan(cdai));
+        d3m.pool = address(new D3MCompoundV2TypePool(ilk, hub, cdai));
         d3m.oracle = address(new D3MOracle(vat, ilk));
 
         ScriptTools.switchOwner(d3m.plan, deployer, owner);
