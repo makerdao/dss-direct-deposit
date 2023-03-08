@@ -5,6 +5,7 @@ set -e
 
 export FOUNDRY_OPTIMIZER=true
 export FOUNDRY_OPTIMIZER_RUNS=200
+export FOUNDRY_ROOT_CHAINID=1
 
 for ARGUMENT in "$@"
 do
