@@ -155,7 +155,7 @@ contract D3MInitScript is Script {
         } else if (planType.eq("liquidity-buffer")) {
             if (poolType.eq("aave-v2") || poolType.eq("aave-v3")) {
                 D3MAaveBufferPlanConfig memory aaveCfg = D3MAaveBufferPlanConfig({
-                    buffer: config.readUint("buffer") * WAD,
+                    buffer: config.readUint(".buffer") * WAD,
                     adai: D3MAavePoolLike(d3m.pool).adai(),
                     adaiRevision: D3MAaveBufferPlanLike(d3m.plan).adaiRevision()
                 });
