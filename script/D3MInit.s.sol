@@ -31,6 +31,8 @@ import {
     D3MCompoundRateTargetPlanConfig,
     D3MAavePoolLike,
     D3MAaveRateTargetPlanLike,
+    D3MAaveBufferPlanLike,
+    D3MAaveBufferPlanConfig,
     D3MCompoundPoolLike,
     D3MCompoundRateTargetPlanLike,
     CDaiLike
@@ -91,7 +93,7 @@ contract D3MInitScript is Script {
         );
 
         // Pool
-        if (poolType.eq("aave-v2")) {
+        if (poolType.eq("aave-v2") || poolType.eq("aave-v3")) {
             D3MAavePoolConfig memory aaveCfg = D3MAavePoolConfig({
                 king: config.readAddress(".king"),
                 adai: D3MAavePoolLike(d3m.pool).adai(),
@@ -146,6 +148,20 @@ contract D3MInitScript is Script {
                 D3MInit.initCompoundRateTargetPlan(
                     d3m,
                     compoundCfg
+                );
+            } else {
+                revert("Invalid pool type for rate target plan type");
+            }
+        } else if (planType.eq("liquidity-buffer")) {
+            if (poolType.eq("aave-v2") || poolType.eq("aave-v3")) {
+                D3MAaveBufferPlanConfig memory aaveCfg = D3MAaveBufferPlanConfig({
+                    buffer: config.readUint("buffer") * WAD,
+                    adai: D3MAavePoolLike(d3m.pool).adai(),
+                    adaiRevision: D3MAaveBufferPlanLike(d3m.plan).adaiRevision()
+                });
+                D3MInit.initAaveBufferPlan(
+                    d3m,
+                    aaveCfg
                 );
             } else {
                 revert("Invalid pool type for rate target plan type");

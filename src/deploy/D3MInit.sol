@@ -48,6 +48,12 @@ interface D3MAaveRateTargetPlanLike {
     function adaiRevision() external view returns (uint256);
 }
 
+interface D3MAaveBufferPlanLike {
+    function file(bytes32, uint256) external;
+    function adai() external view returns (address);
+    function adaiRevision() external view returns (uint256);
+}
+
 interface ADaiLike {
     function ATOKEN_REVISION() external view returns (uint256);
 }
@@ -118,6 +124,12 @@ struct D3MAaveRateTargetPlanConfig {
     address stableDebt;
     address variableDebt;
     address tack;
+    uint256 adaiRevision;
+}
+
+struct D3MAaveBufferPlanConfig {
+    uint256 buffer;
+    address adai;
     uint256 adaiRevision;
 }
 
@@ -219,6 +231,9 @@ library D3MInit {
         dss.chainlog.setAddress(ScriptTools.stringToBytes32(string(abi.encodePacked(clPrefix, "_ORACLE"))), d3m.oracle);
     }
 
+    /**
+     * @dev This works for V2 and V3 pool adapters.
+     */
     function initAavePool(
         DssInstance memory dss,
         D3MInstance memory d3m,
@@ -275,6 +290,21 @@ library D3MInit {
         require(adai.ATOKEN_REVISION() == aaveCfg.adaiRevision, "ADai adaiRevision mismatch");
 
         plan.file("bar", aaveCfg.bar);
+    }
+
+    function initAaveBufferPlan(
+        D3MInstance memory d3m,
+        D3MAaveBufferPlanConfig memory aaveCfg
+    ) internal {
+        D3MAaveBufferPlanLike plan = D3MAaveBufferPlanLike(d3m.plan);
+        ADaiLike adai = ADaiLike(aaveCfg.adai);
+
+        // Sanity checks
+        require(plan.adai() == address(adai), "Plan adai mismatch");
+        require(plan.adaiRevision() == aaveCfg.adaiRevision, "Plan adaiRevision mismatch");
+        require(adai.ATOKEN_REVISION() == aaveCfg.adaiRevision, "ADai adaiRevision mismatch");
+
+        plan.file("buffer", aaveCfg.buffer);
     }
 
     function initCompoundRateTargetPlan(

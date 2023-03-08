@@ -86,6 +86,15 @@ contract D3MDeployScript is Script {
                 address(dss.dai),
                 config.readAddress(".lendingPool")
             );
+        } else if (poolType.eq("aave-v3")) {
+            d3m.pool = D3MDeploy.deployAaveV3TypePool(
+                msg.sender,
+                admin,
+                ilk,
+                hub,
+                address(dss.dai),
+                config.readAddress(".lendingPool")
+            );
         } else if (poolType.eq("compound-v2")) {
             d3m.pool = D3MDeploy.deployCompoundV2TypePool(
                 msg.sender,
@@ -112,6 +121,16 @@ contract D3MDeployScript is Script {
                     msg.sender,
                     admin,
                     config.readAddress(".cdai")
+                );
+            } else {
+                revert("Invalid pool type for rate target plan type");
+            }
+        } else if (planType.eq("liquidity-buffer")) {
+            if (poolType.eq("aave-v2") || poolType.eq("aave-v3")) {
+                d3m.plan = D3MDeploy.deployAaveBufferPlan(
+                    msg.sender,
+                    admin,
+                    config.readAddress(".adai")
                 );
             } else {
                 revert("Invalid pool type for rate target plan type");
