@@ -42,11 +42,11 @@ contract D3MCoreInitScript is Script {
     function run() external {
         config = ScriptTools.loadConfig(NAME);
         dependencies = ScriptTools.loadDependencies(NAME);
-        dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
+        dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
 
         d3mCore = D3MCoreInstance({
-            hub: dependencies.readAddress("hub"),
-            mom: dependencies.readAddress("mom")
+            hub: dependencies.readAddress(".hub"),
+            mom: dependencies.readAddress(".mom")
         });
 
         vm.startBroadcast();

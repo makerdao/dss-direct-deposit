@@ -25,12 +25,15 @@ import {
     D3MInit,
     D3MInstance,
     D3MCommonConfig,
-    D3MAaveConfig,
-    D3MCompoundConfig,
-    AavePoolLike,
-    AavePlanLike,
-    CompoundPoolLike,
-    CompoundPlanLike
+    D3MAavePoolConfig,
+    D3MCompoundPoolConfig,
+    D3MAaveRateTargetPlanConfig,
+    D3MCompoundRateTargetPlanConfig,
+    D3MAavePoolLike,
+    D3MAaveRateTargetPlanLike,
+    D3MCompoundPoolLike,
+    D3MCompoundRateTargetPlanLike,
+    CDaiLike
 } from "../src/deploy/D3MInit.sol";
 
 contract D3MInitScript is Script {
@@ -39,6 +42,7 @@ contract D3MInitScript is Script {
     using ScriptTools for string;
 
     uint256 constant BPS = 10 ** 4;
+    uint256 constant WAD = 10 ** 18;
     uint256 constant RAY = 10 ** 27;
     uint256 constant RAD = 10 ** 45;
 
@@ -46,73 +50,110 @@ contract D3MInitScript is Script {
     string dependencies;
     DssInstance dss;
 
-    string d3mType;
+    string poolType;
+    string planType;
     bytes32 ilk;
     D3MInstance d3m;
     D3MCommonConfig cfg;
-    D3MAaveConfig aaveCfg;
-    D3MCompoundConfig compoundCfg;
 
     function run() external {
         config = ScriptTools.loadConfig();
         dependencies = ScriptTools.loadDependencies();
-        dss = MCD.loadFromChainlog(config.readAddress("chainlog"));
+        dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
 
-        d3mType = config.readString("type");
-        ilk = config.readString("ilk").stringToBytes32();
+        poolType = config.readString(".poolType");
+        planType = config.readString(".planType");
+        ilk = config.readString(".ilk").stringToBytes32();
 
         d3m = D3MInstance({
-            pool: dependencies.readAddress("pool"),
-            plan: dependencies.readAddress("plan"),
-            oracle: dependencies.readAddress("oracle")
+            pool: dependencies.readAddress(".pool"),
+            plan: dependencies.readAddress(".plan"),
+            oracle: dependencies.readAddress(".oracle")
         });
         cfg = D3MCommonConfig({
-            hub: dependencies.readAddress("hub"),
-            mom: dependencies.readAddress("mom"),
+            hub: dependencies.readAddress(".hub"),
+            mom: dependencies.readAddress(".mom"),
             ilk: ilk,
-            existingIlk: config.readBool("existingIlk"),
-            maxLine: config.readUint("maxLine") * RAD,
-            gap: config.readUint("gap") * RAD,
-            ttl: config.readUint("ttl"),
-            tau: config.readUint("tau")
+            existingIlk: config.readBool(".existingIlk"),
+            maxLine: config.readUint(".maxLine") * RAD,
+            gap: config.readUint(".gap") * RAD,
+            ttl: config.readUint(".ttl"),
+            tau: config.readUint(".tau")
         });
 
         vm.startBroadcast();
-        if (d3mType.eq("aave")) {
-            aaveCfg = D3MAaveConfig({
-                king: config.readAddress("king"),
-                bar: config.readUint("bar") * RAY / BPS,
-                adai: AavePoolLike(d3m.pool).adai(),
-                stableDebt: AavePoolLike(d3m.pool).stableDebt(),
-                variableDebt: AavePoolLike(d3m.pool).variableDebt(),
-                tack: AavePlanLike(d3m.plan).tack(),
-                adaiRevision: AavePlanLike(d3m.plan).adaiRevision()
+        
+        // Common config setup
+        D3MInit.initCommon(
+            dss,
+            d3m,
+            cfg
+        );
+
+        // Pool
+        if (poolType.eq("aave-v2")) {
+            D3MAavePoolConfig memory aaveCfg = D3MAavePoolConfig({
+                king: config.readAddress(".king"),
+                adai: D3MAavePoolLike(d3m.pool).adai(),
+                stableDebt: D3MAavePoolLike(d3m.pool).stableDebt(),
+                variableDebt: D3MAavePoolLike(d3m.pool).variableDebt()
             });
-            D3MInit.initAave(
+            D3MInit.initAavePool(
                 dss,
                 d3m,
                 cfg,
                 aaveCfg
             );
-        } else if (d3mType.eq("compound")) {
-            compoundCfg = D3MCompoundConfig({
-                king: config.readAddress("king"),
-                barb: config.readUint("barb"),
-                cdai: CompoundPoolLike(d3m.pool).cDai(),
-                comptroller: CompoundPoolLike(d3m.pool).comptroller(),
-                comp: CompoundPoolLike(d3m.pool).comp(),
-                tack: CompoundPlanLike(d3m.plan).tack(),
-                delegate: CompoundPlanLike(d3m.plan).delegate()
+        } else if (poolType.eq("compound-v2")) {
+            D3MCompoundPoolConfig memory compoundCfg = D3MCompoundPoolConfig({
+                king: config.readAddress(".king"),
+                cdai: D3MCompoundPoolLike(d3m.pool).cDai(),
+                comptroller: D3MCompoundPoolLike(d3m.pool).comptroller(),
+                comp: D3MCompoundPoolLike(d3m.pool).comp()
             });
-            D3MInit.initCompound(
+            D3MInit.initCompoundPool(
                 dss,
                 d3m,
                 cfg,
                 compoundCfg
             );
         } else {
-            revert("unknown-d3m-type");
+            revert("Unknown pool type");
         }
+
+        // Plan
+        if (planType.eq("rate-target")) {
+            if (poolType.eq("aave-v2")) {
+                D3MAaveRateTargetPlanConfig memory aaveCfg = D3MAaveRateTargetPlanConfig({
+                    bar: config.readUint(".bar") * RAY / BPS,
+                    adai: D3MAavePoolLike(d3m.pool).adai(),
+                    stableDebt: D3MAavePoolLike(d3m.pool).stableDebt(),
+                    variableDebt: D3MAavePoolLike(d3m.pool).variableDebt(),
+                    tack: D3MAaveRateTargetPlanLike(d3m.plan).tack(),
+                    adaiRevision: D3MAaveRateTargetPlanLike(d3m.plan).adaiRevision()
+                });
+                D3MInit.initAaveRateTargetPlan(
+                    d3m,
+                    aaveCfg
+                );
+            } else if (poolType.eq("compound-v2")) {
+                D3MCompoundRateTargetPlanConfig memory compoundCfg = D3MCompoundRateTargetPlanConfig({
+                    barb: config.readUint(".barb"),
+                    cdai: D3MCompoundPoolLike(d3m.pool).cDai(),
+                    tack: CDaiLike(D3MCompoundRateTargetPlanLike(d3m.plan).cDai()).interestRateModel(),
+                    delegate: CDaiLike(D3MCompoundRateTargetPlanLike(d3m.plan).cDai()).implementation()
+                });
+                D3MInit.initCompoundRateTargetPlan(
+                    d3m,
+                    compoundCfg
+                );
+            } else {
+                revert("Invalid pool type for rate target plan type");
+            }
+        } else {
+            revert("Unknown plan type");
+        }
+
         vm.stopBroadcast();
     }
 

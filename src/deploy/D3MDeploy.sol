@@ -45,39 +45,61 @@ library D3MDeploy {
         DSAuthAbstract(d3mCore.mom).setOwner(owner);
     }
 
-    function deployAave(
+    function deployOracle(
         address deployer,
         address owner,
         bytes32 ilk,
-        address vat,
+        address vat
+    ) internal returns (address oracle) {
+        oracle = address(new D3MOracle(vat, ilk));
+
+        ScriptTools.switchOwner(oracle, deployer, owner);
+    }
+
+    function deployAaveV2TypePool(
+        address deployer,
+        address owner,
+        bytes32 ilk,
         address hub,
         address dai,
         address lendingPool
-    ) internal returns (D3MInstance memory d3m) {
-        d3m.plan = address(new D3MAaveV2TypeRateTargetPlan(dai, lendingPool));
-        d3m.pool = address(new D3MAaveV2TypePool(ilk, hub, dai, lendingPool));
-        d3m.oracle = address(new D3MOracle(vat, ilk));
+    ) internal returns (address pool) {
+        pool = address(new D3MAaveV2TypePool(ilk, hub, dai, lendingPool));
 
-        ScriptTools.switchOwner(d3m.plan, deployer, owner);
-        ScriptTools.switchOwner(d3m.pool, deployer, owner);
-        ScriptTools.switchOwner(d3m.oracle, deployer, owner);
+        ScriptTools.switchOwner(pool, deployer, owner);
     }
 
-    function deployCompound(
+    function deployCompoundV2TypePool(
         address deployer,
         address owner,
         bytes32 ilk,
-        address vat,
         address hub,
         address cdai
-    ) internal returns (D3MInstance memory d3m) {
-        d3m.plan = address(new D3MCompoundV2TypeRateTargetPlan(cdai));
-        d3m.pool = address(new D3MCompoundV2TypePool(ilk, hub, cdai));
-        d3m.oracle = address(new D3MOracle(vat, ilk));
+    ) internal returns (address pool) {
+        pool = address(new D3MCompoundV2TypePool(ilk, hub, cdai));
 
-        ScriptTools.switchOwner(d3m.plan, deployer, owner);
-        ScriptTools.switchOwner(d3m.pool, deployer, owner);
-        ScriptTools.switchOwner(d3m.oracle, deployer, owner);
+        ScriptTools.switchOwner(pool, deployer, owner);
+    }
+
+    function deployAaveV2TypeRateTargetPlan(
+        address deployer,
+        address owner,
+        address dai,
+        address lendingPool
+    ) internal returns (address plan) {
+        plan = address(new D3MAaveV2TypeRateTargetPlan(dai, lendingPool));
+
+        ScriptTools.switchOwner(plan, deployer, owner);
+    }
+
+    function deployCompoundV2TypeRateTargetPlan(
+        address deployer,
+        address owner,
+        address cdai
+    ) internal returns (address plan) {
+        plan = address(new D3MCompoundV2TypeRateTargetPlan(cdai));
+
+        ScriptTools.switchOwner(plan, deployer, owner);
     }
 
 }
