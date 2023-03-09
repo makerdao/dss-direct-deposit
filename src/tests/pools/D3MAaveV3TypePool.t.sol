@@ -158,7 +158,7 @@ contract FakeLendingPool {
         result.accruedToTreasury = uint128(accruedToTreasury);
     }
 
-    function deposit(address asset, uint256 amt, address forWhom, uint16 code) external {
+    function supply(address asset, uint256 amt, address forWhom, uint16 code) external {
         lastDeposit = DepositCall(
             asset,
             amt,

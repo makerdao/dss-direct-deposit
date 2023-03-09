@@ -82,7 +82,7 @@ interface PoolLike {
         uint128 isolationModeTotalDebt;
     }
     
-    function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
+    function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
     function withdraw(address asset, uint256 amount, address to) external;
     function getReserveNormalizedIncome(address asset) external view returns (uint256);
     function getReserveData(address asset) external view returns (ReserveData memory);
@@ -189,11 +189,11 @@ contract D3MAaveV3TypePool is ID3MPool {
     }
 
     // Deposits Dai to Aave in exchange for adai which is received by this contract
-    // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#deposit
+    // Aave: https://docs.aave.com/developers/core-contracts/pool#supply
     function deposit(uint256 wad) external override onlyHub {
         uint256 scaledPrev = adai.scaledBalanceOf(address(this));
 
-        pool.deposit(address(dai), wad, address(this), 0);
+        pool.supply(address(dai), wad, address(this), 0);
 
         // Verify the correct amount of adai shows up
         uint256 interestIndex = pool.getReserveNormalizedIncome(address(dai));
@@ -202,7 +202,7 @@ contract D3MAaveV3TypePool is ID3MPool {
     }
 
     // Withdraws Dai from Aave in exchange for adai
-    // Aave: https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#withdraw
+    // Aave: https://docs.aave.com/developers/core-contracts/pool#withdraw
     function withdraw(uint256 wad) external override onlyHub {
         uint256 prevDai = dai.balanceOf(msg.sender);
 
