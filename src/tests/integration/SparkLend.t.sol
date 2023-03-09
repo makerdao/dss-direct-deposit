@@ -24,7 +24,7 @@ import { D3MMom } from "../../D3MMom.sol";
 
 import { D3MOracle } from "../../D3MOracle.sol";
 import { D3MAaveTypeBufferPlan } from "../../plans/D3MAaveTypeBufferPlan.sol";
-import { D3MAaveV3TypePool, ATokenLike } from "../../pools/D3MAaveV3TypePool.sol";
+import { D3MAaveV3TypePool } from "../../pools/D3MAaveV3TypePool.sol";
 
 import {
     D3MDeploy,
@@ -79,6 +79,14 @@ interface PoolLike {
     function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external;
     function repay(address asset, uint256 amount, uint256 rateMode, address onBehalfOf) external;
     function withdraw(address asset, uint256 amount, address to) external;
+    function flashLoanSimple(
+        address receiverAddress,
+        address asset,
+        uint256 amount,
+        bytes calldata params,
+        uint16 referralCode
+    ) external;
+    function mintToTreasury(address[] calldata assets) external;
 }
 
 interface PoolAddressProviderLike {
@@ -88,6 +96,36 @@ interface PoolAddressProviderLike {
 interface PoolConfiguratorLike {
     function setSupplyCap(address asset, uint256 newSupplyCap) external;
     function setReserveFlashLoaning(address asset, bool enabled) external;
+}
+
+interface DaiInterestRateStrategyLike {
+    function recompute() external;
+    function performanceBonus() external view returns (uint256);
+}
+
+interface ATokenLike {
+    function balanceOf(address) external view returns (uint256);
+    function approve(address, uint256) external returns (bool);
+    function transfer(address, uint256) external returns (bool);
+    function decimals() external view returns (uint8);
+    function RESERVE_TREASURY_ADDRESS() external view returns (address);
+    function scaledBalanceOf(address) external view returns (uint256);
+    function scaledTotalSupply() external view returns (uint256);
+    function totalSupply() external view returns (uint256);
+    function getIncentivesController() external view returns (address);
+}
+
+interface TreasuryLike {
+    function getFundsAdmin() external view returns (TreasuryAdminLike);
+}
+
+interface TreasuryAdminLike {
+    function transfer(
+        address collector,
+        address token,
+        address recipient,
+        uint256 amount
+    ) external;
 }
 
 contract SparkLendTest is DssTest {
@@ -105,7 +143,10 @@ contract SparkLendTest is DssTest {
 
     PoolLike sparkPool;
     PoolConfiguratorLike configurator;
-    address adai;
+    DaiInterestRateStrategyLike daiInterestRateStrategy;
+    ATokenLike adai;
+    TreasuryLike treasury;
+    TreasuryAdminLike treasuryAdmin;
     uint256 buffer;
 
     D3MHub hub;
@@ -131,7 +172,10 @@ contract SparkLendTest is DssTest {
 
         sparkPool = PoolLike(config.readAddress(".lendingPool"));
         configurator = sparkPool.ADDRESSES_PROVIDER().getPoolConfigurator();
-        adai = config.readAddress(".adai");
+        daiInterestRateStrategy = DaiInterestRateStrategyLike(getInterestRateStrategy(address(dss.dai)));
+        adai = ATokenLike(config.readAddress(".adai"));
+        treasury = TreasuryLike(adai.RESERVE_TREASURY_ADDRESS());
+        treasuryAdmin = treasury.getFundsAdmin();
         buffer = config.readUint(".buffer") * WAD;
         assertGt(buffer, 0);
 
@@ -154,7 +198,7 @@ contract SparkLendTest is DssTest {
         d3m.plan = D3MDeploy.deployAaveBufferPlan(
             address(this),
             admin,
-            adai
+            address(adai)
         );
         plan = D3MAaveTypeBufferPlan(d3m.plan);
 
@@ -166,8 +210,8 @@ contract SparkLendTest is DssTest {
             mom: address(mom),
             ilk: ilk,
             existingIlk: config.readBool(".existingIlk"),
-            maxLine: buffer * RAY * 1000,     // Set gap and max line to large number to avoid hitting limits
-            gap: buffer * RAY * 1000,
+            maxLine: buffer * RAY * 100000,     // Set gap and max line to large number to avoid hitting limits
+            gap: buffer * RAY * 100000,
             ttl: 0,
             tau: config.readUint(".tau")
         });
@@ -213,6 +257,9 @@ contract SparkLendTest is DssTest {
         dss.dai.setBalance(address(adai), 0);
 
         assertGt(getDebtCeiling(), 0);
+
+        // Recompute the dai interest rate strategy to ensure the new line is taken into account
+        daiInterestRateStrategy.recompute();
     }
 
     // Helper functions
@@ -229,9 +276,40 @@ contract SparkLendTest is DssTest {
             z = x != 0 ? ((x - 1) / y) + 1 : 0;
         }
     }
-    function getSupplyUsed() internal view returns (uint256) {
-        PoolLike.ReserveData memory data = sparkPool.getReserveData(address(dss.dai));
-        return _divup((ATokenLike(adai).scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
+    function getSupplyUsed(address asset) internal view returns (uint256) {
+        PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
+        return _divup((adai.scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
+    }
+    function getInterestRateStrategy(address asset) internal view returns (address) {
+        PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
+        return data.interestRateStrategyAddress;
+    }
+    function forceUpdateIndicies(address asset) internal {
+        // Do the flashloan trick to force update indicies
+        sparkPool.flashLoanSimple(address(this), asset, 1, "", 0);
+    }
+    function executeOperation(
+        address,
+        uint256,
+        uint256,
+        address,
+        bytes calldata
+    ) external pure returns (bool) {
+        // Flashloan callback just immediately returns
+        return true;
+    }
+    function getTotalAssets(address asset) internal view returns (uint256) {
+        // Assets = DAI Liquidity + Total Debt
+        PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
+        return dss.dai.balanceOf(address(adai)) + ATokenLike(data.variableDebtTokenAddress).totalSupply() + ATokenLike(data.stableDebtTokenAddress).totalSupply();
+    }
+    function getTotalLiabilities(address asset) internal view returns (uint256) {
+        // Liabilities = spDAI Supply + Amount Accrued to Treasury
+        return getSupplyUsed(asset);
+    }
+    function getAccruedToTreasury(address asset) internal view returns (uint256) {
+        PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
+        return data.accruedToTreasury;
     }
 
     function test_wind() public {
@@ -275,7 +353,7 @@ contract SparkLendTest is DssTest {
         sparkPool.borrow(address(dss.dai), buffer / 8, 2, 0, address(this));
 
         // Spark doesn't have a supply cap, but let's make sure the maxDeposit() works if it it's turned on
-        uint256 currentSupply = getSupplyUsed();
+        uint256 currentSupply = getSupplyUsed(address(dss.dai));
         vm.prank(admin);
         configurator.setSupplyCap(address(dss.dai), (currentSupply + buffer / 2) / WAD);    // Set the supply cap well within the buffer
 
@@ -285,18 +363,18 @@ contract SparkLendTest is DssTest {
 
         // Pre-requisites for executing the flash loan to correct liquidity index and accrued treasury amounts
         assertEq(flashLoansEnabled, true, "flash loans should be enabled");
-        assertGt(dss.dai.balanceOf(adai), 0, "adai should have dai balance");
+        assertGt(dss.dai.balanceOf(address(adai)), 0, "adai should have dai balance");
 
         // Warp so we gaurantee there is new interest
         vm.warp(block.timestamp + 1 days);
 
-        uint256 prevMaxDeposit = supplyCap - _divup((ATokenLike(adai).scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
+        uint256 prevMaxDeposit = supplyCap - _divup((adai.scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
         assertEq(pool.maxDeposit(), prevMaxDeposit, "max deposit should be equal to validation logic");
 
         // Exec should run and mint right up to the supply cap
         hub.exec(ilk);
 
-        uint256 amountMinted = ATokenLike(adai).balanceOf(address(pool));
+        uint256 amountMinted = adai.balanceOf(address(pool));
         assertGt(amountMinted, 0, "amount minted should be greater than 0");
         assertLt(amountMinted, prevMaxDeposit, "amounted minted should be less than previous max deposit"); // This number should be less due to interest collection being deductated after flash loan
         assertLt(pool.maxDeposit(), 1, "max deposit should be ~0");
@@ -308,7 +386,7 @@ contract SparkLendTest is DssTest {
         sparkPool.borrow(address(dss.dai), buffer / 8, 2, 0, address(this));
 
         // Spark doesn't have a supply cap, but let's make sure the maxDeposit() works if it it's turned on
-        uint256 currentSupply = getSupplyUsed();
+        uint256 currentSupply = getSupplyUsed(address(dss.dai));
         vm.prank(admin);
         configurator.setSupplyCap(address(dss.dai), (currentSupply + buffer / 2) / WAD);    // Set the supply cap well within the buffer
         vm.prank(admin);
@@ -320,16 +398,63 @@ contract SparkLendTest is DssTest {
 
         // Pre-requisites for executing the flash loan to correct liquidity index and accrued treasury amounts
         assertEq(flashLoansEnabled, false, "flash loans should be disabled");
-        assertGt(dss.dai.balanceOf(adai), 0, "adai should have dai balance");
+        assertGt(dss.dai.balanceOf(address(adai)), 0, "adai should have dai balance");
 
         // Warp so we gaurantee there is new interest
         vm.warp(block.timestamp + 1 days);
 
-        uint256 prevMaxDeposit = supplyCap - _divup((ATokenLike(adai).scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
+        uint256 prevMaxDeposit = supplyCap - _divup((adai.scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
         assertEq(pool.maxDeposit(), prevMaxDeposit, "max deposit should be equal to validation logic");
 
         // This should revert now because maxDeposit() is using stale values and overestimating
         vm.expectRevert(bytes(SUPPLY_CAP_EXCEEDED));
         hub.exec(ilk);
+    }
+
+    /** 
+     * The DAI market is using a new interest model which over-allocates interest to the treasury.
+     * This is due to the reserve factor not being flexible enough to account for this.
+     * Confirm that we can later correct the discrepancy by donating the excess liabilities back to the DAI pool. (This can be automated later on)
+     */
+    function test_asset_liabilities_fix() public {
+        uint256 assets = getTotalAssets(address(dss.dai));
+        uint256 liabilities = getTotalLiabilities(address(dss.dai));
+        if (assets >= liabilities) {
+            // Force the assets to become less than the liabilities
+            uint256 performanceBonus = daiInterestRateStrategy.performanceBonus();
+            vm.prank(admin);
+            plan.file("buffer", performanceBonus * 4);
+            hub.exec(ilk);
+            sparkPool.borrow(address(dss.dai), performanceBonus * 2, 2, 0, address(this));  // Supply rate should now be above 0% (we are over-allocating)
+
+            // Warp so we gaurantee there is new interest
+            vm.warp(block.timestamp + 365 days);
+            forceUpdateIndicies(address(dss.dai));
+
+            assets = getTotalAssets(address(dss.dai));
+            liabilities = getTotalLiabilities(address(dss.dai));
+            assertLe(assets, liabilities, "assets should be less than or equal to liabilities");
+        }
+        
+        // Let's fix the accounting
+        uint256 delta = liabilities - assets;
+
+        // First trigger all spDAI owed to the treasury to be accrued
+        assertGt(getAccruedToTreasury(address(dss.dai)), 0, "accrued to treasury should be greater than 0");
+        address[] memory toMint = new address[](1);
+        toMint[0] = address(dss.dai);
+        sparkPool.mintToTreasury(toMint);
+        assertEq(getAccruedToTreasury(address(dss.dai)), 0, "accrued to treasury should be 0");
+        assertGe(adai.balanceOf(address(treasury)), delta, "adai treasury should have more than the delta between liabilities and assets");
+
+        // Donate the excess liabilities back to the pool
+        // This will burn the liabilities while keeping the assets the same
+        vm.prank(admin);
+        treasuryAdmin.transfer(address(treasury), address(adai), address(this), delta);
+        sparkPool.withdraw(address(dss.dai), delta, address(adai));
+
+        assets = getTotalAssets(address(dss.dai)) + 1;  // In case of rounding error we +1
+        liabilities = getTotalLiabilities(address(dss.dai));
+        assertGe(assets, liabilities, "assets should be greater than or equal to liabilities");
     }
 }
