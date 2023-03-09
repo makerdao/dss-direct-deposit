@@ -24,7 +24,7 @@ import { D3MMom } from "../../D3MMom.sol";
 
 import { D3MOracle } from "../../D3MOracle.sol";
 import { D3MAaveTypeBufferPlan } from "../../plans/D3MAaveTypeBufferPlan.sol";
-import { D3MAaveV3TypePool } from "../../pools/D3MAaveV3TypePool.sol";
+import { D3MAaveV3TypePool, ATokenLike } from "../../pools/D3MAaveV3TypePool.sol";
 
 import {
     D3MDeploy,
@@ -38,10 +38,56 @@ import {
 } from "../../deploy/D3MInit.sol";
 
 interface PoolLike {
+
+    // Need to use a struct as too many variables to return on the stack
+    struct ReserveData {
+        //stores the reserve configuration
+        uint256 configuration;
+        //the liquidity index. Expressed in ray
+        uint128 liquidityIndex;
+        //the current supply rate. Expressed in ray
+        uint128 currentLiquidityRate;
+        //variable borrow index. Expressed in ray
+        uint128 variableBorrowIndex;
+        //the current variable borrow rate. Expressed in ray
+        uint128 currentVariableBorrowRate;
+        //the current stable borrow rate. Expressed in ray
+        uint128 currentStableBorrowRate;
+        //timestamp of last update
+        uint40 lastUpdateTimestamp;
+        //the id of the reserve. Represents the position in the list of the active reserves
+        uint16 id;
+        //aToken address
+        address aTokenAddress;
+        //stableDebtToken address
+        address stableDebtTokenAddress;
+        //variableDebtToken address
+        address variableDebtTokenAddress;
+        //address of the interest rate strategy
+        address interestRateStrategyAddress;
+        //the current treasury balance, scaled
+        uint128 accruedToTreasury;
+        //the outstanding unbacked aTokens minted through the bridging feature
+        uint128 unbacked;
+        //the outstanding debt borrowed against this asset in isolation mode
+        uint128 isolationModeTotalDebt;
+    }
+
+    function ADDRESSES_PROVIDER() external view returns (PoolAddressProviderLike);
+    function getReserveData(address asset) external view returns (ReserveData memory);
     function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
     function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external;
     function repay(address asset, uint256 amount, uint256 rateMode, address onBehalfOf) external;
     function withdraw(address asset, uint256 amount, address to) external;
+}
+
+interface PoolAddressProviderLike {
+    function getPoolConfigurator() external view returns (PoolConfiguratorLike);
+}
+
+interface PoolConfiguratorLike {
+    function setSupplyCap(address asset, uint256 newSupplyCap) external;
+    function setReserveFlashLoaning(address asset, bool enabled) external;
 }
 
 contract SparkLendTest is DssTest {
@@ -58,6 +104,7 @@ contract SparkLendTest is DssTest {
     D3MInstance d3m;
 
     PoolLike sparkPool;
+    PoolConfiguratorLike configurator;
     address adai;
     uint256 buffer;
 
@@ -66,6 +113,11 @@ contract SparkLendTest is DssTest {
 
     D3MAaveTypeBufferPlan plan;
     D3MAaveV3TypePool pool;
+
+    uint256 constant FLASHLOAN_ENABLED_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFFFFFFFFFFFF;
+    uint256 constant SUPPLY_CAP_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFF000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+    uint256 constant SUPPLY_CAP_START_BIT_POSITION = 116;
+    string constant SUPPLY_CAP_EXCEEDED = '51';  // SUPPLY_CAP_EXCEEDED error code 
 
     function setUp() public {
         config = ScriptTools.readInput("template-spark");
@@ -78,6 +130,7 @@ contract SparkLendTest is DssTest {
         assertEq(admin, dss.chainlog.getAddress("MCD_PAUSE_PROXY"), "admin should be pause proxy");
 
         sparkPool = PoolLike(config.readAddress(".lendingPool"));
+        configurator = sparkPool.ADDRESSES_PROVIDER().getPoolConfigurator();
         adai = config.readAddress(".adai");
         buffer = config.readUint(".buffer") * WAD;
         assertGt(buffer, 0);
@@ -144,6 +197,9 @@ contract SparkLendTest is DssTest {
         );
 
         vm.stopPrank();
+        
+        // Give us some DAI
+        dss.dai.setBalance(address(this), buffer * 100);
 
         // Deposit WETH into the pool
         uint256 amt = 1_000_000 * WAD;
@@ -167,6 +223,15 @@ contract SparkLendTest is DssTest {
     function getDebt() internal view returns (uint256) {
         (, uint256 art) = dss.vat.urns(ilk, address(pool));
         return art;
+    }
+    function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        unchecked {
+            z = x != 0 ? ((x - 1) / y) + 1 : 0;
+        }
+    }
+    function getSupplyUsed() internal view returns (uint256) {
+        PoolLike.ReserveData memory data = sparkPool.getReserveData(address(dss.dai));
+        return _divup((ATokenLike(adai).scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
     }
 
     function test_wind() public {
@@ -202,5 +267,69 @@ contract SparkLendTest is DssTest {
         hub.exec(ilk);
 
         assertEq(getDebt(), buffer + buffer / 2 - buffer / 4, "should be back down to 1.25x the buffer");
+    }
+
+    function test_supplyCap_hit() public {
+        // Supply and borrow some DAI to ensure interest is being generated
+        sparkPool.deposit(address(dss.dai), buffer / 4, address(this), 0);
+        sparkPool.borrow(address(dss.dai), buffer / 8, 2, 0, address(this));
+
+        // Spark doesn't have a supply cap, but let's make sure the maxDeposit() works if it it's turned on
+        uint256 currentSupply = getSupplyUsed();
+        vm.prank(admin);
+        configurator.setSupplyCap(address(dss.dai), (currentSupply + buffer / 2) / WAD);    // Set the supply cap well within the buffer
+
+        PoolLike.ReserveData memory data = sparkPool.getReserveData(address(dss.dai));
+        uint256 supplyCap = ((data.configuration & ~SUPPLY_CAP_MASK) >> SUPPLY_CAP_START_BIT_POSITION) * (1 ether);
+        bool flashLoansEnabled = (data.configuration & ~FLASHLOAN_ENABLED_MASK) != 0;
+
+        // Pre-requisites for executing the flash loan to correct liquidity index and accrued treasury amounts
+        assertEq(flashLoansEnabled, true, "flash loans should be enabled");
+        assertGt(dss.dai.balanceOf(adai), 0, "adai should have dai balance");
+
+        // Warp so we gaurantee there is new interest
+        vm.warp(block.timestamp + 1 days);
+
+        uint256 prevMaxDeposit = supplyCap - _divup((ATokenLike(adai).scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
+        assertEq(pool.maxDeposit(), prevMaxDeposit, "max deposit should be equal to validation logic");
+
+        // Exec should run and mint right up to the supply cap
+        hub.exec(ilk);
+
+        uint256 amountMinted = ATokenLike(adai).balanceOf(address(pool));
+        assertGt(amountMinted, 0, "amount minted should be greater than 0");
+        assertLt(amountMinted, prevMaxDeposit, "amounted minted should be less than previous max deposit"); // This number should be less due to interest collection being deductated after flash loan
+        assertLt(pool.maxDeposit(), 1, "max deposit should be ~0");
+    }
+
+    function test_supplyCap_hit_no_flashloans() public {
+        // Supply and borrow some DAI to ensure interest is being generated
+        sparkPool.deposit(address(dss.dai), buffer / 4, address(this), 0);
+        sparkPool.borrow(address(dss.dai), buffer / 8, 2, 0, address(this));
+
+        // Spark doesn't have a supply cap, but let's make sure the maxDeposit() works if it it's turned on
+        uint256 currentSupply = getSupplyUsed();
+        vm.prank(admin);
+        configurator.setSupplyCap(address(dss.dai), (currentSupply + buffer / 2) / WAD);    // Set the supply cap well within the buffer
+        vm.prank(admin);
+        configurator.setReserveFlashLoaning(address(dss.dai), false);
+
+        PoolLike.ReserveData memory data = sparkPool.getReserveData(address(dss.dai));
+        uint256 supplyCap = ((data.configuration & ~SUPPLY_CAP_MASK) >> SUPPLY_CAP_START_BIT_POSITION) * (1 ether);
+        bool flashLoansEnabled = (data.configuration & ~FLASHLOAN_ENABLED_MASK) != 0;
+
+        // Pre-requisites for executing the flash loan to correct liquidity index and accrued treasury amounts
+        assertEq(flashLoansEnabled, false, "flash loans should be disabled");
+        assertGt(dss.dai.balanceOf(adai), 0, "adai should have dai balance");
+
+        // Warp so we gaurantee there is new interest
+        vm.warp(block.timestamp + 1 days);
+
+        uint256 prevMaxDeposit = supplyCap - _divup((ATokenLike(adai).scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
+        assertEq(pool.maxDeposit(), prevMaxDeposit, "max deposit should be equal to validation logic");
+
+        // This should revert now because maxDeposit() is using stale values and overestimating
+        vm.expectRevert(bytes(SUPPLY_CAP_EXCEEDED));
+        hub.exec(ilk);
     }
 }
