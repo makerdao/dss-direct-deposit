@@ -225,7 +225,7 @@ contract D3MAaveV3TypePool is ID3MPool {
 
     function preDebtChange() external override {
         // Execute a 1 wei flash loan to trigger an index update on everything
-        // If the fee is less than 100% than the fee should always round down to zero
+        // If the fee is less than 100% then the fee should always round down to zero
         // Note: we can ignore indicies being up to date if the supply cap is 0
         PoolLike.ReserveData memory data = pool.getReserveData(address(dai));
         if (
@@ -237,6 +237,7 @@ contract D3MAaveV3TypePool is ID3MPool {
             pool.flashLoanSimple(address(this), address(dai), 1, "", 0);
         }
     }
+    
     function executeOperation(
         address,
         uint256,

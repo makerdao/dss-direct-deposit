@@ -262,32 +262,38 @@ contract SparkLendTest is DssTest {
         daiInterestRateStrategy.recompute();
     }
 
-    // Helper functions
+    // ---- Helper functions ----
     function getDebtCeiling() internal view returns (uint256) {
         (,,, uint256 line,) = dss.vat.ilks(ilk);
         return line;
     }
+    
     function getDebt() internal view returns (uint256) {
         (, uint256 art) = dss.vat.urns(ilk, address(pool));
         return art;
     }
+
     function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
         unchecked {
             z = x != 0 ? ((x - 1) / y) + 1 : 0;
         }
     }
+
     function getSupplyUsed(address asset) internal view returns (uint256) {
         PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
         return _divup((adai.scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
     }
+
     function getInterestRateStrategy(address asset) internal view returns (address) {
         PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
         return data.interestRateStrategyAddress;
     }
+
     function forceUpdateIndicies(address asset) internal {
         // Do the flashloan trick to force update indicies
         sparkPool.flashLoanSimple(address(this), asset, 1, "", 0);
     }
+
     function executeOperation(
         address,
         uint256,
@@ -298,20 +304,24 @@ contract SparkLendTest is DssTest {
         // Flashloan callback just immediately returns
         return true;
     }
+
     function getTotalAssets(address asset) internal view returns (uint256) {
         // Assets = DAI Liquidity + Total Debt
         PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
         return dss.dai.balanceOf(address(adai)) + ATokenLike(data.variableDebtTokenAddress).totalSupply() + ATokenLike(data.stableDebtTokenAddress).totalSupply();
     }
+
     function getTotalLiabilities(address asset) internal view returns (uint256) {
         // Liabilities = spDAI Supply + Amount Accrued to Treasury
         return getSupplyUsed(asset);
     }
+
     function getAccruedToTreasury(address asset) internal view returns (uint256) {
         PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
         return data.accruedToTreasury;
     }
 
+    // ---- Tests ----
     function test_wind() public {
         assertEq(getDebt(), 0);
 
