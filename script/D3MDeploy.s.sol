@@ -86,8 +86,8 @@ contract D3MDeployScript is Script {
                 address(dss.dai),
                 config.readAddress(".lendingPool")
             );
-        } else if (poolType.eq("aave-v3")) {
-            d3m.pool = D3MDeploy.deployAaveV3TypePool(
+        } else if (poolType.eq("aave-v3-no-supply-cap")) {
+            d3m.pool = D3MDeploy.deployAaveV3NoSupplyCapTypePool(
                 msg.sender,
                 admin,
                 ilk,
@@ -126,7 +126,7 @@ contract D3MDeployScript is Script {
                 revert("Invalid pool type for rate target plan type");
             }
         } else if (planType.eq("liquidity-buffer")) {
-            if (poolType.eq("aave-v2") || poolType.eq("aave-v3")) {
+            if (poolType.eq("aave-v2") || poolType.eq("aave-v3-no-supply-cap")) {
                 d3m.plan = D3MDeploy.deployAaveBufferPlan(
                     msg.sender,
                     admin,

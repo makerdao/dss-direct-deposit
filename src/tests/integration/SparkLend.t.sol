@@ -20,7 +20,7 @@ import "./IntegrationBase.t.sol";
 import { DSTokenAbstract } from "dss-interfaces/Interfaces.sol";
 
 import { D3MAaveTypeBufferPlan } from "../../plans/D3MAaveTypeBufferPlan.sol";
-import { D3MAaveV3TypePool } from "../../pools/D3MAaveV3TypePool.sol";
+import { D3MAaveV3NoSupplyCapTypePool } from "../../pools/D3MAaveV3NoSupplyCapTypePool.sol";
 
 interface PoolLike {
 
@@ -129,7 +129,7 @@ contract SparkLendTest is IntegrationBaseTest {
     uint256 buffer;
 
     D3MAaveTypeBufferPlan plan;
-    D3MAaveV3TypePool pool;
+    D3MAaveV3NoSupplyCapTypePool pool;
 
     uint256 constant FLASHLOAN_ENABLED_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFFFFFFFFFFFF;
     uint256 constant SUPPLY_CAP_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFF000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
@@ -156,7 +156,7 @@ contract SparkLendTest is IntegrationBaseTest {
             ilk,
             address(dss.vat)
         );
-        d3m.pool = D3MDeploy.deployAaveV3TypePool(
+        d3m.pool = D3MDeploy.deployAaveV3NoSupplyCapTypePool(
             address(this),
             admin,
             ilk,
@@ -164,7 +164,7 @@ contract SparkLendTest is IntegrationBaseTest {
             address(dai),
             address(sparkPool)
         );
-        pool = D3MAaveV3TypePool(d3m.pool);
+        pool = D3MAaveV3NoSupplyCapTypePool(d3m.pool);
         d3m.plan = D3MDeploy.deployAaveBufferPlan(
             address(this),
             admin,
@@ -371,67 +371,6 @@ contract SparkLendTest is IntegrationBaseTest {
         hub.exec(ilk);
 
         assertEq(getDebt(), buffer + buffer / 2 - buffer / 4, "should be back down to 1.25x the buffer");
-    }
-
-    function test_supplyCap_hit() public {
-        // Supply and borrow some DAI to ensure interest is being generated
-        sparkPool.supply(address(dai), buffer / 4, address(this), 0);
-        sparkPool.borrow(address(dai), buffer / 8, 2, 0, address(this));
-
-        // Spark doesn't have a supply cap, but let's make sure the maxDeposit() works if it it's turned on
-        uint256 currentSupply = getSupplyUsed(address(dai));
-        vm.prank(admin); configurator.setSupplyCap(address(dai), (currentSupply + buffer / 2) / WAD);    // Set the supply cap well within the buffer
-
-        PoolLike.ReserveData memory data = sparkPool.getReserveData(address(dai));
-        uint256 supplyCap = ((data.configuration & ~SUPPLY_CAP_MASK) >> SUPPLY_CAP_START_BIT_POSITION) * (1 ether);
-        bool flashLoansEnabled = (data.configuration & ~FLASHLOAN_ENABLED_MASK) != 0;
-
-        // Pre-requisites for executing the flash loan to correct liquidity index and accrued treasury amounts
-        assertEq(flashLoansEnabled, true, "flash loans should be enabled");
-        assertGt(dai.balanceOf(address(adai)), 0, "adai should have dai balance");
-
-        // Warp so we gaurantee there is new interest
-        vm.warp(block.timestamp + 1 days);
-
-        uint256 prevMaxDeposit = supplyCap - _divup((adai.scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
-        assertEq(pool.maxDeposit(), prevMaxDeposit, "max deposit should be equal to validation logic");
-
-        // Exec should run and mint right up to the supply cap
-        hub.exec(ilk);
-
-        uint256 amountMinted = adai.balanceOf(address(pool));
-        assertGt(amountMinted, 0, "amount minted should be greater than 0");
-        assertLt(amountMinted, prevMaxDeposit, "amounted minted should be less than previous max deposit"); // This number should be less due to interest collection being deductated after flash loan
-        assertLt(pool.maxDeposit(), 1, "max deposit should be ~0");
-    }
-
-    function test_supplyCap_hit_no_flashloans() public {
-        // Supply and borrow some DAI to ensure interest is being generated
-        sparkPool.supply(address(dai), buffer / 4, address(this), 0);
-        sparkPool.borrow(address(dai), buffer / 8, 2, 0, address(this));
-
-        // Spark doesn't have a supply cap, but let's make sure the maxDeposit() works if it it's turned on
-        uint256 currentSupply = getSupplyUsed(address(dai));
-        vm.prank(admin); configurator.setSupplyCap(address(dai), (currentSupply + buffer / 2) / WAD);    // Set the supply cap well within the buffer
-        vm.prank(admin); configurator.setReserveFlashLoaning(address(dai), false);
-
-        PoolLike.ReserveData memory data = sparkPool.getReserveData(address(dai));
-        uint256 supplyCap = ((data.configuration & ~SUPPLY_CAP_MASK) >> SUPPLY_CAP_START_BIT_POSITION) * (1 ether);
-        bool flashLoansEnabled = (data.configuration & ~FLASHLOAN_ENABLED_MASK) != 0;
-
-        // Pre-requisites for executing the flash loan to correct liquidity index and accrued treasury amounts
-        assertEq(flashLoansEnabled, false, "flash loans should be disabled");
-        assertGt(dai.balanceOf(address(adai)), 0, "adai should have dai balance");
-
-        // Warp so we gaurantee there is new interest
-        vm.warp(block.timestamp + 1 days);
-
-        uint256 prevMaxDeposit = supplyCap - _divup((adai.scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
-        assertEq(pool.maxDeposit(), prevMaxDeposit, "max deposit should be equal to validation logic");
-
-        // This should revert now because maxDeposit() is using stale values and overestimating
-        vm.expectRevert(bytes(SUPPLY_CAP_EXCEEDED));
-        hub.exec(ilk);
     }
 
     /** 

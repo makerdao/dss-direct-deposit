@@ -93,7 +93,7 @@ contract D3MInitScript is Script {
         );
 
         // Pool
-        if (poolType.eq("aave-v2") || poolType.eq("aave-v3")) {
+        if (poolType.eq("aave-v2") || poolType.eq("aave-v3-no-supply-cap")) {
             D3MAavePoolConfig memory aaveCfg = D3MAavePoolConfig({
                 king: config.readAddress(".king"),
                 adai: D3MAavePoolLike(d3m.pool).adai(),
@@ -153,7 +153,7 @@ contract D3MInitScript is Script {
                 revert("Invalid pool type for rate target plan type");
             }
         } else if (planType.eq("liquidity-buffer")) {
-            if (poolType.eq("aave-v2") || poolType.eq("aave-v3")) {
+            if (poolType.eq("aave-v2") || poolType.eq("aave-v3-no-supply-cap")) {
                 D3MAaveBufferPlanConfig memory aaveCfg = D3MAaveBufferPlanConfig({
                     buffer: config.readUint(".buffer") * WAD,
                     adai: D3MAavePoolLike(d3m.pool).adai(),

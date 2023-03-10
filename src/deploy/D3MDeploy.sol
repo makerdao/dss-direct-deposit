@@ -27,7 +27,7 @@ import { D3MInstance } from "./D3MInstance.sol";
 import { D3MAaveV2TypeRateTargetPlan } from "../plans/D3MAaveV2TypeRateTargetPlan.sol";
 import { D3MAaveTypeBufferPlan } from "../plans/D3MAaveTypeBufferPlan.sol";
 import { D3MAaveV2TypePool } from "../pools/D3MAaveV2TypePool.sol";
-import { D3MAaveV3TypePool } from "../pools/D3MAaveV3TypePool.sol";
+import { D3MAaveV3NoSupplyCapTypePool } from "../pools/D3MAaveV3NoSupplyCapTypePool.sol";
 import { D3MCompoundV2TypeRateTargetPlan } from "../plans/D3MCompoundV2TypeRateTargetPlan.sol";
 import { D3MCompoundV2TypePool } from "../pools/D3MCompoundV2TypePool.sol";
 import { D3MOracle } from "../D3MOracle.sol";
@@ -71,7 +71,7 @@ library D3MDeploy {
         ScriptTools.switchOwner(pool, deployer, owner);
     }
 
-    function deployAaveV3TypePool(
+    function deployAaveV3NoSupplyCapTypePool(
         address deployer,
         address owner,
         bytes32 ilk,
@@ -79,7 +79,7 @@ library D3MDeploy {
         address dai,
         address lendingPool
     ) internal returns (address pool) {
-        pool = address(new D3MAaveV3TypePool(ilk, hub, dai, lendingPool));
+        pool = address(new D3MAaveV3NoSupplyCapTypePool(ilk, hub, dai, lendingPool));
 
         ScriptTools.switchOwner(pool, deployer, owner);
     }
