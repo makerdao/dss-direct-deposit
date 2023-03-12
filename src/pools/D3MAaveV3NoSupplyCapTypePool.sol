@@ -155,11 +155,6 @@ contract D3MAaveV3NoSupplyCapTypePool is ID3MPool {
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
     }
-    function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        unchecked {
-            z = x != 0 ? ((x - 1) / y) + 1 : 0;
-        }
-    }
 
     // --- Admin ---
     function rely(address usr) external auth {

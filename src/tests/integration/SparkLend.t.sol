@@ -131,11 +131,6 @@ contract SparkLendTest is IntegrationBaseTest {
     D3MAaveTypeBufferPlan plan;
     D3MAaveV3NoSupplyCapTypePool pool;
 
-    uint256 constant FLASHLOAN_ENABLED_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF7FFFFFFFFFFFFFFF;
-    uint256 constant SUPPLY_CAP_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFF000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
-    uint256 constant SUPPLY_CAP_START_BIT_POSITION = 116;
-    string constant SUPPLY_CAP_EXCEEDED = '51';  // SUPPLY_CAP_EXCEEDED error code
-
     function setUp() public {
         baseInit("template-spark");
 

@@ -248,7 +248,7 @@ contract D3MAaveV3NoSupplyCapTypePoolTest is D3MPoolBaseTest {
         address rewardsClaimer = adai.getIncentivesController();
         D3MAaveV3NoSupplyCapTypePool(d3mTestPool).file("king", king);
 
-        D3MAaveV3NoSupplyCapTypePool(d3mTestPool).collect(address(123));
+        D3MAaveV3NoSupplyCapTypePool(d3mTestPool).collect(address(456));
 
         (uint256 amt, address dst, address reward) = FakeRewardsClaimer(rewardsClaimer).lastClaim();
         address[] memory assets = FakeRewardsClaimer(rewardsClaimer).getAssetsFromClaim();
@@ -256,7 +256,7 @@ contract D3MAaveV3NoSupplyCapTypePoolTest is D3MPoolBaseTest {
         assertEq(address(adai), assets[0]);
         assertEq(amt, type(uint256).max);
         assertEq(dst, king);
-        assertEq(reward, address(123));
+        assertEq(reward, address(456));
     }
 
     function test_collect_no_king() public {
