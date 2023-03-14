@@ -51,7 +51,6 @@ interface D3MAaveRateTargetPlanLike {
 interface D3MAaveBufferPlanLike {
     function file(bytes32, uint256) external;
     function adai() external view returns (address);
-    function adaiRevision() external view returns (uint256);
 }
 
 interface ADaiLike {
@@ -130,7 +129,6 @@ struct D3MAaveRateTargetPlanConfig {
 struct D3MAaveBufferPlanConfig {
     uint256 buffer;
     address adai;
-    uint256 adaiRevision;
 }
 
 struct D3MCompoundPoolConfig {
@@ -301,8 +299,6 @@ library D3MInit {
 
         // Sanity checks
         require(plan.adai() == address(adai), "Plan adai mismatch");
-        require(plan.adaiRevision() == aaveCfg.adaiRevision, "Plan adaiRevision mismatch");
-        require(adai.ATOKEN_REVISION() == aaveCfg.adaiRevision, "ADai adaiRevision mismatch");
 
         plan.file("buffer", aaveCfg.buffer);
     }

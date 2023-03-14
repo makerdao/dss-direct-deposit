@@ -156,8 +156,7 @@ contract D3MInitScript is Script {
             if (poolType.eq("aave-v2") || poolType.eq("aave-v3-no-supply-cap")) {
                 D3MAaveBufferPlanConfig memory aaveCfg = D3MAaveBufferPlanConfig({
                     buffer: config.readUint(".buffer") * WAD,
-                    adai: D3MAavePoolLike(d3m.pool).adai(),
-                    adaiRevision: D3MAaveBufferPlanLike(d3m.plan).adaiRevision()
+                    adai: D3MAavePoolLike(d3m.pool).adai()
                 });
                 D3MInit.initAaveBufferPlan(
                     d3m,

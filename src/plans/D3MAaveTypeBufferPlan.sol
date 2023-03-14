@@ -24,7 +24,6 @@ interface TokenLike {
 
 interface ATokenLike {
     function UNDERLYING_ASSET_ADDRESS() external view returns (address);
-    function ATOKEN_REVISION() external view returns (uint256);
 }
 
 /**
@@ -39,7 +38,6 @@ contract D3MAaveTypeBufferPlan is ID3MPlan {
 
     TokenLike  public immutable dai;
     ATokenLike public immutable adai;
-    uint256    public immutable adaiRevision;
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -49,7 +47,6 @@ contract D3MAaveTypeBufferPlan is ID3MPlan {
     constructor(address adai_) {
         adai = ATokenLike(adai_);
         dai = TokenLike(adai.UNDERLYING_ASSET_ADDRESS());
-        adaiRevision = adai.ATOKEN_REVISION();
         
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -98,9 +95,7 @@ contract D3MAaveTypeBufferPlan is ID3MPlan {
     }
 
     function active() public view override returns (bool) {
-        if (buffer == 0) return false;
-        uint256 adaiRevision_ = adai.ATOKEN_REVISION();
-        return adaiRevision_ == adaiRevision;
+        return buffer > 0;
     }
 
     function disable() external override {

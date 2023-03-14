@@ -22,23 +22,13 @@ import { D3MAaveTypeBufferPlan } from "../../plans/D3MAaveTypeBufferPlan.sol";
 contract ADaiMock {
 
     address public dai;
-    uint256 public revision;
 
     constructor(address _dai) {
         dai = _dai;
-        revision = 1;
-    }
-
-    function setRevision(uint256 value) external {
-        revision = value;
     }
 
     function UNDERLYING_ASSET_ADDRESS() external view returns (address) {
         return dai;
-    }
-
-    function ATOKEN_REVISION() external view returns (uint256) {
-        return revision;
     }
 
 }
@@ -80,7 +70,6 @@ contract D3MAaveTypeBufferPlanTest is D3MPlanBaseTest {
     function test_constructor() public {
         assertEq(address(plan.dai()), address(dai));
         assertEq(address(plan.adai()), address(adai));
-        assertEq(plan.adaiRevision(), adai.revision());
     }
 
     function test_file() public {
@@ -138,16 +127,6 @@ contract D3MAaveTypeBufferPlanTest is D3MPlanBaseTest {
         assertTrue(plan.active());
     }
 
-    function test_active_revision_changed() public {
-        plan.file("buffer", 1);
-        assertEq(plan.buffer(), 1);
-        assertEq(adai.revision(), 1);
-        assertTrue(plan.active());
-        adai.setRevision(2);
-        assertEq(adai.revision(), 2);
-        assertTrue(!plan.active());
-    }
-
     function test_disable() public {
         plan.file("buffer", 1);
 
@@ -163,10 +142,8 @@ contract D3MAaveTypeBufferPlanTest is D3MPlanBaseTest {
     function test_disable_not_active() public {
         plan.file("buffer", 1);
         assertEq(plan.buffer(), 1);
-        assertEq(adai.revision(), 1);
         assertTrue(plan.active());
-        adai.setRevision(2);
-        assertEq(adai.revision(), 2);
+        plan.file("buffer", 0);
         assertTrue(!plan.active());
 
         plan.deny(address(this));

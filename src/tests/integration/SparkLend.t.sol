@@ -200,8 +200,7 @@ contract SparkLendTest is IntegrationBaseTest {
             d3m,
             D3MAaveBufferPlanConfig({
                 buffer: buffer,
-                adai: address(pool.adai()),
-                adaiRevision: plan.adaiRevision()
+                adai: address(pool.adai())
             })
         );
 
