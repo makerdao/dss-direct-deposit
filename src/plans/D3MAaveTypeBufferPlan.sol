@@ -34,7 +34,7 @@ interface ATokenLike {
 contract D3MAaveTypeBufferPlan is ID3MPlan {
 
     mapping (address => uint256) public wards;
-    uint256                      public buffer;
+    uint256                      public buffer;     // Target DAI liquidity to keep in the pool [WAD]
 
     TokenLike  public immutable dai;
     ATokenLike public immutable adai;
@@ -77,6 +77,7 @@ contract D3MAaveTypeBufferPlan is ID3MPlan {
     function getTargetAssets(uint256 currentAssets) external override view returns (uint256) {
         if (buffer == 0) return 0; // De-activated
 
+        // Note that this can be manipulated by flash loans
         uint256 liquidityAvailable = dai.balanceOf(address(adai));
         if (buffer >= liquidityAvailable) {
             // Need to increase liquidity
