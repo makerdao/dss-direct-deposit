@@ -89,6 +89,7 @@ interface PoolLike {
     function getReserveData(address asset) external view returns (ReserveData memory);
 }
 
+// https://github.com/aave/aave-v3-periphery/blob/master/contracts/rewards/RewardsController.sol
 interface RewardsClaimerLike {
     function claimRewards(address[] calldata assets, uint256 amount, address to, address reward) external returns (uint256);
 }
