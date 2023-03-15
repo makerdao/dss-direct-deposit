@@ -40,6 +40,7 @@ interface EndLike {
     function Art(bytes32) external view returns (uint256);
 }
 
+// https://github.com/aave/aave-v3-core/blob/master/contracts/protocol/tokenization/AToken.sol
 interface ATokenLike is TokenLike {
     function scaledBalanceOf(address) external view returns (uint256);
     function getIncentivesController() external view returns (address);
