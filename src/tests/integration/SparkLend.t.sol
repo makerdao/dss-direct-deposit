@@ -129,7 +129,6 @@ contract SparkLendTest is IntegrationBaseTest {
         treasury = TreasuryLike(adai.RESERVE_TREASURY_ADDRESS());
         treasuryAdmin = treasury.getFundsAdmin();
         buffer = 5_000_000 * WAD;
-        assertGt(buffer, 0);
 
         // Deploy
         d3m.oracle = D3MDeploy.deployOracle(
