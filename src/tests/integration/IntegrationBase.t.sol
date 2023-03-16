@@ -36,7 +36,6 @@ abstract contract IntegrationBaseTest is DssTest {
     using GodMode for *;
     using ScriptTools for *;
 
-    string internal config;
     address internal admin;
     DssInstance internal dss;
     D3MInstance internal d3m;
@@ -59,14 +58,11 @@ abstract contract IntegrationBaseTest is DssTest {
     ID3MPool private pool;
     ID3MPlan private plan;
 
-    function baseInit(string memory configName) internal {
-        config = ScriptTools.readInput(configName);
-        dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
-        admin = config.readAddress(".admin");   // This may seem weird with the require below, but it ensures the config is correctly set
+    function baseInit() internal {
+        dss = MCD.loadFromChainlog(0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F);
+        admin = dss.chainlog.getAddress("MCD_PAUSE_PROXY");
         hub = D3MHub(dss.chainlog.getAddress("DIRECT_HUB"));
         mom = D3MMom(dss.chainlog.getAddress("DIRECT_MOM"));
-
-        assertEq(admin, dss.chainlog.getAddress("MCD_PAUSE_PROXY"), "admin should be pause proxy");
 
         vat = dss.vat;
         dai = dss.dai;

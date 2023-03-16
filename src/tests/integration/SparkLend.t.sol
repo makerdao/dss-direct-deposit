@@ -58,7 +58,6 @@ interface PoolLike {
         uint128 isolationModeTotalDebt;
     }
 
-    function ADDRESSES_PROVIDER() external view returns (PoolAddressProviderLike);
     function getReserveData(address asset) external view returns (ReserveData memory);
     function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
     function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf) external;
@@ -72,15 +71,6 @@ interface PoolLike {
         uint16 referralCode
     ) external;
     function mintToTreasury(address[] calldata assets) external;
-}
-
-interface PoolAddressProviderLike {
-    function getPoolConfigurator() external view returns (PoolConfiguratorLike);
-}
-
-interface PoolConfiguratorLike {
-    function setSupplyCap(address asset, uint256 newSupplyCap) external;
-    function setReserveFlashLoaning(address asset, bool enabled) external;
 }
 
 interface DaiInterestRateStrategyLike {
@@ -121,7 +111,6 @@ contract SparkLendTest is IntegrationBaseTest {
     using ScriptTools for *;
 
     PoolLike sparkPool;
-    PoolConfiguratorLike configurator;
     DaiInterestRateStrategyLike daiInterestRateStrategy;
     ATokenLike adai;
     TreasuryLike treasury;
@@ -132,16 +121,14 @@ contract SparkLendTest is IntegrationBaseTest {
     D3MAaveV3NoSupplyCapTypePool pool;
 
     function setUp() public {
-        baseInit("template-spark");
+        baseInit();
 
-        sparkPool = PoolLike(config.readAddress(".lendingPool"));
-        configurator = sparkPool.ADDRESSES_PROVIDER().getPoolConfigurator();
+        sparkPool = PoolLike(0xC13e21B648A5Ee794902342038FF3aDAB66BE987);
         daiInterestRateStrategy = DaiInterestRateStrategyLike(getInterestRateStrategy(address(dai)));
-        adai = ATokenLike(config.readAddress(".adai"));
+        adai = ATokenLike(0x4DEDf26112B3Ec8eC46e7E31EA5e123490B05B8B);
         treasury = TreasuryLike(adai.RESERVE_TREASURY_ADDRESS());
         treasuryAdmin = treasury.getFundsAdmin();
-        buffer = config.readUint(".buffer") * WAD;
-        ilk = config.readString(".ilk").stringToBytes32();
+        buffer = 5_000_000 * WAD;
         assertGt(buffer, 0);
 
         // Deploy
@@ -174,11 +161,11 @@ contract SparkLendTest is IntegrationBaseTest {
             hub: address(hub),
             mom: address(mom),
             ilk: ilk,
-            existingIlk: config.readBool(".existingIlk"),
+            existingIlk: false,
             maxLine: buffer * RAY * 100000,     // Set gap and max line to large number to avoid hitting limits
             gap: buffer * RAY * 100000,
             ttl: 0,
-            tau: config.readUint(".tau")
+            tau: 7 days
         });
         D3MInit.initCommon(
             dss,
@@ -190,7 +177,7 @@ contract SparkLendTest is IntegrationBaseTest {
             d3m,
             cfg,
             D3MAavePoolConfig({
-                king: config.readAddress(".king"),
+                king: admin,
                 adai: address(pool.adai()),
                 stableDebt: address(pool.stableDebt()),
                 variableDebt: address(pool.variableDebt())
