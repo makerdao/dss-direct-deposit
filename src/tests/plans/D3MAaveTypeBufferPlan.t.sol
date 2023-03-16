@@ -90,6 +90,36 @@ contract D3MAaveTypeBufferPlanTest is D3MPlanBaseTest {
         assertEq(plan.getTargetAssets(0), 60 ether);
     }
 
+    function test_liquidity_less_than_buffer() public {
+        _dai.setLiquidity(40 ether);
+        plan.file("buffer", 100 ether);
+        assertEq(plan.getTargetAssets(0), 60 ether);
+    }
+
+    function test_liquidity_equals_buffer() public {
+        _dai.setLiquidity(100 ether);
+        plan.file("buffer", 100 ether);
+        assertEq(plan.getTargetAssets(0), 0);
+    }
+
+    function test_liquidity_greater_than_buffer_full_unwind() public {
+        _dai.setLiquidity(100 ether);
+        plan.file("buffer", 40 ether);
+        assertEq(plan.getTargetAssets(200 ether), 140 ether);
+    }
+
+    function test_liquidity_greater_than_buffer_partial_unwind() public {
+        _dai.setLiquidity(100 ether);
+        plan.file("buffer", 40 ether);
+        assertEq(plan.getTargetAssets(40 ether), 0);
+    }
+
+    function test_buffer_equals_zero() public {
+        _dai.setLiquidity(100 ether);
+        plan.file("buffer", 0);
+        assertEq(plan.getTargetAssets(10000 ether), 0);
+    }
+
     function test_increase_liquidity() public {
         plan.file("buffer", 100 ether);
         assertEq(plan.getTargetAssets(20 ether), 120 ether);
