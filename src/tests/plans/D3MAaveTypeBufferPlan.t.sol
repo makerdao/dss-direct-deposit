@@ -76,13 +76,12 @@ contract D3MAaveTypeBufferPlanTest is D3MPlanBaseTest {
         checkFileUint(d3mTestPlan, contractName, ["buffer"]);
     }
 
-    function test_auth_modifier() public {
+    function test_disable_unauthed() public {
         plan.file("buffer", 1);
         plan.deny(address(this));
 
-        checkModifier(d3mTestPlan, "D3MAaveTypeBufferPlan/not-authorized", [
-            abi.encodeWithSelector(D3MAaveTypeBufferPlan.disable.selector)
-        ]);
+        vm.expectRevert("D3MAaveTypeBufferPlan/not-authorized");
+        plan.disable();
     }
 
     function test_implements_getTargetAssets() public override {

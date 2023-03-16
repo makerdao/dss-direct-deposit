@@ -28,7 +28,6 @@ interface RewardsClaimerLike {
 
 contract AToken is D3MTestGem {
     address public rewardsClaimer;
-    uint256 public scaledTotalSupply;
 
     constructor(uint256 decimals_) D3MTestGem(decimals_) {
         rewardsClaimer = address(new FakeRewardsClaimer());
@@ -36,10 +35,6 @@ contract AToken is D3MTestGem {
 
     function scaledBalanceOf(address who) external view returns (uint256) {
         return balanceOf[who];
-    }
-
-    function setScaledTotalSupply(uint256 amount) external {
-        scaledTotalSupply = amount;
     }
 
     function getIncentivesController() external view returns (address) {

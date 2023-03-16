@@ -22,7 +22,6 @@ interface TokenLike {
     function balanceOf(address) external view returns (uint256);
     function approve(address, uint256) external returns (bool);
     function transfer(address, uint256) external returns (bool);
-    function decimals() external view returns (uint8);
 }
 
 interface VatLike {
