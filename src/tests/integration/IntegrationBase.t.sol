@@ -283,7 +283,7 @@ abstract contract IntegrationBaseTest is DssTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
         assertEq(ink, art);
         assertRoundingEq(ink, assets);
-        assertGt(getLPTokenBalanceInAssets(address(pool)), 0);
+        assertGt(assets, 0);
         assertRoundingEq(ink, pink + feesAccrued - currentLiquidity);
         assertApproxEqAbs(vat.dai(address(vow)), vowDai + feesAccrued * RAY, RAY * roundingTolerance);
 
