@@ -904,8 +904,8 @@ abstract contract IntegrationBaseTest is DssTest {
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(address(vow)), sinBefore);
         assertApproxEqAbs(vat.dai(address(vow)), vowDaiBefore + 10 * RAD, RAY * roundingTolerance);
-        assertRoundingEq(getLiquidity(), liquidityBalanceBefore);
-        assertApproxEqAbs(getLPTokenBalanceInAssets(address(pool)), assetsBalanceBefore, 2 * roundingTolerance); // rounding may affect twice
+        assertEq(getLiquidity(), liquidityBalanceBefore);
+        assertEq(getLPTokenBalanceInAssets(address(pool)), assetsBalanceBefore);
 
         // Decrease debt
         adjustDebt(-standardDebtSize / 2);
