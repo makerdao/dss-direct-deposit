@@ -636,7 +636,7 @@ abstract contract IntegrationBaseTest is DssTest {
     }
 
     function test_cage_exit() public {
-        adjustDebt(100 ether);
+        adjustDebt(200 ether);
 
         // Vat is caged for global settlement
         vm.prank(admin); end.cage();
