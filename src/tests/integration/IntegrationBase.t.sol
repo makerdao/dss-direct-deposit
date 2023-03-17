@@ -260,7 +260,6 @@ abstract contract IntegrationBaseTest is DssTest {
         assertRoundingEq(pink, pAssets);
 
         // Someone else borrows the exact amount previously available
-        (uint256 amountSupplied,) = vat.urns(ilk, address(pool));
         uint256 amountToBorrow = currentLiquidity;
         adjustLiquidity(-int256(amountToBorrow));
 
@@ -271,8 +270,8 @@ abstract contract IntegrationBaseTest is DssTest {
         currentLiquidity = getLiquidity();
 
         assertGt(feesAccrued, 0);
-        assertEq(amountSupplied, currentLiquidity);
-        assertGt(amountSupplied + feesAccrued, currentLiquidity);
+        assertEq(pink, currentLiquidity);
+        assertGt(pink + feesAccrued, currentLiquidity);
 
         // Cage the system to trigger only unwinds
         vm.prank(admin); hub.cage(ilk);
@@ -284,7 +283,7 @@ abstract contract IntegrationBaseTest is DssTest {
         assertEq(ink, art);
         assertRoundingEq(ink, assets);
         assertGt(assets, 0);
-        assertRoundingEq(ink, pink + feesAccrued - currentLiquidity);
+        assertRoundingEq(ink, feesAccrued);
         assertApproxEqAbs(vat.dai(address(vow)), vowDai + feesAccrued * RAY, RAY * roundingTolerance);
 
         // Someone repays
