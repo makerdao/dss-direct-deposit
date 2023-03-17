@@ -27,6 +27,11 @@ import { ID3MPool } from "../pools/ID3MPool.sol";
 import { D3MInstance } from "./D3MInstance.sol";
 import { D3MCoreInstance } from "./D3MCoreInstance.sol";
 
+interface DebtCeilingPlanLike {
+    function ilk() external view returns (bytes32);
+    function vat() external view returns (address);
+}
+
 interface D3MAavePoolLike {
     function hub() external view returns (address);
     function dai() external view returns (address);
@@ -257,6 +262,18 @@ library D3MInit {
         require(pool.cDai() == compoundCfg.cdai, "Pool cDai mismatch");
 
         pool.file("king", compoundCfg.king);
+    }
+
+    function initDebtCeilingPlan(
+        DssInstance memory dss,
+        D3MInstance memory d3m,
+        D3MCommonConfig memory cfg
+    ) internal view {
+        DebtCeilingPlanLike plan = DebtCeilingPlanLike(d3m.plan);
+
+        // Sanity checks
+        require(plan.vat() == address(dss.vat), "Plan vat mismatch");
+        require(plan.ilk() == cfg.ilk, "Plan ilk mismatch");
     }
 
     function initAaveRateTargetPlan(
