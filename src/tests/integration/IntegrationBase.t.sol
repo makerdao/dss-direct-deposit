@@ -841,7 +841,7 @@ abstract contract IntegrationBaseTest is DssTest {
         assertEq(vat.sin(address(vow)), sinBefore);
         assertEq(vat.dai(address(vow)), vowDaiBefore);
         assertEq(getLiquidity(), liquidityBalanceBefore);
-        assertEq(getLPTokenBalanceInAssets(address(pool)), assetsBalanceBefore, 2 * roundingTolerance);
+        assertEq(getLPTokenBalanceInAssets(address(pool)), assetsBalanceBefore);
 
         // We should be able to close out the vault completely even though ink and art do not match
         vm.prank(admin); plan.disable();
