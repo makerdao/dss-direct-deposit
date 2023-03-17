@@ -244,7 +244,7 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 vowDai = vat.dai(address(vow));
         hub.exec(ilk);
 
-        assertGt(vat.dai(address(vow)) - vowDai, 0);
+        assertGt(vat.dai(address(vow)), vowDai);
     }
 
     function test_insufficient_liquidity_for_unwind_fees() public {
