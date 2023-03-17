@@ -201,6 +201,7 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 balance = getLPTokenBalanceInAssets(address(pool));
         assertGe(balance, art);
         hub.exec(ilk);
+        assertEq(getLPTokenBalanceInAssets(address(pool)), 0);
         assertEq(vat.sin(address(vow)), sin + art * RAY);
         assertEq(vat.dai(address(vow)), vowDai + balance * RAY);
         assertEq(vat.gem(ilk, address(pool)), 0);
