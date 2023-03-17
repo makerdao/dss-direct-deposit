@@ -119,6 +119,7 @@ contract D3MSwapPool is ID3MPool {
     }
 
     // --- Math ---
+    
     function _int256(uint256 x) internal pure returns (int256 y) {
         require((y = int256(x)) >= 0, ARITHMETIC_ERROR);
     }
@@ -128,6 +129,7 @@ contract D3MSwapPool is ID3MPool {
     }
 
     // --- Administration ---
+
     function rely(address usr) external auth {
         wards[usr] = 1;
         emit Rely(usr);
@@ -171,6 +173,7 @@ contract D3MSwapPool is ID3MPool {
     }
 
     // --- Pool Support ---
+
     function deposit(uint256 wad) external override onlyHub {
         // Nothing to do
     }
@@ -204,7 +207,15 @@ contract D3MSwapPool is ID3MPool {
         return address(gem);
     }
 
+    function exit(address dst, uint256 wad) external override onlyHub {
+        uint256 exited_ = exited;
+        exited = exited_ + wad;
+        uint256 amt = wad * assetBalance() / ((D3mHubLike(hub).end().Art(ilk) - exited_) * GEM_CONVERSION_FACTOR);
+        require(gem.transfer(dst, amt), "D3MCompoundV2TypePool/transfer-failed");
+    }
+
     // --- Swaps ---
+
     function sellGem(address usr, uint256 gemAmt) external {
         // TODO
         uint256 gemAmt18;
@@ -276,14 +287,6 @@ contract D3MSwapPool is ID3MPool {
         }
 
         emit BuyGem(usr, gemAmt, daiAmt, fee);
-    }
-
-    // --- Global Settlement Support ---
-    function exit(address dst, uint256 wad) external override onlyHub {
-        uint256 exited_ = exited;
-        exited = exited_ + wad;
-        uint256 amt = wad * assetBalance() / ((D3mHubLike(hub).end().Art(ilk) - exited_) * GEM_CONVERSION_FACTOR);
-        require(gem.transfer(dst, amt), "D3MCompoundV2TypePool/transfer-failed");
     }
 
 }
