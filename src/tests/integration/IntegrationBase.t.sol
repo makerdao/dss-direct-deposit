@@ -891,8 +891,8 @@ abstract contract IntegrationBaseTest is DssTest {
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(address(vow)), sinBefore);
         assertEq(vat.dai(address(vow)), vowDaiBefore);
-        assertRoundingEq(getLiquidity(), liquidityBalanceBefore);
-        assertRoundingEq(getLPTokenBalanceInAssets(address(pool)), assetsBalanceBefore);
+        assertEq(getLiquidity(), liquidityBalanceBefore);
+        assertEq(getLPTokenBalanceInAssets(address(pool)), assetsBalanceBefore);
 
         hub.exec(ilk);
 
