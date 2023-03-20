@@ -269,11 +269,6 @@ contract SparkLendTest is IntegrationBaseTest {
         }
     }
 
-    function getSupplyUsed(address asset) internal view returns (uint256) {
-        PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
-        return _divup((adai.scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
-    }
-
     function getInterestRateStrategy(address asset) internal view returns (address) {
         PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
         return data.interestRateStrategyAddress;
@@ -303,7 +298,8 @@ contract SparkLendTest is IntegrationBaseTest {
 
     function getTotalLiabilities(address asset) internal view returns (uint256) {
         // Liabilities = spDAI Supply + Amount Accrued to Treasury
-        return getSupplyUsed(asset);
+        PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
+        return _divup((adai.scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
     }
 
     function getAccruedToTreasury(address asset) internal view returns (uint256) {
