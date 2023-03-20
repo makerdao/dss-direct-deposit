@@ -299,7 +299,7 @@ abstract contract IntegrationBaseTest is DssTest {
     }
 
     function test_insufficient_liquidity_for_exec_fees() public {
-        // Inrease debt
+        // Increase debt
         adjustDebt(standardDebtSize);
 
         uint256 pAssets = getLPTokenBalanceInAssets(address(pool));
