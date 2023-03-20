@@ -163,7 +163,7 @@ contract D3MInitScript is Script {
                     aaveCfg
                 );
             } else {
-                revert("Invalid pool type for rate target plan type");
+                revert("Invalid pool type for liquidity buffer plan type");
             }
         } else {
             revert("Unknown plan type");
