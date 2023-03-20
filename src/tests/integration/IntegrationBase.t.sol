@@ -251,7 +251,7 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 currentLiquidity = getLiquidity();
         uint256 vowDai = vat.dai(address(vow));
 
-        // Inrease debt
+        // Increase debt
         adjustDebt(standardDebtSize);
 
         uint256 pAssets = getLPTokenBalanceInAssets(address(pool));
