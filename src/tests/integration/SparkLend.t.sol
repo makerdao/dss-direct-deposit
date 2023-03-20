@@ -312,44 +312,26 @@ contract SparkLendTest is IntegrationBaseTest {
     }
 
     // --- Tests ---
-    function test_wind() public {
+    function test_simple_wind_unwind() public {
         setLiquidityToZero();
 
         assertEq(getDebt(), 0);
 
         hub.exec(ilk);
-
         assertEq(getDebt(), buffer, "should wind up to the buffer");
-    }
-
-    function test_wind_twice() public {
-        setLiquidityToZero();
-
-        hub.exec(ilk);
 
         // User borrows half the debt injected by the D3M
         sparkPool.borrow(address(dai), buffer / 2, 2, 0, address(this));
         assertEq(getDebt(), buffer);
 
         hub.exec(ilk);
-
         assertEq(getDebt(), buffer + buffer / 2, "should have 1.5x the buffer in debt");
-    }
-
-    function test_wind_unwind() public {
-        setLiquidityToZero();
-
-        hub.exec(ilk);
-        sparkPool.borrow(address(dai), buffer / 2, 2, 0, address(this));
-        hub.exec(ilk);
 
         // User repays half their debt
-        assertEq(getDebt(), buffer + buffer / 2);
         sparkPool.repay(address(dai), buffer / 4, 2, address(this));
         assertEq(getDebt(), buffer + buffer / 2);
 
         hub.exec(ilk);
-
         assertEq(getDebt(), buffer + buffer / 2 - buffer / 4, "should be back down to 1.25x the buffer");
     }
 
