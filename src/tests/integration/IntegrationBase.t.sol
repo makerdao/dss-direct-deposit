@@ -462,7 +462,7 @@ abstract contract IntegrationBaseTest is DssTest {
     function test_unwind_mcd_caged_wait_done() public {
         uint256 currentLiquidity = getLiquidity();
 
-        // Inrease debt
+        // Increase debt
         adjustDebt(standardDebtSize);
 
         (uint256 pink, uint256 part) = vat.urns(ilk, address(pool));
