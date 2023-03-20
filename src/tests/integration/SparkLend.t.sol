@@ -231,9 +231,6 @@ contract SparkLendTest is IntegrationBaseTest {
         } else {
             // Borrow to decrease liquidity
             uint256 amt = uint256(-deltaAmount);
-            if (amt > getLiquidity()) {
-                amt = getLiquidity();
-            }
             sparkPool.borrow(address(dai), amt, 2, 0, address(this));
         }
     }

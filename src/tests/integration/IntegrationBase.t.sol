@@ -103,7 +103,7 @@ abstract contract IntegrationBaseTest is DssTest {
     function adjustLiquidity(int256 deltaAmount) internal virtual;
 
     function setLiquidityToZero() internal virtual {
-        adjustLiquidity(type(int256).min / int256(WAD));    // Just a really big number, but don't want to underflow
+        adjustLiquidity(-int256(getLiquidity()));
     }
 
     // --- Other Overridable Functions ---
