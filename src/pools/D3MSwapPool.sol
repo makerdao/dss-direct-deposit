@@ -22,19 +22,6 @@ interface VatLike {
     function live() external view returns (uint256);
     function hope(address) external;
     function nope(address) external;
-    function move(address, address, uint256) external;
-    function slip(bytes32, address, int256) external;
-    function frob(bytes32, address, address, address, int256, int256) external;
-    function suck(address, address, uint256) external;
-    function urns(bytes32, address) external view returns (uint256, uint256);
-    function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
-}
-
-interface DaiJoinLike {
-    function vat() external view returns (address);
-    function dai() external view returns (address);
-    function join(address, uint256) external;
-    function exit(address, uint256) external;
 }
 
 interface TokenLike {
