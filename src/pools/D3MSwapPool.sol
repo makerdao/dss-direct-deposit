@@ -19,6 +19,7 @@ pragma solidity ^0.8.14;
 import "./ID3MPool.sol";
 
 interface VatLike {
+    function live() external view returns (uint256);
     function hope(address) external;
     function nope(address) external;
     function move(address, address, uint256) external;
@@ -38,7 +39,7 @@ interface DaiJoinLike {
 
 interface TokenLike {
     function decimals() external view returns (uint8);
-    function approve(address, uint256) external returns (bool);
+    function balanceOf(address) external view returns (uint256);
     function transfer(address, uint256) external returns (bool);
     function transferFrom(address, address, uint256) external returns (bool);
 }
@@ -47,8 +48,8 @@ interface PipLike {
     function read() external view returns (bytes32);
 }
 
-interface D3mHubLike {
-    function vat() external view returns (address);
+interface HubLike {
+    function vat() external view returns (VatLike);
     function end() external view returns (EndLike);
 }
 
@@ -58,41 +59,38 @@ interface EndLike {
 
 /**
  *  @title D3M Swap Pool
- *  @notice Swap one asset for another. Pays market participants to hit desired ratio.
+ *  @notice Swap an asset for DAI. Fees vary based on whether the pool is above or below the buffer.
  */
 contract D3MSwapPool is ID3MPool {
 
     // --- Data ---
     mapping (address => uint256) public wards;
-    address                      public hub;
-    uint256                      public exited;
-    uint256                      public buffer;   // Keep a buffer in DAI for liquidity [WAD]
 
-    int256  public tin;      // toll in  [wad]
-    int256  public tout;     // toll out [wad]
+    HubLike public hub;
+    PipLike public pip;
+    uint256 public buffer;   // Keep a buffer in DAI for liquidity [WAD]
+    uint256 public tin1;     // toll in under the buffer  [wad]
+    uint256 public tin2;     // toll in over the buffer   [wad]
+    uint256 public tout1;    // toll out over the buffer  [wad]
+    uint256 public tout2;    // toll out under the buffer [wad]
+    uint256 public exited;
 
     bytes32   immutable public ilk;
     VatLike   immutable public vat;
     TokenLike immutable public dai;
     TokenLike immutable public gem;
-    PipLike   immutable public pip;
 
     uint256 immutable private GEM_CONVERSION_FACTOR;
 
     uint256 constant WAD = 10 ** 18;
-    int256 constant SWAD = 10 ** 18;
-    uint256 constant RAY = 10 ** 27;
-
-    string constant ARITHMETIC_ERROR = string(abi.encodeWithSignature("Panic(uint256)", 0x11));
 
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
-    event File(bytes32 indexed what, int256 data);
     event File(bytes32 indexed what, address data);
-    event SellGem(address indexed owner, uint256 gemsLocked, uint256 daiMinted, int256 fee);
-    event BuyGem(address indexed owner, uint256 gemsUnlocked, uint256 daiBurned, int256 fee);
+    event SellGem(address indexed owner, uint256 gems, uint256 dai);
+    event BuyGem(address indexed owner, uint256 gems, uint256 dai);
 
     modifier auth {
         require(wards[msg.sender] == 1, "D3MSwapPool/not-authorized");
@@ -100,32 +98,22 @@ contract D3MSwapPool is ID3MPool {
     }
 
     modifier onlyHub {
-        require(msg.sender == hub, "D3MSwapPool/only-hub");
+        require(msg.sender == address(hub), "D3MSwapPool/only-hub");
         _;
     }
 
-    constructor(bytes32 _ilk, address _hub, address _vat, address _dai, address _gem, address _pip) {
+    constructor(bytes32 _ilk, address _hub, address _dai, address _gem) {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
         
         ilk = _ilk;
-        hub = _hub;
-        vat = VatLike(_vat);
+        hub = HubLike(_hub);
+        vat = HubLike(hub).vat();
         dai = TokenLike(_dai);
         gem = TokenLike(_gem);
-        pip = TokenLike(_pip);
+        vat.hope(_hub);
 
         GEM_CONVERSION_FACTOR = 10 ** (18 - gem.decimals());
-    }
-
-    // --- Math ---
-    
-    function _int256(uint256 x) internal pure returns (int256 y) {
-        require((y = int256(x)) >= 0, ARITHMETIC_ERROR);
-    }
-
-    function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = (x + y - 1) / y;
     }
 
     // --- Administration ---
@@ -144,17 +132,10 @@ contract D3MSwapPool is ID3MPool {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
 
         if (what == "buffer") buffer = data;
-        else revert("D3MSwapPool/file-unrecognized-param");
-
-        emit File(what, data);
-    }
-
-    function file(bytes32 what, int256 data) external auth {
-        require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
-        require(-SWAD <= data && data <= SWAD, "D3MSwapPool/out-of-range");
-
-        if (what == "tin") tin = data;
-        else if (what == "tout") tout = data;
+        else if (what == "tin1") tin1 = data;
+        else if (what == "tin2") tin2 = data;
+        else if (what == "tout1") tout1 = data;
+        else if (what == "tout2") tout2 = data;
         else revert("D3MSwapPool/file-unrecognized-param");
 
         emit File(what, data);
@@ -164,9 +145,11 @@ contract D3MSwapPool is ID3MPool {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
 
         if (what == "hub") {
-            vat.nope(hub);
-            hub = data;
+            vat.nope(address(hub));
+            hub = HubLike(data);
             vat.hope(data);
+        } else if (what == "pip") {
+            pip = PipLike(data);
         } else revert("D3MSwapPool/file-unrecognized-param");
 
         emit File(what, data);
@@ -210,83 +193,86 @@ contract D3MSwapPool is ID3MPool {
     function exit(address dst, uint256 wad) external override onlyHub {
         uint256 exited_ = exited;
         exited = exited_ + wad;
-        uint256 amt = wad * assetBalance() / ((D3mHubLike(hub).end().Art(ilk) - exited_) * GEM_CONVERSION_FACTOR);
-        require(gem.transfer(dst, amt), "D3MCompoundV2TypePool/transfer-failed");
+        uint256 amt = wad * gem.balanceOf(address(this)) / (hub.end().Art(ilk) - exited_);
+        require(gem.transfer(dst, amt), "D3MSwapPool/transfer-failed");
     }
 
     // --- Swaps ---
 
-    function sellGem(address usr, uint256 gemAmt) external {
-        // TODO
-        uint256 gemAmt18;
-        uint256 mintAmount;
-        {
-            (address pip,) = spotter.ilks(ilk);
-            gemAmt18 = gemAmt * to18ConversionFactor;
-            mintAmount = gemAmt18 * uint256(PipLike(pip).read()) / WAD;  // Round down against user
-        }
-
-        // Transfer in gems and mint dai
-        (uint256 Art,,, uint256 line,) = vat.ilks(ilk);
-        require(gem.transferFrom(msg.sender, address(this), gemAmt), "D3MSwapPool/failed-transfer");
-        require((Art + mintAmount) * RAY + buff <= line, "D3MSwapPool/buffer-exceeded");
-        vat.slip(ilk, address(this), _int256(gemAmt18));
-        vat.frob(ilk, address(this), address(this), address(this), int256(gemAmt18), _int256(mintAmount));
-
-        // Fee calculations
-        int256 fee = int256(mintAmount) * tin / SWAD;
-        uint256 daiAmt;
-        if (fee >= 0) {
-            // Positive fee - move fee to vow
-            // NOTE: we exclude the case where ufee > mintAmount in the tin file constraint
-            uint256 ufee = uint256(fee);
-            daiAmt = mintAmount - ufee;
-            vat.move(address(this), vow, ufee * RAY);
+    function previewSellGem(uint256 gemAmt) public view returns (uint256 daiAmt) {
+        uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * uint256(pip.read()) / WAD;
+        uint256 daiBalance = dai.balanceOf(address(this));
+        uint256 _buffer = buffer;
+        if (daiBalance <= _buffer) {
+            // We are above the buffer so apply tin2
+            daiAmt = gemValue * tin2 / WAD;
         } else {
-            // Negative fee - pay the user extra from the vow
-            uint256 ufee = uint256(-fee);
-            daiAmt = mintAmount + ufee;
-            vat.suck(vow, address(this), ufee * RAY);
-        }
-        daiJoin.exit(usr, daiAmt);
+            uint256 daiAvailableAtTin1;
+            unchecked {
+                daiAvailableAtTin1 = daiBalance - _buffer;
+            }
 
-        emit SellGem(usr, gemAmt, daiAmt, fee);
+            // We are below the buffer so could be a mix of tin1 and tin2
+            uint256 daiAmtTin1 = gemValue * tin1 / WAD;
+            if (daiAmtTin1 <= daiAvailableAtTin1) {
+                // We are entirely in the tin1 region
+                daiAmt = daiAmtTin1;
+            } else {
+                // We are a mix between tin1 and tin2
+                uint256 daiRemainder;
+                unchecked {
+                    daiRemainder = daiAmtTin1 - daiAvailableAtTin1;
+                }
+                daiAmt = daiAvailableAtTin1 + (daiRemainder * WAD / tin1) * tin2 / WAD;
+            }
+        }
     }
-    function buyGem(address usr, uint256 gemAmt) external {
-        // TODO
-        uint256 gemAmt18;
-        uint256 burnAmount;
-        {
-            (address pip,) = spotter.ilks(ilk);
-            gemAmt18 = gemAmt * to18ConversionFactor;
-            burnAmount = _divup(gemAmt18 * uint256(PipLike(pip).read()), WAD);  // Round up against user
-        }
 
-        // Fee calculations
-        int256 fee = _int256(burnAmount) * tout / SWAD;
-        uint256 daiAmt;
-        if (fee >= 0) {
-            // Positive fee - move fee to vow below after daiAmt comes in
-            daiAmt = burnAmount + uint256(fee);
+    function previewBuyGem(uint256 daiAmt) public view returns (uint256 gemAmt) {
+        uint256 gemValue;
+        uint256 daiBalance = dai.balanceOf(address(this));
+        uint256 _buffer = buffer;
+        if (daiBalance >= _buffer) {
+            // We are below the buffer so apply tout2
+            gemValue = daiAmt * tout2 / WAD;
         } else {
-            // Negative fee - pay the user extra from the vow
-            // NOTE: we exclude the case where ufee > burnAmount in the tout file constraint
-            uint256 ufee = uint256(-fee);
-            daiAmt = burnAmount - ufee;
-            vat.suck(vow, address(this), ufee * RAY);
-        }
+            uint256 daiAvailableAtTout1;
+            unchecked {
+                daiAvailableAtTout1 = _buffer - daiBalance;
+            }
 
-        // Transfer in dai, repay loan and transfer out gems
-        require(dai.transferFrom(msg.sender, address(this), daiAmt), "D3MSwapPool/failed-transfer");
-        daiJoin.join(address(this), daiAmt);
-        vat.frob(ilk, address(this), address(this), address(this), -_int256(gemAmt18), -int256(burnAmount));
-        vat.slip(ilk, address(this), -int256(gemAmt18));
+            // We are above the buffer so could be a mix of tout1 and tout1
+            if (daiAmt <= daiAvailableAtTout1) {
+                // We are entirely in the tout1 region
+                gemValue = daiAmt * tout1 / WAD;
+            } else {
+                // We are a mix between tout1 and tout1
+                uint256 daiRemainder;
+                unchecked {
+                    daiRemainder = daiAmt - daiAvailableAtTout1;
+                }
+                gemValue = daiAvailableAtTout1 * tout1 / WAD + daiRemainder * tout2 / WAD;
+            }
+        }
+        gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * uint256(pip.read()));
+    }
+
+    function sellGem(address usr, uint256 gemAmt, uint256 minDaiAmt) external returns (uint256 daiAmt) {
+        daiAmt = previewSellGem(gemAmt);
+        require(daiAmt >= minDaiAmt, "D3MSwapPool/too-little-dai");
+        require(gem.transferFrom(msg.sender, address(this), gemAmt), "D3MSwapPool/failed-transfer");
+        dai.transfer(usr, daiAmt);
+
+        emit SellGem(usr, gemAmt, daiAmt);
+    }
+
+    function buyGem(address usr, uint256 daiAmt, uint256 minGemAmt) external returns (uint256 gemAmt) {
+        gemAmt = previewBuyGem(daiAmt);
+        require(gemAmt >= minGemAmt, "D3MSwapPool/too-little-gems");
+        dai.transferFrom(msg.sender, address(this), daiAmt);
         require(gem.transfer(usr, gemAmt), "D3MSwapPool/failed-transfer");
-        if (fee >= 0) {
-            vat.move(address(this), vow, uint256(fee) * RAY);
-        }
 
-        emit BuyGem(usr, gemAmt, daiAmt, fee);
+        emit BuyGem(usr, gemAmt, daiAmt);
     }
 
 }
