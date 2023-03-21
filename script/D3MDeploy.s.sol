@@ -116,6 +116,13 @@ contract D3MDeployScript is Script {
             } else {
                 revert("Invalid pool type for rate target plan type");
             }
+        } else if (planType.eq("debt-ceiling")) {
+            d3m.plan = D3MDeploy.deployDebtCeilingPlan(
+                msg.sender,
+                admin,
+                ilk,
+                address(dss.vat)
+            );
         } else {
             revert("Unknown plan type");
         }
