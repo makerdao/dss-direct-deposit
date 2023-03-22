@@ -178,23 +178,23 @@ contract D3MSwapPool is ID3MPool {
 
     // --- Getters ---
 
-    function buffer() public view returns (uint256) {
+    function buffer() external view returns (uint256) {
         return feeData.buffer;
     }
 
-    function tin1() public view returns (uint256) {
+    function tin1() external view returns (uint256) {
         return feeData.tin1;
     }
 
-    function tout1() public view returns (uint256) {
+    function tout1() external view returns (uint256) {
         return feeData.tout1;
     }
 
-    function tin2() public view returns (uint256) {
+    function tin2() external view returns (uint256) {
         return feeData.tin2;
     }
 
-    function tout2() public view returns (uint256) {
+    function tout2() external view returns (uint256) {
         return feeData.tout2;
     }
 
