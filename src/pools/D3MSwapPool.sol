@@ -81,7 +81,7 @@ contract D3MSwapPool is ID3MPool {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
-    event File(bytes32 indexed what, uint128 data);
+    event File(bytes32 indexed what, uint24 data);
     event File(bytes32 indexed what, uint24 tin, uint24 tout);
     event File(bytes32 indexed what, address data);
     event SellGem(address indexed owner, uint256 gems, uint256 dai);
