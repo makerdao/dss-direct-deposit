@@ -63,6 +63,8 @@ contract D3MSwapPool is ID3MPool {
 
     HubLike public hub;
     PipLike public pip;
+    PipLike public sellGemPip;
+    PipLike public buyGemPip;
     FeeData public feeData;
     uint256 public exited;
 
@@ -165,6 +167,10 @@ contract D3MSwapPool is ID3MPool {
             vat.hope(data);
         } else if (what == "pip") {
             pip = PipLike(data);
+        } else if (what == "sellGemPip") {
+            sellGemPip = PipLike(data);
+        } else if (what == "buyGemPip") {
+            buyGemPip = PipLike(data);
         } else revert("D3MSwapPool/file-unrecognized-param");
 
         emit File(what, data);
@@ -238,7 +244,7 @@ contract D3MSwapPool is ID3MPool {
 
     function previewSellGem(uint256 gemAmt) public view returns (uint256 daiAmt) {
         FeeData memory _feeData = feeData;
-        uint256 pipValue = uint256(pip.read());
+        uint256 pipValue = uint256(sellGemPip.read());
         uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * pipValue / WAD;
         uint256 daiBalance = dai.balanceOf(address(this));
         uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;
@@ -270,7 +276,7 @@ contract D3MSwapPool is ID3MPool {
 
     function previewBuyGem(uint256 daiAmt) public view returns (uint256 gemAmt) {
         FeeData memory _feeData = feeData;
-        uint256 pipValue = uint256(pip.read());
+        uint256 pipValue = uint256(buyGemPip.read());
         uint256 gemValue;
         uint256 daiBalance = dai.balanceOf(address(this));
         uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;

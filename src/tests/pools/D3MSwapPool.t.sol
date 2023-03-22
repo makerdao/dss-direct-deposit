@@ -62,6 +62,8 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
 
         d3mTestPool = address(swapPool = new D3MSwapPool(ILK, hub, address(dai), address(gem)));
         swapPool.file("pip", address(pip));
+        swapPool.file("sellGemPip", address(pip));
+        swapPool.file("buyGemPip", address(pip));
 
         // Set the fee switch to 90% (targeting 90% of the swap pool in gems)
         swapPool.file("buffer", 9000);
@@ -82,7 +84,7 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
     }
 
     function test_file_addresses() public {
-        checkFileAddress(d3mTestPool, contractName, ["hub", "pip"]);
+        checkFileAddress(d3mTestPool, contractName, ["hub", "pip", "sellGemPip", "buyGemPip"]);
     }
 
     function test_file_buffer() public {
