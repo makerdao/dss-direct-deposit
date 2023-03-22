@@ -43,6 +43,7 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
     FakeEnd end;
     PipMock pip;
 
+    event File(bytes32 indexed what, uint256 tin, uint256 tout);
     event SellGem(address indexed owner, uint256 gems, uint256 dai);
     event BuyGem(address indexed owner, uint256 gems, uint256 dai);
 
@@ -63,11 +64,10 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         swapPool.file("pip", address(pip));
 
         swapPool.file("buffer", 10 ether);          // 10 DAI buffer to switch between tin/tout1 and tin/tout2
-        swapPool.file("tin1",  10005 * WAD / BPS);  // 5 bps negative wind fee (pay people to wind)
-        swapPool.file("tout1",  9980 * WAD / BPS);  // 20 bps unwind fee
-        swapPool.file("tin2",   9990 * WAD / BPS);  // 10 bps fee after the buffer is reached
-        swapPool.file("tout2", 10015 * WAD / BPS);  // 15 bps negative fee (pay people to unwind)
-
+        // 5 bps negative wind fee (pay people to wind), 20 bps unwind fee
+        swapPool.file("fees1", 10005 * WAD / BPS, 9980 * WAD / BPS);
+        // 10 bps fee after the buffer is reached, 8 bps negative fee (pay people to unwind)
+        swapPool.file("fees2", 9990 * WAD / BPS, 10008 * WAD / BPS);
         gem.approve(d3mTestPool, type(uint256).max);
         dai.approve(d3mTestPool, type(uint256).max);
     }
@@ -81,8 +81,40 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
     }
 
     function test_file() public {
-        checkFileUint(d3mTestPool, contractName, ["buffer", "tin1", "tin2", "tout1", "tout2"]);
+        checkFileUint(d3mTestPool, contractName, ["buffer"]);
         checkFileAddress(d3mTestPool, contractName, ["hub", "pip"]);
+    }
+
+    function test_file_fees() public {
+        vm.expectRevert(abi.encodePacked(contractName, "/file-unrecognized-param"));
+        swapPool.file("an invalid value", 1, 2);
+
+        vm.expectEmit(true, true, true, true);
+        emit File("fees1", 1, 2);
+        swapPool.file("fees1", 1, 2);
+        
+        assertEq(swapPool.tin1(), 1);
+        assertEq(swapPool.tout1(), 2);
+
+        vm.expectEmit(true, true, true, true);
+        emit File("fees2", 3, 4);
+        swapPool.file("fees2", 3, 4);
+        
+        assertEq(swapPool.tin2(), 3);
+        assertEq(swapPool.tout2(), 4);
+
+        FakeVat(vat).cage();
+        vm.expectRevert(abi.encodePacked(contractName, "/no-file-during-shutdown"));
+        swapPool.file("some value", 1, 2);
+
+        swapPool.deny(address(this));
+        vm.expectRevert(abi.encodePacked(contractName, "/not-authorized"));
+        swapPool.file("some value", 1, 2);
+    }
+
+    function test_file_invalid_fees() public {
+        vm.expectRevert(abi.encodePacked(contractName, "/invalid-fees"));
+        swapPool.file("fees1", WAD + 1, WAD);
     }
 
     function test_withdraw() public {
@@ -169,7 +201,7 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
 
     function test_previewSellGem_mixed_fees_exact_cancel() public {
         dai.transfer(d3mTestPool, 100 ether);
-        swapPool.file("tin2", WAD*WAD / swapPool.tin1());
+        swapPool.file("fees2", WAD*WAD / swapPool.tin1(), swapPool.tin1());
 
         // ~45 tokens will earn the 5bps fee, remainding ~45 pays the 5bps fee
         // Allow for a 1bps error due to rounding
@@ -197,8 +229,8 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
     function test_previewBuyGem_over_buffer() public {
         dai.transfer(d3mTestPool, 5 ether);
 
-        // 4 DAI + 15bps payment = 2.003 tokens
-        assertEq(swapPool.previewBuyGem(4 ether), 2.003 * 1e6);
+        // 4 DAI + 8bps payment = 2.003 tokens
+        assertEq(swapPool.previewBuyGem(4 ether), 2.0016 * 1e6);
     }
 
     function test_previewBuyGem_under_buffer() public {
@@ -211,14 +243,14 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
     function test_previewBuyGem_mixed_fees() public {
         dai.transfer(d3mTestPool, 5 ether);
 
-        // 5 of the DAI gets paid the 15bps fee, the other 5 pays the 20bps fee
+        // 5 of the DAI gets paid the 8bps fee, the other 5 pays the 20bps fee
         // Result is slightly less than 5 tokens
-        assertEq(swapPool.previewBuyGem(10 ether), 4998750);
+        assertEq(swapPool.previewBuyGem(10 ether), 4997000);
     }
 
     function test_previewBuyGem_mixed_fees_exact_cancel() public {
         dai.transfer(d3mTestPool, 5 ether);
-        swapPool.file("tout2", WAD*WAD / swapPool.tout1());
+        swapPool.file("fees2", swapPool.tout1(), WAD*WAD / swapPool.tout1());
 
         // 10 DAI unwind should almost exactly cancel out
         // Allow for a 1bps error due to rounding
@@ -239,7 +271,7 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
     }
 
     function test_previewBuyGem_dai_zero() public {
-        assertEq(swapPool.previewBuyGem(4 ether), 2.003 * 1e6);
+        assertEq(swapPool.previewBuyGem(4 ether), 2.0016 * 1e6);
     }
 
     function test_sellGem() public {
@@ -271,10 +303,10 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         assertEq(gem.balanceOf(TEST_ADDRESS), 0);
 
         vm.expectEmit(true, true, true, true);
-        emit BuyGem(TEST_ADDRESS, 5.0075 * 1e6, 10 ether);
+        emit BuyGem(TEST_ADDRESS, 5.004 * 1e6, 10 ether);
         swapPool.buyGem(TEST_ADDRESS, 10 ether, swapPool.previewBuyGem(10 ether));
 
-        assertEq(gem.balanceOf(TEST_ADDRESS), 5.0075 * 1e6);
+        assertEq(gem.balanceOf(TEST_ADDRESS), 5.004 * 1e6);
         assertEq(dai.balanceOf(address(this)), daiBal - 10 ether);
     }
 

@@ -75,6 +75,7 @@ contract D3MSwapPool is ID3MPool {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
+    event File(bytes32 indexed what, uint256 tin, uint256 tout);
     event File(bytes32 indexed what, address data);
     event SellGem(address indexed owner, uint256 gems, uint256 dai);
     event BuyGem(address indexed owner, uint256 gems, uint256 dai);
@@ -119,13 +120,25 @@ contract D3MSwapPool is ID3MPool {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
 
         if (what == "buffer") buffer = data;
-        else if (what == "tin1") tin1 = data;
-        else if (what == "tout1") tout1 = data;
-        else if (what == "tin2") tin2 = data;
-        else if (what == "tout2") tout2 = data;
         else revert("D3MSwapPool/file-unrecognized-param");
 
         emit File(what, data);
+    }
+
+    function file(bytes32 what, uint256 tin, uint256 tout) external auth {
+        require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
+        // We need to restrict tin/tout combinations to be less than 100% to avoid arbitrage opportunities.
+        require(tin * tout <= WAD * WAD, "D3MSwapPool/invalid-fees");
+
+        if (what == "fees1") {
+            tin1 = tin;
+            tout1 = tout;
+        } else if (what == "fees2") {
+            tin2 = tin;
+            tout2 = tout;
+        } else revert("D3MSwapPool/file-unrecognized-param");
+
+        emit File(what, tin, tout);
     }
 
     function file(bytes32 what, address data) external auth {
