@@ -16,8 +16,8 @@
 
 pragma solidity ^0.8.14;
 
-import {DssTest} from "dss-test/DssTest.sol";
-import "../interfaces/interfaces.sol";
+import "dss-test/DssTest.sol";
+import "dss-interfaces/Interfaces.sol";
 
 import { D3MHub } from "../../D3MHub.sol";
 import { D3MMom } from "../../D3MMom.sol";
@@ -25,12 +25,6 @@ import { D3MOracle } from "../../D3MOracle.sol";
 
 import { D3MAaveV2TypeRateTargetPlan } from "../../plans/D3MAaveV2TypeRateTargetPlan.sol";
 import { D3MAaveV2TypePool } from "../../pools/D3MAaveV2TypePool.sol";
-
-interface Hevm {
-    function warp(uint256) external;
-    function store(address,bytes32,bytes32) external;
-    function load(address,bytes32) external view returns (bytes32);
-}
 
 interface LendingPoolLike {
     function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
@@ -68,7 +62,7 @@ interface InterestRateStrategyLike {
     );
 }
 
-interface ATokenLike is TokenLike {
+interface AGemAbstract is GemAbstract {
     function scaledBalanceOf(address) external view returns (uint256);
 }
 
@@ -77,17 +71,17 @@ interface RewardsClaimerLike {
 }
 
 contract D3MAaveTest is DssTest {
-    VatLike vat;
-    EndLike end;
+    VatAbstract vat;
+    EndAbstract end;
     LendingPoolLike aavePool;
     InterestRateStrategyLike interestStrategy;
     RewardsClaimerLike rewardsClaimer;
-    DaiLike dai;
-    DaiJoinLike daiJoin;
-    ATokenLike adai;
-    TokenLike stkAave;
-    SpotLike spot;
-    TokenLike weth;
+    DaiAbstract dai;
+    DaiJoinAbstract daiJoin;
+    AGemAbstract adai;
+    GemAbstract stkAave;
+    SpotAbstract spot;
+    GemAbstract weth;
     address vow;
     address pauseProxy;
 
@@ -106,17 +100,17 @@ contract D3MAaveTest is DssTest {
         emit log_named_uint("block", block.number);
         emit log_named_uint("timestamp", block.timestamp);
 
-        vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
-        end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
+        vat = VatAbstract(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
+        end = EndAbstract(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
-        adai = ATokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
-        stkAave = TokenLike(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
-        dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
-        daiJoin = DaiJoinLike(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
+        adai = AGemAbstract(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
+        stkAave = GemAbstract(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
+        dai = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+        daiJoin = DaiJoinAbstract(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
         interestStrategy = InterestRateStrategyLike(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
         rewardsClaimer = RewardsClaimerLike(0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5);
-        spot = SpotLike(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
-        weth = TokenLike(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+        spot = SpotAbstract(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
+        weth = GemAbstract(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
         pauseProxy = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
 
@@ -201,7 +195,7 @@ contract D3MAaveTest is DssTest {
         assertTrue(false);
     }
 
-    function _giveTokens(TokenLike token, uint256 amount) internal {
+    function _giveTokens(GemAbstract token, uint256 amount) internal {
         // Edge case - balance is already set for some reason
         if (token.balanceOf(address(this)) == amount) return;
 
@@ -618,7 +612,7 @@ contract D3MAaveTest is DssTest {
 
         // We try to unwind what is possible
         d3mHub.exec(ilk);
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // exec() moved the remaining urn debt to the end
         (ink, art) = vat.urns(ilk, address(d3mAavePool));
@@ -639,7 +633,7 @@ contract D3MAaveTest is DssTest {
 
         // Rest of the liquidity can be withdrawn
         d3mHub.exec(ilk);
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(vat.sin(vow), 0);
         assertGe(vat.dai(vow), prevDai); // As also probably accrues interest from aDai
@@ -678,7 +672,7 @@ contract D3MAaveTest is DssTest {
 
         // Position is taken by the End module
         end.skim(ilk, address(d3mAavePool));
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         (ink, art) = vat.urns(ilk, address(d3mAavePool));
         assertEq(ink, 0);
         assertEq(art, 0);
@@ -693,7 +687,7 @@ contract D3MAaveTest is DssTest {
 
         // We try to unwind what is possible
         d3mHub.exec(ilk);
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // Part can't be done yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
@@ -711,7 +705,7 @@ contract D3MAaveTest is DssTest {
 
         // Rest of the liquidity can be withdrawn
         d3mHub.exec(ilk);
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(vat.sin(vow), 0);
         assertGe(vat.dai(vow), prevDai); // As also probably accrues interest from aDai
@@ -775,9 +769,9 @@ contract D3MAaveTest is DssTest {
 
         uint256 daiEarned = adai.balanceOf(address(d3mAavePool)) - pink;
 
-        VowLike(vow).heal(
+        VowAbstract(vow).heal(
             _min(
-                vat.sin(vow) - VowLike(vow).Sin() - VowLike(vow).Ash(),
+                vat.sin(vow) - VowAbstract(vow).Sin() - VowAbstract(vow).Ash(),
                 vat.dai(vow)
             )
         );
@@ -801,7 +795,7 @@ contract D3MAaveTest is DssTest {
         assertGe(adai.balanceOf(address(d3mAavePool)), pink);
 
         // MCD shutdowns
-        originalDai = originalDai + vat.dai(VowLike(vow).flapper());
+        originalDai = originalDai + vat.dai(VowAbstract(vow).flapper());
         end.cage();
 
         if (originalSin + part * RAY >= originalDai) {
@@ -813,7 +807,7 @@ contract D3MAaveTest is DssTest {
         }
 
         d3mHub.uncull(ilk);
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         end.cage(ilk);
 
@@ -828,7 +822,7 @@ contract D3MAaveTest is DssTest {
         // Call skim manually (will be done through deposit anyway)
         // Position is again taken but this time the collateral goes to the End module
         end.skim(ilk, address(d3mAavePool));
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         (ink, art) = vat.urns(ilk, address(d3mAavePool));
         assertEq(ink, 0);
@@ -846,7 +840,7 @@ contract D3MAaveTest is DssTest {
 
         // We try to unwind what is possible
         d3mHub.exec(ilk);
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // A part can't be unwind yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
@@ -866,7 +860,7 @@ contract D3MAaveTest is DssTest {
 
         // Rest of the liquidity can be withdrawn
         d3mHub.exec(ilk);
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(adai.balanceOf(address(d3mAavePool)), 0);
         assertEq(vat.sin(vow), 0);

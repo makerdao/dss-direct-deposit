@@ -16,117 +16,41 @@
 
 pragma solidity ^0.8.14;
 
-import {DssTest} from "dss-test/DssTest.sol";
-import "../interfaces/interfaces.sol";
+import "dss-test/DssTest.sol";
+import "dss-interfaces/Interfaces.sol";
 
 import "../../plans/ID3MPlan.sol";
 
-interface Hevm {
-    function warp(uint256) external;
+abstract contract D3MPlanBaseTest is DssTest {
 
-    function store(
-        address,
-        bytes32,
-        bytes32
-    ) external;
+    string public contractName;
 
-    function load(address, bytes32) external view returns (bytes32);
-}
+    ID3MPlan private plan;
 
-contract D3MPlanBase is ID3MPlan {
-
-    address public immutable dai;
-
-    mapping (address => uint256) public wards;
-    function rely(address usr) external auth {
-        wards[usr] = 1;
-        emit Rely(usr);
-    }
-    function deny(address usr) external auth {
-        wards[usr] = 0;
-        emit Deny(usr);
-    }
-    modifier auth {
-        require(wards[msg.sender] == 1, "D3MPlanBase/not-authorized");
-        _;
+    function baseInit(ID3MPlan _plan, string memory _contractName) internal {
+        plan = _plan;
+        contractName = _contractName;
     }
 
-    // --- Events ---
-    event Rely(address indexed usr);
-    event Deny(address indexed usr);
-
-    constructor(address dai_) {
-        dai = dai_;
-
-        wards[msg.sender] = 1;
-        emit Rely(msg.sender);
+    function test_auth() public {
+        checkAuth(address(plan), contractName);
     }
 
-    function getTargetAssets(uint256 currentAssets) external override pure returns(uint256) {
-        return currentAssets;
+    function test_auth_modifiers() public {
+        WardsAbstract(address(plan)).deny(address(this));
+
+        bytes[] memory funcs = new bytes[](1);
+        funcs[0] = abi.encodeWithSelector(ID3MPlan.disable.selector, 0, 0, 0);
+
+        for (uint256 i = 0; i < funcs.length; i++) {
+            assertRevert(address(plan), funcs[i], abi.encodePacked(contractName, "/not-authorized"));
+        }
     }
 
-    function active() external override pure returns(bool) {
-        return true;
+    function test_disable_makes_inactive() public {
+        assertEq(plan.active(), true);
+        plan.disable();
+        assertEq(plan.active(), false);
     }
 
-    function disable() external override {}
-}
-
-contract D3MPlanBaseTest is DssTest {
-    string contractName;
-
-    DaiLike dai;
-
-    address d3mTestPlan;
-
-    function setUp() public virtual {
-
-        contractName = "D3MPlanBase";
-
-        dai = DaiLike(address(123));
-
-        d3mTestPlan = address(new D3MPlanBase(address(dai)));
-    }
-
-    function test_sets_creator_as_ward() public {
-        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
-    }
-
-    function test_can_rely() public {
-        assertEq(D3MPlanBase(d3mTestPlan).wards(address(123)), 0);
-
-        D3MPlanBase(d3mTestPlan).rely(address(123));
-
-        assertEq(D3MPlanBase(d3mTestPlan).wards(address(123)), 1);
-    }
-
-    function test_can_deny() public {
-        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
-
-        D3MPlanBase(d3mTestPlan).deny(address(this));
-
-        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 0);
-    }
-
-    function test_cannot_rely_without_auth() public {
-        assertEq(D3MPlanBase(d3mTestPlan).wards(address(this)), 1);
-
-        D3MPlanBase(d3mTestPlan).deny(address(this));
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("rely(address)", address(this)), string(abi.encodePacked(contractName, "/not-authorized")));
-    }
-
-    function test_implements_getTargetAssets() public virtual {
-        uint256 result = D3MPlanBase(d3mTestPlan).getTargetAssets(2);
-
-        assertEq(result, 2);
-    }
-
-    function test_implements_active() public view {
-        D3MPlanBase(d3mTestPlan).active();
-    }
-
-    function test_implements_disable() public virtual {
-        D3MPlanBase(d3mTestPlan).disable();
-    }
 }

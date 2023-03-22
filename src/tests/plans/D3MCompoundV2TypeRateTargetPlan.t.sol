@@ -16,10 +16,8 @@
 
 pragma solidity ^0.8.14;
 
-import {DssTest} from "dss-test/DssTest.sol";
-import "../interfaces/interfaces.sol";
+import "./D3MPlanBase.t.sol";
 
-import { D3MPlanBaseTest } from "./D3MPlanBase.t.sol";
 import { D3MCompoundV2TypeRateTargetPlan } from "../../plans/D3MCompoundV2TypeRateTargetPlan.sol";
 
 interface CErc20Like {
@@ -51,6 +49,8 @@ contract D3MCompoundV2TypeRateTargetPlanWrapper is D3MCompoundV2TypeRateTargetPl
 }
 
 contract D3MCompoundV2TypeRateTargetPlanTest is D3MPlanBaseTest {
+
+    DaiAbstract dai;
     CErc20Like                             cDai;
     InterestRateModelLike                  model;
     address                                cDaiImplementation;
@@ -95,17 +95,16 @@ contract D3MCompoundV2TypeRateTargetPlanTest is D3MPlanBaseTest {
         }
     }
 
-    function setUp() public override {
-
-        contractName = "D3MCompoundV2TypeRateTargetPlan";
-
-        dai                = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+    function setUp() public {
+        // TODO these should be mocked
+        dai                = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         cDai               = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
         cDaiImplementation = cDai.implementation();
         model              = InterestRateModelLike(cDai.interestRateModel());
 
-        d3mTestPlan = address(new D3MCompoundV2TypeRateTargetPlanWrapper(address(cDai)));
-        plan = D3MCompoundV2TypeRateTargetPlanWrapper(d3mTestPlan);
+        plan = new D3MCompoundV2TypeRateTargetPlanWrapper(address(cDai));
+
+        baseInit(plan, "D3MCompoundV2TypeRateTargetPlan");
     }
 
     function _targetRateForUtil(uint256 util) internal view returns (uint256 targetRate, uint256 cash, uint256 borrows, uint256 reserves) {
@@ -148,16 +147,16 @@ contract D3MCompoundV2TypeRateTargetPlanTest is D3MPlanBaseTest {
     }
 
     function test_sets_barb_too_high() public {
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", bytes32("barb"), uint256(0.0005e16 + 1)), "D3MCompoundV2TypeRateTargetPlan/barb-too-high");
+        assertRevert(address(plan), abi.encodeWithSignature("file(bytes32,uint256)", bytes32("barb"), uint256(0.0005e16 + 1)), "D3MCompoundV2TypeRateTargetPlan/barb-too-high");
     }
 
     function test_cannot_file_unknown_uint_param() public {
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", bytes32("bad"), uint256(1)), "D3MCompoundV2TypeRateTargetPlan/file-unrecognized-param");
+        assertRevert(address(plan), abi.encodeWithSignature("file(bytes32,uint256)", bytes32("bad"), uint256(1)), "D3MCompoundV2TypeRateTargetPlan/file-unrecognized-param");
     }
 
     function test_cannot_file_uint_without_auth() public {
         plan.deny(address(this));
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", bytes32("barb"), uint256(1)), "D3MCompoundV2TypeRateTargetPlan/not-authorized");
+        assertRevert(address(plan), abi.encodeWithSignature("file(bytes32,uint256)", bytes32("barb"), uint256(1)), "D3MCompoundV2TypeRateTargetPlan/not-authorized");
     }
 
     function test_can_file_tack() public {
@@ -177,25 +176,25 @@ contract D3MCompoundV2TypeRateTargetPlanTest is D3MPlanBaseTest {
     }
 
     function test_can_not_file_unknown_address_set() public {
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,address,uint256)", bytes32("bad"), address(0), uint256(1)), "D3MCompoundV2TypeRateTargetPlan/file-unrecognized-param");
+        assertRevert(address(plan), abi.encodeWithSignature("file(bytes32,address,uint256)", bytes32("bad"), address(0), uint256(1)), "D3MCompoundV2TypeRateTargetPlan/file-unrecognized-param");
     }
 
     function test_can_not_file_illegal_uint_for_tack() public {
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,address,uint256)", bytes32("tack"), address(0), uint256(2)), "D3MCompoundV2TypeRateTargetPlan/file-invalid-data");
+        assertRevert(address(plan), abi.encodeWithSignature("file(bytes32,address,uint256)", bytes32("tack"), address(0), uint256(2)), "D3MCompoundV2TypeRateTargetPlan/file-invalid-data");
     }
 
     function test_can_not_file_illegal_uint_for_delegate() public {
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,address,uint256)", bytes32("delegate"), address(0), uint256(2)), "D3MCompoundV2TypeRateTargetPlan/file-invalid-data");
+        assertRevert(address(plan), abi.encodeWithSignature("file(bytes32,address,uint256)", bytes32("delegate"), address(0), uint256(2)), "D3MCompoundV2TypeRateTargetPlan/file-invalid-data");
     }
 
     function test_can_not_file_tack_without_auth() public {
         plan.deny(address(this));
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,address,uint256)", "tack", address(1), 1), "D3MCompoundV2TypeRateTargetPlan/not-authorized");
+        assertRevert(address(plan), abi.encodeWithSignature("file(bytes32,address,uint256)", "tack", address(1), 1), "D3MCompoundV2TypeRateTargetPlan/not-authorized");
     }
 
     function test_can_not_file_deleagte_without_auth() public {
         plan.deny(address(this));
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,address,uint256)", "delegate", address(1), 1), "D3MCompoundV2TypeRateTargetPlan/not-authorized");
+        assertRevert(address(plan), abi.encodeWithSignature("file(bytes32,address,uint256)", "delegate", address(1), 1), "D3MCompoundV2TypeRateTargetPlan/not-authorized");
     }
 
     function test_calculate_current_rate() public {
@@ -283,7 +282,7 @@ contract D3MCompoundV2TypeRateTargetPlanTest is D3MPlanBaseTest {
         assertLt(targetSupply, WAD);
     }
 
-    function test_implements_getTargetAssets() public override {
+    function test_implements_getTargetAssets() public {
         uint256 initialRatePerBlock = cDai.borrowRatePerBlock();
 
         plan.file("barb", initialRatePerBlock - (1 * WAD / 1000) / model.blocksPerYear()); // minus 0.1% from current yearly rate
@@ -356,7 +355,7 @@ contract D3MCompoundV2TypeRateTargetPlanTest is D3MPlanBaseTest {
         assertTrue(plan.active());
     }
 
-    function test_implements_disable() public override {
+    function test_implements_disable() public {
         // disable_sets_bar_to_zero
         plan.file("barb", 123);
         assertTrue(plan.barb() != 0);
@@ -371,7 +370,8 @@ contract D3MCompoundV2TypeRateTargetPlanTest is D3MPlanBaseTest {
         assertEq(plan.delegates(cDaiImplementation), 1);
         plan.deny(address(this));
 
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("disable()"), "D3MCompoundV2TypeRateTargetPlan/not-authorized");
+        assertRevert(address(plan), abi.encodeWithSignature("disable()"), "D3MCompoundV2TypeRateTargetPlan/not-authorized");
     }
+
 }
 

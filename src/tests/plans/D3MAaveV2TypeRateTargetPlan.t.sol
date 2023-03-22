@@ -16,8 +16,7 @@
 
 pragma solidity ^0.8.14;
 
-import { Hevm, D3MPlanBaseTest } from "./D3MPlanBase.t.sol";
-import { DaiLike, TokenLike } from "../interfaces/interfaces.sol";
+import "./D3MPlanBase.t.sol";
 
 import { D3MAaveV2TypeRateTargetPlan, LendingPoolLike } from "../../plans/D3MAaveV2TypeRateTargetPlan.sol";
 
@@ -49,22 +48,27 @@ contract D3MAaveV2TypeRateTargetPlanWrapper is D3MAaveV2TypeRateTargetPlan {
 }
 
 contract D3MAaveV2TypeRateTargetPlanTest is D3MPlanBaseTest {
+
+    DaiAbstract dai;
     LendingPoolLike aavePool;
     InterestRateStrategyLike interestStrategy;
-    TokenLike adai;
+    GemAbstract adai;
+
+    D3MAaveV2TypeRateTargetPlanWrapper plan;
 
     // Allow for a 1 BPS margin of error on interest rates
     uint256 constant INTEREST_RATE_TOLERANCE = RAY / 10000;
 
-    function setUp() public override {
-        contractName = "D3MAaveV2TypeRateTargetPlan";
-
-        dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+    function setUp() public {
+        // TODO these should be mocked
+        dai = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
-        adai = TokenLike(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
+        adai = GemAbstract(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
         interestStrategy = InterestRateStrategyLike(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
 
-        d3mTestPlan = address(new D3MAaveV2TypeRateTargetPlanWrapper(address(dai), address(aavePool)));
+        plan = new D3MAaveV2TypeRateTargetPlanWrapper(address(dai), address(aavePool));
+
+        baseInit(plan, "D3MAaveV2TypeRateTargetPlan");
     }
 
     function assertEqInterest(uint256 _a, uint256 _b) internal {
@@ -84,76 +88,76 @@ contract D3MAaveV2TypeRateTargetPlanTest is D3MPlanBaseTest {
     }
 
     function test_sets_adai() public {
-        assertEq(address(adai), D3MAaveV2TypeRateTargetPlan(d3mTestPlan).adai());
+        assertEq(address(adai), plan.adai());
     }
 
     function test_sets_adaiRevision_value() public {
-        assertEq(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).adaiRevision(), 2);
+        assertEq(plan.adaiRevision(), 2);
     }
 
     function test_sets_dai_value() public {
-        assertEq(address(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).dai()), address(dai));
+        assertEq(address(plan.dai()), address(dai));
     }
 
     function test_sets_stableDebt() public {
         (,,,,,,,, address stableDebt,,,) = LendingPoolLike(aavePool).getReserveData(address(dai));
 
-        assertEq(stableDebt, address(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).stableDebt()));
+        assertEq(stableDebt, address(plan.stableDebt()));
     }
 
     function test_sets_variableDebt() public {
         (,,,,,,,,, address variableDebt,,) = LendingPoolLike(aavePool).getReserveData(address(dai));
 
-        assertEq(variableDebt, address(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).variableDebt()));
+        assertEq(variableDebt, address(plan.variableDebt()));
     }
 
     function test_sets_InterestStrategy() public {
-        assertEq(address(interestStrategy), address(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).tack()));
+        assertEq(address(interestStrategy), address(plan.tack()));
     }
 
     function test_can_file_bar() public {
-        assertEq(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).bar(), 0);
+        assertEq(plan.bar(), 0);
 
-        D3MAaveV2TypeRateTargetPlan(d3mTestPlan).file("bar", 1);
+        plan.file("bar", 1);
 
-        assertEq(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).bar(), 1);
+        assertEq(plan.bar(), 1);
     }
 
     function test_cannot_file_unknown_uint_param() public {
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", bytes32("bad"), uint256(1)), "D3MAaveV2TypeRateTargetPlan/file-unrecognized-param");
+        assertRevert(address(plan), abi.encodeWithSignature("file(bytes32,uint256)", bytes32("bad"), uint256(1)), "D3MAaveV2TypeRateTargetPlan/file-unrecognized-param");
     }
 
     function test_can_file_interestStratgey() public {
-        assertEq(address(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).tack()), address(interestStrategy));
+        assertEq(address(plan.tack()), address(interestStrategy));
 
-        D3MAaveV2TypeRateTargetPlan(d3mTestPlan).file("tack", address(1));
+        plan.file("tack", address(1));
 
-        assertEq(address(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).tack()), address(1));
+        assertEq(address(plan.tack()), address(1));
     }
 
     function test_cannot_file_unknown_address_param() public {
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,address)", bytes32("bad"), address(1)), "D3MAaveV2TypeRateTargetPlan/file-unrecognized-param");
+        assertRevert(address(plan), abi.encodeWithSignature("file(bytes32,address)", bytes32("bad"), address(1)), "D3MAaveV2TypeRateTargetPlan/file-unrecognized-param");
     }
 
     function test_cannot_file_without_auth() public {
-        D3MAaveV2TypeRateTargetPlan(d3mTestPlan).deny(address(this));
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("file(bytes32,uint256)", bytes32("bar"), uint256(1)), "D3MAaveV2TypeRateTargetPlan/not-authorized");
+        plan.deny(address(this));
+        assertRevert(address(plan), abi.encodeWithSignature("file(bytes32,uint256)", bytes32("bar"), uint256(1)), "D3MAaveV2TypeRateTargetPlan/not-authorized");
     }
 
     function test_set_bar_too_high_unwinds() public {
-        D3MAaveV2TypeRateTargetPlan(d3mTestPlan).file("bar", interestStrategy.getMaxVariableBorrowRate() + 1);
-        assertEq(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).getTargetAssets(1), 0);
+        plan.file("bar", interestStrategy.getMaxVariableBorrowRate() + 1);
+        assertEq(plan.getTargetAssets(1), 0);
     }
 
     function test_set_bar_too_low_unwinds() public {
-        D3MAaveV2TypeRateTargetPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate());
-        assertEq(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).getTargetAssets(1), 0);
+        plan.file("bar", interestStrategy.baseVariableBorrowRate());
+        assertEq(plan.getTargetAssets(1), 0);
     }
 
     function test_interest_rate_calc() public {
         // Confirm that the inverse function is correct by comparing all percentages
         for (uint256 i = 1; i <= 100 * interestStrategy.getMaxVariableBorrowRate() / RAY; i++) {
-            uint256 targetSupply = D3MAaveV2TypeRateTargetPlanWrapper(d3mTestPlan).calculateTargetSupply(i * RAY / 100);
+            uint256 targetSupply = D3MAaveV2TypeRateTargetPlanWrapper(address(plan)).calculateTargetSupply(i * RAY / 100);
             (,, uint256 varBorrow) = interestStrategy.calculateInterestRates(
                 address(adai),
                 targetSupply - (adai.totalSupply() - dai.balanceOf(address(adai))),
@@ -166,65 +170,66 @@ contract D3MAaveV2TypeRateTargetPlanTest is D3MPlanBaseTest {
         }
     }
 
-    function test_implements_getTargetAssets() public override {
-        D3MAaveV2TypeRateTargetPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 2 * RAY / 100);
+    function test_implements_getTargetAssets() public {
+        plan.file("bar", interestStrategy.baseVariableBorrowRate() + 2 * RAY / 100);
 
-        uint256 initialTargetAssets = D3MAaveV2TypeRateTargetPlan(d3mTestPlan).getTargetAssets(0);
+        uint256 initialTargetAssets = plan.getTargetAssets(0);
 
         // Reduce target rate (increase needed number of target Assets)
-        D3MAaveV2TypeRateTargetPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
+        plan.file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
 
-        uint256 newTargetAssets = D3MAaveV2TypeRateTargetPlan(d3mTestPlan).getTargetAssets(0);
+        uint256 newTargetAssets = plan.getTargetAssets(0);
         assertGt(newTargetAssets, initialTargetAssets);
     }
 
     function test_getTargetAssets_bar_zero() public {
-        assertEq(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).bar(), 0);
-        assertEq(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).getTargetAssets(0), 0);
+        assertEq(plan.bar(), 0);
+        assertEq(plan.getTargetAssets(0), 0);
     }
 
     function test_interestStrategy_changed_not_active() public {
-        D3MAaveV2TypeRateTargetPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
+        plan.file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
 
         // Simulate AAVE changing the strategy in the pool
-        D3MAaveV2TypeRateTargetPlan(d3mTestPlan).file("tack", address(456));
+        plan.file("tack", address(456));
         (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
 
-        assertTrue(address(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).tack()) != poolStrategy);
+        assertTrue(address(plan.tack()) != poolStrategy);
 
-        assertTrue(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).active() == false);
+        assertTrue(plan.active() == false);
     }
 
     function test_bar_zero_not_active() public {
-        assertEq(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).bar(), 0);
-        assertTrue(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).active() == false);
+        assertEq(plan.bar(), 0);
+        assertTrue(plan.active() == false);
     }
 
     function test_interestStrategy_not_changed_active() public {
-        D3MAaveV2TypeRateTargetPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
+        plan.file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
         (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
-        assertEq(address(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).tack()), poolStrategy);
+        assertEq(address(plan.tack()), poolStrategy);
 
-        assertTrue(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).active());
+        assertTrue(plan.active());
     }
 
-    function test_implements_disable() public override {
+    function test_implements_disable() public {
         // disable_sets_bar_to_zero
-        D3MAaveV2TypeRateTargetPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
+        plan.file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
 
-        assertTrue(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).bar() != 0);
+        assertTrue(plan.bar() != 0);
 
-        D3MAaveV2TypeRateTargetPlan(d3mTestPlan).disable();
+        plan.disable();
 
-        assertEq(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).bar(), 0);
+        assertEq(plan.bar(), 0);
     }
 
     function test_disable_without_auth() public {
-        D3MAaveV2TypeRateTargetPlan(d3mTestPlan).file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
+        plan.file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
         (,,,,,,,,,, address poolStrategy,) = aavePool.getReserveData(address(dai));
-        assertEq(address(D3MAaveV2TypeRateTargetPlan(d3mTestPlan).tack()), poolStrategy);
-        D3MAaveV2TypeRateTargetPlan(d3mTestPlan).deny(address(this));
+        assertEq(address(plan.tack()), poolStrategy);
+        plan.deny(address(this));
 
-        assertRevert(d3mTestPlan, abi.encodeWithSignature("disable()"), "D3MAaveV2TypeRateTargetPlan/not-authorized");
+        assertRevert(address(plan), abi.encodeWithSignature("disable()"), "D3MAaveV2TypeRateTargetPlan/not-authorized");
     }
+
 }

@@ -16,31 +16,13 @@
 
 pragma solidity ^0.8.14;
 
-import {DssTest} from "dss-test/DssTest.sol";
+import "dss-test/DssTest.sol";
 
-import {D3MOracle} from "../D3MOracle.sol";
+import { D3MOracle } from "../D3MOracle.sol";
 
-interface Hevm {
-    function warp(uint256) external;
+import { VatMock } from "./mocks/VatMock.sol";
 
-    function store(
-        address,
-        bytes32,
-        bytes32
-    ) external;
-
-    function load(address, bytes32) external view returns (bytes32);
-}
-
-contract D3MTestVat {
-    uint256 public live = 1;
-
-    function cage() external {
-        live = 0;
-    }
-}
-
-contract D3MTestHub {
+contract HubMock {
     uint256 c = 0;
 
     function culled(bytes32) external view returns (uint256) {
@@ -57,13 +39,14 @@ contract D3MTestHub {
 }
 
 contract D3MOracleTest is DssTest {
-    D3MTestVat vat;
-    D3MTestHub hub;
+
+    VatMock vat;
+    HubMock hub;
     D3MOracle oracle;
 
     function setUp() public {
-        vat = new D3MTestVat();
-        hub = new D3MTestHub();
+        vat = new VatMock();
+        hub = new HubMock();
 
         oracle = new D3MOracle(address(vat), bytes32("random"));
         oracle.file("hub", address(hub));
@@ -134,4 +117,5 @@ contract D3MOracleTest is DssTest {
         vat.cage();
         assertRevert(address(oracle), abi.encodeWithSignature("read()"), "D3MOracle/ilk-culled-in-shutdown");
     }
+    
 }

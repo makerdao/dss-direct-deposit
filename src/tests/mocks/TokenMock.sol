@@ -16,17 +16,10 @@
 
 pragma solidity ^0.8.14;
 
-interface TokenLike {
-    function approve(address, uint256) external returns (bool);
-    function transfer(address, uint256) external returns (bool);
-    function transferFrom(address, address, uint256) external returns (bool);
-    function balanceOf(address) external view returns (uint256);
-}
-
-contract D3MTestGem {
+contract TokenMock {
     mapping (address => uint256) public wards;
 
-    uint256 public totalSupply = 1_000_000 ether;
+    uint256 public totalSupply;
     uint256 public immutable decimals;
     mapping (address => uint256) public balanceOf;
     mapping (address => mapping(address => uint256)) public allowance;
@@ -35,7 +28,6 @@ contract D3MTestGem {
     event Deny(address indexed usr);
 
     constructor(uint256 decimals_) {
-        balanceOf[msg.sender] = totalSupply;
         decimals = decimals_;
 
         wards[msg.sender] = 1;
@@ -53,7 +45,7 @@ contract D3MTestGem {
         emit Deny(usr);
     }
     modifier auth {
-        require(wards[msg.sender] == 1, "DssDirectDepositTestGem/not-authorized");
+        require(wards[msg.sender] == 1, "TokenMock/not-authorized");
         _;
     }
 
@@ -67,9 +59,9 @@ contract D3MTestGem {
     }
 
     function transferFrom(address src, address dst, uint256 amt) public returns (bool) {
-        require(balanceOf[src] >= amt, "TestGem/insufficient-balance");
+        require(balanceOf[src] >= amt, "TokenMock/insufficient-balance");
         if (src != msg.sender && allowance[src][msg.sender] != type(uint256).max) {
-            require(allowance[src][msg.sender] >= amt, "TestGem/insufficient-allowance");
+            require(allowance[src][msg.sender] >= amt, "TokenMock/insufficient-allowance");
             allowance[src][msg.sender] = allowance[src][msg.sender] - amt;
         }
         balanceOf[src] -= amt;
@@ -83,16 +75,12 @@ contract D3MTestGem {
     }
 
     function burn(address usr, uint wad) external {
-        require(balanceOf[usr] >= wad, "TestGem/insufficient-balance");
+        require(balanceOf[usr] >= wad, "TokenMock/insufficient-balance");
         if (usr != msg.sender && allowance[usr][msg.sender] != type(uint256).max) {
-            require(allowance[usr][msg.sender] >= wad, "TestGem/insufficient-allowance");
+            require(allowance[usr][msg.sender] >= wad, "TokenMock/insufficient-allowance");
             allowance[usr][msg.sender] -= wad;
         }
         balanceOf[usr] -= wad;
         totalSupply    -= wad;
-    }
-
-    function giveAllowance(address token, address dst, uint amt) external auth {
-        require(TokenLike(token).approve(dst, amt), "TestGem/give-allowance-failed");
     }
 }

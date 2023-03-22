@@ -16,8 +16,8 @@
 
 pragma solidity ^0.8.14;
 
-import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat, FakeEnd } from "./D3MPoolBase.t.sol";
-import { DaiLike, TokenLike } from "../interfaces/interfaces.sol";
+import "./D3MPoolBase.t.sol";
+
 import { D3MCompoundV2TypePool } from "../../pools/D3MCompoundV2TypePool.sol";
 
 interface CErc20Like {
@@ -37,12 +37,13 @@ interface LensLike {
 
 contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
 
+    bytes32 constant ILK = "TEST-ILK";
+
     CErc20Like            cDai;
     D3MCompoundV2TypePool pool;
     ComptrollerLike       comptroller;
-    TokenLike             comp;
+    GemAbstract           comp;
     LensLike              lens;
-    FakeEnd               end;
 
     function _wdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x * WAD / y;
@@ -64,25 +65,19 @@ contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
         }
     }
 
-    function setUp() public override {
-        contractName = "D3MCompoundV2TypePool";
+    function setUp() public {
+        baseInit("D3MCompoundV2TypePool");
 
-        dai         = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+        // TODO these should be mocked
         cDai        = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
         comptroller = ComptrollerLike(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
-        comp        = TokenLike(0xc00e94Cb662C3520282E6f5717214004A7f26888);
+        comp        = GemAbstract(0xc00e94Cb662C3520282E6f5717214004A7f26888);
         lens        = LensLike(0xdCbDb7306c6Ff46f77B349188dC18cEd9DF30299);
 
-        vat = address(new FakeVat());
-        hub = address(new FakeHub(vat));
-        end = FakeHub(hub).end();
-
-        d3mTestPool = address(new D3MCompoundV2TypePool("", hub, address(cDai)));
-        pool = D3MCompoundV2TypePool(d3mTestPool);
+        setPoolContract(pool = new D3MCompoundV2TypePool(ILK, hub, address(cDai)));
 
         // allocate some dai for the pool
-        _giveTokens(dai, 100 * WAD);
-        dai.transfer(address(pool), 100 * WAD);
+        dai.mint(address(pool), 100 * WAD);
     }
 
     function test_sets_dai_value() public {
@@ -106,12 +101,12 @@ contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
 
     function test_cannot_file_king_no_auth() public {
         pool.deny(address(this));
-        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MCompoundV2TypePool/not-authorized");
+        assertRevert(address(pool), abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MCompoundV2TypePool/not-authorized");
     }
 
     function test_cannot_file_king_vat_caged() public {
-        FakeVat(vat).cage();
-        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MCompoundV2TypePool/no-file-during-shutdown");
+        vat.cage();
+        assertRevert(address(pool), abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MCompoundV2TypePool/no-file-during-shutdown");
     }
 
     function test_deposit_calls_cdai_deposit() public {
@@ -149,7 +144,7 @@ contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 1 * WAD);
         uint256 before = dai.balanceOf(hub);
 
-        FakeVat(vat).cage();
+        vat.cage();
         vm.prank(hub);
         pool.withdraw(1 * WAD);
 
@@ -210,7 +205,7 @@ contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
     function test_collect_no_king() public {
         assertEq(pool.king(), address(0));
 
-        assertRevert(d3mTestPool, abi.encodeWithSignature("collect(bool)", true), "D3MCompoundV2TypePool/king-not-set");
+        assertRevert(address(pool), abi.encodeWithSignature("collect(bool)", true), "D3MCompoundV2TypePool/king-not-set");
     }
 
     function test_redeemable_returns_cdai() public {

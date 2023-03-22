@@ -16,43 +16,13 @@
 
 pragma solidity ^0.8.14;
 
-import "dss-test/DssTest.sol";
+import { EndMock } from "./EndMock.sol";
 
-import {D3MMom} from "../D3MMom.sol";
+contract HubMock {
+    address public immutable vat;
+    EndMock public immutable end = new EndMock();
 
-contract PlanMock {
-    bool public disabled;
-    function disable() external {
-        disabled = true;
+    constructor(address vat_) {
+        vat = vat_;
     }
-}
-
-contract D3MMomTest is DssTest {
-
-    PlanMock plan;
-    
-    D3MMom mom;
-
-    function setUp() public {
-        plan = new PlanMock();
-
-        mom = new D3MMom();
-    }
-
-    function test_can_disable_plan_owner() public {
-        assertEq(plan.disabled(), false);
-
-        mom.disable(address(plan));
-
-        assertEq(plan.disabled(), true);
-    }
-
-    function test_disable_no_auth() public {
-        mom.setOwner(address(0));
-        assertEq(mom.authority(), address(0));
-        assertEq(mom.owner(), address(0));
-
-        assertRevert(address(mom), abi.encodeWithSignature("disable(address)", plan), "D3MMom/not-authorized");
-    }
-    
 }
