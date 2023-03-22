@@ -51,11 +51,11 @@ interface EndLike {
 contract D3MSwapPool is ID3MPool {
 
     struct FeeData {
-        uint128 buffer;  // Keep a buffer in DAI for liquidity [wad]
-        uint24 tin1;     // toll in under the buffer  [bps]
-        uint24 tout1;    // toll out under the buffer [bps]
-        uint24 tin2;     // toll in over the buffer   [bps]
-        uint24 tout2;    // toll out over the buffer  [bps]
+        uint24 buffer;  // where to place the fee1/fee2 change as ratio between gem and dai [bps]
+        uint24 tin1;    // toll in under the buffer  [bps]
+        uint24 tout1;   // toll out under the buffer [bps]
+        uint24 tin2;    // toll in over the buffer   [bps]
+        uint24 tout2;   // toll out over the buffer  [bps]
     }
 
     // --- Data ---
@@ -130,8 +130,9 @@ contract D3MSwapPool is ID3MPool {
         emit Deny(usr);
     }
 
-    function file(bytes32 what, uint128 data) external auth {
+    function file(bytes32 what, uint24 data) external auth {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
+        require(data <= BPS, "D3MSwapPool/invalid-buffer");
 
         if (what == "buffer") feeData.buffer = data;
         else revert("D3MSwapPool/file-unrecognized-param");
@@ -210,7 +211,7 @@ contract D3MSwapPool is ID3MPool {
 
     function postDebtChange() external override {}
 
-    function assetBalance() public view override returns (uint256) {
+    function assetBalance() external view override returns (uint256) {
         return dai.balanceOf(address(this)) + gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * uint256(pip.read()) / WAD;
     }
 
@@ -236,16 +237,19 @@ contract D3MSwapPool is ID3MPool {
     // --- Swaps ---
 
     function previewSellGem(uint256 gemAmt) public view returns (uint256 daiAmt) {
-        uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * uint256(pip.read()) / WAD;
-        uint256 daiBalance = dai.balanceOf(address(this));
         FeeData memory _feeData = feeData;
-        if (daiBalance <= _feeData.buffer) {
+        uint256 pipValue = uint256(pip.read());
+        uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * pipValue / WAD;
+        uint256 daiBalance = dai.balanceOf(address(this));
+        uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;
+        uint256 desiredGemBalance = _feeData.buffer * (daiBalance + gemBalance) / BPS;
+        if (gemBalance >= desiredGemBalance) {
             // We are above the buffer so apply tin2
             daiAmt = gemValue * _feeData.tin2 / BPS;
         } else {
             uint256 daiAvailableAtTin1;
             unchecked {
-                daiAvailableAtTin1 = daiBalance - _feeData.buffer;
+                daiAvailableAtTin1 = desiredGemBalance - gemBalance;
             }
 
             // We are below the buffer so could be a mix of tin1 and tin2
@@ -265,32 +269,35 @@ contract D3MSwapPool is ID3MPool {
     }
 
     function previewBuyGem(uint256 daiAmt) public view returns (uint256 gemAmt) {
+        FeeData memory _feeData = feeData;
+        uint256 pipValue = uint256(pip.read());
         uint256 gemValue;
         uint256 daiBalance = dai.balanceOf(address(this));
-        FeeData memory _feeData = feeData;
-        if (daiBalance >= _feeData.buffer) {
+        uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;
+        uint256 desiredGemBalance = _feeData.buffer * (daiBalance + gemBalance) / BPS;
+        if (gemBalance <= desiredGemBalance) {
             // We are below the buffer so apply tout1
             gemValue = daiAmt * _feeData.tout1 / BPS;
         } else {
-            uint256 daiAvailableAtTout2;
+            uint256 gemsAvailableAtTout2;
             unchecked {
-                daiAvailableAtTout2 = _feeData.buffer - daiBalance;
+                gemsAvailableAtTout2 = gemBalance - desiredGemBalance;
             }
 
             // We are above the buffer so could be a mix of tout1 and tout2
-            if (daiAmt <= daiAvailableAtTout2) {
+            if (daiAmt <= gemsAvailableAtTout2) {
                 // We are entirely in the tout1 region
                 gemValue = daiAmt * _feeData.tout2 / BPS;
             } else {
                 // We are a mix between tout1 and tout2
-                uint256 daiRemainder;
+                uint256 gemsRemainder;
                 unchecked {
-                    daiRemainder = daiAmt - daiAvailableAtTout2;
+                    gemsRemainder = daiAmt - gemsAvailableAtTout2;
                 }
-                gemValue = daiAvailableAtTout2 * _feeData.tout2 / BPS + daiRemainder * _feeData.tout1 / BPS;
+                gemValue = gemsAvailableAtTout2 * _feeData.tout2 / BPS + gemsRemainder * _feeData.tout1 / BPS;
             }
         }
-        gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * uint256(pip.read()));
+        gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * pipValue);
     }
 
     function sellGem(address usr, uint256 gemAmt, uint256 minDaiAmt) external returns (uint256 daiAmt) {

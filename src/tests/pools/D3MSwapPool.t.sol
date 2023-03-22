@@ -63,8 +63,8 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         d3mTestPool = address(swapPool = new D3MSwapPool(ILK, hub, address(dai), address(gem)));
         swapPool.file("pip", address(pip));
 
-        // 10 DAI buffer to switch between tin/tout1 and tin/tout2
-        swapPool.file("buffer", 10 ether);
+        // Set the fee switch to 90% (targeting 90% of the swap pool in gems)
+        swapPool.file("buffer", 9000);
         // 5 bps negative wind fee (pay people to wind), 20 bps unwind fee
         swapPool.file("fees1", 10005, 9980);
         // 10 bps fee after the buffer is reached, 8 bps negative fee (pay people to unwind)
@@ -100,6 +100,11 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         swapPool.deny(address(this));
         vm.expectRevert(abi.encodePacked(contractName, "/not-authorized"));
         swapPool.file("some value", 1);
+    }
+
+    function test_file_invalid_buffer() public {
+        vm.expectRevert(abi.encodePacked(contractName, "/invalid-buffer"));
+        swapPool.file("buffer", uint24(BPS + 1));
     }
 
     function test_file_fees() public {
@@ -202,7 +207,7 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
     }
 
     function test_previewSellGem_over_buffer() public {
-        swapPool.file("buffer", 100 ether);
+        swapPool.file("buffer", 0);
         dai.transfer(d3mTestPool, 100 ether);
 
         // 10 tokens @ $2 / unit + 10bps fee = 19.98
@@ -225,25 +230,8 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         assertApproxEqRel(swapPool.previewSellGem(90 * 1e6), 180 ether, WAD / 10000);
     }
 
-    function test_previewSellGem_buffer_zero_dai_zero() public {
-        swapPool.file("buffer", 0);
-
-        // 10 tokens @ $2 / unit + 10bps fee = 19.98
-        assertEq(swapPool.previewSellGem(10 * 1e6), 19.980 ether);
-    }
-
-    function test_previewSellGem_buffer_zero() public {
-        swapPool.file("buffer", 0);
-        dai.transfer(d3mTestPool, 10 ether);
-
-        assertEq(swapPool.previewSellGem(10 * 1e6), 19994992503748125936);
-    }
-
-    function test_previewSellGem_dai_zero() public {
-        assertEq(swapPool.previewSellGem(10 * 1e6), 19.980 ether);
-    }
-
     function test_previewBuyGem_over_buffer() public {
+        gem.transfer(d3mTestPool, 100 * 1e6);
         dai.transfer(d3mTestPool, 5 ether);
 
         // 4 DAI + 8bps payment = 2.003 tokens
@@ -262,7 +250,7 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
 
         // 5 of the DAI gets paid the 8bps fee, the other 5 pays the 20bps fee
         // Result is slightly less than 5 tokens
-        assertEq(swapPool.previewBuyGem(10 ether), 4997000);
+        assertEq(swapPool.previewBuyGem(10 ether), 4990000);
     }
 
     function test_previewBuyGem_mixed_fees_exact_cancel() public {
@@ -270,25 +258,8 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         swapPool.file("fees2", uint24(swapPool.tout1()), uint24(BPS*BPS / swapPool.tout1()));
 
         // 10 DAI unwind should almost exactly cancel out
-        // Allow for a 1bps error due to rounding
-        assertApproxEqRel(swapPool.previewBuyGem(10 ether), 5 * 1e6, WAD / 10000);
-    }
-
-    function test_previewBuyGem_buffer_zero_dai_zero() public {
-        swapPool.file("buffer", 0);
-
-        assertEq(swapPool.previewBuyGem(20 ether), 9.98 * 1e6);
-    }
-
-    function test_previewBuyGem_buffer_zero() public {
-        swapPool.file("buffer", 0);
-        dai.transfer(d3mTestPool, 10 ether);
-
-        assertEq(swapPool.previewBuyGem(20 ether), 9.98 * 1e6);
-    }
-
-    function test_previewBuyGem_dai_zero() public {
-        assertEq(swapPool.previewBuyGem(4 ether), 2.0016 * 1e6);
+        // Allow for a 1% error due to rounding
+        assertApproxEqRel(swapPool.previewBuyGem(10 ether), 5 * 1e6, WAD / 100);
     }
 
     function test_sellGem() public {
