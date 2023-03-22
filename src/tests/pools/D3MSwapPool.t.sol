@@ -64,9 +64,9 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
 
         swapPool.file("buffer", 10 ether);          // 10 DAI buffer to switch between tin/tout1 and tin/tout2
         swapPool.file("tin1",  10005 * WAD / BPS);  // 5 bps negative wind fee (pay people to wind)
+        swapPool.file("tout1",  9980 * WAD / BPS);  // 20 bps unwind fee
         swapPool.file("tin2",   9990 * WAD / BPS);  // 10 bps fee after the buffer is reached
-        swapPool.file("tout1", 10015 * WAD / BPS);  // 15 bps negative unwind fee (pay people to unwind)
-        swapPool.file("tout2",  9980 * WAD / BPS);  // 20 bps fee after the buffer is reached
+        swapPool.file("tout2", 10015 * WAD / BPS);  // 15 bps negative fee (pay people to unwind)
 
         gem.approve(d3mTestPool, type(uint256).max);
         dai.approve(d3mTestPool, type(uint256).max);

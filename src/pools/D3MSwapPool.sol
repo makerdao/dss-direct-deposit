@@ -55,11 +55,11 @@ contract D3MSwapPool is ID3MPool {
 
     HubLike public hub;
     PipLike public pip;
-    uint256 public buffer;   // Keep a buffer in DAI for liquidity [WAD]
+    uint256 public buffer;   // Keep a buffer in DAI for liquidity [wad]
     uint256 public tin1;     // toll in under the buffer  [wad]
+    uint256 public tout1;    // toll out under the buffer [wad]
     uint256 public tin2;     // toll in over the buffer   [wad]
-    uint256 public tout1;    // toll out over the buffer  [wad]
-    uint256 public tout2;    // toll out under the buffer [wad]
+    uint256 public tout2;    // toll out over the buffer  [wad]
     uint256 public exited;
 
     bytes32   immutable public ilk;
@@ -120,8 +120,8 @@ contract D3MSwapPool is ID3MPool {
 
         if (what == "buffer") buffer = data;
         else if (what == "tin1") tin1 = data;
-        else if (what == "tin2") tin2 = data;
         else if (what == "tout1") tout1 = data;
+        else if (what == "tin2") tin2 = data;
         else if (what == "tout2") tout2 = data;
         else revert("D3MSwapPool/file-unrecognized-param");
 
@@ -220,25 +220,25 @@ contract D3MSwapPool is ID3MPool {
         uint256 daiBalance = dai.balanceOf(address(this));
         uint256 _buffer = buffer;
         if (daiBalance >= _buffer) {
-            // We are below the buffer so apply tout2
-            gemValue = daiAmt * tout2 / WAD;
+            // We are below the buffer so apply tout1
+            gemValue = daiAmt * tout1 / WAD;
         } else {
-            uint256 daiAvailableAtTout1;
+            uint256 daiAvailableAtTout2;
             unchecked {
-                daiAvailableAtTout1 = _buffer - daiBalance;
+                daiAvailableAtTout2 = _buffer - daiBalance;
             }
 
-            // We are above the buffer so could be a mix of tout1 and tout1
-            if (daiAmt <= daiAvailableAtTout1) {
+            // We are above the buffer so could be a mix of tout1 and tout2
+            if (daiAmt <= daiAvailableAtTout2) {
                 // We are entirely in the tout1 region
-                gemValue = daiAmt * tout1 / WAD;
+                gemValue = daiAmt * tout2 / WAD;
             } else {
-                // We are a mix between tout1 and tout1
+                // We are a mix between tout1 and tout2
                 uint256 daiRemainder;
                 unchecked {
-                    daiRemainder = daiAmt - daiAvailableAtTout1;
+                    daiRemainder = daiAmt - daiAvailableAtTout2;
                 }
-                gemValue = daiAvailableAtTout1 * tout1 / WAD + daiRemainder * tout2 / WAD;
+                gemValue = daiAvailableAtTout2 * tout2 / WAD + daiRemainder * tout1 / WAD;
             }
         }
         gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * uint256(pip.read()));
