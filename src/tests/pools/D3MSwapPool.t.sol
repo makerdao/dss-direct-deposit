@@ -43,7 +43,7 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
     FakeEnd end;
     PipMock pip;
 
-    event File(bytes32 indexed what, uint256 tin, uint256 tout);
+    event File(bytes32 indexed what, uint24 tin, uint24 tout);
     event SellGem(address indexed owner, uint256 gems, uint256 dai);
     event BuyGem(address indexed owner, uint256 gems, uint256 dai);
 
@@ -63,11 +63,12 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         d3mTestPool = address(swapPool = new D3MSwapPool(ILK, hub, address(dai), address(gem)));
         swapPool.file("pip", address(pip));
 
-        swapPool.file("buffer", 10 ether);          // 10 DAI buffer to switch between tin/tout1 and tin/tout2
+        // 10 DAI buffer to switch between tin/tout1 and tin/tout2
+        swapPool.file("buffer", 10 ether);
         // 5 bps negative wind fee (pay people to wind), 20 bps unwind fee
-        swapPool.file("fees1", 10005 * WAD / BPS, 9980 * WAD / BPS);
+        swapPool.file("fees1", 10005, 9980);
         // 10 bps fee after the buffer is reached, 8 bps negative fee (pay people to unwind)
-        swapPool.file("fees2", 9990 * WAD / BPS, 10008 * WAD / BPS);
+        swapPool.file("fees2", 9990, 10008);
         gem.approve(d3mTestPool, type(uint256).max);
         dai.approve(d3mTestPool, type(uint256).max);
     }
@@ -80,9 +81,25 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         assertEq(address(swapPool.gem()), address(gem));
     }
 
-    function test_file() public {
-        checkFileUint(d3mTestPool, contractName, ["buffer"]);
+    function test_file_addresses() public {
         checkFileAddress(d3mTestPool, contractName, ["hub", "pip"]);
+    }
+
+    function test_file_buffer() public {
+        vm.expectRevert(abi.encodePacked(contractName, "/file-unrecognized-param"));
+        swapPool.file("an invalid value", 1);
+
+        swapPool.file("buffer", 1);
+        
+        assertEq(swapPool.buffer(), 1);
+
+        FakeVat(vat).cage();
+        vm.expectRevert(abi.encodePacked(contractName, "/no-file-during-shutdown"));
+        swapPool.file("some value", 1);
+
+        swapPool.deny(address(this));
+        vm.expectRevert(abi.encodePacked(contractName, "/not-authorized"));
+        swapPool.file("some value", 1);
     }
 
     function test_file_fees() public {
@@ -114,7 +131,7 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
 
     function test_file_invalid_fees() public {
         vm.expectRevert(abi.encodePacked(contractName, "/invalid-fees"));
-        swapPool.file("fees1", WAD + 1, WAD);
+        swapPool.file("fees1", uint24(BPS + 1), uint24(BPS));
     }
 
     function test_withdraw() public {
@@ -201,7 +218,7 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
 
     function test_previewSellGem_mixed_fees_exact_cancel() public {
         dai.transfer(d3mTestPool, 100 ether);
-        swapPool.file("fees2", WAD*WAD / swapPool.tin1(), swapPool.tin1());
+        swapPool.file("fees2", uint24(BPS*BPS / swapPool.tin1()), uint24(swapPool.tin1()));
 
         // ~45 tokens will earn the 5bps fee, remainding ~45 pays the 5bps fee
         // Allow for a 1bps error due to rounding
@@ -250,7 +267,7 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
 
     function test_previewBuyGem_mixed_fees_exact_cancel() public {
         dai.transfer(d3mTestPool, 5 ether);
-        swapPool.file("fees2", swapPool.tout1(), WAD*WAD / swapPool.tout1());
+        swapPool.file("fees2", uint24(swapPool.tout1()), uint24(BPS*BPS / swapPool.tout1()));
 
         // 10 DAI unwind should almost exactly cancel out
         // Allow for a 1bps error due to rounding

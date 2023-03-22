@@ -50,16 +50,20 @@ interface EndLike {
  */
 contract D3MSwapPool is ID3MPool {
 
+    struct FeeData {
+        uint128 buffer;  // Keep a buffer in DAI for liquidity [wad]
+        uint24 tin1;     // toll in under the buffer  [bps]
+        uint24 tout1;    // toll out under the buffer [bps]
+        uint24 tin2;     // toll in over the buffer   [bps]
+        uint24 tout2;    // toll out over the buffer  [bps]
+    }
+
     // --- Data ---
     mapping (address => uint256) public wards;
 
     HubLike public hub;
     PipLike public pip;
-    uint256 public buffer;   // Keep a buffer in DAI for liquidity [wad]
-    uint256 public tin1;     // toll in under the buffer  [wad]
-    uint256 public tout1;    // toll out under the buffer [wad]
-    uint256 public tin2;     // toll in over the buffer   [wad]
-    uint256 public tout2;    // toll out over the buffer  [wad]
+    FeeData public feeData;
     uint256 public exited;
 
     bytes32   immutable public ilk;
@@ -69,13 +73,14 @@ contract D3MSwapPool is ID3MPool {
 
     uint256 immutable private GEM_CONVERSION_FACTOR;
 
+    uint256 constant BPS = 10 ** 4;
     uint256 constant WAD = 10 ** 18;
 
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
-    event File(bytes32 indexed what, uint256 data);
-    event File(bytes32 indexed what, uint256 tin, uint256 tout);
+    event File(bytes32 indexed what, uint128 data);
+    event File(bytes32 indexed what, uint24 tin, uint24 tout);
     event File(bytes32 indexed what, address data);
     event SellGem(address indexed owner, uint256 gems, uint256 dai);
     event BuyGem(address indexed owner, uint256 gems, uint256 dai);
@@ -101,6 +106,15 @@ contract D3MSwapPool is ID3MPool {
         gem = TokenLike(_gem);
         vat.hope(_hub);
 
+        // Initialize all fees to zero
+        feeData = FeeData({
+            buffer: 0,
+            tin1: uint24(BPS),
+            tout1: uint24(BPS),
+            tin2: uint24(BPS),
+            tout2: uint24(BPS)
+        });
+
         GEM_CONVERSION_FACTOR = 10 ** (18 - gem.decimals());
     }
 
@@ -116,26 +130,26 @@ contract D3MSwapPool is ID3MPool {
         emit Deny(usr);
     }
 
-    function file(bytes32 what, uint256 data) external auth {
+    function file(bytes32 what, uint128 data) external auth {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
 
-        if (what == "buffer") buffer = data;
+        if (what == "buffer") feeData.buffer = data;
         else revert("D3MSwapPool/file-unrecognized-param");
 
         emit File(what, data);
     }
 
-    function file(bytes32 what, uint256 tin, uint256 tout) external auth {
+    function file(bytes32 what, uint24 tin, uint24 tout) external auth {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
         // We need to restrict tin/tout combinations to be less than 100% to avoid arbitrage opportunities.
-        require(tin * tout <= WAD * WAD, "D3MSwapPool/invalid-fees");
+        require(uint256(tin) * uint256(tout) <= BPS * BPS, "D3MSwapPool/invalid-fees");
 
         if (what == "fees1") {
-            tin1 = tin;
-            tout1 = tout;
+            feeData.tin1 = tin;
+            feeData.tout1 = tout;
         } else if (what == "fees2") {
-            tin2 = tin;
-            tout2 = tout;
+            feeData.tin2 = tin;
+            feeData.tout2 = tout;
         } else revert("D3MSwapPool/file-unrecognized-param");
 
         emit File(what, tin, tout);
@@ -155,9 +169,31 @@ contract D3MSwapPool is ID3MPool {
         emit File(what, data);
     }
 
+    // --- Getters ---
+
+    function buffer() public view returns (uint256) {
+        return feeData.buffer;
+    }
+
+    function tin1() public view returns (uint256) {
+        return feeData.tin1;
+    }
+
+    function tout1() public view returns (uint256) {
+        return feeData.tout1;
+    }
+
+    function tin2() public view returns (uint256) {
+        return feeData.tin2;
+    }
+
+    function tout2() public view returns (uint256) {
+        return feeData.tout2;
+    }
+
     // --- Pool Support ---
 
-    function deposit(uint256 wad) external override onlyHub {
+    function deposit(uint256) external override onlyHub {
         // Nothing to do
     }
 
@@ -202,18 +238,18 @@ contract D3MSwapPool is ID3MPool {
     function previewSellGem(uint256 gemAmt) public view returns (uint256 daiAmt) {
         uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * uint256(pip.read()) / WAD;
         uint256 daiBalance = dai.balanceOf(address(this));
-        uint256 _buffer = buffer;
-        if (daiBalance <= _buffer) {
+        FeeData memory _feeData = feeData;
+        if (daiBalance <= _feeData.buffer) {
             // We are above the buffer so apply tin2
-            daiAmt = gemValue * tin2 / WAD;
+            daiAmt = gemValue * _feeData.tin2 / BPS;
         } else {
             uint256 daiAvailableAtTin1;
             unchecked {
-                daiAvailableAtTin1 = daiBalance - _buffer;
+                daiAvailableAtTin1 = daiBalance - _feeData.buffer;
             }
 
             // We are below the buffer so could be a mix of tin1 and tin2
-            uint256 daiAmtTin1 = gemValue * tin1 / WAD;
+            uint256 daiAmtTin1 = gemValue * _feeData.tin1 / BPS;
             if (daiAmtTin1 <= daiAvailableAtTin1) {
                 // We are entirely in the tin1 region
                 daiAmt = daiAmtTin1;
@@ -223,7 +259,7 @@ contract D3MSwapPool is ID3MPool {
                 unchecked {
                     daiRemainder = daiAmtTin1 - daiAvailableAtTin1;
                 }
-                daiAmt = daiAvailableAtTin1 + (daiRemainder * WAD / tin1) * tin2 / WAD;
+                daiAmt = daiAvailableAtTin1 + (daiRemainder * BPS / _feeData.tin1) * _feeData.tin2 / BPS;
             }
         }
     }
@@ -231,27 +267,27 @@ contract D3MSwapPool is ID3MPool {
     function previewBuyGem(uint256 daiAmt) public view returns (uint256 gemAmt) {
         uint256 gemValue;
         uint256 daiBalance = dai.balanceOf(address(this));
-        uint256 _buffer = buffer;
-        if (daiBalance >= _buffer) {
+        FeeData memory _feeData = feeData;
+        if (daiBalance >= _feeData.buffer) {
             // We are below the buffer so apply tout1
-            gemValue = daiAmt * tout1 / WAD;
+            gemValue = daiAmt * _feeData.tout1 / BPS;
         } else {
             uint256 daiAvailableAtTout2;
             unchecked {
-                daiAvailableAtTout2 = _buffer - daiBalance;
+                daiAvailableAtTout2 = _feeData.buffer - daiBalance;
             }
 
             // We are above the buffer so could be a mix of tout1 and tout2
             if (daiAmt <= daiAvailableAtTout2) {
                 // We are entirely in the tout1 region
-                gemValue = daiAmt * tout2 / WAD;
+                gemValue = daiAmt * _feeData.tout2 / BPS;
             } else {
                 // We are a mix between tout1 and tout2
                 uint256 daiRemainder;
                 unchecked {
                     daiRemainder = daiAmt - daiAvailableAtTout2;
                 }
-                gemValue = daiAvailableAtTout2 * tout2 / WAD + daiRemainder * tout1 / WAD;
+                gemValue = daiAvailableAtTout2 * _feeData.tout2 / BPS + daiRemainder * _feeData.tout1 / BPS;
             }
         }
         gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * uint256(pip.read()));
