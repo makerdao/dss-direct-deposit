@@ -70,7 +70,10 @@ interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 }
 
-contract D3MAaveTest is DssTest {
+contract D3MAaveV2IntegrationTest is DssTest {
+
+    using GodMode for *;
+
     VatAbstract vat;
     EndAbstract end;
     LendingPoolLike aavePool;
@@ -97,9 +100,6 @@ contract D3MAaveTest is DssTest {
     uint256 constant EPSILON_TOLERANCE = 4;
 
     function setUp() public {
-        emit log_named_uint("block", block.number);
-        emit log_named_uint("timestamp", block.timestamp);
-
         vat = VatAbstract(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndAbstract(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
@@ -115,9 +115,9 @@ contract D3MAaveTest is DssTest {
         pauseProxy = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
 
         // Force give admin access to these contracts via vm magic
-        _giveAuthAccess(address(vat), address(this));
-        _giveAuthAccess(address(end), address(this));
-        _giveAuthAccess(address(spot), address(this));
+        address(vat).setWard(address(this), 1);
+        address(end).setWard(address(this), 1);
+        address(spot).setWard(address(this), 1);
 
         d3mHub = new D3MHub(address(daiJoin));
         d3mAavePool = new D3MAaveV2TypePool(ilk, address(d3mHub), address(dai), address(aavePool));
@@ -150,7 +150,7 @@ contract D3MAaveTest is DssTest {
 
         // Give us a bunch of WETH and deposit into Aave
         uint256 amt = 1_000_000 * WAD;
-        _giveTokens(weth, amt);
+        address(weth).setBalance(address(this), amt);
         weth.approve(address(aavePool), type(uint256).max);
         dai.approve(address(aavePool), type(uint256).max);
         aavePool.deposit(address(weth), amt, address(this), 0);
@@ -159,72 +159,6 @@ contract D3MAaveTest is DssTest {
     // --- Math ---
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
-    }
-
-    function _giveAuthAccess(address _base, address target) internal {
-        AuthLike base = AuthLike(_base);
-
-        // Edge case - ward is already set
-        if (base.wards(target) == 1) return;
-
-        for (int i = 0; i < 100; i++) {
-            // Scan the storage for the ward storage slot
-            bytes32 prevValue = vm.load(
-                address(base),
-                keccak256(abi.encode(target, uint256(i)))
-            );
-            vm.store(
-                address(base),
-                keccak256(abi.encode(target, uint256(i))),
-                bytes32(uint256(1))
-            );
-            if (base.wards(target) == 1) {
-                // Found it
-                return;
-            } else {
-                // Keep going after restoring the original value
-                vm.store(
-                    address(base),
-                    keccak256(abi.encode(target, uint256(i))),
-                    prevValue
-                );
-            }
-        }
-
-        // We have failed if we reach here
-        assertTrue(false);
-    }
-
-    function _giveTokens(GemAbstract token, uint256 amount) internal {
-        // Edge case - balance is already set for some reason
-        if (token.balanceOf(address(this)) == amount) return;
-
-        for (int i = 0; i < 100; i++) {
-            // Scan the storage for the balance storage slot
-            bytes32 prevValue = vm.load(
-                address(token),
-                keccak256(abi.encode(address(this), uint256(i)))
-            );
-            vm.store(
-                address(token),
-                keccak256(abi.encode(address(this), uint256(i))),
-                bytes32(amount)
-            );
-            if (token.balanceOf(address(this)) == amount) {
-                // Found it
-                return;
-            } else {
-                // Keep going after restoring the original value
-                vm.store(
-                    address(token),
-                    keccak256(abi.encode(address(this), uint256(i))),
-                    prevValue
-                );
-            }
-        }
-
-        // We have failed if we reach here
-        assertTrue(false);
     }
 
     function assertEqApprox(uint256 _a, uint256 _b, uint256 _tolerance) internal {
@@ -487,8 +421,6 @@ contract D3MAaveTest is DssTest {
 
         uint256 vowDai = vat.dai(vow);
         d3mHub.exec(ilk);
-
-        emit log_named_decimal_uint("dai", vat.dai(vow) - vowDai, 18);
 
         assertGt(vat.dai(vow) - vowDai, 0);
     }
@@ -1122,7 +1054,7 @@ contract D3MAaveTest is DssTest {
         uint256 poolAdaiBalanceBefore = adai.balanceOf(address(d3mAavePool));
 
         // Someone pays back our debt
-        _giveTokens(dai, 10 * WAD);
+        dai.setBalance(address(this), 10 * WAD);
         dai.approve(address(daiJoin), type(uint256).max);
         daiJoin.join(address(this), 10 * WAD);
         vat.frob(
@@ -1174,7 +1106,7 @@ contract D3MAaveTest is DssTest {
         uint256 poolAdaiBalanceBefore = adai.balanceOf(address(d3mAavePool));
 
         // Someone pays back our debt
-        _giveTokens(dai, 10 * WAD);
+        dai.setBalance(address(this), 10 * WAD);
         dai.approve(address(daiJoin), type(uint256).max);
         daiJoin.join(address(this), 10 * WAD);
         vat.frob(

@@ -87,6 +87,19 @@ contract D3MAaveV2TypeRateTargetPlanTest is D3MPlanBaseTest {
         }
     }
 
+    function test_auth_modifiers() public override {
+        plan.file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
+        assertEq(plan.active(), true);
+
+        super.test_auth_modifiers();
+    }
+
+    function test_disable_makes_inactive() public override {
+        plan.file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
+
+        super.test_auth_modifiers();
+    }
+
     function test_sets_adai() public {
         assertEq(address(adai), plan.adai());
     }

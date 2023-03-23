@@ -69,15 +69,16 @@ contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
         baseInit("D3MCompoundV2TypePool");
 
         // TODO these should be mocked
+        dai         = TokenMock(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         cDai        = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
         comptroller = ComptrollerLike(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
         comp        = GemAbstract(0xc00e94Cb662C3520282E6f5717214004A7f26888);
         lens        = LensLike(0xdCbDb7306c6Ff46f77B349188dC18cEd9DF30299);
 
-        setPoolContract(pool = new D3MCompoundV2TypePool(ILK, hub, address(cDai)));
+        setPoolContract(pool = new D3MCompoundV2TypePool(ILK, address(hub), address(cDai)));
 
         // allocate some dai for the pool
-        dai.mint(address(pool), 100 * WAD);
+        GodMode.setBalance(address(dai), address(pool), 100 * WAD);
     }
 
     function test_sets_dai_value() public {
@@ -114,8 +115,7 @@ contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
         assertEq(cDai.balanceOf(address(pool)), 0);
         uint256 poolBefore = dai.balanceOf(address(pool));
 
-        vm.prank(hub);
-        pool.deposit(1 * WAD);
+        vm.prank(address(hub)); pool.deposit(1 * WAD);
 
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 1 * WAD);
         assertGt(cDai.balanceOf(address(pool)), 0);
@@ -124,32 +124,29 @@ contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
     }
 
     function test_withdraw_calls_cdai_withdraw() public {
-        vm.prank(hub);
+        vm.prank(address(hub));
         pool.deposit(1 * WAD);
 
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 1 * WAD);
-        uint256 before = dai.balanceOf(hub);
+        uint256 before = dai.balanceOf(address(hub));
 
-        vm.prank(hub);
-        pool.withdraw(1 * WAD);
+        vm.prank(address(hub)); pool.withdraw(1 * WAD);
 
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 0);
-        assertEq(dai.balanceOf(hub) - before, 1 * WAD);
+        assertEq(dai.balanceOf(address(hub)) - before, 1 * WAD);
     }
 
     function test_withdraw_calls_cdai_withdraw_vat_caged() public {
-        vm.prank(hub);
-        pool.deposit(1 * WAD);
+        vm.prank(address(hub)); pool.deposit(1 * WAD);
 
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 1 * WAD);
-        uint256 before = dai.balanceOf(hub);
+        uint256 before = dai.balanceOf(address(hub));
 
         vat.cage();
-        vm.prank(hub);
-        pool.withdraw(1 * WAD);
+        vm.prank(address(hub)); pool.withdraw(1 * WAD);
 
         _assertEqApprox(cDai.balanceOfUnderlying(address(pool)), 0);
-        assertEq(dai.balanceOf(hub) - before, 1 * WAD);
+        assertEq(dai.balanceOf(address(hub)) - before, 1 * WAD);
     }
 
     function test_collect_claims_for_king() public {
@@ -160,8 +157,7 @@ contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
         address king = address(123);
         pool.file("king", king);
 
-        vm.prank(hub);
-        pool.deposit(100 * WAD);
+        vm.prank(address(hub)); pool.deposit(100 * WAD);
 
         uint256 compBefore = comp.balanceOf(king);
         vm.roll(block.number + 5760);
@@ -182,8 +178,7 @@ contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
         address king = address(this);
         pool.file("king", king);
 
-        vm.prank(hub);
-        pool.deposit(100 * WAD);
+        vm.prank(address(hub)); pool.deposit(100 * WAD);
         vm.roll(block.number + 5760);
         pool.collect(true);
 
@@ -213,23 +208,20 @@ contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
     }
 
     function test_exit_cdai() public {
-        vm.prank(hub);
-        pool.deposit(100 * WAD);
+        vm.prank(address(hub)); pool.deposit(100 * WAD);
 
         uint256 balanceCdai = cDai.balanceOf(address(pool));
         assertGt(balanceCdai, 2);
 
         end.setArt(100 * WAD);
-        vm.prank(hub);
-        pool.exit(address(123), 50 * WAD);
+        vm.prank(address(hub)); pool.exit(address(123), 50 * WAD);
 
         assertEq(balanceCdai - cDai.balanceOf(address(pool)), balanceCdai / 2);
         assertEq(cDai.balanceOf(address(123)), balanceCdai / 2);
     }
 
     function test_quit_moves_balance() public {
-        vm.prank(hub);
-        pool.deposit(100 * WAD);
+        vm.prank(address(hub)); pool.deposit(100 * WAD);
 
         uint256 balanceCdai = cDai.balanceOf(address(pool));
         assertGt(balanceCdai, 0);
@@ -242,14 +234,12 @@ contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
 
     function test_assetBalance_gets_dai_balanceOf_pool() public {
         uint256 before = pool.assetBalance();
-        vm.prank(hub);
-        pool.deposit(1 * WAD);
+        vm.prank(address(hub)); pool.deposit(1 * WAD);
         _assertEqApprox(pool.assetBalance() - before, 1 * WAD);
     }
 
     function test_maxWithdraw_gets_available_assets() public {
-        vm.prank(hub);
-        pool.deposit(1 * WAD);
+        vm.prank(address(hub)); pool.deposit(1 * WAD);
         assertEq(pool.assetBalance(), pool.maxWithdraw());
     }
 

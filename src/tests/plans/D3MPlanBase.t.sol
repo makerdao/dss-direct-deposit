@@ -36,18 +36,15 @@ abstract contract D3MPlanBaseTest is DssTest {
         checkAuth(address(plan), contractName);
     }
 
-    function test_auth_modifiers() public {
+    function test_auth_modifiers() public virtual {
         WardsAbstract(address(plan)).deny(address(this));
 
-        bytes[] memory funcs = new bytes[](1);
-        funcs[0] = abi.encodeWithSelector(ID3MPlan.disable.selector, 0, 0, 0);
-
-        for (uint256 i = 0; i < funcs.length; i++) {
-            assertRevert(address(plan), funcs[i], abi.encodePacked(contractName, "/not-authorized"));
-        }
+        checkModifier(address(plan), string(abi.encodePacked(contractName, "/not-authorized")), [
+            abi.encodeWithSelector(ID3MPlan.disable.selector)
+        ]);
     }
 
-    function test_disable_makes_inactive() public {
+    function test_disable_makes_inactive() public virtual {
         assertEq(plan.active(), true);
         plan.disable();
         assertEq(plan.active(), false);

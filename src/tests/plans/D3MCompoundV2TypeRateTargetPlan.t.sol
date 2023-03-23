@@ -126,6 +126,19 @@ contract D3MCompoundV2TypeRateTargetPlanTest is D3MPlanBaseTest {
         (targetRate, newCash, borrows, reserves) = _targetRateForUtil(newUtil);
     }
 
+    function test_auth_modifiers() public override {
+        plan.file("barb", 0.0005e16);
+        assertEq(plan.active(), true);
+
+        super.test_auth_modifiers();
+    }
+
+    function test_disable_makes_inactive() public override {
+        plan.file("barb", 0.0005e16);
+
+        super.test_auth_modifiers();
+    }
+
     function test_sets_cdai() public {
         assertEq(address(cDai), address(plan.cDai()));
     }

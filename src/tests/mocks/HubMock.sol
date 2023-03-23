@@ -20,9 +20,10 @@ import { EndMock } from "./EndMock.sol";
 
 contract HubMock {
     address public immutable vat;
-    EndMock public immutable end = new EndMock();
+    EndMock public immutable end;
 
-    constructor(address vat_) {
+    constructor(address vat_, address end_) {
         vat = vat_;
+        end = EndMock(end_);
     }
 }

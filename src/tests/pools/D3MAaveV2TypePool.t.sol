@@ -144,6 +144,8 @@ contract LendingPoolMock {
 
 contract D3MAaveV2TypePoolTest is D3MPoolBaseTest {
 
+    bytes32 constant ILK = "TEST-ILK";
+
     AToken adai;
     LendingPoolLike aavePool;
     
@@ -153,10 +155,11 @@ contract D3MAaveV2TypePoolTest is D3MPoolBaseTest {
         baseInit("D3MAaveV2TypePool");
 
         adai = new AToken(18);
+        adai.mint(address(this), 1_000_000 ether);
         aavePool = LendingPoolLike(address(new LendingPoolMock(address(adai))));
+        adai.rely(address(aavePool));
 
-        setPoolContract(pool = new D3MAaveV2TypePool("", hub, address(dai), address(aavePool)));
-
+        setPoolContract(pool = new D3MAaveV2TypePool(ILK, address(hub), address(dai), address(aavePool)));
     }
 
     function test_sets_dai_value() public {
@@ -183,8 +186,7 @@ contract D3MAaveV2TypePoolTest is D3MPoolBaseTest {
 
     function test_deposit_calls_lending_pool_deposit() public {
         TokenMock(address(adai)).rely(address(aavePool));
-        vm.prank(hub);
-        pool.deposit(1);
+        vm.prank(address(hub)); pool.deposit(1);
         (address asset, uint256 amt, address dst, uint256 code) = LendingPoolMock(address(aavePool)).lastDeposit();
         assertEq(asset, address(dai));
         assertEq(amt, 1);
@@ -196,12 +198,11 @@ contract D3MAaveV2TypePoolTest is D3MPoolBaseTest {
         // make sure we have Dai to withdraw
         TokenMock(address(dai)).mint(address(aavePool), 1);
 
-        vm.prank(hub);
-        pool.withdraw(1);
+        vm.prank(address(hub)); pool.withdraw(1);
         (address asset, uint256 amt, address dst) = LendingPoolMock(address(aavePool)).lastWithdraw();
         assertEq(asset, address(dai));
         assertEq(amt, 1);
-        assertEq(dst, hub);
+        assertEq(dst, address(hub));
     }
 
     function test_withdraw_calls_lending_pool_withdraw_vat_caged() public {
@@ -209,12 +210,11 @@ contract D3MAaveV2TypePoolTest is D3MPoolBaseTest {
         TokenMock(address(dai)).mint(address(aavePool), 1);
 
         vat.cage();
-        vm.prank(hub);
-        pool.withdraw(1);
+        vm.prank(address(hub)); pool.withdraw(1);
         (address asset, uint256 amt, address dst) = LendingPoolMock(address(aavePool)).lastWithdraw();
         assertEq(asset, address(dai));
         assertEq(amt, 1);
-        assertEq(dst, hub);
+        assertEq(dst, address(hub));
     }
 
     function test_collect_claims_for_king() public {
@@ -248,8 +248,7 @@ contract D3MAaveV2TypePoolTest is D3MPoolBaseTest {
         assertEq(adai.balanceOf(address(pool)), tokens);
 
         end.setArt(tokens);
-        vm.prank(hub);
-        pool.exit(address(this), tokens);
+        vm.prank(address(hub)); pool.exit(address(this), tokens);
 
         assertEq(adai.balanceOf(address(this)), tokens);
         assertEq(adai.balanceOf(address(pool)), 0);

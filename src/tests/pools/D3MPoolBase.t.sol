@@ -43,9 +43,9 @@ abstract contract D3MPoolBaseTest is DssTest {
 
     function baseInit(string memory _contractName) internal {
         vat = new VatMock();
-        hub = new HubMock(address(vat));
-        dai = new TokenMock(18);
         end = new EndMock();
+        hub = new HubMock(address(vat), address(end));
+        dai = new TokenMock(18);
         contractName = _contractName;
     }
 
@@ -53,15 +53,15 @@ abstract contract D3MPoolBaseTest is DssTest {
         pool = _pool;
     }
 
-    function test_auth() public {
+    function test_auth() public virtual {
         checkAuth(address(pool), contractName);
     }
 
-    function test_file_hub() public {
-        checkFileUint(address(pool), contractName, ["hub"]);
+    function test_file_hub() public virtual {
+        checkFileAddress(address(pool), contractName, ["hub"]);
     }
 
-    function test_file_hub_vat_hoped() public {
+    function test_file_hub_vat_hoped() public virtual {
         assertEq(vat.can(address(pool), address(hub)), 1);
         assertEq(vat.can(address(pool), TEST_ADDRESS), 0);
         FileLike(address(pool)).file("hub", TEST_ADDRESS);
@@ -69,58 +69,52 @@ abstract contract D3MPoolBaseTest is DssTest {
         assertEq(vat.can(address(pool), TEST_ADDRESS), 1);
     }
 
-    function test_sets_creator_as_ward() public {
+    function test_sets_creator_as_ward() public virtual {
         assertEq(WardsAbstract(address(pool)).wards(address(this)), 1);
     }
 
-    function test_auth_modifier() public {
+    function test_auth_modifier() public virtual {
         WardsAbstract(address(pool)).deny(address(this));
 
-        bytes[] memory funcs = new bytes[](2);
-        funcs[0] = abi.encodeWithSelector(ID3MPool.exit.selector, 0, 0, 0);
-        funcs[1] = abi.encodeWithSelector(ID3MPool.quit.selector, 0, 0, 0);
-
-        for (uint256 i = 0; i < funcs.length; i++) {
-            assertRevert(address(pool), funcs[i], abi.encodePacked(contractName, "/not-authorized"));
-        }
+        checkModifier(address(pool), string(abi.encodePacked(contractName, "/not-authorized")), [
+            abi.encodeWithSelector(ID3MPool.quit.selector)
+        ]);
     }
 
-    function test_onlyHub_modifier() public {
-        bytes[] memory funcs = new bytes[](3);
-        funcs[0] = abi.encodeWithSelector(ID3MPool.deposit.selector, 0, 0, 0);
-        funcs[1] = abi.encodeWithSelector(ID3MPool.withdraw.selector, 0, 0, 0);
-        funcs[2] = abi.encodeWithSelector(ID3MPool.exit.selector, 0, 0, 0);
-
-        for (uint256 i = 0; i < funcs.length; i++) {
-            assertRevert(address(pool), funcs[i], abi.encodePacked(contractName, "/only-hub"));
-        }
+    function test_onlyHub_modifier() public virtual {
+        checkModifier(address(pool), string(abi.encodePacked(contractName, "/only-hub")), [
+            abi.encodeWithSelector(ID3MPool.deposit.selector),
+            abi.encodeWithSelector(ID3MPool.withdraw.selector),
+            abi.encodeWithSelector(ID3MPool.exit.selector)
+        ]);
     }
 
-    function test_quit_vat_caged() public {
+    function test_quit_vat_caged() public virtual {
         vat.cage();
         vm.expectRevert(abi.encodePacked(contractName, "/no-quit-during-shutdown"));
         pool.quit(address(this));
     }
 
-    function test_exit() public {
+    function test_exit() public virtual {
         TokenMock redeemableToken = TokenMock(pool.redeemable());
-        redeemableToken.mint(address(pool), 1000 ether);
+        GodMode.setBalance(address(dai), address(pool), 1000 ether);
+        vm.prank(address(hub)); pool.deposit(1000 ether);
+        uint256 initialBalance = redeemableToken.balanceOf(address(pool));
         end.setArt(100 ether);
 
         assertEq(redeemableToken.balanceOf(TEST_ADDRESS), 0);
-        assertEq(redeemableToken.balanceOf(address(pool)), 1000 ether);
         assertEq(ExitLike(address(pool)).exited(), 0);
 
         vm.prank(address(hub)); pool.exit(TEST_ADDRESS, 10 ether);  // Exit 10%
 
-        assertEq(redeemableToken.balanceOf(TEST_ADDRESS), 100 ether);
-        assertEq(redeemableToken.balanceOf(address(pool)), 900 ether);
+        assertApproxEqAbs(redeemableToken.balanceOf(TEST_ADDRESS), initialBalance * 10 / 100, 1);
+        assertApproxEqAbs(redeemableToken.balanceOf(address(pool)), initialBalance * 90 / 100, 1);
         assertEq(ExitLike(address(pool)).exited(), 10 ether);
 
         vm.prank(address(hub)); pool.exit(TEST_ADDRESS, 20 ether);  // Exit another 20%
 
-        assertEq(redeemableToken.balanceOf(TEST_ADDRESS), 300 ether);
-        assertEq(redeemableToken.balanceOf(address(pool)), 700 ether);
+        assertApproxEqAbs(redeemableToken.balanceOf(TEST_ADDRESS), initialBalance * 30 / 100, 1);
+        assertApproxEqAbs(redeemableToken.balanceOf(address(pool)), initialBalance * 70 / 100, 1);
         assertEq(ExitLike(address(pool)).exited(), 30 ether);
     }
 
