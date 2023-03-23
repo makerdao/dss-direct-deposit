@@ -49,10 +49,12 @@ contract PoolMock is ID3MPool {
         dai.transfer(msg.sender, wad);
     }
 
-    function exit(address, uint256) external override {
+    function exit(address dst, uint256 wad) external override {
+        gem.transfer(dst, wad);
     }
 
-    function quit(address) external override {
+    function quit(address dst) external override {
+        gem.transfer(dst, gem.balanceOf(address(this)));
     }
 
     function preDebtChange() external override {
@@ -82,6 +84,16 @@ contract PoolMock is ID3MPool {
 
     function redeemable() external view returns (address) {
         return address(gem);
+    }
+
+    function decreaseIdleLiquidity(uint256 amount) external {
+        GodMode.setBalance(address(dai), address(this), dai.balanceOf(address(this)) - amount);
+        GodMode.setBalance(address(gem), address(this), gem.balanceOf(address(this)) + amount);
+    }
+
+    function increaseIdleLiquidity(uint256 amount) external {
+        GodMode.setBalance(address(dai), address(this), dai.balanceOf(address(this)) + amount);
+        GodMode.setBalance(address(gem), address(this), gem.balanceOf(address(this)) - amount);
     }
 
 }
@@ -338,15 +350,14 @@ contract D3MHubTest is DssTest {
     }
 
     function test_wind_limited_by_maxDeposit() public {
-        _windSystem(); // winds to 50 * WAD
         plan.setTargetAssets(50 * WAD);
         pool.setMaxDeposit(45 * WAD);
 
         hub.exec(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
-        assertEq(ink, 55 * WAD);
-        assertEq(art, 55 * WAD);
+        assertEq(ink, 45 * WAD);
+        assertEq(art, 45 * WAD);
         assertTrue(pool.preDebt());
         assertTrue(pool.postDebt());
     }
@@ -388,8 +399,6 @@ contract D3MHubTest is DssTest {
         uint256 viceBefore = vat.vice();
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 50 * WAD);
 
         // It will just fix the position and send the DAI to the surplus buffer
         hub.exec(ilk);
@@ -401,8 +410,6 @@ contract D3MHubTest is DssTest {
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 50 * WAD);
 
         // can reduce and have the correct amount of locked collateral
         plan.setTargetAssets(25 * WAD);
@@ -417,8 +424,6 @@ contract D3MHubTest is DssTest {
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(testGem)), 25 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 25 * WAD);
     }
 
     function test_wind_after_debt_paid_back() public {
@@ -444,8 +449,6 @@ contract D3MHubTest is DssTest {
         uint256 viceBefore = vat.vice();
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 50 * WAD);
 
         // can re-wind and have the correct amount of debt (art)
         plan.setTargetAssets(75 * WAD);
@@ -459,8 +462,6 @@ contract D3MHubTest is DssTest {
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(testGem)), 75 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 75 * WAD);
     }
 
     function test_fully_unwind_after_debt_paid_back() public {
@@ -486,8 +487,6 @@ contract D3MHubTest is DssTest {
         uint256 viceBefore = vat.vice();
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 50 * WAD);
 
         // fully unwind
         plan.setTargetAssets(0);
@@ -502,8 +501,6 @@ contract D3MHubTest is DssTest {
         assertEq(vat.sin(vow), sinBefore);
         // This comes back to us as fees at this point
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(testGem)), 0 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 0 * WAD);
     }
 
     function test_wind_unwind_line_limited_debt_paid_back() public {
@@ -531,8 +528,6 @@ contract D3MHubTest is DssTest {
         uint256 viceBefore = vat.vice();
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 50 * WAD);
 
         // limit wind with debt ceiling
         plan.setTargetAssets(500 * WAD);
@@ -549,8 +544,6 @@ contract D3MHubTest is DssTest {
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(testGem)), 60 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 60 * WAD);
 
         // unwind due to debt ceiling
         vat.file(ilk, "line", 20 * RAD);
@@ -568,8 +561,6 @@ contract D3MHubTest is DssTest {
         assertEq(vat.sin(vow), sinBefore);
         // we unwind and collect fees
         assertEq(vat.dai(vow), vowDaiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(testGem)), 20 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 20 * WAD);
     }
 
     function test_exec_fees_debt_paid_back() public {
@@ -578,8 +569,6 @@ contract D3MHubTest is DssTest {
         // by giving extra gems to the Join we simulate interest
         address(testGem).setBalance(address(this), 5 * WAD);
         testGem.transfer(address(pool), 5 * WAD);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 55 * WAD);
 
         // Someone pays back our debt
         dai.setBalance(address(this), 10 * WAD);
@@ -603,8 +592,6 @@ contract D3MHubTest is DssTest {
         uint256 viceBefore = vat.vice();
         uint256 sinBefore = vat.sin(vow);
         uint256 vowDaiBefore = vat.dai(vow);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 55 * WAD);
 
         hub.exec(ilk);
 
@@ -619,8 +606,6 @@ contract D3MHubTest is DssTest {
         assertEq(vat.sin(vow), sinBefore);
         // Both the debt donation and fees go to vow
         assertEq(vat.dai(vow), vowDaiBefore + 15 * RAD);
-        assertEq(dai.balanceOf(address(testGem)), 45 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 50 * WAD);
     }
 
     function test_unwind_plan_not_active() public {
@@ -767,8 +752,6 @@ contract D3MHubTest is DssTest {
         assertEq(ink, 50 * WAD);
         assertEq(art, 40 * WAD);
         assertEq(vat.gem(ilk, address(pool)), 0);
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 50 * WAD);
         uint256 viceBefore = vat.vice();
         uint256 sinBefore = vat.sin(vow);
         uint256 daiBefore = vat.dai(vow);
@@ -783,8 +766,6 @@ contract D3MHubTest is DssTest {
         assertEq(vat.vice(), viceBefore);
         assertEq(vat.sin(vow), sinBefore);
         assertEq(vat.dai(vow), daiBefore + 10 * RAD);
-        assertEq(dai.balanceOf(address(testGem)), 0);
-        assertEq(testGem.balanceOf(address(pool)), 0);
     }
 
     function test_unwind_target_less_amount() public {
@@ -876,6 +857,7 @@ contract D3MHubTest is DssTest {
         // by giving extra gems to the Join we simulate interest
         address(testGem).setBalance(address(this), 10 * WAD);
         testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
+        assertEq(pool.assetBalance(), 60 * WAD);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
         assertEq(ink, 50 * WAD);
@@ -884,9 +866,9 @@ contract D3MHubTest is DssTest {
 
         // If we do not have enough liquidity then we pull out what we can for the fees
         // This will pull out all but 2 WAD of the liquidity
-        assertEq(dai.balanceOf(address(testGem)), 50 * WAD); // liquidity before simulating other user's withdraw
-        vm.prank(address(testGem)); dai.transfer(address(this), 48 * WAD);
-        assertEq(dai.balanceOf(address(testGem)), 2 * WAD); // liquidity after
+        assertEq(dai.balanceOf(address(pool)), 50 * WAD); // liquidity before simulating other user's withdraw
+        pool.decreaseIdleLiquidity(48 * WAD);
+        assertEq(dai.balanceOf(address(pool)), 2 * WAD);  // liquidity after
 
         hub.exec(ilk);
 
@@ -894,7 +876,6 @@ contract D3MHubTest is DssTest {
         // Collateral and debt increase by 8 WAD as there wasn't enough liquidity to pay the fees accumulated
         assertEq(ink, 58 * WAD);
         assertEq(art, 58 * WAD);
-         // 10 RAY immediately shows up in the surplus
         assertEq(vat.dai(vow), prevDai + 10 * RAD);
         // Make sure pre/post functions get called
         assertTrue(pool.preDebt());
@@ -903,6 +884,7 @@ contract D3MHubTest is DssTest {
 
     function test_exit() public {
         _windSystem();
+        pool.decreaseIdleLiquidity(50 * WAD);
         // Vat is caged for global settlement
         vat.cage();
 
@@ -918,7 +900,7 @@ contract D3MHubTest is DssTest {
 
         uint256 prevBalance = testGem.balanceOf(address(this));
 
-        // User can exit and get the aDAI
+        // User can exit and get the redeem token
         hub.exit(ilk, address(this), 50 * WAD);
         assertEq(testGem.balanceOf(address(this)), prevBalance + 50 * WAD);
     }
@@ -1120,66 +1102,6 @@ contract D3MHubTest is DssTest {
         assertRevert(address(hub), abi.encodeWithSignature("uncull(bytes32)", ilk), "D3MHub/no-uncull-normal-operation");
     }
 
-    function test_quit_culled() public {
-        _windSystem();
-        hub.cage(ilk);
-
-        hub.cull(ilk);
-
-        address receiver = address(123);
-
-        uint256 balBefore = testGem.balanceOf(receiver);
-        assertEq(50 * WAD, testGem.balanceOf(address(pool)));
-        assertEq(50 * WAD, vat.gem(ilk, address(pool)));
-
-        pool.quit(receiver);
-        vat.slip(
-            ilk,
-            address(pool),
-            -int256(vat.gem(ilk, address(pool)))
-        );
-
-        assertEq(testGem.balanceOf(receiver), balBefore + 50 * WAD);
-        assertEq(0, testGem.balanceOf(address(pool)));
-        assertEq(0, vat.gem(ilk, address(pool)));
-    }
-
-    function test_quit_not_culled() public {
-        _windSystem();
-
-        address receiver = address(123);
-        uint256 balBefore = testGem.balanceOf(receiver);
-        assertEq(50 * WAD, testGem.balanceOf(address(pool)));
-        (uint256 pink, uint256 part) = vat.urns(ilk, address(pool));
-        assertEq(pink, 50 * WAD);
-        assertEq(part, 50 * WAD);
-        (uint256 tink, uint256 tart) = vat.urns(ilk, receiver);
-        assertEq(tink, 0);
-        assertEq(tart, 0);
-
-        pool.quit(receiver);
-        vat.grab(
-            ilk,
-            address(pool),
-            receiver,
-            receiver,
-            -int256(pink),
-            -int256(part)
-        );
-        vat.grab(ilk, receiver, receiver, receiver, int256(pink), int256(part));
-
-        assertEq(testGem.balanceOf(receiver), balBefore + 50 * WAD);
-        (uint256 joinInk, uint256 joinArt) = vat.urns(
-            ilk,
-            address(pool)
-        );
-        assertEq(joinInk, 0);
-        assertEq(joinArt, 0);
-        (uint256 ink, uint256 art) = vat.urns(ilk, receiver);
-        assertEq(ink, 50 * WAD);
-        assertEq(art, 50 * WAD);
-    }
-
     function test_pool_upgrade_unwind_wind() public {
         _windSystem(); // Tests that the current pool has ink/art
 
@@ -1229,105 +1151,6 @@ contract D3MHubTest is DssTest {
         assertTrue(pool.postDebt() == false);
     }
 
-    function test_pool_upgrade_quit() public {
-        _windSystem(); // Tests that the current pool has ink/art
-
-        // Setup new pool
-        PoolMock newPool = new PoolMock(address(vat), address(hub), address(dai), address(testGem));
-        testGem.rely(address(newPool));
-
-        (uint256 opink, uint256 opart) = vat.urns(ilk, address(pool));
-        assertGt(opink, 0);
-        assertGt(opart, 0);
-
-        (uint256 npink, uint256 npart) = vat.urns(ilk, address(newPool));
-        assertEq(npink, 0);
-        assertEq(npart, 0);
-        assertTrue(newPool.preDebt() == false);
-        assertTrue(newPool.postDebt() == false);
-
-        // quit to new pool
-        pool.quit(address(newPool));
-        vat.grab(
-            ilk,
-            address(pool),
-            address(newPool),
-            address(newPool),
-            -int256(opink),
-            -int256(opart)
-        );
-        vat.grab(
-            ilk,
-            address(newPool),
-            address(newPool),
-            address(newPool),
-            int256(opink),
-            int256(opart)
-        );
-
-        // Ensure we quit our position
-        (opink, opart) = vat.urns(ilk, address(pool));
-        assertEq(opink, 0);
-        assertEq(opart, 0);
-        // quit does not call hooks
-        assertTrue(pool.preDebt() == false);
-        assertTrue(pool.postDebt() == false);
-
-        (npink, npart) = vat.urns(ilk, address(newPool));
-        assertEq(npink, 50 * WAD);
-        assertEq(npart, 50 * WAD);
-        assertTrue(newPool.preDebt() == false);
-        assertTrue(newPool.postDebt() == false);
-
-        // file new pool
-        hub.file(ilk, "pool", address(newPool));
-
-        // test unwind/wind
-        plan.setTargetAssets(45 * WAD);
-        hub.exec(ilk);
-
-        (opink, opart) = vat.urns(ilk, address(pool));
-        assertEq(opink, 0);
-        assertEq(opart, 0);
-
-        (npink, npart) = vat.urns(ilk, address(newPool));
-        assertEq(npink, 45 * WAD);
-        assertEq(npart, 45 * WAD);
-
-        plan.setTargetAssets(100 * WAD);
-        hub.exec(ilk);
-
-        (opink, opart) = vat.urns(ilk, address(pool));
-        assertEq(opink, 0);
-        assertEq(opart, 0);
-
-        (npink, npart) = vat.urns(ilk, address(newPool));
-        assertEq(npink, 100 * WAD);
-        assertEq(npart, 100 * WAD);
-    }
-
-    function test_plan_upgrade() public {
-        _windSystem(); // Tests that the current pool has ink/art
-
-        // Setup new plan
-        PlanMock newPlan = new PlanMock();
-        newPlan.setTargetAssets(100 * WAD);
-
-        hub.file(ilk, "plan", address(newPlan));
-
-        (, ID3MPlan _plan, , , ) = hub.ilks(ilk);
-        assertEq(address(_plan), address(newPlan));
-
-        hub.exec(ilk);
-
-        // New Plan should determine the pool position
-        (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
-        assertEq(ink, 100 * WAD);
-        assertEq(art, 100 * WAD);
-        assertTrue(pool.preDebt());
-        assertTrue(pool.postDebt());
-    }
-
     function test_exec_lock_protection() public {
         // Store memory slot 0x3
         vm.store(address(hub), bytes32(uint256(3)), bytes32(uint256(1)));
@@ -1354,12 +1177,12 @@ contract D3MHubTest is DssTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
         assertEq(ink, 50 * WAD);
         assertEq(art, 50 * WAD);
-        assertEq(testGem.balanceOf(address(pool)), 50 * WAD);
+        assertEq(dai.balanceOf(address(pool)), 50 * WAD);
         assertEq(pool.assetBalance(), 50 * WAD);
 
-        address(testGem).setBalance(address(pool), 20 * WAD); // Lost 30 tokens
+        address(dai).setBalance(address(pool), 20 * WAD); // Lost 30 tokens
 
-        assertEq(testGem.balanceOf(address(pool)), 20 * WAD);
+        assertEq(dai.balanceOf(address(pool)), 20 * WAD);
         assertEq(pool.assetBalance(), 20 * WAD);
         (ink, art) = vat.urns(ilk, address(pool));
         assertEq(ink, 50 * WAD);
@@ -1380,7 +1203,7 @@ contract D3MHubTest is DssTest {
         // by giving extra gems to the Join we simulate interest
         address(testGem).setBalance(address(this), 10 * WAD);
         testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
-        assertEq(testGem.balanceOf(address(pool)), 60 * WAD);
+        assertEq(pool.assetBalance(), 60 * WAD);
         assertEq(pool.maxWithdraw(), 50 * WAD);
 
         vat.file(ilk, "line", 55 * RAD);
@@ -1396,21 +1219,16 @@ contract D3MHubTest is DssTest {
         assertEq(ink, 50 * WAD);
         assertEq(art, 50 * WAD);
         assertEq(vat.dai(vow), prevDai + 10 * RAD);
-        assertEq(testGem.balanceOf(address(pool)), 50 * WAD);
+        assertEq(testGem.balanceOf(address(pool)), 10 * WAD);
     }
 
     function test_exec_fixInk_limited_under_debt_ceiling_nothing_to_withdraw() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        address(testGem).setBalance(address(this), 10 * WAD);
-        testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
-        assertEq(testGem.balanceOf(address(pool)), 60 * WAD);
-        vm.store(
-            address(dai),
-            keccak256(abi.encode(address(testGem), uint256(2))),
-            bytes32(uint256(0))
-        );
+        address(testGem).setBalance(address(pool), 10 * WAD);
+        assertEq(pool.assetBalance(), 60 * WAD);
+        pool.decreaseIdleLiquidity(50 * WAD);
         assertEq(pool.maxWithdraw(), 0);
 
         vat.file(ilk, "line", 55 * RAD);
@@ -1433,14 +1251,9 @@ contract D3MHubTest is DssTest {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        address(testGem).setBalance(address(this), 10 * WAD);
-        testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
-        assertEq(testGem.balanceOf(address(pool)), 60 * WAD);
-        vm.store(
-            address(dai),
-            keccak256(abi.encode(address(testGem), uint256(2))),
-            bytes32(uint256(3 * WAD))
-        );
+        address(testGem).setBalance(address(pool), 10 * WAD);
+        assertEq(pool.assetBalance(), 60 * WAD);
+        pool.decreaseIdleLiquidity(47 * WAD);
         assertEq(pool.maxWithdraw(), 3 * WAD);
 
         vat.file(ilk, "line", 55 * RAD);
@@ -1465,7 +1278,7 @@ contract D3MHubTest is DssTest {
         // by giving extra gems to the Join we simulate interest
         address(testGem).setBalance(address(this), 10 * WAD);
         testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
-        assertEq(testGem.balanceOf(address(pool)), 60 * WAD);
+        assertEq(pool.assetBalance(), 60 * WAD);
         assertEq(pool.maxWithdraw(), 50 * WAD);
 
         vat.file(ilk, "line", 50 * RAD);
@@ -1481,21 +1294,16 @@ contract D3MHubTest is DssTest {
         assertEq(ink, 50 * WAD);
         assertEq(art, 50 * WAD);
         assertEq(vat.dai(vow), prevDai + 10 * RAD);
-        assertEq(testGem.balanceOf(address(pool)), 50 * WAD);
+        assertEq(testGem.balanceOf(address(pool)), 10 * WAD);
     }
 
     function test_exec_fixInk_limited_at_debt_ceiling_nothing_to_withdraw() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        address(testGem).setBalance(address(this), 10 * WAD);
-        testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
-        assertEq(testGem.balanceOf(address(pool)), 60 * WAD);
-        vm.store(
-            address(dai),
-            keccak256(abi.encode(address(testGem), uint256(2))),
-            bytes32(uint256(0))
-        );
+        address(testGem).setBalance(address(pool), 10 * WAD);
+        assertEq(pool.assetBalance(), 60 * WAD);
+        pool.decreaseIdleLiquidity(50 * WAD);
         assertEq(pool.maxWithdraw(), 0);
 
         vat.file(ilk, "line", 50 * RAD);
@@ -1518,14 +1326,9 @@ contract D3MHubTest is DssTest {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        address(testGem).setBalance(address(this), 10 * WAD);
-        testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
-        assertEq(testGem.balanceOf(address(pool)), 60 * WAD);
-        vm.store(
-            address(dai),
-            keccak256(abi.encode(address(testGem), uint256(2))),
-            bytes32(uint256(3 * WAD))
-        );
+        address(testGem).setBalance(address(pool), 10 * WAD);
+        assertEq(pool.assetBalance(), 60 * WAD);
+        pool.decreaseIdleLiquidity(47 * WAD);
         assertEq(pool.maxWithdraw(), 3 * WAD);
 
         vat.file(ilk, "line", 50 * RAD);
@@ -1548,14 +1351,9 @@ contract D3MHubTest is DssTest {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        address(testGem).setBalance(address(this), 10 * WAD);
-        testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
-        assertEq(testGem.balanceOf(address(pool)), 60 * WAD);
-        vm.store(
-            address(dai),
-            keccak256(abi.encode(address(testGem), uint256(2))),
-            bytes32(uint256(10 * WAD))
-        );
+        address(testGem).setBalance(address(pool), 10 * WAD);
+        assertEq(pool.assetBalance(), 60 * WAD);
+        pool.decreaseIdleLiquidity(40 * WAD);
         assertEq(pool.maxWithdraw(), 10 * WAD);
 
         vat.file(ilk, "line", 45 * RAD);
@@ -1580,12 +1378,8 @@ contract D3MHubTest is DssTest {
         // by giving extra gems to the Join we simulate interest
         address(testGem).setBalance(address(this), 10 * WAD);
         testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
-        assertEq(testGem.balanceOf(address(pool)), 60 * WAD);
-        vm.store(
-            address(dai),
-            keccak256(abi.encode(address(testGem), uint256(2))),
-            bytes32(uint256(0))
-        );
+        assertEq(pool.assetBalance(), 60 * WAD);
+        pool.decreaseIdleLiquidity(50 * WAD);
         assertEq(pool.maxWithdraw(), 0);
 
         vat.file(ilk, "line", 45 * RAD);
@@ -1610,12 +1404,8 @@ contract D3MHubTest is DssTest {
         // by giving extra gems to the Join we simulate interest
         address(testGem).setBalance(address(this), 10 * WAD);
         testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
-        assertEq(testGem.balanceOf(address(pool)), 60 * WAD);
-        vm.store(
-            address(dai),
-            keccak256(abi.encode(address(testGem), uint256(2))),
-            bytes32(uint256(3 * WAD))
-        );
+        assertEq(pool.assetBalance(), 60 * WAD);
+        pool.decreaseIdleLiquidity(47 * WAD);
         assertEq(pool.maxWithdraw(), 3 * WAD);
 
         vat.file(ilk, "line", 45 * RAD);
