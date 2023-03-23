@@ -33,12 +33,13 @@ contract PoolMock is ID3MPool {
 
     bool public preDebt;
     bool public postDebt;
-    uint256 public maxDesposit;
-    uint256 public maxWithdrawal;
+    uint256 public maxDeposit;
 
-    constructor(address _dai, address _gem) {
+    constructor(address _vat, address _hub, address _dai, address _gem) {
         dai = TokenMock(_dai);
         gem = TokenMock(_gem);
+        maxDeposit = type(uint256).max;
+        VatAbstract(_vat).hope(_hub);
     }
 
     function deposit(uint256) external override {
@@ -68,23 +69,15 @@ contract PoolMock is ID3MPool {
     }
 
     function assetBalance() public view returns (uint256) {
-        return dai.balanceOf(address(this));
-    }
-
-    function maxDeposit() external view returns (uint256) {
-        return maxDesposit;
+        return dai.balanceOf(address(this)) + gem.balanceOf(address(this));
     }
 
     function setMaxDeposit(uint256 _maxDeposit) external {
-        maxDesposit = _maxDeposit;
+        maxDeposit = _maxDeposit;
     }
 
-    function maxWithdraw() external view returns (uint256) {
-        return maxWithdrawal;
-    }
-
-    function setMaxWithdraw(uint256 _maxWithdraw) external {
-        maxWithdrawal = _maxWithdraw;
+    function maxWithdraw() external view override returns (uint256) {
+        return dai.balanceOf(address(this));
     }
 
     function redeemable() external view returns (address) {
@@ -136,7 +129,7 @@ contract D3MHubTest is DssTest {
     D3MOracle pip;
 
     function setUp() public {
-        // TODO these should be mocked
+        // TODO these should be mocked (or this should be moved to an integration test)
         vat = VatAbstract(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndAbstract(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         dai = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
@@ -154,7 +147,7 @@ contract D3MHubTest is DssTest {
         testGem = new TokenMock(18);
         hub = new D3MHub(address(daiJoin));
 
-        pool = new PoolMock(address(dai), address(testGem));
+        pool = new PoolMock(address(vat), address(hub), address(dai), address(testGem));
         plan = new PlanMock();
 
         // Test Target Setup
@@ -818,7 +811,7 @@ contract D3MHubTest is DssTest {
         // setup system
         bytes32 otherIlk = "DD-OTHER-GEM";
         TokenMock otherGem = new TokenMock(6);
-        PoolMock otherPool = new PoolMock(address(dai), address(testGem));
+        PoolMock otherPool = new PoolMock(address(vat), address(hub), address(dai), address(testGem));
         otherGem.rely(address(otherPool));
 
         hub.file(otherIlk, "pool", address(otherPool));
@@ -1191,7 +1184,7 @@ contract D3MHubTest is DssTest {
         _windSystem(); // Tests that the current pool has ink/art
 
         // Setup new pool
-        PoolMock newPool = new PoolMock(address(dai), address(testGem));
+        PoolMock newPool = new PoolMock(address(vat), address(hub), address(dai), address(testGem));
         testGem.rely(address(newPool));
 
         (uint256 npink, uint256 npart) = vat.urns(ilk, address(newPool));
@@ -1240,7 +1233,7 @@ contract D3MHubTest is DssTest {
         _windSystem(); // Tests that the current pool has ink/art
 
         // Setup new pool
-        PoolMock newPool = new PoolMock(address(dai), address(testGem));
+        PoolMock newPool = new PoolMock(address(vat), address(hub), address(dai), address(testGem));
         testGem.rely(address(newPool));
 
         (uint256 opink, uint256 opart) = vat.urns(ilk, address(pool));
