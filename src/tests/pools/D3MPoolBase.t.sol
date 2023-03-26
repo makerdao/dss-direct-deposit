@@ -77,15 +77,15 @@ abstract contract D3MPoolBaseTest is DssTest {
         WardsAbstract(address(pool)).deny(address(this));
 
         checkModifier(address(pool), string(abi.encodePacked(contractName, "/not-authorized")), [
-            abi.encodeWithSelector(ID3MPool.quit.selector)
+            ID3MPool.quit.selector
         ]);
     }
 
     function test_onlyHub_modifier() public virtual {
         checkModifier(address(pool), string(abi.encodePacked(contractName, "/only-hub")), [
-            abi.encodeWithSelector(ID3MPool.deposit.selector),
-            abi.encodeWithSelector(ID3MPool.withdraw.selector),
-            abi.encodeWithSelector(ID3MPool.exit.selector)
+            ID3MPool.deposit.selector,
+            ID3MPool.withdraw.selector,
+            ID3MPool.exit.selector
         ]);
     }
 

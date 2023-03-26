@@ -40,7 +40,7 @@ abstract contract D3MPlanBaseTest is DssTest {
         WardsAbstract(address(plan)).deny(address(this));
 
         checkModifier(address(plan), string(abi.encodePacked(contractName, "/not-authorized")), [
-            abi.encodeWithSelector(ID3MPlan.disable.selector)
+            ID3MPlan.disable.selector
         ]);
     }
 
