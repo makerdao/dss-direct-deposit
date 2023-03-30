@@ -467,8 +467,8 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
         vm.prank(admin); treasuryAdmin.transfer(address(treasury), address(adai), address(this), delta);
 
         // Remove all DAI liquidity from the pool
-        uint256 poolBalance = dai.balanceOf(address(adai));
-        dai.setBalance(address(adai), 0);
+        sparkPool.borrow(address(dai), dai.balanceOf(address(adai)), 2, 0, address(this));
+        assertEq(dai.balanceOf(address(adai)), 0);
         dai.setBalance(address(this), 0);       // We have no DAI as well
 
         // Withdrawing won't work because no available DAI
@@ -477,9 +477,6 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
 
         // Flash loan to close out the liabilities
         flashLender.flashLoan(this, address(dai), delta, "");
-
-        // Someone puts the DAI back into the pool
-        dai.setBalance(address(adai), dai.balanceOf(address(adai)) + poolBalance);
 
         assets = getTotalAssets(address(dai)) + 1;  // In case of rounding error we +1
         liabilities = getTotalLiabilities(address(dai));
