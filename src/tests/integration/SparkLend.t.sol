@@ -103,7 +103,64 @@ interface TreasuryAdminLike {
     ) external;
 }
 
-contract SparkLendTest is IntegrationBaseTest {
+interface IERC3156FlashBorrower {
+
+    /**
+     * @dev Receive a flash loan.
+     * @param initiator The initiator of the loan.
+     * @param token The loan currency.
+     * @param amount The amount of tokens lent.
+     * @param fee The additional amount of tokens to repay.
+     * @param data Arbitrary data structure, intended to contain user-defined parameters.
+     * @return The keccak256 hash of "ERC3156FlashBorrower.onFlashLoan"
+     */
+    function onFlashLoan(
+        address initiator,
+        address token,
+        uint256 amount,
+        uint256 fee,
+        bytes calldata data
+    ) external returns (bytes32);
+}
+
+interface IERC3156FlashLender {
+
+    /**
+     * @dev The amount of currency available to be lent.
+     * @param token The loan currency.
+     * @return The amount of `token` that can be borrowed.
+     */
+    function maxFlashLoan(
+        address token
+    ) external view returns (uint256);
+
+    /**
+     * @dev The fee to be charged for a given loan.
+     * @param token The loan currency.
+     * @param amount The amount of tokens lent.
+     * @return The amount of `token` to be charged for the loan, on top of the returned principal.
+     */
+    function flashFee(
+        address token,
+        uint256 amount
+    ) external view returns (uint256);
+
+    /**
+     * @dev Initiate a flash loan.
+     * @param receiver The receiver of the tokens in the loan, and the receiver of the callback.
+     * @param token The loan currency.
+     * @param amount The amount of tokens lent.
+     * @param data Arbitrary data structure, intended to contain user-defined parameters.
+     */
+    function flashLoan(
+        IERC3156FlashBorrower receiver,
+        address token,
+        uint256 amount,
+        bytes calldata data
+    ) external returns (bool);
+}
+
+contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
 
     using stdJson for string;
     using MCD for *;
@@ -116,6 +173,7 @@ contract SparkLendTest is IntegrationBaseTest {
     TreasuryLike treasury;
     TreasuryAdminLike treasuryAdmin;
     uint256 buffer;
+    IERC3156FlashLender flashLender;
 
     D3MAaveTypeBufferPlan plan;
     D3MAaveV3NoSupplyCapTypePool pool;
@@ -129,6 +187,7 @@ contract SparkLendTest is IntegrationBaseTest {
         treasury = TreasuryLike(adai.RESERVE_TREASURY_ADDRESS());
         treasuryAdmin = treasury.getFundsAdmin();
         buffer = 5_000_000 * WAD;
+        flashLender = IERC3156FlashLender(dss.chainlog.getAddress("MCD_FLASH"));
 
         // Deploy
         d3m.oracle = D3MDeploy.deployOracle(
@@ -371,5 +430,74 @@ contract SparkLendTest is IntegrationBaseTest {
         assets = getTotalAssets(address(dai)) + 1;  // In case of rounding error we +1
         liabilities = getTotalLiabilities(address(dai));
         assertGe(assets, liabilities, "assets should be greater than or equal to liabilities");
+    }
+
+    function test_asset_liabilities_fix_full_utilization_flashloan() public {
+        uint256 assets = getTotalAssets(address(dai));
+        uint256 liabilities = getTotalLiabilities(address(dai));
+        if (assets >= liabilities) {
+            // Force the assets to become less than the liabilities
+            uint256 performanceBonus = daiInterestRateStrategy.performanceBonus();
+            vm.prank(admin); plan.file("buffer", performanceBonus * 4);
+            hub.exec(ilk);
+            sparkPool.borrow(address(dai), performanceBonus * 2, 2, 0, address(this));  // Supply rate should now be above 0% (we are over-allocating)
+
+            // Warp so we gaurantee there is new interest
+            vm.warp(block.timestamp + 365 days);
+            forceUpdateIndicies(address(dai));
+
+            assets = getTotalAssets(address(dai));
+            liabilities = getTotalLiabilities(address(dai));
+            assertLe(assets, liabilities, "assets should be less than or equal to liabilities");
+        }
+        
+        // Let's fix the accounting
+        uint256 delta = liabilities - assets;
+
+        // First trigger all spDAI owed to the treasury to be accrued
+        assertGt(getAccruedToTreasury(address(dai)), 0, "accrued to treasury should be greater than 0");
+        address[] memory toMint = new address[](1);
+        toMint[0] = address(dai);
+        sparkPool.mintToTreasury(toMint);
+        assertEq(getAccruedToTreasury(address(dai)), 0, "accrued to treasury should be 0");
+        assertGe(adai.balanceOf(address(treasury)), delta, "adai treasury should have more than the delta between liabilities and assets");
+
+        // Donate the excess liabilities back to the pool
+        // This will burn the liabilities while keeping the assets the same
+        vm.prank(admin); treasuryAdmin.transfer(address(treasury), address(adai), address(this), delta);
+
+        // Remove all DAI liquidity from the pool
+        uint256 poolBalance = dai.balanceOf(address(adai));
+        dai.setBalance(address(adai), 0);
+
+        // Withdrawing won't work because no available DAI
+        vm.expectRevert();
+        sparkPool.withdraw(address(dai), delta, address(adai));
+
+        // Flash loan to close out the liabilities
+        flashLender.flashLoan(this, address(dai), delta, "");
+
+        // Someone puts the DAI back into the pool
+        dai.setBalance(address(adai), dai.balanceOf(address(adai)) + poolBalance);
+
+        assets = getTotalAssets(address(dai)) + 1;  // In case of rounding error we +1
+        liabilities = getTotalLiabilities(address(dai));
+        assertGe(assets, liabilities, "assets should be greater than or equal to liabilities");
+    }
+
+    function onFlashLoan(
+        address,
+        address token,
+        uint256 amount,
+        uint256 fee,
+        bytes calldata
+    ) external returns (bytes32) {
+        sparkPool.supply(address(dai), amount, address(this), 0);
+        sparkPool.withdraw(address(dai), amount, address(adai));
+        sparkPool.withdraw(address(dai), amount, address(this));
+
+        ATokenLike(token).approve(address(msg.sender), amount + fee);
+        
+        return keccak256("ERC3156FlashBorrower.onFlashLoan");
     }
 }
