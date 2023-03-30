@@ -1,0 +1,16 @@
+{
+    "chainlog": "0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F",
+    "admin": "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB",
+    "poolType": "aave-v3-no-supply-cap",
+    "planType": "liquidity-buffer",
+    "ilk": "DIRECT-SPARK-DAI",
+    "existingIlk": false,
+    "maxLine": 5000000,
+    "gap": 5000000,
+    "ttl": 28800,
+    "tau": 604800,
+    "lendingPool": "0xC13e21B648A5Ee794902342038FF3aDAB66BE987",
+    "king": "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB",
+    "adai": "0x4DEDf26112B3Ec8eC46e7E31EA5e123490B05B8B",
+    "buffer": 5000000
+}
