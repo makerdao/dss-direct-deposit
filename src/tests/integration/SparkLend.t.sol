@@ -469,6 +469,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
         // Remove all DAI liquidity from the pool
         uint256 poolBalance = dai.balanceOf(address(adai));
         dai.setBalance(address(adai), 0);
+        dai.setBalance(address(this), 0);       // We have no DAI as well
 
         // Withdrawing won't work because no available DAI
         vm.expectRevert();
