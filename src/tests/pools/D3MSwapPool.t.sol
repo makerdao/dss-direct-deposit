@@ -66,10 +66,10 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         swapPool.file("buyGemPip", address(pip));
 
         // Set the fee switch to 90% (targeting 90% of the swap pool in gems)
-        swapPool.file("buffer", 9000);
+        swapPool.file("ratio", 9000);
         // 5 bps negative wind fee (pay people to wind), 20 bps unwind fee
         swapPool.file("fees1", 10005, 9980);
-        // 10 bps fee after the buffer is reached, 8 bps negative fee (pay people to unwind)
+        // 10 bps fee after the ratio is reached, 8 bps negative fee (pay people to unwind)
         swapPool.file("fees2", 9990, 10008);
         gem.approve(d3mTestPool, type(uint256).max);
         dai.approve(d3mTestPool, type(uint256).max);
@@ -87,13 +87,13 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         checkFileAddress(d3mTestPool, contractName, ["hub", "pip", "sellGemPip", "buyGemPip"]);
     }
 
-    function test_file_buffer() public {
+    function test_file_ratio() public {
         vm.expectRevert(abi.encodePacked(contractName, "/file-unrecognized-param"));
         swapPool.file("an invalid value", 1);
 
-        swapPool.file("buffer", 1);
+        swapPool.file("ratio", 1);
         
-        assertEq(swapPool.buffer(), 1);
+        assertEq(swapPool.ratio(), 1);
 
         FakeVat(vat).cage();
         vm.expectRevert(abi.encodePacked(contractName, "/no-file-during-shutdown"));
@@ -104,9 +104,9 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         swapPool.file("some value", 1);
     }
 
-    function test_file_invalid_buffer() public {
-        vm.expectRevert(abi.encodePacked(contractName, "/invalid-buffer"));
-        swapPool.file("buffer", uint24(BPS + 1));
+    function test_file_invalid_ratio() public {
+        vm.expectRevert(abi.encodePacked(contractName, "/invalid-ratio"));
+        swapPool.file("ratio", uint24(BPS + 1));
     }
 
     function test_file_fees() public {
@@ -201,15 +201,15 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         assertEq(swapPool.maxWithdraw(), 100 ether);
     }
 
-    function test_previewSellGem_under_buffer() public {
+    function test_previewSellGem_under_ratio() public {
         dai.transfer(d3mTestPool, 100 ether);
 
         // 10 tokens @ $2 / unit + 5bps payment = 20.01
         assertEq(swapPool.previewSellGem(10 * 1e6), 20.010 ether);
     }
 
-    function test_previewSellGem_over_buffer() public {
-        swapPool.file("buffer", 0);
+    function test_previewSellGem_over_ratio() public {
+        swapPool.file("ratio", 0);
         dai.transfer(d3mTestPool, 100 ether);
 
         // 10 tokens @ $2 / unit + 10bps fee = 19.98
@@ -232,7 +232,7 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         assertApproxEqRel(swapPool.previewSellGem(90 * 1e6), 180 ether, WAD / 10000);
     }
 
-    function test_previewBuyGem_over_buffer() public {
+    function test_previewBuyGem_over_ratio() public {
         gem.transfer(d3mTestPool, 100 * 1e6);
         dai.transfer(d3mTestPool, 5 ether);
 
@@ -240,7 +240,7 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         assertEq(swapPool.previewBuyGem(4 ether), 2.0016 * 1e6);
     }
 
-    function test_previewBuyGem_under_buffer() public {
+    function test_previewBuyGem_under_ratio() public {
         dai.transfer(d3mTestPool, 100 ether);
 
         // 20 DAI + 20bps fee = 9.96 tokens

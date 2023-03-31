@@ -46,16 +46,16 @@ interface EndLike {
 
 /**
  *  @title D3M Swap Pool
- *  @notice Swap an asset for DAI. Fees vary based on whether the pool is above or below the buffer.
+ *  @notice Swap an asset for DAI. Fees vary based on whether the pool is above or below the target ratio.
  */
 contract D3MSwapPool is ID3MPool {
 
     struct FeeData {
-        uint24 buffer;  // where to place the fee1/fee2 change as ratio between gem and dai [bps]
-        uint24 tin1;    // toll in under the buffer  [bps]
-        uint24 tout1;   // toll out under the buffer [bps]
-        uint24 tin2;    // toll in over the buffer   [bps]
-        uint24 tout2;   // toll out over the buffer  [bps]
+        uint24 ratio;   // where to place the fee1/fee2 change as ratio between gem and dai [bps]
+        uint24 tin1;    // toll in under the ratio  [bps]
+        uint24 tout1;   // toll out under the ratio [bps]
+        uint24 tin2;    // toll in over the ratio   [bps]
+        uint24 tout2;   // toll out over the ratio  [bps]
     }
 
     // --- Data ---
@@ -110,7 +110,7 @@ contract D3MSwapPool is ID3MPool {
 
         // Initialize all fees to zero
         feeData = FeeData({
-            buffer: 0,
+            ratio: 0,
             tin1: uint24(BPS),
             tout1: uint24(BPS),
             tin2: uint24(BPS),
@@ -134,9 +134,9 @@ contract D3MSwapPool is ID3MPool {
 
     function file(bytes32 what, uint24 data) external auth {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
-        require(data <= BPS, "D3MSwapPool/invalid-buffer");
+        require(data <= BPS, "D3MSwapPool/invalid-ratio");
 
-        if (what == "buffer") feeData.buffer = data;
+        if (what == "ratio") feeData.ratio = data;
         else revert("D3MSwapPool/file-unrecognized-param");
 
         emit File(what, data);
@@ -178,8 +178,8 @@ contract D3MSwapPool is ID3MPool {
 
     // --- Getters ---
 
-    function buffer() external view returns (uint256) {
-        return feeData.buffer;
+    function ratio() external view returns (uint256) {
+        return feeData.ratio;
     }
 
     function tin1() external view returns (uint256) {
@@ -248,9 +248,9 @@ contract D3MSwapPool is ID3MPool {
         uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * pipValue / WAD;
         uint256 daiBalance = dai.balanceOf(address(this));
         uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;
-        uint256 desiredGemBalance = _feeData.buffer * (daiBalance + gemBalance) / BPS;
+        uint256 desiredGemBalance = _feeData.ratio * (daiBalance + gemBalance) / BPS;
         if (gemBalance >= desiredGemBalance) {
-            // We are above the buffer so apply tin2
+            // We are above the ratio so apply tin2
             daiAmt = gemValue * _feeData.tin2 / BPS;
         } else {
             uint256 daiAvailableAtTin1;
@@ -258,7 +258,7 @@ contract D3MSwapPool is ID3MPool {
                 daiAvailableAtTin1 = desiredGemBalance - gemBalance;
             }
 
-            // We are below the buffer so could be a mix of tin1 and tin2
+            // We are below the ratio so could be a mix of tin1 and tin2
             uint256 daiAmtTin1 = gemValue * _feeData.tin1 / BPS;
             if (daiAmtTin1 <= daiAvailableAtTin1) {
                 // We are entirely in the tin1 region
@@ -280,9 +280,9 @@ contract D3MSwapPool is ID3MPool {
         uint256 gemValue;
         uint256 daiBalance = dai.balanceOf(address(this));
         uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;
-        uint256 desiredGemBalance = _feeData.buffer * (daiBalance + gemBalance) / BPS;
+        uint256 desiredGemBalance = _feeData.ratio * (daiBalance + gemBalance) / BPS;
         if (gemBalance <= desiredGemBalance) {
-            // We are below the buffer so apply tout1
+            // We are below the ratio so apply tout1
             gemValue = daiAmt * _feeData.tout1 / BPS;
         } else {
             uint256 gemsAvailableAtTout2;
@@ -290,7 +290,7 @@ contract D3MSwapPool is ID3MPool {
                 gemsAvailableAtTout2 = gemBalance - desiredGemBalance;
             }
 
-            // We are above the buffer so could be a mix of tout1 and tout2
+            // We are above the ratio so could be a mix of tout1 and tout2
             if (daiAmt <= gemsAvailableAtTout2) {
                 // We are entirely in the tout1 region
                 gemValue = daiAmt * _feeData.tout2 / BPS;
