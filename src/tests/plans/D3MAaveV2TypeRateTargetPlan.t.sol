@@ -97,7 +97,7 @@ contract D3MAaveV2TypeRateTargetPlanTest is D3MPlanBaseTest {
     function test_disable_makes_inactive() public override {
         plan.file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
 
-        super.test_auth_modifiers();
+        super.test_disable_makes_inactive();
     }
 
     function test_sets_adai() public {

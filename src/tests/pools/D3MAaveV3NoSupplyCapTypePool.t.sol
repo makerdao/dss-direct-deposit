@@ -16,9 +16,7 @@
 
 pragma solidity ^0.8.14;
 
-import { Hevm, D3MPoolBaseTest, FakeHub, FakeVat, FakeEnd } from "./D3MPoolBase.t.sol";
-import { DaiLike, TokenLike } from "../interfaces/interfaces.sol";
-import { D3MTestGem } from "../stubs/D3MTestGem.sol";
+import "./D3MPoolBase.t.sol";
 
 import { D3MAaveV3NoSupplyCapTypePool, PoolLike } from "../../pools/D3MAaveV3NoSupplyCapTypePool.sol";
 
@@ -26,10 +24,10 @@ interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 }
 
-contract AToken is D3MTestGem {
+contract AToken is TokenMock {
     address public rewardsClaimer;
 
-    constructor(uint256 decimals_) D3MTestGem(decimals_) {
+    constructor(uint256 decimals_) TokenMock(decimals_) {
         rewardsClaimer = address(new FakeRewardsClaimer());
     }
 
@@ -141,7 +139,7 @@ contract FakeLendingPool {
             forWhom,
             code
         );
-        D3MTestGem(adai).mint(forWhom, amt);
+        TokenMock(adai).mint(forWhom, amt);
     }
 
     function withdraw(address asset, uint256 amt, address dst) external {
@@ -150,7 +148,7 @@ contract FakeLendingPool {
             amt,
             dst
         );
-        D3MTestGem(asset).transfer(dst, amt);
+        TokenMock(asset).transfer(dst, amt);
     }
 
     function getReserveNormalizedIncome(address asset) external pure returns (uint256) {
@@ -163,87 +161,81 @@ contract D3MAaveV3NoSupplyCapTypePoolTest is D3MPoolBaseTest {
 
     AToken adai;
     FakeLendingPool aavePool;
-    FakeEnd end;
+    
+    D3MAaveV3NoSupplyCapTypePool pool;
 
-    function setUp() public override {
-        contractName = "D3MAaveV3NoSupplyCapTypePool";
+    function setUp() public {
+        baseInit("D3MAaveV3NoSupplyCapTypePool");
 
-        dai = DaiLike(address(new D3MTestGem(18)));
         adai = new AToken(18);
+        adai.mint(address(this), 1_000_000 ether);
         aavePool = new FakeLendingPool(address(adai), address(dai));
+        adai.rely(address(aavePool));
 
-        vat = address(new FakeVat());
-
-        hub = address(new FakeHub(vat));
-        end = FakeHub(hub).end();
-
-        d3mTestPool = address(new D3MAaveV3NoSupplyCapTypePool("", hub, address(dai), address(aavePool)));
+        setPoolContract(pool = new D3MAaveV3NoSupplyCapTypePool("", address(hub), address(dai), address(aavePool)));
     }
 
     function test_sets_dai_value() public {
-        assertEq(address(D3MAaveV3NoSupplyCapTypePool(d3mTestPool).dai()), address(dai));
+        assertEq(address(pool.dai()), address(dai));
     }
 
     function test_can_file_king() public {
-        assertEq(D3MAaveV3NoSupplyCapTypePool(d3mTestPool).king(), address(0));
+        assertEq(pool.king(), address(0));
 
-        D3MAaveV3NoSupplyCapTypePool(d3mTestPool).file("king", address(123));
+        pool.file("king", address(123));
 
-        assertEq(D3MAaveV3NoSupplyCapTypePool(d3mTestPool).king(), address(123));
+        assertEq(pool.king(), address(123));
     }
 
     function test_cannot_file_king_no_auth() public {
-        D3MAaveV3NoSupplyCapTypePool(d3mTestPool).deny(address(this));
-        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAaveV3NoSupplyCapTypePool/not-authorized");
+        pool.deny(address(this));
+        assertRevert(address(pool), abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAaveV3NoSupplyCapTypePool/not-authorized");
     }
 
     function test_cannot_file_king_vat_caged() public {
-        FakeVat(vat).cage();
-        assertRevert(d3mTestPool, abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAaveV3NoSupplyCapTypePool/no-file-during-shutdown");
+        vat.cage();
+        assertRevert(address(pool), abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAaveV3NoSupplyCapTypePool/no-file-during-shutdown");
     }
 
     function test_deposit_calls_lending_pool_deposit() public {
-        D3MTestGem(address(adai)).rely(address(aavePool));
-        vm.prank(hub);
-        D3MAaveV3NoSupplyCapTypePool(d3mTestPool).deposit(1);
+        TokenMock(address(adai)).rely(address(aavePool));
+        vm.prank(address(hub)); pool.deposit(1);
         (address asset, uint256 amt, address dst, uint256 code) = FakeLendingPool(address(aavePool)).lastDeposit();
         assertEq(asset, address(dai));
         assertEq(amt, 1);
-        assertEq(dst, d3mTestPool);
+        assertEq(dst, address(pool));
         assertEq(code, 0);
     }
 
     function test_withdraw_calls_lending_pool_withdraw() public {
         // make sure we have Dai to withdraw
-        D3MTestGem(address(dai)).mint(address(aavePool), 1);
+        TokenMock(address(dai)).mint(address(aavePool), 1);
 
-        vm.prank(hub);
-        D3MAaveV3NoSupplyCapTypePool(d3mTestPool).withdraw(1);
+        vm.prank(address(hub)); pool.withdraw(1);
         (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
         assertEq(asset, address(dai));
         assertEq(amt, 1);
-        assertEq(dst, hub);
+        assertEq(dst, address(hub));
     }
 
     function test_withdraw_calls_lending_pool_withdraw_vat_caged() public {
         // make sure we have Dai to withdraw
-        D3MTestGem(address(dai)).mint(address(aavePool), 1);
+        TokenMock(address(dai)).mint(address(aavePool), 1);
 
-        FakeVat(vat).cage();
-        vm.prank(hub);
-        D3MAaveV3NoSupplyCapTypePool(d3mTestPool).withdraw(1);
+        vat.cage();
+        vm.prank(address(hub)); pool.withdraw(1);
         (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
         assertEq(asset, address(dai));
         assertEq(amt, 1);
-        assertEq(dst, hub);
+        assertEq(dst, address(hub));
     }
 
     function test_collect_claims_for_king() public {
         address king = address(123);
         address rewardsClaimer = adai.getIncentivesController();
-        D3MAaveV3NoSupplyCapTypePool(d3mTestPool).file("king", king);
+        pool.file("king", king);
 
-        D3MAaveV3NoSupplyCapTypePool(d3mTestPool).collect(address(456));
+        pool.collect(address(456));
 
         (uint256 amt, address dst, address reward) = FakeRewardsClaimer(rewardsClaimer).lastClaim();
         address[] memory assets = FakeRewardsClaimer(rewardsClaimer).getAssetsFromClaim();
@@ -255,70 +247,69 @@ contract D3MAaveV3NoSupplyCapTypePoolTest is D3MPoolBaseTest {
     }
 
     function test_collect_no_king() public {
-        assertEq(D3MAaveV3NoSupplyCapTypePool(d3mTestPool).king(), address(0));
-        assertRevert(d3mTestPool, abi.encodeWithSignature("collect(address)", address(0)), "D3MAaveV3NoSupplyCapTypePool/king-not-set");
+        assertEq(pool.king(), address(0));
+        assertRevert(address(pool), abi.encodeWithSignature("collect(address)", address(0)), "D3MAaveV3NoSupplyCapTypePool/king-not-set");
     }
 
     function test_redeemable_returns_adai() public {
-        assertEq(D3MAaveV3NoSupplyCapTypePool(d3mTestPool).redeemable(), address(adai));
+        assertEq(pool.redeemable(), address(adai));
     }
 
     function test_exit_adai() public {
         uint256 tokens = adai.totalSupply();
-        adai.transfer(d3mTestPool, tokens);
+        adai.transfer(address(pool), tokens);
         assertEq(adai.balanceOf(address(this)), 0);
-        assertEq(adai.balanceOf(d3mTestPool), tokens);
+        assertEq(adai.balanceOf(address(pool)), tokens);
 
         end.setArt(tokens);
-        vm.prank(hub);
-        D3MAaveV3NoSupplyCapTypePool(d3mTestPool).exit(address(this), tokens);
+        vm.prank(address(hub)); pool.exit(address(this), tokens);
 
         assertEq(adai.balanceOf(address(this)), tokens);
-        assertEq(adai.balanceOf(d3mTestPool), 0);
+        assertEq(adai.balanceOf(address(pool)), 0);
     }
 
     function test_quit_moves_balance() public {
         uint256 tokens = adai.totalSupply();
-        adai.transfer(d3mTestPool, tokens);
+        adai.transfer(address(pool), tokens);
         assertEq(adai.balanceOf(address(this)), 0);
-        assertEq(adai.balanceOf(d3mTestPool), tokens);
+        assertEq(adai.balanceOf(address(pool)), tokens);
 
-        D3MAaveV3NoSupplyCapTypePool(d3mTestPool).quit(address(this));
+        pool.quit(address(this));
 
         assertEq(adai.balanceOf(address(this)), tokens);
-        assertEq(adai.balanceOf(d3mTestPool), 0);
+        assertEq(adai.balanceOf(address(pool)), 0);
     }
 
     function test_assetBalance_gets_adai_balanceOf_pool() public {
         uint256 tokens = adai.totalSupply();
-        assertEq(D3MAaveV3NoSupplyCapTypePool(d3mTestPool).assetBalance(), 0);
-        assertEq(adai.balanceOf(d3mTestPool), 0);
+        assertEq(pool.assetBalance(), 0);
+        assertEq(adai.balanceOf(address(pool)), 0);
 
-        adai.transfer(d3mTestPool, tokens);
+        adai.transfer(address(pool), tokens);
 
-        assertEq(D3MAaveV3NoSupplyCapTypePool(d3mTestPool).assetBalance(), tokens);
-        assertEq(adai.balanceOf(d3mTestPool), tokens);
+        assertEq(pool.assetBalance(), tokens);
+        assertEq(adai.balanceOf(address(pool)), tokens);
     }
 
     function test_maxWithdraw_gets_available_assets_assetBal() public {
         uint256 tokens = dai.totalSupply();
         dai.transfer(address(adai), tokens);
         assertEq(dai.balanceOf(address(adai)), tokens);
-        assertEq(adai.balanceOf(d3mTestPool), 0);
+        assertEq(adai.balanceOf(address(pool)), 0);
 
-        assertEq(D3MAaveV3NoSupplyCapTypePool(d3mTestPool).maxWithdraw(), 0);
+        assertEq(pool.maxWithdraw(), 0);
     }
 
     function test_maxWithdraw_gets_available_assets_daiBal() public {
         uint256 tokens = adai.totalSupply();
-        adai.transfer(d3mTestPool, tokens);
+        adai.transfer(address(pool), tokens);
         assertEq(dai.balanceOf(address(adai)), 0);
-        assertEq(adai.balanceOf(d3mTestPool), tokens);
+        assertEq(adai.balanceOf(address(pool)), tokens);
 
-        assertEq(D3MAaveV3NoSupplyCapTypePool(d3mTestPool).maxWithdraw(), 0);
+        assertEq(pool.maxWithdraw(), 0);
     }
 
     function test_maxDeposit_returns_max_uint() public {
-        assertEq(D3MAaveV3NoSupplyCapTypePool(d3mTestPool).maxDeposit(), type(uint256).max);
+        assertEq(pool.maxDeposit(), type(uint256).max);
     }
 }

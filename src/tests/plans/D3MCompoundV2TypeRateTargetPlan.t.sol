@@ -136,7 +136,7 @@ contract D3MCompoundV2TypeRateTargetPlanTest is D3MPlanBaseTest {
     function test_disable_makes_inactive() public override {
         plan.file("barb", 0.0005e16);
 
-        super.test_auth_modifiers();
+        super.test_disable_makes_inactive();
     }
 
     function test_sets_cdai() public {
