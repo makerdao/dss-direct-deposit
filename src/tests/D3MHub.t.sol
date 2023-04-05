@@ -350,14 +350,15 @@ contract D3MHubTest is DssTest {
     }
 
     function test_wind_limited_by_maxDeposit() public {
-        plan.setTargetAssets(50 * WAD);
-        pool.setMaxDeposit(45 * WAD);
+        _windSystem(); // winds to 50 * WAD
+        plan.setTargetAssets(75 * WAD);
+        pool.setMaxDeposit(5 * WAD);
 
         hub.exec(ilk);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
-        assertEq(ink, 45 * WAD);
-        assertEq(art, 45 * WAD);
+        assertEq(ink, 55 * WAD);
+        assertEq(art, 55 * WAD);
         assertTrue(pool.preDebt());
         assertTrue(pool.postDebt());
     }
