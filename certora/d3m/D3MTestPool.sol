@@ -16,8 +16,8 @@
 
 pragma solidity ^0.8.14;
 
-import "./TokenMock.sol";
-import "../../pools/ID3MPool.sol";
+import "../../src/tests/mocks/TokenMock.sol";
+import "../../src/pools/ID3MPool.sol";
 
 interface D3mHubLike {
     function vat() external view returns (address);
