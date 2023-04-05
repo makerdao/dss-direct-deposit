@@ -16,7 +16,7 @@
 
 pragma solidity ^0.8.14;
 
-import "../../plans/ID3MPlan.sol";
+import "../../src/plans/ID3MPlan.sol";
 
 contract D3MTestPlan is ID3MPlan {
 
