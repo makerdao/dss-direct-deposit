@@ -18,38 +18,54 @@ pragma solidity ^0.8.14;
 
 import "./ID3MPlan.sol";
 
-interface VatLike {
-    function ilks(bytes32) external view returns (uint256, uint256, uint256, uint256, uint256);
-}
-
 /**
  *  @title D3M ALM Controller V1
- *  @notice Allocates/liquidates debt to multiple investment vehicles to enforce a fixed buffer on a particular ilk.
+ *  @notice Allocates/liquidates debt to multiple investment vehicles. Supports fixed and relative debt targets.
  */
 contract D3MALMControllerV1Plan is ID3MPlan {
 
+    struct SubDAO {
+        address proxy;
+        uint256 totalRelativeAssets;
+    }
+
+    enum AllotmentType {
+        FIXED,
+        RELATIVE
+    }
+
+    struct AllocatorAllotment {
+        uint256 allocatorId;
+        AllotmentType allotmentType;
+        uint256 amount;
+        uint256 amountCached;   // A cached calculation for relative allotments
+    }
+
+    struct InvestmentTarget {
+        bytes32 ilk;
+        uint256 ownerId;
+        uint256 revShare;
+        AllocatorAllotment[] allotments;
+    }
+
     mapping (address => uint256) public wards;
+    mapping (bytes32 => InvestmentTarget) public targets;
 
-    VatLike public immutable vat;
-    bytes32 public immutable ilk;
-
-    uint256 constant RAY = 10 ** 27;
+    uint256 public enabled = 1;
+    SubDAO[] public subdaos;
 
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, uint256 data);
 
-    constructor(address vat_, bytes32 ilk_) {
-        vat = VatLike(vat_);
-        ilk = ilk_;
-        
+    constructor() {
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
     }
 
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MDebtCeilingPlan/not-authorized");
+        require(wards[msg.sender] == 1, "D3MALMControllerV1Plan/not-authorized");
         _;
     }
 
@@ -71,15 +87,32 @@ contract D3MALMControllerV1Plan is ID3MPlan {
         emit File(what, data);
     }
 
-    function getTargetAssets(uint256) external override view returns (uint256) {
-        (,,, uint256 line,) = vat.ilks(ilk);
-        return line / RAY;
+    function getTargetAssets(bytes32 ilk, uint256 daiLiquidity, uint256 currentAssets) external override view returns (uint256 targetAssets) {
+        if (enabled == 0) return 0;
+
+        InvestmentTarget memory target = targets[ilk];
+        AllocatorAllotment[] memory allotments = target.allotments;
+
+        // Calculate targetAssets
+        for (uint256 i = 0; i < allotments.length; i++) {
+            AllocatorAllotment memory allotment = allotments[i];
+            if (allotment.allotmentType == AllotmentType.FIXED) {
+                targetAssets += allotment.amount;
+            } else if (allotment.allotmentType == AllotmentType.RELATIVE) {
+                targetAssets += subdaos[allotment.allocatorId].totalRelativeAssets * allotment.amount / BPS;
+            } else {
+                revert("Invalid allotment type");
+            }
+        }
+
+        // Refresh the relative allotment
+        for (uint256 i = 0; i < subdaos.length; i++) {
+            
+        }
     }
 
     function active() public view override returns (bool) {
-        if (enabled == 0) return false;
-        (,,, uint256 line,) = vat.ilks(ilk);
-        return line > 0;
+        return enabled == 1;
     }
 
     function disable() external override auth {
