@@ -33,7 +33,7 @@ interface ID3MPlan {
         denomination
         @return uint256 target assets the Hub should wind or unwind to in Dai
     */
-    function getTargetAssets(bytes32 ilk, uint256 daiLiquidity, uint256 currentAssets) external view returns (uint256);
+    function getTargetAssets(bytes32 ilk, uint256 currentAssets) external view returns (uint256);
 
     /// @notice Reports whether the plan is active
     function active() external view returns (bool);

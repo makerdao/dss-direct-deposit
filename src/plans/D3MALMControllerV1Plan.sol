@@ -17,6 +17,12 @@
 pragma solidity ^0.8.14;
 
 import "./ID3MPlan.sol";
+import "../pools/ID3MPool.sol";
+import "../utils/EnumerableSet.sol";
+
+interface BaseRateProviderLike {
+    function getBaseRate() external view returns (uint256);
+}
 
 /**
  *  @title D3M ALM Controller V1
@@ -24,35 +30,37 @@ import "./ID3MPlan.sol";
  */
 contract D3MALMControllerV1Plan is ID3MPlan {
 
-    struct SubDAO {
-        address proxy;
-        uint256 totalRelativeAssets;
-    }
+    using EnumerableSet for EnumerableSet.AddressSet;
 
-    enum AllotmentType {
-        FIXED,
-        RELATIVE
+    struct Allocator {
+        address owner;
+        uint256 dai;
+        uint256 sin;
     }
 
     struct AllocatorAllotment {
-        uint256 allocatorId;
-        AllotmentType allotmentType;
+        address allocator;
         uint256 amount;
-        uint256 amountCached;   // A cached calculation for relative allotments
     }
 
     struct InvestmentTarget {
         bytes32 ilk;
-        uint256 ownerId;
-        uint256 revShare;
-        AllocatorAllotment[] allotments;
+        ID3MPool pool;
+        address owner;
+        uint256 fee;                        // Fee that goes to the owner [WAD]
+        uint256 totalAllocated;             // Total amount of debt ceiling allocated to this target [WAD]
+        AllocatorAllotment[] allotments;    // Breakdown of which allocator owns what portion of the debt ceiling [WAD]
     }
 
     mapping (address => uint256) public wards;
     mapping (bytes32 => InvestmentTarget) public targets;
+    mapping (address => Allocator) public allocators;
 
     uint256 public enabled = 1;
-    SubDAO[] public subdaos;
+    BaseRateProviderLike public baseRateProvider;
+    EnumerableSet.AddressSet private activeAllocators;
+
+    uint256 internal constant WAD = 10 ** 18;
 
     // --- Events ---
     event Rely(address indexed usr);
@@ -74,6 +82,7 @@ contract D3MALMControllerV1Plan is ID3MPlan {
         wards[usr] = 1;
         emit Rely(usr);
     }
+
     function deny(address usr) external auth {
         wards[usr] = 0;
         emit Deny(usr);
@@ -81,34 +90,77 @@ contract D3MALMControllerV1Plan is ID3MPlan {
 
     function file(bytes32 what, uint256 data) external auth {
         if (what == "enabled") {
-            require(data <= 1, "D3MDebtCeilingPlan/invalid-value");
+            require(data <= 1, "D3MALMControllerV1Plan/invalid-value");
             enabled = data;
-        } else revert("D3MDebtCeilingPlan/file-unrecognized-param");
+        } else revert("D3MALMControllerV1Plan/file-unrecognized-param");
         emit File(what, data);
     }
 
-    function getTargetAssets(bytes32 ilk, uint256 daiLiquidity, uint256 currentAssets) external override view returns (uint256 targetAssets) {
-        if (enabled == 0) return 0;
+    function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
+        require(data <= WAD, "D3MALMControllerV1Plan/invalid-value");
 
+        if (what == "fee") targets[ilk].fee = data;
+        else revert("D3MALMControllerV1Plan/file-unrecognized-param");
+        emit File(what, data);
+    }
+
+    function file(bytes32 ilk, bytes32 what, address data) external auth {
+        if (what == "pool") targets[ilk].pool = data;
+        else if (what == "owner") targets[ilk].owner = data;
+        else revert("D3MALMControllerV1Plan/file-unrecognized-param");
+        emit File(what, data);
+    }
+
+    function setAllocation(bytes32 ilk, address allocator, uint256 amount) external auth {
         InvestmentTarget memory target = targets[ilk];
         AllocatorAllotment[] memory allotments = target.allotments;
 
-        // Calculate targetAssets
         for (uint256 i = 0; i < allotments.length; i++) {
-            AllocatorAllotment memory allotment = allotments[i];
-            if (allotment.allotmentType == AllotmentType.FIXED) {
-                targetAssets += allotment.amount;
-            } else if (allotment.allotmentType == AllotmentType.RELATIVE) {
-                targetAssets += subdaos[allotment.allocatorId].totalRelativeAssets * allotment.amount / BPS;
-            } else {
-                revert("Invalid allotment type");
+            if (allotments[i].allocator == allocator) {
+                allotments[i].amount = amount;
+                return;
             }
         }
 
-        // Refresh the relative allotment
-        for (uint256 i = 0; i < subdaos.length; i++) {
-            
+        targets[ilk] = target;
+    }
+
+    // --- Accessors ---
+    function numAllocators() external view returns (uint256) {
+        return activeAllocators.length();
+    }
+    function allocatorAt(uint256 index) external view returns (address) {
+        return activeAllocators.at(index);
+    }
+    function hasAllocator(address allocator) external view returns (bool) {
+        return activeAllocators.contains(allocator);
+    }
+
+    // --- Collect Maker Fees ---
+    function collect() external {
+        // TODO this should execute once per ttl
+        uint256 baseRate = baseRateProvider.getBaseRate();
+
+        uint256 l = activeAllocators.length();
+        for (uint256 i = 0; i < l; i++) {
+            address allocator = activeAllocators.at(i);
+            uint256 idleDai = pool.maxWithdraw();
+
+            // TODO charge the allocator for all the active DAI they have
         }
+    }
+
+    // --- IFees Functions ---
+    function fees(bytes32 ilk, uint256 fees) external override returns (uint256 amountToVow) {
+        InvestmentTarget memory target = targets[ilk];
+        allocators[target.owner].dai += fees * target.fee / WAD;
+    }
+
+    // --- IPlan Functions ---
+    function getTargetAssets(bytes32 ilk, uint256 currentAssets) external override view returns (uint256) {
+        if (enabled == 0) return 0;
+
+        return targets[ilk].totalAllocated;
     }
 
     function active() public view override returns (bool) {
@@ -119,4 +171,5 @@ contract D3MALMControllerV1Plan is ID3MPlan {
         enabled = 0;
         emit Disable();
     }
+
 }
