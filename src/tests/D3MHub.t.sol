@@ -35,6 +35,10 @@ contract PoolMock is ID3MPool {
     bool public postDebt;
     uint256 public maxDeposit;
 
+    function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = x <= y ? x : y;
+    }
+
     constructor(address _vat, address _hub, address _dai, address _gem) {
         dai = TokenMock(_dai);
         gem = TokenMock(_gem);
@@ -42,11 +46,13 @@ contract PoolMock is ID3MPool {
         VatAbstract(_vat).hope(_hub);
     }
 
-    function deposit(uint256) external override {
+    function deposit(uint256 wad) external override {
+        GodMode.setBalance(address(gem), address(this), gem.balanceOf(address(this)) + wad);
     }
 
     function withdraw(uint256 wad) external override {
         dai.transfer(msg.sender, wad);
+        GodMode.setBalance(address(gem), address(this), gem.balanceOf(address(this)) - wad);
     }
 
     function exit(address dst, uint256 wad) external override {
@@ -71,7 +77,7 @@ contract PoolMock is ID3MPool {
     }
 
     function assetBalance() public view returns (uint256) {
-        return dai.balanceOf(address(this)) + gem.balanceOf(address(this));
+        return gem.balanceOf(address(this));
     }
 
     function setMaxDeposit(uint256 _maxDeposit) external {
@@ -79,7 +85,7 @@ contract PoolMock is ID3MPool {
     }
 
     function maxWithdraw() external view override returns (uint256) {
-        return dai.balanceOf(address(this));
+        return _min(dai.balanceOf(address(this)), assetBalance());
     }
 
     function redeemable() external view returns (address) {
@@ -88,12 +94,10 @@ contract PoolMock is ID3MPool {
 
     function decreaseIdleLiquidity(uint256 amount) external {
         GodMode.setBalance(address(dai), address(this), dai.balanceOf(address(this)) - amount);
-        GodMode.setBalance(address(gem), address(this), gem.balanceOf(address(this)) + amount);
     }
 
     function increaseIdleLiquidity(uint256 amount) external {
         GodMode.setBalance(address(dai), address(this), dai.balanceOf(address(this)) + amount);
-        GodMode.setBalance(address(gem), address(this), gem.balanceOf(address(this)) - amount);
     }
 
 }
@@ -884,7 +888,6 @@ contract D3MHubTest is DssTest {
 
     function test_exit() public {
         _windSystem();
-        pool.decreaseIdleLiquidity(50 * WAD);
         // Vat is caged for global settlement
         vat.cage();
 
@@ -1177,12 +1180,12 @@ contract D3MHubTest is DssTest {
         (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
         assertEq(ink, 50 * WAD);
         assertEq(art, 50 * WAD);
-        assertEq(dai.balanceOf(address(pool)), 50 * WAD);
+        assertEq(testGem.balanceOf(address(pool)), 50 * WAD);
         assertEq(pool.assetBalance(), 50 * WAD);
 
-        address(dai).setBalance(address(pool), 20 * WAD); // Lost 30 tokens
+        address(testGem).setBalance(address(pool), 20 * WAD); // Lost 30 tokens
 
-        assertEq(dai.balanceOf(address(pool)), 20 * WAD);
+        assertEq(testGem.balanceOf(address(pool)), 20 * WAD);
         assertEq(pool.assetBalance(), 20 * WAD);
         (ink, art) = vat.urns(ilk, address(pool));
         assertEq(ink, 50 * WAD);
@@ -1219,14 +1222,15 @@ contract D3MHubTest is DssTest {
         assertEq(ink, 50 * WAD);
         assertEq(art, 50 * WAD);
         assertEq(vat.dai(vow), prevDai + 10 * RAD);
-        assertEq(testGem.balanceOf(address(pool)), 10 * WAD);
+        assertEq(testGem.balanceOf(address(pool)), 50 * WAD);
     }
 
     function test_exec_fixInk_limited_under_debt_ceiling_nothing_to_withdraw() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        address(testGem).setBalance(address(pool), 10 * WAD);
+        address(testGem).setBalance(address(this), 10 * WAD);
+        testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
         assertEq(pool.assetBalance(), 60 * WAD);
         pool.decreaseIdleLiquidity(50 * WAD);
         assertEq(pool.maxWithdraw(), 0);
@@ -1251,7 +1255,8 @@ contract D3MHubTest is DssTest {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        address(testGem).setBalance(address(pool), 10 * WAD);
+        address(testGem).setBalance(address(this), 10 * WAD);
+        testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
         assertEq(pool.assetBalance(), 60 * WAD);
         pool.decreaseIdleLiquidity(47 * WAD);
         assertEq(pool.maxWithdraw(), 3 * WAD);
@@ -1294,14 +1299,15 @@ contract D3MHubTest is DssTest {
         assertEq(ink, 50 * WAD);
         assertEq(art, 50 * WAD);
         assertEq(vat.dai(vow), prevDai + 10 * RAD);
-        assertEq(testGem.balanceOf(address(pool)), 10 * WAD);
+        assertEq(testGem.balanceOf(address(pool)), 50 * WAD);
     }
 
     function test_exec_fixInk_limited_at_debt_ceiling_nothing_to_withdraw() public {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        address(testGem).setBalance(address(pool), 10 * WAD);
+        address(testGem).setBalance(address(this), 10 * WAD);
+        testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
         assertEq(pool.assetBalance(), 60 * WAD);
         pool.decreaseIdleLiquidity(50 * WAD);
         assertEq(pool.maxWithdraw(), 0);
@@ -1326,7 +1332,8 @@ contract D3MHubTest is DssTest {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        address(testGem).setBalance(address(pool), 10 * WAD);
+        address(testGem).setBalance(address(this), 10 * WAD);
+        testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
         assertEq(pool.assetBalance(), 60 * WAD);
         pool.decreaseIdleLiquidity(47 * WAD);
         assertEq(pool.maxWithdraw(), 3 * WAD);
@@ -1351,8 +1358,10 @@ contract D3MHubTest is DssTest {
         _windSystem();
         // interest is determined by the difference in gem balance to dai debt
         // by giving extra gems to the Join we simulate interest
-        address(testGem).setBalance(address(pool), 10 * WAD);
+        address(testGem).setBalance(address(this), 10 * WAD);
+        testGem.transfer(address(pool), 10 * WAD); // Simulates 10 WAD of interest accumulated
         assertEq(pool.assetBalance(), 60 * WAD);
+
         pool.decreaseIdleLiquidity(40 * WAD);
         assertEq(pool.maxWithdraw(), 10 * WAD);
 
