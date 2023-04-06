@@ -827,7 +827,6 @@ contract D3MHubTest is DssTest {
         assertEq(art, 5 * WAD);
         assertTrue(otherPool.preDebt());
         assertTrue(otherPool.postDebt());
-        otherPool.resetPrePostDebt();
     }
 
     function test_exec_fees_available_liquidity() public {
