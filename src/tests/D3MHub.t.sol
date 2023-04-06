@@ -866,9 +866,9 @@ contract D3MHubTest is DssTest {
 
         // If we do not have enough liquidity then we pull out what we can for the fees
         // This will pull out all but 2 WAD of the liquidity
-        assertEq(dai.balanceOf(address(pool)), 50 * WAD); // liquidity before simulating other user's withdraw
+        assertEq(dai.balanceOf(address(pool)), 50 * WAD);
         pool.decreaseIdleLiquidity(48 * WAD);
-        assertEq(dai.balanceOf(address(pool)), 2 * WAD);  // liquidity after
+        assertEq(dai.balanceOf(address(pool)), 2 * WAD);
 
         hub.exec(ilk);
 
