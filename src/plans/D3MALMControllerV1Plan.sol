@@ -17,26 +17,12 @@
 pragma solidity ^0.8.14;
 
 import "./ID3MPlan.sol";
-import "../pools/ID3MPool.sol";
-import "../utils/EnumerableSet.sol";
-
-interface BaseRateProviderLike {
-    function getBaseRate() external view returns (uint256);
-}
 
 /**
  *  @title D3M ALM Controller V1
  *  @notice Allocates/liquidates debt to multiple investment vehicles. Supports fixed and relative debt targets.
  */
 contract D3MALMControllerV1Plan is ID3MPlan {
-
-    using EnumerableSet for EnumerableSet.AddressSet;
-
-    struct Allocator {
-        address owner;
-        uint256 dai;
-        uint256 sin;
-    }
 
     struct AllocatorAllotment {
         address allocator;
@@ -45,27 +31,29 @@ contract D3MALMControllerV1Plan is ID3MPlan {
 
     struct InvestmentTarget {
         bytes32 ilk;
-        ID3MPool pool;
-        address owner;
-        uint256 fee;                        // Fee that goes to the owner [WAD]
+        address owner;                      // Owner of the D3M
+        uint256 fee;                        // Fee that goes to the owner [BPS]
         uint256 totalAllocated;             // Total amount of debt ceiling allocated to this target [WAD]
         AllocatorAllotment[] allotments;    // Breakdown of which allocator owns what portion of the debt ceiling [WAD]
     }
 
     mapping (address => uint256) public wards;
+    mapping (address => uint256) public allocators;
+    mapping (address => address) public allocatorDelegates;     // Allocators can delegate authority to other allocators
     mapping (bytes32 => InvestmentTarget) public targets;
-    mapping (address => Allocator) public allocators;
 
     uint256 public enabled = 1;
-    BaseRateProviderLike public baseRateProvider;
-    EnumerableSet.AddressSet private activeAllocators;
 
-    uint256 internal constant WAD = 10 ** 18;
+    uint256 internal constant BPS = 10 ** 4;
 
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
+    event AddAllocator(address indexed allocator);
+    event RemoveAllocator(address indexed allocator);
     event File(bytes32 indexed what, uint256 data);
+    event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
+    event File(bytes32 indexed ilk, bytes32 indexed what, address data);
 
     constructor() {
         wards[msg.sender] = 1;
@@ -88,6 +76,30 @@ contract D3MALMControllerV1Plan is ID3MPlan {
         emit Deny(usr);
     }
 
+    function addAllocator(address allocator) external auth {
+        allocators[allocator] = 1;
+        emit AddAllocator(allocator);
+    }
+
+    function removeAllocator(address allocator) external auth {
+        allocators[allocator] = 0;
+        emit RemoveAllocator(allocator);
+    }
+
+    function addAllocatorDelegate(address allocator, address allocatorDelegate) external {
+        require((allocator == msg.sender && allocators[msg.sender] == 1) || wards[msg.sender] == 1, "D3MALMControllerV1Plan/not-authorized");
+
+        allocatorDelegates[allocatorDelegate] = allocator;
+        emit AddAllocatorDelegate(allocator);
+    }
+
+    function removeAllocatorDelegate(address allocator, address allocatorDelegate) external {
+        require((allocator == msg.sender && allocators[msg.sender] == 1) || wards[msg.sender] == 1, "D3MALMControllerV1Plan/not-authorized");
+
+        allocatorDelegates[allocatorDelegate] = address(0);
+        emit RemoveAllocatorDelegate(allocator);
+    }
+
     function file(bytes32 what, uint256 data) external auth {
         if (what == "enabled") {
             require(data <= 1, "D3MALMControllerV1Plan/invalid-value");
@@ -96,64 +108,38 @@ contract D3MALMControllerV1Plan is ID3MPlan {
         emit File(what, data);
     }
 
-    function file(bytes32 ilk, bytes32 what, uint256 data) external auth {
-        require(data <= WAD, "D3MALMControllerV1Plan/invalid-value");
-
-        if (what == "fee") targets[ilk].fee = data;
-        else revert("D3MALMControllerV1Plan/file-unrecognized-param");
-        emit File(what, data);
-    }
-
     function file(bytes32 ilk, bytes32 what, address data) external auth {
-        if (what == "pool") targets[ilk].pool = data;
-        else if (what == "owner") targets[ilk].owner = data;
+        if (what == "owner") targets[ilk].owner = data;
         else revert("D3MALMControllerV1Plan/file-unrecognized-param");
-        emit File(what, data);
+        emit File(ilk, what, data);
     }
 
-    function setAllocation(bytes32 ilk, address allocator, uint256 amount) external auth {
+    function setFee(bytes32 ilk, uint256 fee) external {
+        require(msg.sender == targets[ilk].owner || wards[msg.sender] == 1, "D3MALMControllerV1Plan/not-authorized");
+
+        targets[ilk].fee = fee;
+    }
+
+    function setAllocation(bytes32 ilk, address allocator, uint256 amount) external {
+        require(
+            (allocatorDelegates[msg.sender] == allocator && allocators[allocator] == 1) ||
+            (allocator == msg.sender && allocators[msg.sender] == 1) ||
+            wards[msg.sender] == 1
+        , "D3MALMControllerV1Plan/not-authorized");
+
         InvestmentTarget memory target = targets[ilk];
         AllocatorAllotment[] memory allotments = target.allotments;
 
+        uint256 previousAmount;
         for (uint256 i = 0; i < allotments.length; i++) {
-            if (allotments[i].allocator == allocator) {
-                allotments[i].amount = amount;
-                return;
+            AllocatorAllotment memory allotment = allotments[i];
+            if (allotment.allocator == allocator) {
+                // Already exists, update
+                previousAmount = allotments[i].amount;
+                targets[ilk].allotments[i].amount = amount;
             }
         }
-
-        targets[ilk] = target;
-    }
-
-    // --- Accessors ---
-    function numAllocators() external view returns (uint256) {
-        return activeAllocators.length();
-    }
-    function allocatorAt(uint256 index) external view returns (address) {
-        return activeAllocators.at(index);
-    }
-    function hasAllocator(address allocator) external view returns (bool) {
-        return activeAllocators.contains(allocator);
-    }
-
-    // --- Collect Maker Fees ---
-    function collect() external {
-        // TODO this should execute once per ttl
-        uint256 baseRate = baseRateProvider.getBaseRate();
-
-        uint256 l = activeAllocators.length();
-        for (uint256 i = 0; i < l; i++) {
-            address allocator = activeAllocators.at(i);
-            uint256 idleDai = pool.maxWithdraw();
-
-            // TODO charge the allocator for all the active DAI they have
-        }
-    }
-
-    // --- IFees Functions ---
-    function fees(bytes32 ilk, uint256 fees) external override returns (uint256 amountToVow) {
-        InvestmentTarget memory target = targets[ilk];
-        allocators[target.owner].dai += fees * target.fee / WAD;
+        targets[ilk].totalAllocated = target.totalAllocated - previousAmount + amount;
     }
 
     // --- IPlan Functions ---
