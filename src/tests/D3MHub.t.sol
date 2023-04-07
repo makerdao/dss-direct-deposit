@@ -1173,7 +1173,7 @@ contract D3MHubTest is DssTest {
         // Set debt ceiling to 60 to limit loss
         vat.file(ilk, "line", 60 * RAD);
 
-        // Simulate a loss event by removing the share tokens
+        // Simulate a loss event by removing the tokens
         (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
         assertEq(ink, 50 * WAD);
         assertEq(art, 50 * WAD);
