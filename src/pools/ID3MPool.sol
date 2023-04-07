@@ -90,6 +90,13 @@ interface ID3MPool {
     */
     function maxWithdraw() external view returns (uint256);
 
+    /**
+        @notice Return what is considered idle liquidity.
+        @dev Idle liquidity is the amount of liquidity that is not being used
+        @return uint256 idle liquidity in Dai [wad]
+    */
+    function idleLiquidity() external view returns (uint256);
+
     /// @notice returns address of redeemable tokens (if any)
     function redeemable() external view returns (address);
 }
