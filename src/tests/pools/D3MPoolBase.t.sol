@@ -89,6 +89,13 @@ abstract contract D3MPoolBaseTest is DssTest {
         ]);
     }
 
+    function test_cannot_file_hub_vat_caged() public {
+        vat.cage();
+
+        vm.expectRevert(abi.encodePacked(contractName, "/no-file-during-shutdown"));
+        FileLike(address(pool)).file("hub", TEST_ADDRESS);
+    }
+
     function test_quit_vat_caged() public virtual {
         vat.cage();
         vm.expectRevert(abi.encodePacked(contractName, "/no-quit-during-shutdown"));
