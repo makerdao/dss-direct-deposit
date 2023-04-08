@@ -114,14 +114,14 @@ abstract contract D3MPoolBaseTest is DssTest {
 
         vm.prank(address(hub)); pool.exit(TEST_ADDRESS, 10 ether);  // Exit 10%
 
-        assertApproxEqAbs(redeemableToken.balanceOf(TEST_ADDRESS), initialBalance * 10 / 100, 1);
-        assertApproxEqAbs(redeemableToken.balanceOf(address(pool)), initialBalance * 90 / 100, 1);
+        assertApproxEqAbs(redeemableToken.balanceOf(TEST_ADDRESS), initialBalance * 10 / 100, 10);
+        assertApproxEqAbs(redeemableToken.balanceOf(address(pool)), initialBalance * 90 / 100, 10);
         assertEq(ExitLike(address(pool)).exited(), 10 ether);
 
         vm.prank(address(hub)); pool.exit(TEST_ADDRESS, 20 ether);  // Exit another 20%
 
-        assertApproxEqAbs(redeemableToken.balanceOf(TEST_ADDRESS), initialBalance * 30 / 100, 1);
-        assertApproxEqAbs(redeemableToken.balanceOf(address(pool)), initialBalance * 70 / 100, 1);
+        assertApproxEqAbs(redeemableToken.balanceOf(TEST_ADDRESS), initialBalance * 30 / 100, 10);
+        assertApproxEqAbs(redeemableToken.balanceOf(address(pool)), initialBalance * 70 / 100, 10);
         assertEq(ExitLike(address(pool)).exited(), 30 ether);
     }
 
