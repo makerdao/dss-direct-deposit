@@ -295,7 +295,7 @@ contract D3MCompoundV2TypeRateTargetPlanTest is D3MPlanBaseTest {
         assertLt(targetSupply, WAD);
     }
 
-    function test_implements_getTargetAssets() public {
+    function test_getTargetAssets() public {
         uint256 initialRatePerBlock = cDai.borrowRatePerBlock();
 
         plan.file("barb", initialRatePerBlock - (1 * WAD / 1000) / model.blocksPerYear()); // minus 0.1% from current yearly rate

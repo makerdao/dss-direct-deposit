@@ -183,7 +183,7 @@ contract D3MAaveV2TypeRateTargetPlanTest is D3MPlanBaseTest {
         }
     }
 
-    function test_implements_getTargetAssets() public {
+    function test_getTargetAssets() public {
         plan.file("bar", interestStrategy.baseVariableBorrowRate() + 2 * RAY / 100);
 
         uint256 initialTargetAssets = plan.getTargetAssets(0);
