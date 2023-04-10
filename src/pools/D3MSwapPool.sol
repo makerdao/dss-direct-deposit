@@ -211,6 +211,7 @@ contract D3MSwapPool is ID3MPool {
     function quit(address dst) external override auth {
         require(vat.live() == 1, "D3MSwapPool/no-quit-during-shutdown");
         require(gem.transfer(dst, gem.balanceOf(address(this))), "D3MSwapPool/transfer-failed");
+        dai.transfer(dst, dai.balanceOf(address(this)));
     }
 
     function preDebtChange() external override {}
