@@ -28,6 +28,8 @@ import { TokenMock } from "./mocks/TokenMock.sol";
 
 contract PoolMock is ID3MPool {
 
+    VatAbstract public vat;
+    address public hub;
     TokenMock public dai;
     TokenMock public gem;
 
@@ -36,10 +38,20 @@ contract PoolMock is ID3MPool {
     uint256 public maxDeposit;
 
     constructor(address _vat, address _hub, address _dai, address _gem) {
+        vat = VatAbstract(_vat);
+        hub = _hub;
         dai = TokenMock(_dai);
         gem = TokenMock(_gem);
         maxDeposit = type(uint256).max;
-        VatAbstract(_vat).hope(_hub);
+        vat.hope(_hub);
+    }
+
+    function file(bytes32 what, address data) external {
+        if (what == "hub") {
+            vat.nope(hub);
+            hub = data;
+            vat.hope(data);
+        }
     }
 
     function deposit(uint256) external override {
@@ -54,6 +66,7 @@ contract PoolMock is ID3MPool {
     }
 
     function quit(address dst) external override {
+        dai.transfer(dst, dai.balanceOf(address(this)));
         gem.transfer(dst, gem.balanceOf(address(this)));
     }
 
@@ -165,9 +178,6 @@ contract D3MHubTest is DssTest {
 
         pool = new PoolMock(address(vat), address(hub), address(dai), address(testGem));
         plan = new PlanMock();
-
-        // Test Target Setup
-        testGem.rely(address(pool));
 
         hub.file("vow", vow);
         hub.file("end", address(end));
@@ -1103,12 +1113,71 @@ contract D3MHubTest is DssTest {
         assertRevert(address(hub), abi.encodeWithSignature("uncull(bytes32)", ilk), "D3MHub/no-uncull-normal-operation");
     }
 
+    function test_quit_culled() public {
+        _windSystem();
+        hub.cage(ilk);
+
+        hub.cull(ilk);
+
+        address receiver = address(123);
+
+        uint256 balBefore = dai.balanceOf(receiver);
+        assertEq(dai.balanceOf(address(pool)), 50 * WAD);
+        assertEq(vat.gem(ilk, address(pool)), 50 * WAD);
+
+        pool.quit(receiver);
+        vat.slip(
+            ilk,
+            address(pool),
+            -int256(vat.gem(ilk, address(pool)))
+        );
+
+        assertEq(dai.balanceOf(receiver), balBefore + 50 * WAD);
+        assertEq(dai.balanceOf(address(pool)), 0);
+        assertEq(vat.gem(ilk, address(pool)), 0);
+    }
+
+    function test_quit_not_culled() public {
+        _windSystem();
+
+        address receiver = address(123);
+        uint256 balBefore = dai.balanceOf(receiver);
+        assertEq(dai.balanceOf(address(pool)), 50 * WAD);
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(pool));
+        assertEq(pink, 50 * WAD);
+        assertEq(part, 50 * WAD);
+        (uint256 tink, uint256 tart) = vat.urns(ilk, receiver);
+        assertEq(tink, 0);
+        assertEq(tart, 0);
+
+        pool.quit(receiver);
+        vat.grab(
+            ilk,
+            address(pool),
+            receiver,
+            receiver,
+            -int256(pink),
+            -int256(part)
+        );
+        vat.grab(ilk, receiver, receiver, receiver, int256(pink), int256(part));
+
+        assertEq(dai.balanceOf(receiver), balBefore + 50 * WAD);
+        (uint256 joinInk, uint256 joinArt) = vat.urns( 
+            ilk,
+            address(pool)
+        );
+        assertEq(joinInk, 0);
+        assertEq(joinArt, 0);
+        (uint256 ink, uint256 art) = vat.urns(ilk, receiver);
+        assertEq(ink, 50 * WAD);
+        assertEq(art, 50 * WAD);
+    }
+
     function test_pool_upgrade_unwind_wind() public {
         _windSystem(); // Tests that the current pool has ink/art
 
         // Setup new pool
         PoolMock newPool = new PoolMock(address(vat), address(hub), address(dai), address(testGem));
-        testGem.rely(address(newPool));
 
         (uint256 npink, uint256 npart) = vat.urns(ilk, address(newPool));
         assertEq(npink, 0);
@@ -1150,6 +1219,259 @@ contract D3MHubTest is DssTest {
         // Make sure unwind calls hooks
         assertTrue(pool.preDebt() == false);
         assertTrue(pool.postDebt() == false);
+    }
+
+    function test_pool_upgrade_quit() public {
+        _windSystem(); // Tests that the current pool has ink/art
+
+        // Setup new pool
+        PoolMock newPool = new PoolMock(
+            address(vat),
+            address(hub),
+            address(dai),
+            address(testGem)
+        );
+
+        (uint256 opink, uint256 opart) = vat.urns(ilk, address(pool));
+        assertGt(opink, 0);
+        assertGt(opart, 0);
+
+        (uint256 npink, uint256 npart) = vat.urns(ilk, address(newPool));
+        assertEq(npink, 0);
+        assertEq(npart, 0);
+        assertTrue(newPool.preDebt() == false);
+        assertTrue(newPool.postDebt() == false);
+
+        // quit to new pool
+        pool.quit(address(newPool));
+        vat.grab(
+            ilk,
+            address(pool),
+            address(newPool),
+            address(newPool),
+            -int256(opink),
+            -int256(opart)
+        );
+        vat.grab(
+            ilk,
+            address(newPool),
+            address(newPool),
+            address(newPool),
+            int256(opink),
+            int256(opart)
+        );
+
+        // Ensure we quit our position
+        (opink, opart) = vat.urns(ilk, address(pool));
+        assertEq(opink, 0);
+        assertEq(opart, 0);
+        // quit does not call hooks
+        assertTrue(pool.preDebt() == false);
+        assertTrue(pool.postDebt() == false);
+
+        (npink, npart) = vat.urns(ilk, address(newPool));
+        assertEq(npink, 50 * WAD);
+        assertEq(npart, 50 * WAD);
+        assertTrue(newPool.preDebt() == false);
+        assertTrue(newPool.postDebt() == false);
+
+        // file new pool
+        hub.file(ilk, "pool", address(newPool));
+
+        // test unwind/wind
+        plan.setTargetAssets(45 * WAD);
+        hub.exec(ilk);
+
+        (opink, opart) = vat.urns(ilk, address(pool));
+        assertEq(opink, 0);
+        assertEq(opart, 0);
+
+        (npink, npart) = vat.urns(ilk, address(newPool));
+        assertEq(npink, 45 * WAD);
+        assertEq(npart, 45 * WAD);
+
+        plan.setTargetAssets(100 * WAD);
+        hub.exec(ilk);
+
+        (opink, opart) = vat.urns(ilk, address(pool));
+        assertEq(opink, 0);
+        assertEq(opart, 0);
+
+        (npink, npart) = vat.urns(ilk, address(newPool));
+        assertEq(npink, 100 * WAD);
+        assertEq(npart, 100 * WAD);
+    }
+
+    function test_plan_upgrade() public {
+        _windSystem(); // Tests that the current pool has ink/art
+
+        // Setup new plan
+        PlanMock newPlan = new PlanMock();
+        newPlan.setTargetAssets(100 * WAD);
+
+        hub.file(ilk, "plan", address(newPlan));
+
+        (, ID3MPlan _plan, , , ) = hub.ilks(ilk);
+        assertEq(address(_plan), address(newPlan));
+
+        hub.exec(ilk);
+
+        // New Plan should determine the pool position
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
+        assertEq(ink, 100 * WAD);
+        assertEq(art, 100 * WAD);
+        assertTrue(pool.preDebt());
+        assertTrue(pool.postDebt());
+    }
+
+    function test_hub_upgrade_same_d3ms() public {
+        _windSystem(); // Tests that the current pool has ink/art
+
+        // Setup New hub
+        D3MHub newHub = new D3MHub(address(daiJoin));
+        newHub.file("vow", vow);
+        newHub.file("end", address(end));
+
+        newHub.file(ilk, "pool", address(pool));
+        newHub.file(ilk, "plan", address(plan));
+        newHub.file(ilk, "tau", 7 days);
+
+        // Update permissions on d3ms
+        pool.file("hub", address(newHub));
+
+        // Update Permissions in Vat
+        vat.deny(address(hub));
+        vat.rely(address(newHub));
+
+        // Clean up old hub
+        hub.file(ilk, "pool", address(0));
+        hub.file(ilk, "plan", address(0));
+        hub.file(ilk, "tau", 0);
+
+        // Ensure new hub operation
+        plan.setTargetAssets(100 * WAD);
+        newHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
+        assertEq(ink, 100 * WAD);
+        assertEq(art, 100 * WAD);
+        assertTrue(pool.preDebt());
+        assertTrue(pool.postDebt());
+    }
+
+    function testFail_hub_upgrade_kills_old_hub() public {
+        _windSystem(); // Tests that the current pool has ink/art
+
+        // Setup New hub
+        D3MHub newHub = new D3MHub(address(daiJoin));
+        newHub.file("vow", vow);
+        newHub.file("end", address(end));
+
+        newHub.file(ilk, "pool", address(pool));
+        newHub.file(ilk, "plan", address(plan));
+        newHub.file(ilk, "tau", 7 days);
+
+        // Update permissions on d3ms
+        pool.file("hub", address(newHub));
+
+        // Update Permissions in Vat
+        vat.deny(address(hub));
+        vat.rely(address(newHub));
+
+        // Clean up old hub
+        hub.file(ilk, "pool", address(0));
+        hub.file(ilk, "plan", address(0));
+        hub.file(ilk, "tau", 0);
+
+        // Ensure old hub revert
+        hub.exec(ilk);
+    }
+
+    function test_hub_upgrade_new_d3ms() public {
+        _windSystem(); // Tests that the current pool has ink/art
+
+        // Setup New hub and D3M
+        D3MHub newHub = new D3MHub(address(daiJoin));
+        newHub.file("vow", vow);
+        newHub.file("end", address(end));
+        vat.rely(address(newHub));
+
+        // Setup new pool
+        PoolMock newPool = new PoolMock(
+            address(vat),
+            address(newHub),
+            address(dai),
+            address(testGem)
+        );
+
+        // Setup new plan
+        PlanMock newPlan = new PlanMock();
+        newPlan.setTargetAssets(100 * WAD);
+
+        // Create D3M in New Hub
+        newHub.file(ilk, "pool", address(newPool));
+        newHub.file(ilk, "plan", address(newPlan));
+        (, , uint256 tau, , ) = hub.ilks(ilk);
+        newHub.file(ilk, "tau", tau);
+
+        (uint256 opink, uint256 opart) = vat.urns(ilk, address(pool));
+        assertGt(opink, 0);
+        assertGt(opart, 0);
+
+        (uint256 npink, uint256 npart) = vat.urns(ilk, address(newPool));
+        assertEq(npink, 0);
+        assertEq(npart, 0);
+        assertTrue(newPool.preDebt() == false);
+        assertTrue(newPool.postDebt() == false);
+
+        newPool.file("hub", address(newHub));
+
+        // Transition Balances
+        pool.quit(address(newPool));
+        vat.grab(
+            ilk,
+            address(pool),
+            address(newPool),
+            address(newPool),
+            -int256(opink),
+            -int256(opart)
+        );
+        vat.grab(
+            ilk,
+            address(newPool),
+            address(newPool),
+            address(newPool),
+            int256(opink),
+            int256(opart)
+        );
+
+        // Ensure we quit our position
+        (opink, opart) = vat.urns(ilk, address(pool));
+        assertEq(opink, 0);
+        assertEq(opart, 0);
+        // quit does not call hooks
+        assertTrue(pool.preDebt() == false);
+        assertTrue(pool.postDebt() == false);
+
+        (npink, npart) = vat.urns(ilk, address(newPool));
+        assertEq(npink, 50 * WAD);
+        assertEq(npart, 50 * WAD);
+        assertTrue(newPool.preDebt() == false);
+        assertTrue(newPool.postDebt() == false);
+
+        // Clean up after transition
+        hub.cage(ilk);
+        vat.deny(address(hub));
+
+        // Ensure new hub operation
+        newPlan.setTargetAssets(200 * WAD);
+        newHub.exec(ilk);
+
+        (uint256 ink, uint256 art) = vat.urns(ilk, address(newPool));
+        assertEq(ink, 200 * WAD);
+        assertEq(art, 200 * WAD);
+        assertTrue(newPool.preDebt());
+        assertTrue(newPool.postDebt());
     }
 
     function test_exec_lock_protection() public {
