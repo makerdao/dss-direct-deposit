@@ -19,7 +19,7 @@ pragma solidity ^0.8.14;
 import { D3MPoolBaseTest, FakeHub, FakeVat, FakeEnd, DaiLike } from "./D3MPoolBase.t.sol";
 import { D3MTestGem } from "../stubs/D3MTestGem.sol";
 
-import { D3MSwapPool } from "../../pools/D3MSwapPool.sol";
+import { D3MKinkedFeeSwapPool } from "../../pools/D3MKinkedFeeSwapPool.sol";
 
 contract PipMock {
     uint256 public val;
@@ -34,11 +34,11 @@ contract PipMock {
     }
 }
 
-contract D3MSwapPoolTest is D3MPoolBaseTest {
+contract D3MKinkedFeeSwapPoolTest is D3MPoolBaseTest {
 
     bytes32 constant ILK = "TEST-ILK";
 
-    D3MSwapPool swapPool;
+    D3MKinkedFeeSwapPool swapPool;
     D3MTestGem gem;
     FakeEnd end;
     PipMock pip;
@@ -60,7 +60,7 @@ contract D3MSwapPoolTest is D3MPoolBaseTest {
         pip = new PipMock();
         pip.poke(2e18); // Gem is worth $2 / unit
 
-        d3mTestPool = address(swapPool = new D3MSwapPool(ILK, hub, address(dai), address(gem)));
+        d3mTestPool = address(swapPool = new D3MKinkedFeeSwapPool(ILK, hub, address(dai), address(gem)));
         swapPool.file("pip", address(pip));
         swapPool.file("sellGemPip", address(pip));
         swapPool.file("buyGemPip", address(pip));
