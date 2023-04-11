@@ -104,7 +104,7 @@ contract D3MKinkedFeeSwapPool is D3MSwapPool {
 
     // --- Swaps ---
 
-    function previewSellGem(uint256 gemAmt) public override view returns (uint256 daiAmt) {
+    function previewSellGem(uint256 gemAmt) public view override returns (uint256 daiAmt) {
         FeeData memory _feeData = feeData;
         uint256 pipValue = uint256(sellGemPip.read());
         uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * pipValue / WAD;
@@ -136,7 +136,7 @@ contract D3MKinkedFeeSwapPool is D3MSwapPool {
         }
     }
 
-    function previewBuyGem(uint256 daiAmt) public override view returns (uint256 gemAmt) {
+    function previewBuyGem(uint256 daiAmt) public view override returns (uint256 gemAmt) {
         FeeData memory _feeData = feeData;
         uint256 pipValue = uint256(buyGemPip.read());
         uint256 gemValue;

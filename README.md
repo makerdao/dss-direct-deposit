@@ -50,3 +50,12 @@ Below is a configurable parameter for the Compound DAI D3M:
 - `barb` [wad] - The target borrow rate per block on Compound for the DAI market. This module will aim to enforce that borrow limit.
 
 Any Comp that is accured can be permissionlessly collected into the pause proxy by calling `collect()`.
+
+## Plug and Play License
+
+The following contracts are available under a Plug and Play license:
+
+#### D3MSwapPool, D3MKinkedFeeSwapPool, D3MWhitelistedSwapPool
+
+Owner: sparkprotocol.eth
+Revenue Share: 10% of net earnings after any fees by SubDAO
