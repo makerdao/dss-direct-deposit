@@ -112,7 +112,7 @@ contract D3MLinearFeeSwapPool is D3MSwapPool {
         uint256 totalBalance = daiBalance + gemBalance;
         if (totalBalance > 0) {
             // Please note the fee deduction is not included in the new total dai+gem balance to drastically simplify the calculation
-            fee = (_feeData.tout1 * daiBalance + _feeData.tout2 * gemBalance - (_feeData.tout1 + _feeData.tout2) * daiAmt / 2) / totalBalance;
+            fee = (_feeData.tout2 * daiBalance + _feeData.tout1 * gemBalance - (_feeData.tout1 + _feeData.tout2) * daiAmt / 2) / totalBalance;
         }
         uint256 gemValue = daiAmt * fee / BPS;
         gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * pipValue);
