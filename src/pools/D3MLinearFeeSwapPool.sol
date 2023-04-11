@@ -19,17 +19,16 @@ pragma solidity ^0.8.14;
 import "./D3MSwapPool.sol";
 
 /**
- *  @title D3M Kinked Fee Swap Pool
- *  @notice Swap an asset for DAI. Fees vary based on whether the pool is above or below the target ratio.
+ *  @title D3M Linear Fee Swap Pool
+ *  @notice Swap an asset for DAI. Linear bonding curve with fee1 at 0% gems and fee2 at 100% gems.
  */
-contract D3MKinkedFeeSwapPool is D3MSwapPool {
+contract D3MLinearFeeSwapPool is D3MSwapPool {
 
     struct FeeData {
-        uint24 ratio;   // where to place the fee1/fee2 change as ratio between gem and dai [bps]
-        uint24 tin1;    // toll in under the ratio  [bps]
-        uint24 tout1;   // toll out under the ratio [bps]
-        uint24 tin2;    // toll in over the ratio   [bps]
-        uint24 tout2;   // toll out over the ratio  [bps]
+        uint24 tin1;    // toll in at 0% gems    [bps]
+        uint24 tout1;   // toll out at 0% gems   [bps]
+        uint24 tin2;    // toll in at 100% gems  [bps]
+        uint24 tout2;   // toll out at 100% gems [bps]
     }
 
     // --- Data ---
@@ -44,7 +43,6 @@ contract D3MKinkedFeeSwapPool is D3MSwapPool {
     constructor(bytes32 _ilk, address _hub, address _dai, address _gem) D3MSwapPool(_ilk, _hub, _dai, _gem) {
         // Initialize all fees to zero
         feeData = FeeData({
-            ratio: 0,
             tin1: uint24(BPS),
             tout1: uint24(BPS),
             tin2: uint24(BPS),
@@ -53,16 +51,6 @@ contract D3MKinkedFeeSwapPool is D3MSwapPool {
     }
 
     // --- Administration ---
-
-    function file(bytes32 what, uint24 data) external auth {
-        require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
-        require(data <= BPS, "D3MSwapPool/invalid-ratio");
-
-        if (what == "ratio") feeData.ratio = data;
-        else revert("D3MSwapPool/file-unrecognized-param");
-
-        emit File(what, data);
-    }
 
     function file(bytes32 what, uint24 tin, uint24 tout) external auth {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
@@ -81,10 +69,6 @@ contract D3MKinkedFeeSwapPool is D3MSwapPool {
     }
 
     // --- Getters ---
-
-    function ratio() external view returns (uint256) {
-        return feeData.ratio;
-    }
 
     function tin1() external view returns (uint256) {
         return feeData.tin1;
@@ -110,61 +94,27 @@ contract D3MKinkedFeeSwapPool is D3MSwapPool {
         uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * pipValue / WAD;
         uint256 daiBalance = dai.balanceOf(address(this));
         uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;
-        uint256 desiredGemBalance = _feeData.ratio * (daiBalance + gemBalance) / BPS;
-        if (gemBalance >= desiredGemBalance) {
-            // We are above the ratio so apply tin2
-            daiAmt = gemValue * _feeData.tin2 / BPS;
-        } else {
-            uint256 daiAvailableAtTin1;
-            unchecked {
-                daiAvailableAtTin1 = desiredGemBalance - gemBalance;
-            }
-
-            // We are below the ratio so could be a mix of tin1 and tin2
-            uint256 daiAmtTin1 = gemValue * _feeData.tin1 / BPS;
-            if (daiAmtTin1 <= daiAvailableAtTin1) {
-                // We are entirely in the tin1 region
-                daiAmt = daiAmtTin1;
-            } else {
-                // We are a mix between tin1 and tin2
-                uint256 daiRemainder;
-                unchecked {
-                    daiRemainder = daiAmtTin1 - daiAvailableAtTin1;
-                }
-                daiAmt = daiAvailableAtTin1 + (daiRemainder * BPS / _feeData.tin1) * _feeData.tin2 / BPS;
-            }
+        uint256 fee = BPS;
+        uint256 totalBalance = daiBalance + gemBalance;
+        if (totalBalance > 0) {
+            // Please note the fee deduction is not included in the new total dai+gem balance to drastically simplify the calculation
+            fee = (_feeData.tin1 * daiBalance + _feeData.tin2 * gemBalance - (_feeData.tin1 + _feeData.tin2) * gemValue / 2) / totalBalance;
         }
+        daiAmt = gemValue * fee / BPS;
     }
 
     function previewBuyGem(uint256 daiAmt) public view override returns (uint256 gemAmt) {
         FeeData memory _feeData = feeData;
         uint256 pipValue = uint256(buyGemPip.read());
-        uint256 gemValue;
         uint256 daiBalance = dai.balanceOf(address(this));
         uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;
-        uint256 desiredGemBalance = _feeData.ratio * (daiBalance + gemBalance) / BPS;
-        if (gemBalance <= desiredGemBalance) {
-            // We are below the ratio so apply tout1
-            gemValue = daiAmt * _feeData.tout1 / BPS;
-        } else {
-            uint256 gemsAvailableAtTout2;
-            unchecked {
-                gemsAvailableAtTout2 = gemBalance - desiredGemBalance;
-            }
-
-            // We are above the ratio so could be a mix of tout1 and tout2
-            if (daiAmt <= gemsAvailableAtTout2) {
-                // We are entirely in the tout1 region
-                gemValue = daiAmt * _feeData.tout2 / BPS;
-            } else {
-                // We are a mix between tout1 and tout2
-                uint256 gemsRemainder;
-                unchecked {
-                    gemsRemainder = daiAmt - gemsAvailableAtTout2;
-                }
-                gemValue = gemsAvailableAtTout2 * _feeData.tout2 / BPS + gemsRemainder * _feeData.tout1 / BPS;
-            }
+        uint256 fee = BPS;
+        uint256 totalBalance = daiBalance + gemBalance;
+        if (totalBalance > 0) {
+            // Please note the fee deduction is not included in the new total dai+gem balance to drastically simplify the calculation
+            fee = (_feeData.tout1 * daiBalance + _feeData.tout2 * gemBalance - (_feeData.tout1 + _feeData.tout2) * daiAmt / 2) / totalBalance;
         }
+        uint256 gemValue = daiAmt * fee / BPS;
         gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * pipValue);
     }
 

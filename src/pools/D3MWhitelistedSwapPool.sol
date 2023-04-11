@@ -80,7 +80,7 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
 
     function file(bytes32 what, uint24 _tin, uint24 _tout) external auth {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
-        // We need to restrict tin/tout combinations to be less than 100% to avoid arbitrage opportunities.
+        // We need to restrict tin/tout combinations to be less than 100% to avoid arbitragers able to endlessly take money
         require(uint256(_tin) * uint256(_tout) <= BPS * BPS, "D3MSwapPool/invalid-fees");
 
         if (what == "fees") {

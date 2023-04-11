@@ -55,7 +55,8 @@ Any Comp that is accured can be permissionlessly collected into the pause proxy 
 
 The following contracts are available under a Plug and Play license:
 
-#### D3MSwapPool, D3MKinkedFeeSwapPool, D3MWhitelistedSwapPool
+#### D3MSwapPool, D3MKinkedFeeSwapPool, D3MLinearFeeSwapPool, D3MWhitelistedSwapPool
 
 Owner: sparkprotocol.eth
-Revenue Share: 10% of net earnings after any fees by SubDAO
+Revenue Share: 10% of net earnings after any fees.
+Expires: January 1st, 2026 at 00:00 UTC
