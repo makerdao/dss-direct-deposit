@@ -120,7 +120,7 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
     // --- Swaps ---
 
     function previewSellGem(uint256 gemAmt) public view override returns (uint256 daiAmt) {
-        uint256 gemBalance = (gem.balanceOf(address(this)) + gemsWithdrawn) * GEM_CONVERSION_FACTOR * uint256(pip.read()) / WAD;
+        uint256 gemBalance = (gem.balanceOf(address(this)) + gemsWithdrawn) * GEM_CONVERSION_FACTOR * uint256(sellGemPip.read()) / WAD;
         uint256 targetAssets = plan.getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
         uint256 pipValue = uint256(sellGemPip.read());
         uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * pipValue / WAD;
@@ -130,7 +130,7 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
     }
 
     function previewBuyGem(uint256 daiAmt) public view override returns (uint256 gemAmt) {
-        uint256 gemBalance = (gem.balanceOf(address(this)) + gemsWithdrawn) * GEM_CONVERSION_FACTOR * uint256(pip.read()) / WAD;
+        uint256 gemBalance = (gem.balanceOf(address(this)) + gemsWithdrawn) * GEM_CONVERSION_FACTOR * uint256(buyGemPip.read()) / WAD;
         uint256 targetAssets = plan.getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
         FeeData memory _feeData = feeData;
         uint256 gemValue = daiAmt * _feeData.tout / BPS;
@@ -139,7 +139,7 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
         gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * pipValue);
     }
 
-    // --- Whitelisted push/pull ---
+    // --- Whitelisted push/pull + helper functions ---
 
     function pull(address to, uint256 amount) external onlyOperator {
         gemsWithdrawn += amount;
@@ -153,6 +153,34 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
         } else {
             gemsWithdrawn = 0;
         }
+    }
+    
+    /**
+     * @notice The amount of gems that should be deployed off-chain.
+     */
+    function pendingDeposits() external view returns (uint256 gemAmt) {
+        // TODO fix the math
+        uint256 amountToDeploy = gem.balanceOf(address(this));
+        uint256 gemBalance = (amountToDeploy + gemsWithdrawn) * GEM_CONVERSION_FACTOR * uint256(pip.read()) / WAD;    // TODO should probably use the buy or sell pip
+        uint256 currentAssets = gemBalance + dai.balanceOf(address(this));
+        uint256 targetAssets = plan.getTargetAssets(ilk, currentAssets);
+        if (targetAssets >= currentAssets) {
+            gemAmt = amountToDeploy;
+        } else {
+            uint256 delta = currentAssets - targetAssets;
+            if (gemBalance > gemsWithdrawn) {
+                return targetAssets - gemBalance;
+            } else {
+                return 0;
+            }
+        }
+    }
+    
+    /**
+     * @notice The amount of gems that should be returned by liquidating the off-chain position.
+     */
+    function pendingWithdrawals() external view returns (uint256 gemAmt) {
+        // TODO
     }
 
 }
