@@ -16,7 +16,8 @@
 
 pragma solidity ^0.8.14;
 
-import { D3MPlanBaseTest, DaiLike } from "./D3MPlanBase.t.sol";
+import "./D3MPlanBase.t.sol";
+
 import { D3MAaveTypeBufferPlan } from "../../plans/D3MAaveTypeBufferPlan.sol";
 
 contract ADaiMock {
@@ -50,21 +51,34 @@ contract DaiMock {
 contract D3MAaveTypeBufferPlanTest is D3MPlanBaseTest {
 
     ADaiMock adai;
-    DaiMock  _dai;
+    DaiMock dai;
 
     D3MAaveTypeBufferPlan plan;
 
     event Disable();
 
-    function setUp() public override {
-        contractName = "D3MAaveTypeBufferPlan";
-
-        dai = DaiLike(address(_dai = new DaiMock()));
+    function setUp() public {
+        dai = new DaiMock();
         adai = new ADaiMock(address(dai));
 
         vm.expectEmit(true, true, true, true);
         emit Rely(address(this));
-        d3mTestPlan = address(plan = new D3MAaveTypeBufferPlan(address(adai)));
+        plan = new D3MAaveTypeBufferPlan(address(adai));
+
+        baseInit(plan, "D3MAaveTypeBufferPlan");
+    }
+
+    function test_auth_modifiers() public override {
+        plan.file("buffer", 1);
+        assertEq(plan.active(), true);
+
+        super.test_auth_modifiers();
+    }
+
+    function test_disable_makes_inactive() public override {
+        plan.file("buffer", 1);
+
+        super.test_disable_makes_inactive();
     }
 
     function test_constructor() public {
@@ -73,7 +87,7 @@ contract D3MAaveTypeBufferPlanTest is D3MPlanBaseTest {
     }
 
     function test_file() public {
-        checkFileUint(d3mTestPlan, contractName, ["buffer"]);
+        checkFileUint(address(plan), contractName, ["buffer"]);
     }
 
     function test_disable_unauthed() public {
@@ -84,36 +98,32 @@ contract D3MAaveTypeBufferPlanTest is D3MPlanBaseTest {
         plan.disable();
     }
 
-    function test_implements_getTargetAssets() public override {
-        assertEq(plan.getTargetAssets(0), 0);
-    }
-
     function test_liquidity_less_than_buffer() public {
-        _dai.setLiquidity(40 ether);
+        dai.setLiquidity(40 ether);
         plan.file("buffer", 100 ether);
         assertEq(plan.getTargetAssets(0), 60 ether);
     }
 
     function test_liquidity_equals_buffer() public {
-        _dai.setLiquidity(100 ether);
+        dai.setLiquidity(100 ether);
         plan.file("buffer", 100 ether);
         assertEq(plan.getTargetAssets(0), 0);
     }
 
     function test_liquidity_greater_than_buffer_partial_unwind() public {
-        _dai.setLiquidity(100 ether);
+        dai.setLiquidity(100 ether);
         plan.file("buffer", 40 ether);
         assertEq(plan.getTargetAssets(200 ether), 140 ether);
     }
 
     function test_liquidity_greater_than_buffer_full_unwind() public {
-        _dai.setLiquidity(100 ether);
+        dai.setLiquidity(100 ether);
         plan.file("buffer", 40 ether);
         assertEq(plan.getTargetAssets(40 ether), 0);
     }
 
     function test_buffer_equals_zero() public {
-        _dai.setLiquidity(100 ether);
+        dai.setLiquidity(100 ether);
         plan.file("buffer", 0);
         assertEq(plan.getTargetAssets(10000 ether), 0);
     }
@@ -126,23 +136,23 @@ contract D3MAaveTypeBufferPlanTest is D3MPlanBaseTest {
     function test_decrease_liquidity_sole_provider() public {
         plan.file("buffer", 100 ether);
         assertEq(plan.getTargetAssets(0), 100 ether);
-        _dai.setLiquidity(100 ether);   // Simulate adding liquidity
-        _dai.setLiquidity(80 ether);    // Simulate someone borrowed 20 DAI
+        dai.setLiquidity(100 ether);   // Simulate adding liquidity
+        dai.setLiquidity(80 ether);    // Simulate someone borrowed 20 DAI
         assertEq(plan.getTargetAssets(100 ether), 120 ether);
-        _dai.setLiquidity(100 ether);   // Topped back up to 100 DAI
-        _dai.setLiquidity(120 ether);   // User returned the 20 DAI
+        dai.setLiquidity(100 ether);   // Topped back up to 100 DAI
+        dai.setLiquidity(120 ether);   // User returned the 20 DAI
         assertEq(plan.getTargetAssets(120 ether), 100 ether);
-        _dai.setLiquidity(100 ether);   // Liquidity goes back to 100 DAI
+        dai.setLiquidity(100 ether);   // Liquidity goes back to 100 DAI
     }
 
     function test_decrease_liquidity_multiple_providers() public {
         plan.file("buffer", 100 ether);
         assertEq(plan.getTargetAssets(0), 100 ether);
-        _dai.setLiquidity(100 ether);   // Simulate adding liquidity
-        _dai.setLiquidity(150 ether);   // Someone else adds 50 DAI
+        dai.setLiquidity(100 ether);   // Simulate adding liquidity
+        dai.setLiquidity(150 ether);   // Someone else adds 50 DAI
         assertEq(plan.getTargetAssets(100 ether), 50 ether);
-        _dai.setLiquidity(100 ether);   // Simulate removing liquidity
-        _dai.setLiquidity(300 ether);   // Someone else adds 200 DAI
+        dai.setLiquidity(100 ether);   // Simulate removing liquidity
+        dai.setLiquidity(300 ether);   // Someone else adds 200 DAI
         assertEq(plan.getTargetAssets(50 ether), 0);    // Plan will remove all liquidity
     }
 

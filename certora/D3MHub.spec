@@ -6,7 +6,7 @@ using DaiJoin as daiJoin
 using End as end
 using D3MTestPool as pool
 using D3MTestPlan as plan
-using D3MTestGem as share
+using TokenMock as share
 
 methods {
     vat() returns (address) envfree

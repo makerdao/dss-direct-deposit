@@ -16,43 +16,14 @@
 
 pragma solidity ^0.8.14;
 
-import "dss-test/DssTest.sol";
+contract EndMock {
+    uint256 internal Art_;
 
-import {D3MMom} from "../D3MMom.sol";
-
-contract PlanMock {
-    bool public disabled;
-    function disable() external {
-        disabled = true;
-    }
-}
-
-contract D3MMomTest is DssTest {
-
-    PlanMock plan;
-    
-    D3MMom mom;
-
-    function setUp() public {
-        plan = new PlanMock();
-
-        mom = new D3MMom();
+    function setArt(uint256 _Art) external {
+        Art_ = _Art;
     }
 
-    function test_can_disable_plan_owner() public {
-        assertEq(plan.disabled(), false);
-
-        mom.disable(address(plan));
-
-        assertEq(plan.disabled(), true);
+    function Art(bytes32) external view returns (uint256) {
+        return Art_;
     }
-
-    function test_disable_no_auth() public {
-        mom.setOwner(address(0));
-        assertEq(mom.authority(), address(0));
-        assertEq(mom.owner(), address(0));
-
-        assertRevert(address(mom), abi.encodeWithSignature("disable(address)", plan), "D3MMom/not-authorized");
-    }
-    
 }

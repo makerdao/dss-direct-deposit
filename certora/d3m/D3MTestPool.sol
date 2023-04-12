@@ -16,8 +16,8 @@
 
 pragma solidity ^0.8.14;
 
-import "./D3MTestGem.sol";
-import "../../pools/ID3MPool.sol";
+import "../../src/tests/mocks/TokenMock.sol";
+import "../../src/pools/ID3MPool.sol";
 
 interface D3mHubLike {
     function vat() external view returns (address);
@@ -41,7 +41,7 @@ contract D3MTestPool is ID3MPool {
     VatLike            public immutable vat;
     RewardsClaimerLike public immutable rewardsClaimer;
     address            public immutable share;          // Token representing a share of the asset pool
-    TokenLike          public immutable dai;            // Dai
+    TokenMock          public immutable dai;            // Dai
     address            public           king;           // Who gets the rewards
 
     // test helper variables
@@ -55,7 +55,7 @@ contract D3MTestPool is ID3MPool {
     event Collect(address indexed king, address[] assets, uint256 amt);
 
     constructor(address hub_, address dai_, address share_, address _rewardsClaimer) {
-        dai = TokenLike(dai_);
+        dai = TokenMock(dai_);
         share = share_;
 
         rewardsClaimer = RewardsClaimerLike(_rewardsClaimer);
@@ -115,21 +115,21 @@ contract D3MTestPool is ID3MPool {
     }
 
     function deposit(uint256 wad) external override onlyHub {
-        D3MTestGem(share).mint(address(this), wad);
-        TokenLike(dai).transfer(share, wad);
+        TokenMock(share).mint(address(this), wad);
+        TokenMock(dai).transfer(share, wad);
     }
 
     function withdraw(uint256 wad) external override onlyHub {
-        D3MTestGem(share).burn(address(this), wad);
-        TokenLike(dai).transferFrom(share, msg.sender, wad);
+        TokenMock(share).burn(address(this), wad);
+        TokenMock(dai).transferFrom(share, msg.sender, wad);
     }
 
     function exit(address dst, uint256 wad) public override onlyHub {
-        require(TokenLike(share).transfer(dst, wad), "D3MTestPool/transfer-failed");
+        require(TokenMock(share).transfer(dst, wad), "D3MTestPool/transfer-failed");
     }
 
     function quit(address dst) external override auth {
-        require(TokenLike(share).transfer(dst, shareBalance()), "D3MTestPool/transfer-failed");
+        require(TokenMock(share).transfer(dst, shareBalance()), "D3MTestPool/transfer-failed");
     }
 
     function preDebtChange() external override {
@@ -149,11 +149,11 @@ contract D3MTestPool is ID3MPool {
     }
 
     function maxWithdraw() external view override returns (uint256) {
-        return _min(TokenLike(dai).balanceOf(share), assetBalance());
+        return _min(TokenMock(dai).balanceOf(share), assetBalance());
     }
 
     function shareBalance() public view returns (uint256) {
-        return TokenLike(share).balanceOf(address(this));
+        return TokenMock(share).balanceOf(address(this));
     }
 
     function convertToAssets(uint256 shares) public pure returns (uint256) {

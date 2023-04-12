@@ -54,9 +54,9 @@ interface ID3MPool {
     function exit(address dst, uint256 wad) external;
 
     /**
-        @notice Transfer all shares from this pool.
+        @notice Transfer all assets from this pool.
         @dev msg.sender must be authorized.
-        @param dst address that should receive the shares.
+        @param dst address that should receive the assets.
     */
     function quit(address dst) external;
 

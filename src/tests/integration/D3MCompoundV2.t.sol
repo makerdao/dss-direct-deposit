@@ -16,8 +16,8 @@
 
 pragma solidity ^0.8.14;
 
-import {DssTest} from "dss-test/DssTest.sol";
-import "../interfaces/interfaces.sol";
+import "dss-test/DssTest.sol";
+import "dss-interfaces/Interfaces.sol";
 
 import { D3MHub } from "../../D3MHub.sol";
 import { D3MMom } from "../../D3MMom.sol";
@@ -25,13 +25,6 @@ import { D3MOracle } from "../../D3MOracle.sol";
 
 import { D3MCompoundV2TypeRateTargetPlan } from "../../plans/D3MCompoundV2TypeRateTargetPlan.sol";
 import { D3MCompoundV2TypePool } from "../../pools/D3MCompoundV2TypePool.sol";
-
-interface Hevm {
-    function warp(uint256) external;
-    function roll(uint256) external;
-    function store(address,bytes32,bytes32) external;
-    function load(address,bytes32) external view returns (bytes32);
-}
 
 interface CErc20Like {
     function borrowRatePerBlock() external view returns (uint256);
@@ -70,17 +63,20 @@ interface InterestRateModelLike {
     function utilizationRate(uint256 cash, uint256 borrows, uint256 reserves) external pure returns (uint256);
 }
 
-contract D3MCompoundTest is DssTest {
-    VatLike vat;
-    EndLike end;
+contract D3MCompoundV2IntegrationTest is DssTest {
+
+    using GodMode for *;
+
+    VatAbstract vat;
+    EndAbstract end;
     CErc20Like cDai;
     CEthLike   cEth;
 
     InterestRateModelLike rateModel;
-    DaiLike dai;
-    DaiJoinLike daiJoin;
-    TokenLike comp;
-    SpotLike spot;
+    DaiAbstract dai;
+    DaiJoinAbstract daiJoin;
+    GemAbstract comp;
+    SpotAbstract spot;
     address vow;
     address pauseProxy;
 
@@ -96,25 +92,22 @@ contract D3MCompoundTest is DssTest {
     uint256 constant INTEREST_RATE_TOLERANCE = WAD / 10000;
 
     function setUp() public {
-        emit log_named_uint("block", block.number);
-        emit log_named_uint("timestamp", block.timestamp);
-
-        vat = VatLike(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
-        end = EndLike(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
+        vat = VatAbstract(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
+        end = EndAbstract(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         cDai = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
         cEth = CEthLike(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
-        comp = TokenLike(0xc00e94Cb662C3520282E6f5717214004A7f26888);
-        dai = DaiLike(0x6B175474E89094C44Da98b954EedeAC495271d0F);
-        daiJoin = DaiJoinLike(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
+        comp = GemAbstract(0xc00e94Cb662C3520282E6f5717214004A7f26888);
+        dai = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+        daiJoin = DaiJoinAbstract(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
         rateModel = InterestRateModelLike(0xFB564da37B41b2F6B6EDcc3e56FbF523bD9F2012);
-        spot = SpotLike(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
+        spot = SpotAbstract(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
         vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
         pauseProxy = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
 
         // Force give admin access to these contracts via vm magic
-        _giveAuthAccess(address(vat), address(this));
-        _giveAuthAccess(address(end), address(this));
-        _giveAuthAccess(address(spot), address(this));
+        address(vat).setWard(address(this), 1);
+        address(end).setWard(address(this), 1);
+        address(spot).setWard(address(this), 1);
 
         d3mHub = new D3MHub(address(daiJoin));
         d3mCompoundPool = new D3MCompoundV2TypePool(ilk, address(d3mHub), address(cDai));
@@ -160,72 +153,6 @@ contract D3MCompoundTest is DssTest {
     }
     function _wdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x * WAD / y;
-    }
-
-    function _giveAuthAccess(address _base, address target) internal {
-        AuthLike base = AuthLike(_base);
-
-        // Edge case - ward is already set
-        if (base.wards(target) == 1) return;
-
-        for (int i = 0; i < 100; i++) {
-            // Scan the storage for the ward storage slot
-            bytes32 prevValue = vm.load(
-                address(base),
-                keccak256(abi.encode(target, uint256(i)))
-            );
-            vm.store(
-                address(base),
-                keccak256(abi.encode(target, uint256(i))),
-                bytes32(uint256(1))
-            );
-            if (base.wards(target) == 1) {
-                // Found it
-                return;
-            } else {
-                // Keep going after restoring the original value
-                vm.store(
-                    address(base),
-                    keccak256(abi.encode(target, uint256(i))),
-                    prevValue
-                );
-            }
-        }
-
-        // We have failed if we reach here
-        assertTrue(false);
-    }
-
-    function _giveTokens(TokenLike token, uint256 amount) internal {
-        // Edge case - balance is already set for some reason
-        if (token.balanceOf(address(this)) == amount) return;
-
-        for (int i = 0; i < 100; i++) {
-            // Scan the storage for the balance storage slot
-            bytes32 prevValue = vm.load(
-                address(token),
-                keccak256(abi.encode(address(this), uint256(i)))
-            );
-            vm.store(
-                address(token),
-                keccak256(abi.encode(address(this), uint256(i))),
-                bytes32(amount)
-            );
-            if (token.balanceOf(address(this)) == amount) {
-                // Found it
-                return;
-            } else {
-                // Keep going after restoring the original value
-                vm.store(
-                    address(token),
-                    keccak256(abi.encode(address(this), uint256(i))),
-                    prevValue
-                );
-            }
-        }
-
-        // We have failed if we reach here
-        assertTrue(false);
     }
 
     function assertEqRounding(uint256 _a, uint256 _b) internal {
@@ -556,8 +483,6 @@ contract D3MCompoundTest is DssTest {
         uint256 vowDai = vat.dai(vow);
         d3mHub.exec(ilk);
 
-        emit log_named_decimal_uint("dai", vat.dai(vow) - vowDai, 18);
-
         assertGt(vat.dai(vow) - vowDai, 0);
     }
 
@@ -686,7 +611,7 @@ contract D3MCompoundTest is DssTest {
 
         // We try to unwind what is possible
         d3mHub.exec(ilk);
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // exec() moved the remaining urn debt to the end
         (ink, art) = vat.urns(ilk, address(d3mCompoundPool));
@@ -708,7 +633,7 @@ contract D3MCompoundTest is DssTest {
 
         // Rest of the liquidity can be withdrawn
         d3mHub.exec(ilk);
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(vat.sin(vow), 0);
         assertGe(vat.dai(vow), prevDai); // As also probably accrues interest from cDai
@@ -749,7 +674,7 @@ contract D3MCompoundTest is DssTest {
 
         // Position is taken by the End module
         end.skim(ilk, address(d3mCompoundPool));
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         (ink, art) = vat.urns(ilk, address(d3mCompoundPool));
         assertEq(ink, 0);
         assertEq(art, 0);
@@ -764,7 +689,7 @@ contract D3MCompoundTest is DssTest {
 
         // We try to unwind what is possible
         d3mHub.exec(ilk);
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // Part can't be done yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
@@ -783,7 +708,7 @@ contract D3MCompoundTest is DssTest {
 
         // Rest of the liquidity can be withdrawn
         d3mHub.exec(ilk);
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(vat.sin(vow), 0);
         assertGe(vat.dai(vow), prevDai); // As also probably accrues interest from cDai
@@ -851,9 +776,9 @@ contract D3MCompoundTest is DssTest {
 
         uint256 daiEarned = cDai.balanceOfUnderlying(address(d3mCompoundPool)) - pink;
 
-        VowLike(vow).heal(
+        VowAbstract(vow).heal(
             _min(
-                vat.sin(vow) - VowLike(vow).Sin() - VowLike(vow).Ash(),
+                vat.sin(vow) - VowAbstract(vow).Sin() - VowAbstract(vow).Ash(),
                 vat.dai(vow)
             )
         );
@@ -877,7 +802,7 @@ contract D3MCompoundTest is DssTest {
         assertGe(cDai.balanceOfUnderlying(address(d3mCompoundPool)), pink);
 
         // MCD shutdowns
-        originalDai = originalDai + vat.dai(VowLike(vow).flapper());
+        originalDai = originalDai + vat.dai(VowAbstract(vow).flapper());
         end.cage();
 
         if (originalSin + part * RAY >= originalDai) {
@@ -892,7 +817,7 @@ contract D3MCompoundTest is DssTest {
         assertRevert(address(end), abi.encodeWithSignature("cage(bytes32)", ilk), "D3MOracle/ilk-culled-in-shutdown");
 
         d3mHub.uncull(ilk);
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         end.cage(ilk);
 
@@ -907,7 +832,7 @@ contract D3MCompoundTest is DssTest {
         // Call skim manually (will be done through deposit anyway)
         // Position is again taken but this time the collateral goes to the End module
         end.skim(ilk, address(d3mCompoundPool));
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         (ink, art) = vat.urns(ilk, address(d3mCompoundPool));
         assertEq(ink, 0);
@@ -926,7 +851,7 @@ contract D3MCompoundTest is DssTest {
 
         // We try to unwind what is possible
         d3mHub.exec(ilk);
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
 
         // A part can't be unwind yet
         assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
@@ -944,7 +869,7 @@ contract D3MCompoundTest is DssTest {
 
         // Rest of the liquidity can be withdrawn
         d3mHub.exec(ilk);
-        VowLike(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
+        VowAbstract(vow).heal(_min(vat.sin(vow), vat.dai(vow)));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEqCdai(cDai.balanceOf(address(d3mCompoundPool)), 0);
         assertEq(vat.sin(vow), 0);
@@ -1200,7 +1125,7 @@ contract D3MCompoundTest is DssTest {
         uint256 poolCdaiBalanceBefore = cDai.balanceOf(address(d3mCompoundPool));
 
         // Someone pays back our debt
-        _giveTokens(dai, 10 * WAD);
+        dai.setBalance(address(this), 10 * WAD);
         dai.approve(address(daiJoin), type(uint256).max);
         daiJoin.join(address(this), 10 * WAD);
         vat.frob(
@@ -1253,7 +1178,7 @@ contract D3MCompoundTest is DssTest {
         uint256 poolCdaiBalanceBefore = cDai.balanceOf(address(d3mCompoundPool));
 
         // Someone pays back our debt
-        _giveTokens(dai, 10 * WAD);
+        dai.setBalance(address(this), 10 * WAD);
         dai.approve(address(daiJoin), type(uint256).max);
         daiJoin.join(address(this), 10 * WAD);
         vat.frob(

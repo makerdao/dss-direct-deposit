@@ -16,24 +16,14 @@
 
 pragma solidity ^0.8.14;
 
-import "./D3MTestGem.sol";
+import { EndMock } from "./EndMock.sol";
 
-contract D3MTestRewards {
+contract HubMock {
+    address public immutable vat;
+    EndMock public immutable end;
 
-    D3MTestGem public immutable rewards;
-    address public immutable testGem;
-
-    constructor(address testGem_) {
-        rewards = new D3MTestGem(18);
-        testGem = testGem_;
-    }
-
-    function claimRewards(address[] memory assets, uint256 amount, address dst) external returns (uint256 amt) {
-        for (uint256 i = 0; i < assets.length; i++) {
-            if (assets[i] == testGem) {
-                amt += amount;
-                rewards.mint(dst, amount);
-            }
-        }
+    constructor(address vat_, address end_) {
+        vat = vat_;
+        end = EndMock(end_);
     }
 }
