@@ -77,7 +77,7 @@ contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
         comp        = GemAbstract(0xc00e94Cb662C3520282E6f5717214004A7f26888);
         lens        = LensLike(0xdCbDb7306c6Ff46f77B349188dC18cEd9DF30299);
 
-        setPoolContract(pool = new D3MCompoundV2TypePool(ILK, address(hub), address(cDai)));
+        setPoolContract(address(pool = new D3MCompoundV2TypePool(ILK, address(hub), address(cDai))));
 
         // allocate some dai for the pool
         GodMode.setBalance(address(dai), address(pool), 100 * WAD);

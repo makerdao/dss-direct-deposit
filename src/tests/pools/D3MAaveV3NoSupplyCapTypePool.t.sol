@@ -172,7 +172,7 @@ contract D3MAaveV3NoSupplyCapTypePoolTest is D3MPoolBaseTest {
         aavePool = new FakeLendingPool(address(adai), address(dai));
         adai.rely(address(aavePool));
 
-        setPoolContract(pool = new D3MAaveV3NoSupplyCapTypePool("", address(hub), address(dai), address(aavePool)));
+        setPoolContract(address(pool = new D3MAaveV3NoSupplyCapTypePool("", address(hub), address(dai), address(aavePool))));
     }
 
     function test_sets_dai_value() public {
