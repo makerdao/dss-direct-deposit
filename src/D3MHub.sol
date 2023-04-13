@@ -16,9 +16,9 @@
 
 pragma solidity ^0.8.14;
 
-import "./pools/ID3MPool.sol";
-import "./plans/ID3MPlan.sol";
-import "./fees/ID3MFees.sol";
+import { ID3MPool } from "./pools/ID3MPool.sol";
+import { ID3MPlan } from "./plans/ID3MPlan.sol";
+import { ID3MFees } from "./fees/ID3MFees.sol";
 
 interface VatLike {
     function debt() external view returns (uint256);
@@ -297,7 +297,7 @@ contract D3MHub {
         } else {
             uint256 Line = vat.Line();
             uint256 debt = vat.debt();
-            uint256 targetAssets = ilks[ilk].plan.getTargetAssets(currentAssets);
+            uint256 targetAssets = ilks[ilk].plan.getTargetAssets(ilk, currentAssets);
 
             // Determine if it needs to unwind due to:
             unchecked {

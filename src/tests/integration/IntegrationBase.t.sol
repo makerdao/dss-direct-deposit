@@ -188,7 +188,7 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 vowDai = vat.dai(address(vow));
         hub.cull(ilk);
         (uint256 ink2, uint256 art2) = vat.urns(ilk, address(pool));
-        (, , , uint256 culled, ) = hub.ilks(ilk);
+        (, , , , uint256 culled, ) = hub.ilks(ilk);
         assertEq(culled, 1);
         assertEq(ink2, 0);
         assertEq(art2, 0);
@@ -511,7 +511,7 @@ abstract contract IntegrationBaseTest is DssTest {
 
         vm.prank(admin); hub.cage(ilk);
 
-        (, , uint256 tau, , ) = hub.ilks(ilk);
+        (, , , uint256 tau, , ) = hub.ilks(ilk);
 
         vm.warp(block.timestamp + tau);
 
@@ -629,7 +629,7 @@ abstract contract IntegrationBaseTest is DssTest {
         adjustDebt(standardDebtSize);
         vm.prank(admin); hub.cage(ilk);
 
-        (, , uint256 tau, , ) = hub.ilks(ilk);
+        (, , , uint256 tau, , ) = hub.ilks(ilk);
         vm.warp(block.timestamp + tau);
 
         hub.cull(ilk);
@@ -710,7 +710,7 @@ abstract contract IntegrationBaseTest is DssTest {
         // Vat is caged for global settlement
         vm.prank(admin); vat.cage();
 
-        (, , uint256 tau, , ) = hub.ilks(ilk);
+        (, , , uint256 tau, , ) = hub.ilks(ilk);
         vm.warp(block.timestamp + tau);
 
         assertRevert(address(hub), abi.encodeWithSignature("cull(bytes32)", ilk), "D3MHub/no-cull-during-shutdown");
@@ -753,7 +753,7 @@ abstract contract IntegrationBaseTest is DssTest {
 
         vm.prank(admin); hub.cage(ilk);
 
-        (, , uint256 tau, , ) = hub.ilks(ilk);
+        (, , , uint256 tau, , ) = hub.ilks(ilk);
         vm.warp(block.timestamp + tau);
 
         hub.cull(ilk);
@@ -801,10 +801,10 @@ abstract contract IntegrationBaseTest is DssTest {
     }
 
     function test_set_tau_not_caged() public {
-        (, , uint256 tau, , ) = hub.ilks(ilk);
+        (, , , uint256 tau, , ) = hub.ilks(ilk);
         assertEq(tau, 7 days);
         vm.prank(admin); hub.file(ilk, "tau", 1 days);
-        (, , tau, , ) = hub.ilks(ilk);
+        (, , , tau, , ) = hub.ilks(ilk);
         assertEq(tau, 1 days);
     }
 

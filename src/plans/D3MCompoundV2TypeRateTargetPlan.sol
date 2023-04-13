@@ -167,7 +167,7 @@ contract D3MCompoundV2TypeRateTargetPlan is ID3MPlan {
 
     // Note: This view function has no reentrancy protection.
     //       On chain integrations should consider verifying `hub.locked()` is zero before relying on it.
-    function getTargetAssets(uint256 currentAssets) external override view returns (uint256) {
+    function getTargetAssets(bytes32, uint256 currentAssets) external override view returns (uint256) {
         uint256 targetInterestRate = barb;
         if (targetInterestRate == 0) return 0; // De-activated
 

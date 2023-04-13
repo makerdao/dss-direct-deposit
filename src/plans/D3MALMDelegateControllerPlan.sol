@@ -171,7 +171,7 @@ contract D3MALMDelegateControllerPlan is ID3MPlan {
     }
 
     // --- IPlan Functions ---
-    function getTargetAssets(bytes32 ilk, uint256 currentAssets) external override view returns (uint256) {
+    function getTargetAssets(bytes32 ilk, uint256) external override view returns (uint256) {
         if (enabled == 0) return 0;
 
         return _totalAllocations[ilk].current;

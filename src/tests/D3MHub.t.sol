@@ -95,6 +95,10 @@ contract PoolMock is ID3MPool {
         return dai.balanceOf(address(this));
     }
 
+    function idleLiquidity() external view override returns (uint256) {
+        return dai.balanceOf(address(this));
+    }
+
     function redeemable() external view returns (address) {
         return address(gem);
     }
@@ -123,7 +127,7 @@ contract PlanMock is ID3MPlan {
         targetAssets = _targetAssets;
     }
 
-    function getTargetAssets(uint256) external override view returns (uint256) {
+    function getTargetAssets(bytes32,uint256) external override view returns (uint256) {
         return targetAssets;
     }
 
@@ -222,10 +226,10 @@ contract D3MHubTest is DssTest {
     }
 
     function test_can_file_tau() public {
-        (, , uint256 tau, , ) = hub.ilks(ilk);
+        (, , , uint256 tau, , ) = hub.ilks(ilk);
         assertEq(tau, 7 days);
         hub.file(ilk, "tau", 1 days);
-        (, , tau, , ) = hub.ilks(ilk);
+        (, , , tau, , ) = hub.ilks(ilk);
         assertEq(tau, 1 days);
     }
 
@@ -243,24 +247,24 @@ contract D3MHubTest is DssTest {
     }
 
     function test_can_file_pool() public {
-        (ID3MPool _pool, , , , ) = hub.ilks(ilk);
+        (ID3MPool _pool, , , , , ) = hub.ilks(ilk);
 
         assertEq(address(_pool), address(pool));
 
         hub.file(ilk, "pool", address(this));
 
-        (_pool, , , , ) = hub.ilks(ilk);
+        (_pool, , , , , ) = hub.ilks(ilk);
         assertEq(address(_pool), address(this));
     }
 
     function test_can_file_plan() public {
-        (, ID3MPlan _plan, , , ) = hub.ilks(ilk);
+        (, ID3MPlan _plan, , , , ) = hub.ilks(ilk);
 
         assertEq(address(_plan), address(plan));
 
         hub.file(ilk, "plan", address(this));
 
-        (, _plan, , , ) = hub.ilks(ilk);
+        (, _plan, , , , ) = hub.ilks(ilk);
         assertEq(address(_plan), address(this));
     }
 
@@ -316,7 +320,7 @@ contract D3MHubTest is DssTest {
 
     function test_vat_not_live_ilk_address_file() public {
         hub.file(ilk, "pool", address(this));
-        (ID3MPool _pool, , , , ) = hub.ilks(ilk);
+        (ID3MPool _pool, , , , , ) = hub.ilks(ilk);
 
         assertEq(address(_pool), address(this));
 
@@ -919,12 +923,12 @@ contract D3MHubTest is DssTest {
     }
 
     function test_cage_d3m_with_auth() public {
-        (, , uint256 tau, , uint256 tic) = hub.ilks(ilk);
+        (, , , uint256 tau, , uint256 tic) = hub.ilks(ilk);
         assertEq(tic, 0);
 
         hub.cage(ilk);
 
-        (, , , , tic) = hub.ilks(ilk);
+        (, , , , , tic) = hub.ilks(ilk);
         assertEq(tic, block.timestamp + tau);
     }
 
@@ -960,7 +964,7 @@ contract D3MHubTest is DssTest {
         assertEq(art, 0);
         assertEq(vat.gem(ilk, address(pool)), 50 * WAD);
         assertEq(vat.sin(vow), sinBefore + 50 * RAD);
-        (, , , uint256 culled, ) = hub.ilks(ilk);
+        (, , , , uint256 culled, ) = hub.ilks(ilk);
         assertEq(culled, 1);
     }
 
@@ -999,7 +1003,7 @@ contract D3MHubTest is DssTest {
         // Sin only increases by 40 WAD since 10 was covered previously
         assertEq(vat.sin(vow), sinBefore + 40 * RAD);
         assertEq(vat.dai(vow), vowDaiBefore);
-        (, , , uint256 culled, ) = hub.ilks(ilk);
+        (, , , , uint256 culled, ) = hub.ilks(ilk);
         assertEq(culled, 1);
 
         hub.exec(ilk);
@@ -1033,7 +1037,7 @@ contract D3MHubTest is DssTest {
         uint256 gemAfter = vat.gem(ilk, address(pool));
         assertEq(gemAfter, 50 * WAD);
         assertEq(vat.sin(vow), sinBefore + 50 * RAD);
-        (, , , uint256 culled, ) = hub.ilks(ilk);
+        (, , , , uint256 culled, ) = hub.ilks(ilk);
         assertEq(culled, 1);
     }
 
@@ -1082,7 +1086,7 @@ contract D3MHubTest is DssTest {
         assertEq(part, 0);
         assertEq(vat.gem(ilk, address(pool)), 50 * WAD);
         uint256 sinBefore = vat.sin(vow);
-        (, , , uint256 culled, ) = hub.ilks(ilk);
+        (, , , , uint256 culled, ) = hub.ilks(ilk);
         assertEq(culled, 1);
 
         vat.cage();
@@ -1094,7 +1098,7 @@ contract D3MHubTest is DssTest {
         assertEq(vat.gem(ilk, address(pool)), 0);
         // Sin should not change since we suck before grabbing
         assertEq(vat.sin(vow), sinBefore);
-        (, , , culled, ) = hub.ilks(ilk);
+        (, , , , culled, ) = hub.ilks(ilk);
         assertEq(culled, 0);
     }
 
@@ -1313,7 +1317,7 @@ contract D3MHubTest is DssTest {
 
         hub.file(ilk, "plan", address(newPlan));
 
-        (, ID3MPlan _plan, , , ) = hub.ilks(ilk);
+        (, ID3MPlan _plan, , , , ) = hub.ilks(ilk);
         assertEq(address(_plan), address(newPlan));
 
         hub.exec(ilk);
@@ -1413,7 +1417,7 @@ contract D3MHubTest is DssTest {
         // Create D3M in New Hub
         newHub.file(ilk, "pool", address(newPool));
         newHub.file(ilk, "plan", address(newPlan));
-        (, , uint256 tau, , ) = hub.ilks(ilk);
+        (, , , uint256 tau, , ) = hub.ilks(ilk);
         newHub.file(ilk, "tau", tau);
 
         (uint256 opink, uint256 opart) = vat.urns(ilk, address(pool));

@@ -193,6 +193,11 @@ contract D3MCompoundV2TypePool is ID3MPool {
         return _min(cDai.getCash(), assetBalance());
     }
 
+    function idleLiquidity() external pure override returns (uint256) {
+        // TODO this should be the 100% - utiliztion rate of the pool * cdai balance
+        return 0;
+    }
+
     function redeemable() external view override returns (address) {
         return address(cDai);
     }

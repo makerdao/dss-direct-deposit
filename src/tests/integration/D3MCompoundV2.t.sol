@@ -418,7 +418,7 @@ contract D3MCompoundV2IntegrationTest is DssTest {
         uint256 vowDai = vat.dai(vow);
         d3mHub.cull(ilk);
         (uint256 ink2, uint256 art2) = vat.urns(ilk, address(d3mCompoundPool));
-        (, , , uint256 culled, ) = d3mHub.ilks(ilk);
+        (, , , , uint256 culled, ) = d3mHub.ilks(ilk);
         assertEq(culled, 1);
         assertEq(ink2, 0);
         assertEq(art2, 0);
@@ -771,7 +771,7 @@ contract D3MCompoundV2IntegrationTest is DssTest {
 
         d3mHub.cage(ilk);
 
-        (, , uint256 tau, , ) = d3mHub.ilks(ilk);
+        (, , , uint256 tau, , ) = d3mHub.ilks(ilk);
 
         vm.warp(block.timestamp + tau);
         vm.roll(block.number + tau / 15);
@@ -895,7 +895,7 @@ contract D3MCompoundV2IntegrationTest is DssTest {
         _setRelBorrowTarget(5000);
         d3mHub.cage(ilk);
 
-        (, , uint256 tau, , ) = d3mHub.ilks(ilk);
+        (, , , uint256 tau, , ) = d3mHub.ilks(ilk);
         vm.warp(block.timestamp + tau);
 
         d3mHub.cull(ilk);
@@ -1014,7 +1014,7 @@ contract D3MCompoundV2IntegrationTest is DssTest {
         // Vat is caged for global settlement
         vat.cage();
 
-        (, , uint256 tau, , ) = d3mHub.ilks(ilk);
+        (, , , uint256 tau, , ) = d3mHub.ilks(ilk);
         vm.warp(block.timestamp + tau);
 
         assertRevert(address(d3mHub), abi.encodeWithSignature("cull(bytes32)", ilk), "D3MHub/no-cull-during-shutdown");
@@ -1058,7 +1058,7 @@ contract D3MCompoundV2IntegrationTest is DssTest {
 
         d3mHub.cage(ilk);
 
-        (, , uint256 tau, , ) = d3mHub.ilks(ilk);
+        (, , , uint256 tau, , ) = d3mHub.ilks(ilk);
         vm.warp(block.timestamp + tau);
 
         d3mHub.cull(ilk);
@@ -1106,10 +1106,10 @@ contract D3MCompoundV2IntegrationTest is DssTest {
     }
 
     function test_set_tau_not_caged() public {
-        (, , uint256 tau, , ) = d3mHub.ilks(ilk);
+        (, , , uint256 tau, , ) = d3mHub.ilks(ilk);
         assertEq(tau, 7 days);
         d3mHub.file(ilk, "tau", 1 days);
-        (, , tau, , ) = d3mHub.ilks(ilk);
+        (, , , tau, , ) = d3mHub.ilks(ilk);
         assertEq(tau, 1 days);
     }
 

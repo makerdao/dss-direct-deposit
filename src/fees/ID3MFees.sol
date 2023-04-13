@@ -20,6 +20,6 @@ pragma solidity >=0.8.0;
     @title D3M Fees Interface
     @notice Receives fees from the Hub and distributes them
 */
-interface ID3MPlan {
+interface ID3MFees {
     function feesCollected(bytes32 ilk, uint256 fees) external view returns (uint256);
 }

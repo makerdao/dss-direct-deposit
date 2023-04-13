@@ -28,7 +28,6 @@ interface ID3MPlan {
         @notice Determines what the position should be based on current assets
         and the custom plan rules.
         @param ilk the ilk to calculate the target assets for
-        @param daiLiquidity the amount of Dai that is immediately available [wad]
         @param currentAssets asset balance from a specific pool in Dai [wad]
         denomination
         @return uint256 target assets the Hub should wind or unwind to in Dai

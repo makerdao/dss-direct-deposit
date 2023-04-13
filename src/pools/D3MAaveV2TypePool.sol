@@ -210,6 +210,11 @@ contract D3MAaveV2TypePool is ID3MPool {
         return _min(dai.balanceOf(address(adai)), assetBalance());
     }
 
+    function idleLiquidity() external pure override returns (uint256) {
+        // TODO this should be the 100% - utiliztion rate of the pool * adai balance
+        return 0;
+    }
+
     function redeemable() external view override returns (address) {
         return address(adai);
     }
