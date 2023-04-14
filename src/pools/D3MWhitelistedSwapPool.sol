@@ -28,8 +28,8 @@ import {ID3MPlan} from "../plans/ID3MPlan.sol";
 contract D3MWhitelistedSwapPool is D3MSwapPool {
 
     struct FeeData {
-        uint24 tin;     // toll in  [bps]
-        uint24 tout;    // toll out [bps]
+        uint128 tin;     // toll in  [wad]
+        uint128 tout;    // toll out [wad]
     }
 
     // --- Data ---
@@ -38,8 +38,6 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
     FeeData public feeData;
     ID3MPlan public plan;
     uint256 public gemsWithdrawn;
-
-    uint256 constant internal BPS = 10 ** 4;
 
     // --- Events ---
     event SetPlan(address plan);
@@ -63,8 +61,8 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
 
         // Initialize all fees to zero
         feeData = FeeData({
-            tin: uint24(BPS),
-            tout: uint24(BPS)
+            tin: uint128(WAD),
+            tout: uint128(WAD)
         });
     }
 
@@ -81,7 +79,7 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
     function file(bytes32 what, uint24 _tin, uint24 _tout) external auth {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
         // We need to restrict tin/tout combinations to be less than 100% to avoid arbitragers able to endlessly take money
-        require(uint256(_tin) * uint256(_tout) <= BPS * BPS, "D3MSwapPool/invalid-fees");
+        require(uint256(_tin) * uint256(_tout) <= WAD * WAD, "D3MSwapPool/invalid-fees");
 
         if (what == "fees") {
             feeData.tin = _tin;
@@ -126,14 +124,14 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
         uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * pipValue / WAD;
         require(gemBalance + gemValue <= targetAssets, "D3MSwapPool/gem-balance-too-high");
         FeeData memory _feeData = feeData;
-        daiAmt = gemValue * _feeData.tin / BPS;
+        daiAmt = gemValue * _feeData.tin / WAD;
     }
 
     function previewBuyGem(uint256 daiAmt) public view override returns (uint256 gemAmt) {
         uint256 gemBalance = (gem.balanceOf(address(this)) + gemsWithdrawn) * GEM_CONVERSION_FACTOR * uint256(buyGemPip.read()) / WAD;
         uint256 targetAssets = plan.getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
         FeeData memory _feeData = feeData;
-        uint256 gemValue = daiAmt * _feeData.tout / BPS;
+        uint256 gemValue = daiAmt * _feeData.tout / WAD;
         require(targetAssets + gemValue <= gemBalance, "D3MSwapPool/gem-balance-too-low");
         uint256 pipValue = uint256(buyGemPip.read());
         gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * pipValue);

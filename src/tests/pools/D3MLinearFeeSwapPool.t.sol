@@ -24,7 +24,7 @@ contract D3MLinearFeeSwapPoolTest is D3MSwapPoolTest {
 
     D3MLinearFeeSwapPool internal pool;
 
-    event File(bytes32 indexed what, uint24 tin, uint24 tout);
+    event File(bytes32 indexed what, uint64 tin, uint64 tout);
 
     function setUp() public {
         baseInit("D3MSwapPool");
@@ -32,9 +32,9 @@ contract D3MLinearFeeSwapPoolTest is D3MSwapPoolTest {
         pool = new D3MLinearFeeSwapPool(ILK, address(hub), address(dai), address(gem));
 
         // 0% usage has tin=5bps (negative fee), tout=20bps (positive fee)
-        pool.file("fees1", 10005, 9980);
+        pool.file("fees1", 1.0005 ether, 0.9980 ether);
         // 100% usage has tin=10bps (negative fee), tout=8bps (negative fee)
-        pool.file("fees2", 9990, 10008);
+        pool.file("fees2", 0.9990 ether, 1.0008 ether);
 
         setPoolContract(address(pool));
     }
@@ -68,27 +68,39 @@ contract D3MLinearFeeSwapPoolTest is D3MSwapPoolTest {
 
     function test_file_invalid_fees() public {
         vm.expectRevert(abi.encodePacked(contractName, "/invalid-fees"));
-        pool.file("fees1", uint24(BPS + 1), uint24(BPS));
+        pool.file("fees1", uint64(WAD + 1), uint64(WAD));
+    }
+
+    function test_previewSellGem_tin1_edge() public {
+        dai.transfer(address(pool), 100 ether);
+        // 10% between 1.0005 and 0.9990 (average of 0% and 20% endpoints)
+        assertEq(pool.previewSellGem(10 * 1e6), 20.007 ether);  
     }
 
     function test_previewSellGem_empty() public {
-        // Should have no fee due to pool being empty
-        assertEq(pool.previewSellGem(10 * 1e6), 20 ether);
+        vm.expectRevert(abi.encodePacked(contractName, "/insufficient-dai-in-pool"));
+        pool.previewSellGem(10 * 1e6);
+    }
+
+    function test_previewSellGem_zero() public {
+        dai.transfer(address(pool), 100 ether);
+        assertEq(pool.previewSellGem(0), 0);
+    }
+
+    function test_previewBuyGem_tout2_edge() public {
+        gem.transfer(address(pool), 50 * 1e6);
+        // 10% between 1.0008 and 0.9980 (average of 0% and 20% endpoints)
+        assertEq(pool.previewBuyGem(20 ether), 10.0052 * 1e6);
     }
 
     function test_previewBuyGem_empty() public {
-        // Should have no fee due to pool being empty
-        assertEq(pool.previewBuyGem(20 ether), 10 * 1e6);
+        vm.expectRevert(abi.encodePacked(contractName, "/insufficient-gem-in-pool"));
+        pool.previewBuyGem(20 ether);
     }
 
-    function test_previewSellGem() public {
-        dai.transfer(address(pool), 100 ether);
-        assertEq(pool.previewSellGem(10 * 1e6), 20 ether);
-    }
-
-    function test_previewBuyGem() public {
-        dai.transfer(address(pool), 100 ether);
-        assertEq(pool.previewSellGem(20 ether), 10 * 1e6);
+    function test_previewBuyGem_zero() public {
+        gem.transfer(address(pool), 50 * 1e6);
+        assertEq(pool.previewBuyGem(0), 0);
     }
 
 }

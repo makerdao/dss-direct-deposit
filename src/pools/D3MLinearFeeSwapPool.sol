@@ -25,37 +25,34 @@ import "./D3MSwapPool.sol";
 contract D3MLinearFeeSwapPool is D3MSwapPool {
 
     struct FeeData {
-        uint24 tin1;    // toll in at 0% gems    [bps]
-        uint24 tout1;   // toll out at 0% gems   [bps]
-        uint24 tin2;    // toll in at 100% gems  [bps]
-        uint24 tout2;   // toll out at 100% gems [bps]
+        uint64 tin1;    // toll in at 0% gems    [wad]
+        uint64 tout1;   // toll out at 0% gems   [wad]
+        uint64 tin2;    // toll in at 100% gems  [wad]
+        uint64 tout2;   // toll out at 100% gems [wad]
     }
 
     // --- Data ---
     FeeData public feeData;
 
-    uint256 constant internal BPS = 10 ** 4;
-
     // --- Events ---
-    event File(bytes32 indexed what, uint24 data);
-    event File(bytes32 indexed what, uint24 tin, uint24 tout);
+    event File(bytes32 indexed what, uint64 tin, uint64 tout);
 
     constructor(bytes32 _ilk, address _hub, address _dai, address _gem) D3MSwapPool(_ilk, _hub, _dai, _gem) {
         // Initialize all fees to zero
         feeData = FeeData({
-            tin1: uint24(BPS),
-            tout1: uint24(BPS),
-            tin2: uint24(BPS),
-            tout2: uint24(BPS)
+            tin1: uint64(WAD),
+            tout1: uint64(WAD),
+            tin2: uint64(WAD),
+            tout2: uint64(WAD)
         });
     }
 
     // --- Administration ---
 
-    function file(bytes32 what, uint24 tin, uint24 tout) external auth {
+    function file(bytes32 what, uint64 tin, uint64 tout) external auth {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
         // We need to restrict tin/tout combinations to be less than 100% to avoid arbitragers able to endlessly take money
-        require(uint256(tin) * uint256(tout) <= BPS * BPS, "D3MSwapPool/invalid-fees");
+        require(uint256(tin) * uint256(tout) <= WAD * WAD, "D3MSwapPool/invalid-fees");
 
         if (what == "fees1") {
             feeData.tin1 = tin;
@@ -89,32 +86,34 @@ contract D3MLinearFeeSwapPool is D3MSwapPool {
     // --- Swaps ---
 
     function previewSellGem(uint256 gemAmt) public view override returns (uint256 daiAmt) {
+        if (gemAmt == 0) return 0;
+
+        uint256 daiBalance = dai.balanceOf(address(this));
+        require(daiBalance >= gemAmt, "D3MSwapPool/insufficient-dai-in-pool");
         FeeData memory _feeData = feeData;
         uint256 pipValue = uint256(sellGemPip.read());
         uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * pipValue / WAD;
-        uint256 daiBalance = dai.balanceOf(address(this));
         uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;
-        uint256 fee = BPS;
-        uint256 totalBalance = daiBalance + gemBalance;
-        if (totalBalance > 0) {
-            // Please note the fee deduction is not included in the new total dai+gem balance to drastically simplify the calculation
-            fee = (_feeData.tin1 * daiBalance + _feeData.tin2 * gemBalance - (_feeData.tin1 + _feeData.tin2) * gemValue / 2) / totalBalance;
-        }
-        daiAmt = gemValue * fee / BPS;
+        uint256 totalBalanceTimesTwo = (daiBalance + gemBalance) * 2;
+        uint256 g = 2 * gemBalance + gemValue;
+        // Please note the fee deduction is not included in the new total dai+gem balance to drastically simplify the calculation
+        uint256 fee = _feeData.tin1 + _feeData.tin2 * g / totalBalanceTimesTwo - _feeData.tin1 * g / totalBalanceTimesTwo;
+        daiAmt = gemValue * fee / WAD;
     }
 
     function previewBuyGem(uint256 daiAmt) public view override returns (uint256 gemAmt) {
+        if (daiAmt == 0) return 0;
+
         FeeData memory _feeData = feeData;
         uint256 pipValue = uint256(buyGemPip.read());
-        uint256 daiBalance = dai.balanceOf(address(this));
         uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;
-        uint256 fee = BPS;
-        uint256 totalBalance = daiBalance + gemBalance;
-        if (totalBalance > 0) {
-            // Please note the fee deduction is not included in the new total dai+gem balance to drastically simplify the calculation
-            fee = (_feeData.tout2 * daiBalance + _feeData.tout1 * gemBalance - (_feeData.tout1 + _feeData.tout2) * daiAmt / 2) / totalBalance;
-        }
-        uint256 gemValue = daiAmt * fee / BPS;
+        require(gemBalance >= daiAmt, "D3MSwapPool/insufficient-gem-in-pool");
+        uint256 daiBalance = dai.balanceOf(address(this));
+        uint256 totalBalanceTimesTwo = (daiBalance + gemBalance) * 2;
+        uint256 g = 2 * daiBalance + daiAmt;
+        // Please note the fee deduction is not included in the new total dai+gem balance to drastically simplify the calculation
+        uint256 fee = _feeData.tout2 + _feeData.tout1 * g / totalBalanceTimesTwo - _feeData.tout2 * g / totalBalanceTimesTwo;
+        uint256 gemValue = daiAmt * fee / WAD;
         gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * pipValue);
     }
 
