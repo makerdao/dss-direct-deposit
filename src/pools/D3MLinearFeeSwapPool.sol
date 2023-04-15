@@ -94,11 +94,10 @@ contract D3MLinearFeeSwapPool is D3MSwapPool {
         require(daiBalance >= gemValue, "D3MSwapPool/insufficient-dai-in-pool");
         FeeData memory _feeData = feeData;
         uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;
+        // Please note the fee deduction is not included in the new total dai+gem balance to drastically simplify the calculation
         uint256 totalBalanceTimesTwo = (daiBalance + gemBalance) * 2;
         uint256 g = 2 * gemBalance + gemValue;
-        // Please note the fee deduction is not included in the new total dai+gem balance to drastically simplify the calculation
-        uint256 fee = _feeData.tin1 + _feeData.tin2 * g / totalBalanceTimesTwo - _feeData.tin1 * g / totalBalanceTimesTwo;
-        daiAmt = gemValue * fee / WAD;
+        daiAmt = gemValue * (_feeData.tin1 + _feeData.tin2 * g / totalBalanceTimesTwo - _feeData.tin1 * g / totalBalanceTimesTwo) / WAD;
     }
 
     function previewBuyGem(uint256 daiAmt) public view override returns (uint256 gemAmt) {
@@ -109,12 +108,10 @@ contract D3MLinearFeeSwapPool is D3MSwapPool {
         uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;
         require(gemBalance >= daiAmt, "D3MSwapPool/insufficient-gems-in-pool");
         uint256 daiBalance = dai.balanceOf(address(this));
+        // Please note the fee deduction is not included in the new total dai+gem balance to drastically simplify the calculation
         uint256 totalBalanceTimesTwo = (daiBalance + gemBalance) * 2;
         uint256 g = 2 * daiBalance + daiAmt;
-        // Please note the fee deduction is not included in the new total dai+gem balance to drastically simplify the calculation
-        uint256 fee = _feeData.tout2 + _feeData.tout1 * g / totalBalanceTimesTwo - _feeData.tout2 * g / totalBalanceTimesTwo;
-        uint256 gemValue = daiAmt * fee / WAD;
-        gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * pipValue);
+        gemAmt = daiAmt * (_feeData.tout2 + _feeData.tout1 * g / totalBalanceTimesTwo - _feeData.tout2 * g / totalBalanceTimesTwo) / (GEM_CONVERSION_FACTOR * pipValue);
     }
 
 }
