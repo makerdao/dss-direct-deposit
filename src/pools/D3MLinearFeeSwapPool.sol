@@ -89,10 +89,10 @@ contract D3MLinearFeeSwapPool is D3MSwapPool {
         if (gemAmt == 0) return 0;
 
         uint256 daiBalance = dai.balanceOf(address(this));
-        require(daiBalance >= gemAmt, "D3MSwapPool/insufficient-dai-in-pool");
-        FeeData memory _feeData = feeData;
         uint256 pipValue = uint256(sellGemPip.read());
         uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * pipValue / WAD;
+        require(daiBalance >= gemValue, "D3MSwapPool/insufficient-dai-in-pool");
+        FeeData memory _feeData = feeData;
         uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;
         uint256 totalBalanceTimesTwo = (daiBalance + gemBalance) * 2;
         uint256 g = 2 * gemBalance + gemValue;
@@ -107,7 +107,7 @@ contract D3MLinearFeeSwapPool is D3MSwapPool {
         FeeData memory _feeData = feeData;
         uint256 pipValue = uint256(buyGemPip.read());
         uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;
-        require(gemBalance >= daiAmt, "D3MSwapPool/insufficient-gem-in-pool");
+        require(gemBalance >= daiAmt, "D3MSwapPool/insufficient-gems-in-pool");
         uint256 daiBalance = dai.balanceOf(address(this));
         uint256 totalBalanceTimesTwo = (daiBalance + gemBalance) * 2;
         uint256 g = 2 * daiBalance + daiAmt;
