@@ -41,7 +41,7 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
 
     // --- Events ---
     event SetPlan(address plan);
-    event File(bytes32 indexed what, uint24 tin, uint24 tout);
+    event File(bytes32 indexed what, uint128 tin, uint128 tout);
     event AddOperator(address indexed operator);
     event RemoveOperator(address indexed operator);
 
@@ -76,7 +76,7 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
         emit SetPlan(_plan);
     }
 
-    function file(bytes32 what, uint24 _tin, uint24 _tout) external auth {
+    function file(bytes32 what, uint128 _tin, uint128 _tout) external auth {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
         // We need to restrict tin/tout combinations to be less than 100% to avoid arbitragers able to endlessly take money
         require(uint256(_tin) * uint256(_tout) <= WAD * WAD, "D3MSwapPool/invalid-fees");
@@ -90,11 +90,15 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
     }
 
     function addOperator(address operator) external auth {
+        require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
+
         operators[operator] = 1;
         emit AddOperator(operator);
     }
 
     function removeOperator(address operator) external auth {
+        require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
+
         operators[operator] = 0;
         emit RemoveOperator(operator);
     }
