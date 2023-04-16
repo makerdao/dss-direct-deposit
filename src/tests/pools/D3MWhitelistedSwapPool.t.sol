@@ -36,6 +36,8 @@ contract PlanMock {
 
 contract D3MWhitelistedSwapPoolTest is D3MSwapPoolTest {
 
+    using stdStorage for StdStorage;
+
     PlanMock plan;
 
     D3MWhitelistedSwapPool internal pool;
@@ -136,6 +138,15 @@ contract D3MWhitelistedSwapPoolTest is D3MSwapPoolTest {
         vat.cage();
         vm.expectRevert(abi.encodePacked(contractName, "/no-file-during-shutdown"));
         pool.addOperator(address(1));
+    }
+
+    function test_assetBalance() public override {
+        dai.transfer(address(pool), 50 ether);
+        assertEq(pool.assetBalance(), 50 ether);
+        gem.transfer(address(pool), 25 * 1e6);
+        assertEq(pool.assetBalance(), 100 ether);
+        stdstore.target(address(pool)).sig("gemsWithdrawn()").checked_write(bytes32(uint256(10 * 1e6)));
+        assertEq(pool.assetBalance(), 120 ether);
     }
 
 }

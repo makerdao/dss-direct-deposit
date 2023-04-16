@@ -120,12 +120,11 @@ abstract contract D3MSwapPoolTest is D3MPoolBaseTest {
         assertEq(gem.balanceOf(address(pool)), 0);
     }
 
-    function test_assetBalance() public {
+    function test_assetBalance() public virtual {
         assertEq(pool.assetBalance(), 0);
-
         gem.transfer(address(pool), 10 * 1e6);
+        assertEq(pool.assetBalance(), 20 ether);    // 10 tokens @ $2 / unit
         dai.transfer(address(pool), 30 ether);
-
         assertEq(pool.assetBalance(), 50 ether);    // 10 tokens @ $2 / unit + 30 dai
     }
 
