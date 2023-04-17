@@ -138,16 +138,14 @@ abstract contract D3MSwapPoolTest is D3MPoolBaseTest {
         assertEq(pool.maxWithdraw(), 100 ether);
     }
 
-    function _ensureCanSellGems(uint256 daiAmt) internal virtual {
-        dai.transfer(address(pool), daiAmt);
-    }
-
-    function _ensureCanBuyGems(uint256 gemAmt) internal virtual {
-        gem.transfer(address(pool), gemAmt);
+    function _ensureRatio(uint256 ratioInBps, uint256 totalBalance, bool isSellingGem) internal virtual {
+        isSellingGem;
+        dai.transfer(address(pool), totalBalance * (BPS - ratioInBps) / BPS);
+        gem.transfer(address(pool), totalBalance * ratioInBps * WAD / (BPS * uint256(pip.read()) * 1e12));
     }
 
     function test_sellGem() public {
-        _ensureCanSellGems(100 ether);
+        _ensureRatio(0, 100 ether, true);
 
         uint256 gemBal = gem.balanceOf(address(this));
         assertEq(dai.balanceOf(TEST_ADDRESS), 0);
@@ -162,7 +160,7 @@ abstract contract D3MSwapPoolTest is D3MPoolBaseTest {
     }
 
     function test_sellGem_minDaiAmt_too_high() public {
-        _ensureCanSellGems(100 ether);
+        _ensureRatio(0, 100 ether, true);
 
         uint256 amountOut = pool.previewSellGem(10 * 1e6);
         vm.expectRevert("D3MSwapPool/too-little-dai");
@@ -170,7 +168,7 @@ abstract contract D3MSwapPoolTest is D3MPoolBaseTest {
     }
 
     function test_buyGem() public {
-        _ensureCanBuyGems(100 * 1e6);
+        _ensureRatio(10000, 100 ether, false);
 
         uint256 daiBal = dai.balanceOf(address(this));
         assertEq(gem.balanceOf(TEST_ADDRESS), 0);
@@ -185,7 +183,7 @@ abstract contract D3MSwapPoolTest is D3MPoolBaseTest {
     }
 
     function test_buyGem_minGemAmt_too_high() public {
-        _ensureCanBuyGems(100 * 1e6);
+        _ensureRatio(10000, 100 ether, false);
 
         uint256 amountOut = pool.previewBuyGem(10 ether);
         vm.expectRevert("D3MSwapPool/too-little-gems");

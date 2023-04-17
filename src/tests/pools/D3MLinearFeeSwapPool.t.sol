@@ -135,13 +135,13 @@ contract D3MLinearFeeSwapPoolTest is D3MSwapPoolTest {
         assertEq(pool.previewBuyGem(20 ether), 9.9996 * 1e6);  
     }
 
-    function test_ppreviewBuyGem_take_all_gems() public {
+    function test_previewBuyGem_take_all_gems() public {
         gem.transfer(address(pool), 50 * 1e6);
         // 50% between 1.0008 and 0.9980 (average of 0% and 100% endpoints)
         assertEq(pool.previewBuyGem(100 ether), 49.97 * 1e6);
     }
 
-    function test_ppreviewBuyGem_cant_take_all_gems_plus_one() public {
+    function test_previewBuyGem_cant_take_all_gems_plus_one() public {
         gem.transfer(address(pool), 50 * 1e6);
         // Even though the fee makes it so you could take more in theory
         // the linear function ends at 100% of the pre-fee amount

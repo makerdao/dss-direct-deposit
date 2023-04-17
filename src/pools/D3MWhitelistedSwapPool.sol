@@ -126,7 +126,7 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
         uint256 targetAssets = plan.getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
         uint256 pipValue = uint256(sellGemPip.read());
         uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * pipValue / WAD;
-        require(gemBalance + gemValue <= targetAssets, "D3MSwapPool/gem-balance-too-high");
+        require(gemBalance + gemValue <= targetAssets, "D3MSwapPool/not-accepting-gems");
         FeeData memory _feeData = feeData;
         daiAmt = gemValue * _feeData.tin / WAD;
     }
@@ -136,7 +136,7 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
         uint256 targetAssets = plan.getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
         FeeData memory _feeData = feeData;
         uint256 gemValue = daiAmt * _feeData.tout / WAD;
-        require(targetAssets + gemValue <= gemBalance, "D3MSwapPool/gem-balance-too-low");
+        require(targetAssets + gemValue <= gemBalance, "D3MSwapPool/not-accepting-dai");
         uint256 pipValue = uint256(buyGemPip.read());
         gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * pipValue);
     }

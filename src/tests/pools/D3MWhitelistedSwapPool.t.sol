@@ -54,20 +54,15 @@ contract D3MWhitelistedSwapPoolTest is D3MSwapPoolTest {
 
         pool = new D3MWhitelistedSwapPool(ILK, address(hub), address(dai), address(gem), address(plan));
 
-        // Fees set to tin=5bps, tout=-10bps
+        // Fees set to tin=-5bps, tout=10bps
         pool.file("fees", 1.0005 ether, 0.9990 ether);
 
         setPoolContract(address(pool));
     }
 
-    function _ensureCanSellGems(uint256 daiAmt) internal override virtual {
-        dai.transfer(address(pool), daiAmt);
-        plan.setTargetAssets(daiAmt);
-    }
-
-    function _ensureCanBuyGems(uint256 gemAmt) internal override virtual {
-        gem.transfer(address(pool), gemAmt);
-        plan.setTargetAssets(0);
+    function _ensureRatio(uint256 ratioInBps, uint256 totalBalance, bool isSellingGem) internal override virtual {
+        super._ensureRatio(ratioInBps, totalBalance, isSellingGem);
+        plan.setTargetAssets(isSellingGem ? totalBalance : 0);
     }
 
     function test_authModifier() public {
@@ -147,6 +142,32 @@ contract D3MWhitelistedSwapPoolTest is D3MSwapPoolTest {
         assertEq(pool.assetBalance(), 100 ether);
         stdstore.target(address(pool)).sig("gemsWithdrawn()").checked_write(bytes32(uint256(10 * 1e6)));
         assertEq(pool.assetBalance(), 120 ether);
+    }
+
+    function test_previewSellGem() public {
+        _ensureRatio(5000, 100 ether, true);
+        
+        assertEq(pool.previewSellGem(10 * 1e6), 20.01 ether);
+    }
+
+    function test_previewSellGem_not_accepting_gems() public {
+        _ensureRatio(5000, 100 ether, false);
+        
+        vm.expectRevert(abi.encodePacked(contractName, "/not-accepting-gems"));
+        pool.previewSellGem(10 * 1e6);
+    }
+
+    function test_previewBuyGem() public {
+        _ensureRatio(5000, 100 ether, false);
+        
+        assertEq(pool.previewBuyGem(20 ether), 9.99 * 1e6);
+    }
+
+    function test_previewBuyGem_not_accepting_gems() public {
+        _ensureRatio(5000, 100 ether, true);
+        
+        vm.expectRevert(abi.encodePacked(contractName, "/not-accepting-dai"));
+        pool.previewBuyGem(20 ether);
     }
 
 }
