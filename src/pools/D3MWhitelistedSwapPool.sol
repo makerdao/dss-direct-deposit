@@ -173,6 +173,7 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
             // Can deploy the full amount of gems
             gemAmt = gemBalance;
         } else {
+            // Note this rounds up towards the user, but it's not a big deal as it's a whitelisted user responsible for the entire principal
             uint256 toBeRemoved = (gemsPlusOutstanding - targetAssets) * WAD / conversionFactor;
             if (toBeRemoved < gemBalance) {
                 // Part of the gems are earmarked to be removed
@@ -188,12 +189,13 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
      * @notice The amount of gems that should be returned by liquidating the off-chain position.
      */
     function pendingWithdrawals() external view returns (uint256 gemAmt) {
+        uint256 conversionFactor = GEM_CONVERSION_FACTOR * uint256(pip.read());
         uint256 _gemsOutstanding = gemsOutstanding;
-        uint256 gemBalance = (gem.balanceOf(address(this)) + gemsOutstanding) * GEM_CONVERSION_FACTOR * uint256(pip.read()) / WAD;    // TODO should probably use the buy or sell pip
-        uint256 targetAssets = plan.getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
-        if (targetAssets < _gemsOutstanding) {
+        uint256 gemBalance = (gem.balanceOf(address(this)) + gemsOutstanding) * conversionFactor / WAD;
+        uint256 targetAssetsInGems = plan.getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this))) * WAD / conversionFactor;
+        if (targetAssetsInGems < _gemsOutstanding) {
             // Need to liquidate
-            gemAmt = _gemsOutstanding - targetAssets;
+            gemAmt = _gemsOutstanding - targetAssetsInGems;
         } else {
             gemAmt = 0;
         }
