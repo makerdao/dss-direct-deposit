@@ -244,4 +244,48 @@ contract D3MWhitelistedSwapPoolTest is D3MSwapPoolTest {
         assertEq(pool.assetBalance(), 70 ether);
     }
 
+    function test_pendingDeposits_target_above_gems() public {
+        _initPushPull();
+        
+        assertEq(pool.pendingDeposits(), 25 * 1e6);
+    }
+
+    function test_pendingDeposits_target_below_gems() public {
+        _initPushPull();
+        
+        plan.setTargetAssets(40 ether);
+        assertEq(pool.pendingDeposits(), 20 * 1e6);
+    }
+
+    function test_pendingDeposits_outstanding_target_above_gems() public {
+        _initPushPull();
+        
+        pool.pull(address(this), 10 * 1e6);
+        assertEq(pool.pendingDeposits(), 15 * 1e6);
+    }
+
+    function test_pendingDeposits_outstanding_target_below_gems() public {
+        _initPushPull();
+        
+        plan.setTargetAssets(40 ether);
+        pool.pull(address(this), 10 * 1e6);
+        assertEq(pool.pendingDeposits(), 10 * 1e6);
+    }
+
+    function test_pendingDeposits_too_much_outstanding() public {
+        _initPushPull();
+        
+        pool.pull(address(this), 15 * 1e6);
+        assertEq(pool.pendingDeposits(), 10 * 1e6);
+        plan.setTargetAssets(30 ether);
+        assertEq(pool.pendingDeposits(), 0);
+    }
+
+    function test_pendingDeposits_target_zero() public {
+        _initPushPull();
+        
+        plan.setTargetAssets(0);
+        assertEq(pool.pendingDeposits(), 0);
+    }
+
 }

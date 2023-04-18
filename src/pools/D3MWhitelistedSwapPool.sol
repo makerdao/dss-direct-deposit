@@ -163,19 +163,20 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
      * @dev It's possible gems are in this adapter, but are earmarked to be exchanged back to DAI.
      */
     function pendingDeposits() public view returns (uint256 gemAmt) {
-        uint256 amountToDeploy = gem.balanceOf(address(this));
-        uint256 gemBalance = (amountToDeploy + gemsOutstanding) * GEM_CONVERSION_FACTOR * uint256(pip.read()) / WAD;    // TODO should probably use the buy or sell pip
-        uint256 targetAssets = plan.getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
+        uint256 conversionFactor = GEM_CONVERSION_FACTOR * uint256(pip.read());
+        uint256 gemBalance = gem.balanceOf(address(this));
+        uint256 gemsPlusOutstanding = (gemBalance + gemsOutstanding) * conversionFactor / WAD;
+        uint256 targetAssets = plan.getTargetAssets(ilk, gemsPlusOutstanding + dai.balanceOf(address(this)));
         // We can ignore the DAI as that will just be removed right away
-        if (targetAssets >= gemBalance) {
+        if (targetAssets >= gemsPlusOutstanding) {
             // Target debt is higher than the current exposure
             // Can deploy the full amount of gems
-            gemAmt = amountToDeploy;
+            gemAmt = gemBalance;
         } else {
-            uint256 toBeRemoved = gemBalance - targetAssets;
-            if (toBeRemoved < amountToDeploy) {
+            uint256 toBeRemoved = (gemsPlusOutstanding - targetAssets) * WAD / conversionFactor;
+            if (toBeRemoved < gemBalance) {
                 // Part of the gems are earmarked to be removed
-                gemAmt = amountToDeploy - toBeRemoved;
+                gemAmt = gemBalance - toBeRemoved;
             } else {
                 // All of the gems are earmarked to be removed
                 gemAmt = 0;
