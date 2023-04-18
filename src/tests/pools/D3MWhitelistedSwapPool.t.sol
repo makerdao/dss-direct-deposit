@@ -140,7 +140,7 @@ contract D3MWhitelistedSwapPoolTest is D3MSwapPoolTest {
         assertEq(pool.assetBalance(), 50 ether);
         gem.transfer(address(pool), 25 * 1e6);
         assertEq(pool.assetBalance(), 100 ether);
-        stdstore.target(address(pool)).sig("gemsWithdrawn()").checked_write(bytes32(uint256(10 * 1e6)));
+        stdstore.target(address(pool)).sig("gemsOutstanding()").checked_write(bytes32(uint256(10 * 1e6)));
         assertEq(pool.assetBalance(), 120 ether);
     }
 
@@ -168,6 +168,80 @@ contract D3MWhitelistedSwapPoolTest is D3MSwapPoolTest {
         
         vm.expectRevert(abi.encodePacked(contractName, "/not-accepting-dai"));
         pool.previewBuyGem(20 ether);
+    }
+
+    function _initPushPull() public {
+        pool.addOperator(address(this));
+        plan.setTargetAssets(50 ether);
+        gem.transfer(address(pool), 25 * 1e6);
+        gem.burn(address(this), gem.balanceOf(address(this)));     // Burn the rest for easy accounting
+    }
+
+    function test_pull() public {
+        _initPushPull();
+
+        assertEq(gem.balanceOf(address(pool)), 25 * 1e6);
+        assertEq(gem.balanceOf(address(this)), 0);
+        assertEq(pool.gemsOutstanding(), 0);
+        assertEq(pool.assetBalance(), 50 ether);
+        pool.pull(address(this), 25 * 1e6);
+        assertEq(gem.balanceOf(address(pool)), 0 * 1e6);
+        assertEq(gem.balanceOf(address(this)), 25 * 1e6);
+        assertEq(pool.gemsOutstanding(), 25 * 1e6);
+        assertEq(pool.assetBalance(), 50 ether);
+    }
+
+    function test_pull_partial() public {
+        _initPushPull();
+
+        assertEq(gem.balanceOf(address(pool)), 25 * 1e6);
+        assertEq(gem.balanceOf(address(this)), 0);
+        assertEq(pool.gemsOutstanding(), 0);
+        pool.pull(address(this), 10 * 1e6);
+        assertEq(gem.balanceOf(address(pool)), 15 * 1e6);
+        assertEq(gem.balanceOf(address(this)), 10 * 1e6);
+        assertEq(pool.gemsOutstanding(), 10 * 1e6);
+    }
+
+    function test_pull_amount_exceeds_pending() public {
+        _initPushPull();
+
+        plan.setTargetAssets(0);
+        vm.expectRevert(abi.encodePacked(contractName, "/amount-exceeds-pending"));
+        pool.pull(address(this), 10 * 1e6);
+    }
+
+    function test_push_principal() public {
+        _initPushPull();
+        
+        pool.pull(address(this), 25 * 1e6);
+        assertEq(gem.balanceOf(address(pool)), 0);
+        assertEq(gem.balanceOf(address(this)), 25 * 1e6);
+        assertEq(pool.gemsOutstanding(), 25 * 1e6);
+        assertEq(pool.assetBalance(), 50 ether);
+        gem.approve(address(pool), 25 * 1e6);
+        pool.push(25 * 1e6);
+        assertEq(gem.balanceOf(address(pool)), 25 * 1e6);
+        assertEq(gem.balanceOf(address(this)), 0);
+        assertEq(pool.gemsOutstanding(), 0);
+        assertEq(pool.assetBalance(), 50 ether);
+    }
+
+    function test_push_principal_plus_interest() public {
+        _initPushPull();
+        
+        pool.pull(address(this), 25 * 1e6);
+        assertEq(gem.balanceOf(address(pool)), 0);
+        assertEq(gem.balanceOf(address(this)), 25 * 1e6);
+        assertEq(pool.gemsOutstanding(), 25 * 1e6);
+        assertEq(pool.assetBalance(), 50 ether);
+        gem.mint(address(this), 10 * 1e6);
+        gem.approve(address(pool), 35 * 1e6);
+        pool.push(35 * 1e6);
+        assertEq(gem.balanceOf(address(pool)), 35 * 1e6);
+        assertEq(gem.balanceOf(address(this)), 0);
+        assertEq(pool.gemsOutstanding(), 0);
+        assertEq(pool.assetBalance(), 70 ether);
     }
 
 }
