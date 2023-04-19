@@ -27,22 +27,21 @@ contract D3MALMDelegateControllerPlan is ID3MPlan {
 
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    struct TotalAllocation {
-        uint256 current;
-        uint256 max;
-        EnumerableSet.AddressSet allocators;
+    struct IlkAllocation {
+        uint256 total;                          // The total allocated to this ilk [wad]
+        EnumerableSet.AddressSet allocators;    // The list of allocators that have allocated to this ilk
     }
 
     struct Allocation {
-        uint256 current;
-        uint256 max;
+        uint128 current;    // The current allocation for this allocator [wad]
+        uint128 max;        // The maximum allocation for this allocator [wad]
     }
 
     mapping (address => uint256) public wards;
-    mapping (address => uint256) public allocators;                             // Allocators can set debt ceilings for target ilks
-    mapping (address => address) public allocatorDelegates;                     // Allocators can delegate authority to custom logic
-    mapping (bytes32 => TotalAllocation) private _totalAllocations;             // current = total of allocators current, max = default per-allocator limit [wad]
-    mapping (address => mapping (bytes32 => Allocation)) public allocations;    // current = allocator current, max = per-allocator limit override [wad]
+    mapping (address => uint256) public allocators;                                 // Allocators can set debt ceilings for target ilks
+    mapping (address => mapping (address => uint256)) public allocatorDelegates;    // Allocators can delegate authority to custom logic / wallets
+    mapping (bytes32 => IlkAllocation) private _ilkAllocations;
+    mapping (address => mapping (bytes32 => Allocation)) public allocations;
 
     uint256 public enabled = 1;
 
@@ -52,8 +51,10 @@ contract D3MALMDelegateControllerPlan is ID3MPlan {
     event File(bytes32 indexed what, uint256 data);
     event AddAllocator(address indexed allocator);
     event RemoveAllocator(address indexed allocator);
+    event SetMaxAllocation(address indexed allocator, bytes32 indexed ilk, uint128 max);
     event AddAllocatorDelegate(address indexed allocator, address indexed allocatorDelegate);
     event RemoveAllocatorDelegate(address indexed allocator, address indexed allocatorDelegate);
+    event SetAllocation(address indexed allocator, bytes32 indexed ilk, uint128 previousAllocation, uint128 newAllocation);
 
     constructor() {
         wards[msg.sender] = 1;
@@ -94,91 +95,78 @@ contract D3MALMDelegateControllerPlan is ID3MPlan {
         emit RemoveAllocator(allocator);
     }
 
-    function setMaxAllocation(bytes32 ilk, uint256 max) external auth {
-        _totalAllocations[ilk].max = max;
-        uint256 length = _totalAllocations[ilk].allocators.length();
-        // Note this is a loop, but we are enforcing an upper limit of allocators per ilk
-        for (uint256 i = 0; i < length; i++) {
-            address allocator = _totalAllocations[ilk].allocators.at(i);
-            if (max < allocations[allocator][ilk].current) {
-                _setAllocation(allocator, ilk, max);
-            }
-        }
-    }
-
-    function setMaxAllocation(address allocator, bytes32 ilk, uint256 max) external auth {
+    function setMaxAllocation(address allocator, bytes32 ilk, uint128 max) external auth {
         allocations[allocator][ilk].max = max;
-        if (max < allocations[allocator][ilk].current) {
-            _setAllocation(allocator, ilk, max);
+        emit SetMaxAllocation(allocator, ilk, max);
+
+        uint128 currentAllocation = allocations[allocator][ilk].current;
+        if (max < currentAllocation) {
+            _setAllocation(allocator, ilk, currentAllocation, max);
         }
     }
 
     // --- Allocator Control ---
     function addAllocatorDelegate(address allocator, address allocatorDelegate) external {
-        require((allocator == msg.sender && allocators[msg.sender] == 1) || wards[msg.sender] == 1, "D3MALMDelegateControllerPlan/not-authorized");
+        require((allocator == msg.sender && allocators[allocator] == 1) || wards[msg.sender] == 1, "D3MALMDelegateControllerPlan/not-authorized");
 
-        allocatorDelegates[allocatorDelegate] = allocator;
+        allocatorDelegates[allocator][allocatorDelegate] = 1;
         emit AddAllocatorDelegate(allocator, allocatorDelegate);
     }
 
     function removeAllocatorDelegate(address allocator, address allocatorDelegate) external {
-        require((allocator == msg.sender && allocators[msg.sender] == 1) || wards[msg.sender] == 1, "D3MALMDelegateControllerPlan/not-authorized");
+        require((allocator == msg.sender && allocators[allocator] == 1) || wards[msg.sender] == 1, "D3MALMDelegateControllerPlan/not-authorized");
 
-        allocatorDelegates[allocatorDelegate] = address(0);
+        allocatorDelegates[allocator][allocatorDelegate] = 0;
         emit RemoveAllocatorDelegate(allocator, allocatorDelegate);
     }
 
-    function setAllocation(address allocator, bytes32 ilk, uint256 amount) external {
+    function setAllocation(address allocator, bytes32 ilk, uint128 amount) external {
         require(
-            (allocatorDelegates[msg.sender] == allocator && allocators[allocator] == 1) ||
-            (allocator == msg.sender && allocators[msg.sender] == 1) ||
+            (
+                allocators[allocator] == 1 && 
+                (allocatorDelegates[allocator][msg.sender] == 1 || allocator == msg.sender)
+            ) ||
             wards[msg.sender] == 1
         , "D3MALMDelegateControllerPlan/not-authorized");
+        Allocation memory allocation = allocations[allocator][ilk];
+        require(amount <= allocation.max, "D3MALMDelegateControllerPlan/amount-exceeds-max");
 
-        _setAllocation(allocator, ilk, amount);
+        _setAllocation(allocator, ilk, allocation.current, amount);
     }
 
-    function _setAllocation(address allocator, bytes32 ilk, uint256 amount) internal {
-        Allocation memory allocation = allocations[allocator][ilk];
-        require(
-            allocation.max != 0 ?
-            amount <= allocation.max :              // Per-allocator limit override
-            amount <= _totalAllocations[ilk].max     // Default per-allocator limit
-        , "D3MALMDelegateControllerPlan/amount-exceeds-max");
-        allocations[allocator][ilk].current = amount;
-        _totalAllocations[ilk].current = _totalAllocations[ilk].current - allocation.current + amount;
-        if (amount > 0 && !_totalAllocations[ilk].allocators.contains(allocator)) {
-            _totalAllocations[ilk].allocators.add(allocator);
-        } else if (amount == 0 && _totalAllocations[ilk].allocators.contains(allocator)) {
-            _totalAllocations[ilk].allocators.remove(allocator);
+    function _setAllocation(address allocator, bytes32 ilk, uint128 currentAllocation, uint128 newAllocation) internal {
+        allocations[allocator][ilk].current = newAllocation;
+        _ilkAllocations[ilk].total = _ilkAllocations[ilk].total - currentAllocation + newAllocation;
+        if (newAllocation > 0 && !_ilkAllocations[ilk].allocators.contains(allocator)) {
+            _ilkAllocations[ilk].allocators.add(allocator);
+        } else if (newAllocation == 0 && _ilkAllocations[ilk].allocators.contains(allocator)) {
+            _ilkAllocations[ilk].allocators.remove(allocator);
         }
+        emit SetAllocation(allocator, ilk, currentAllocation, newAllocation);
     }
 
     // --- Getter Functions ---
-    function totalAllocations(bytes32 ilk) external view returns (Allocation memory) {
-        return Allocation(
-            _totalAllocations[ilk].current,
-            _totalAllocations[ilk].max
-        );
+    function totalAllocations(bytes32 ilk) external view returns (uint256) {
+        return  _ilkAllocations[ilk].total;
     }
 
     function numAllocations(bytes32 ilk) external view returns (uint256) {
-        return _totalAllocations[ilk].allocators.length();
+        return _ilkAllocations[ilk].allocators.length();
     }
 
     function allocatorAt(bytes32 ilk, uint256 index) external view returns (address) {
-        return _totalAllocations[ilk].allocators.at(index);
+        return _ilkAllocations[ilk].allocators.at(index);
     }
 
     function hasAllocator(bytes32 ilk, address allocator) external view returns (bool) {
-        return _totalAllocations[ilk].allocators.contains(allocator);
+        return _ilkAllocations[ilk].allocators.contains(allocator);
     }
 
     // --- IPlan Functions ---
     function getTargetAssets(bytes32 ilk, uint256) external override view returns (uint256) {
         if (enabled == 0) return 0;
 
-        return _totalAllocations[ilk].current;
+        return _ilkAllocations[ilk].total;
     }
 
     function active() public view override returns (bool) {

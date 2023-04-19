@@ -24,10 +24,24 @@ contract D3MALMDelegateControllerPlanTest is D3MPlanBaseTest {
 
     D3MALMDelegateControllerPlan plan;
 
+    address constant ALLOCATOR1 = address(1);
+    address constant ALLOCATOR2 = address(2);
+    address constant ALLOCATOR3 = address(3);
+
+    address constant ALLOCATORDELEGATE1 = address(4);
+    address constant ALLOCATORDELEGATE2 = address(5);
+    address constant ALLOCATORDELEGATE3 = address(6);
+
+    bytes32 constant ILK1 = "ILK1";
+    bytes32 constant ILK2 = "ILK2";
+    bytes32 constant ILK3 = "ILK3";
+
     event AddAllocator(address indexed allocator);
     event RemoveAllocator(address indexed allocator);
+    event SetMaxAllocation(address indexed allocator, bytes32 indexed ilk, uint128 max);
     event AddAllocatorDelegate(address indexed allocator, address indexed allocatorDelegate);
     event RemoveAllocatorDelegate(address indexed allocator, address indexed allocatorDelegate);
+    event SetAllocation(address indexed allocator, bytes32 indexed ilk, uint128 previousAllocation, uint128 newAllocation);
 
     function setUp() public {
         vm.expectEmit(true, true, true, true);
@@ -43,8 +57,7 @@ contract D3MALMDelegateControllerPlanTest is D3MPlanBaseTest {
         checkModifier(address(plan), string(abi.encodePacked(contractName, "/not-authorized")), [
             D3MALMDelegateControllerPlan.addAllocator.selector,
             D3MALMDelegateControllerPlan.removeAllocator.selector,
-            bytes4(keccak256("setMaxAllocation(bytes32,uint256)")),
-            bytes4(keccak256("setMaxAllocation(address,bytes32,uint256)"))
+            D3MALMDelegateControllerPlan.setMaxAllocation.selector
         ]);
     }
 
@@ -93,7 +106,87 @@ contract D3MALMDelegateControllerPlanTest is D3MPlanBaseTest {
     }
 
     function test_setMaxAllocation() public {
+        assertEqAllocation(ALLOCATOR1, ILK1, 0, 0);
+        plan.setMaxAllocation(ALLOCATOR1, ILK1, 100 ether);
+        assertEqAllocation(ALLOCATOR1, ILK1, 0, 100 ether);
+    }
 
+    function test_setMaxAllocation_existing_allocator_under_new_limit() public {
+        vm.expectEmit(true, true, true, true);
+        emit SetMaxAllocation(ALLOCATOR1, ILK1, 100 ether);
+        plan.setMaxAllocation(ALLOCATOR1, ILK1, 100 ether);
+        assertEqAllocation(ALLOCATOR1, ILK1, 0, 100 ether);
+        vm.expectEmit(true, true, true, true);
+        emit SetAllocation(ALLOCATOR1, ILK1, 0, 75 ether);
+        plan.setAllocation(ALLOCATOR1, ILK1, 75 ether);
+        assertEqAllocation(ALLOCATOR1, ILK1, 75 ether, 100 ether);
+        vm.expectEmit(true, true, true, true);
+        emit SetAllocation(ALLOCATOR1, ILK1, 75 ether, 50 ether); // Note we are testing the set allocation event
+        plan.setMaxAllocation(ALLOCATOR1, ILK1, 50 ether);
+        assertEqAllocation(ALLOCATOR1, ILK1, 50 ether, 50 ether);
+    }
+
+    function _initAllocators() internal {
+        plan.addAllocator(ALLOCATOR1);
+        plan.addAllocator(ALLOCATOR2);
+        plan.addAllocator(ALLOCATOR3);
+    }
+
+    function test_addAllocatorDelegate_ward_any() public {
+        _initAllocators();
+        
+        assertEq(plan.allocatorDelegates(ALLOCATOR1, ALLOCATORDELEGATE1), 0);
+        vm.expectEmit(true, true, true, true);
+        emit AddAllocatorDelegate(ALLOCATOR1, ALLOCATORDELEGATE1);
+        plan.addAllocatorDelegate(ALLOCATOR1, ALLOCATORDELEGATE1);
+        assertEq(plan.allocatorDelegates(ALLOCATOR1, ALLOCATORDELEGATE1), 1);
+    }
+
+    function test_addAllocatorDelegate_allocator_self() public {
+        _initAllocators();
+        plan.deny(address(this));
+        
+        assertEq(plan.allocatorDelegates(ALLOCATOR1, ALLOCATORDELEGATE1), 0);
+        vm.prank(ALLOCATOR1); plan.addAllocatorDelegate(ALLOCATOR1, ALLOCATORDELEGATE1);
+        assertEq(plan.allocatorDelegates(ALLOCATOR1, ALLOCATORDELEGATE1), 1);
+    }
+
+    function test_addAllocatorDelegate_allocator_other() public {
+        _initAllocators();
+        plan.deny(address(this));
+        
+        vm.expectRevert(abi.encodePacked(contractName, "/not-authorized"));
+        plan.addAllocatorDelegate(ALLOCATOR1, ALLOCATORDELEGATE1);
+    }
+
+    function test_removeAllocatorDelegate_ward_any() public {
+        _initAllocators();
+        plan.addAllocatorDelegate(ALLOCATOR1, ALLOCATORDELEGATE1);
+        
+        assertEq(plan.allocatorDelegates(ALLOCATOR1, ALLOCATORDELEGATE1), 1);
+        vm.expectEmit(true, true, true, true);
+        emit RemoveAllocatorDelegate(ALLOCATOR1, ALLOCATORDELEGATE1);
+        plan.removeAllocatorDelegate(ALLOCATOR1, ALLOCATORDELEGATE1);
+        assertEq(plan.allocatorDelegates(ALLOCATOR1, ALLOCATORDELEGATE1), 0);
+    }
+
+    function test_removeAllocatorDelegate_allocator_self() public {
+        _initAllocators();
+        plan.addAllocatorDelegate(ALLOCATOR1, ALLOCATORDELEGATE1);
+        plan.deny(address(this));
+        
+        assertEq(plan.allocatorDelegates(ALLOCATOR1, ALLOCATORDELEGATE1), 1);
+        vm.prank(ALLOCATOR1); plan.removeAllocatorDelegate(ALLOCATOR1, ALLOCATORDELEGATE1);
+        assertEq(plan.allocatorDelegates(ALLOCATOR1, ALLOCATORDELEGATE1), 0);
+    }
+
+    function test_removeAllocatorDelegate_allocator_other() public {
+        _initAllocators();
+        plan.addAllocatorDelegate(ALLOCATOR1, ALLOCATORDELEGATE1);
+        plan.deny(address(this));
+        
+        vm.expectRevert(abi.encodePacked(contractName, "/not-authorized"));
+        plan.removeAllocatorDelegate(ALLOCATOR1, ALLOCATORDELEGATE1);
     }
 
     function test_active_enabled_set() public {
@@ -115,6 +208,12 @@ contract D3MALMDelegateControllerPlanTest is D3MPlanBaseTest {
         plan.disable();
         assertTrue(!plan.active());
         assertEq(plan.enabled(), 0);
+    }
+
+    function assertEqAllocation(address allocator, bytes32 ilk, uint256 current, uint256 max) internal {
+        (uint128 _current, uint128 _max) = plan.allocations(allocator, ilk);
+        assertEq(_current, current, "current does not match");
+        assertEq(_max, max, "max does not match");
     }
     
 }
