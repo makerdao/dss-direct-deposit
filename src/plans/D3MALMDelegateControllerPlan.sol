@@ -124,7 +124,7 @@ contract D3MALMDelegateControllerPlan is ID3MPlan {
         require(
             (
                 allocators[allocator] == 1 && 
-                (allocatorDelegates[allocator][msg.sender] == 1 || allocator == msg.sender)
+                (allocator == msg.sender || allocatorDelegates[allocator][msg.sender] == 1)
             ) ||
             wards[msg.sender] == 1
         , "D3MALMDelegateControllerPlan/not-authorized");
@@ -146,7 +146,7 @@ contract D3MALMDelegateControllerPlan is ID3MPlan {
     }
 
     // --- Getter Functions ---
-    function totalAllocations(bytes32 ilk) external view returns (uint256) {
+    function totalAllocated(bytes32 ilk) external view returns (uint256) {
         return  _ilkAllocations[ilk].total;
     }
 
