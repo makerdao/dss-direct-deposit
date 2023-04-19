@@ -49,13 +49,11 @@ contract D3MALMDelegateControllerPlan is ID3MPlan {
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
+    event File(bytes32 indexed what, uint256 data);
     event AddAllocator(address indexed allocator);
     event RemoveAllocator(address indexed allocator);
     event AddAllocatorDelegate(address indexed allocator, address indexed allocatorDelegate);
     event RemoveAllocatorDelegate(address indexed allocator, address indexed allocatorDelegate);
-    event File(bytes32 indexed what, uint256 data);
-    event File(bytes32 indexed ilk, bytes32 indexed what, uint256 data);
-    event File(bytes32 indexed ilk, bytes32 indexed what, address data);
 
     constructor() {
         wards[msg.sender] = 1;
@@ -78,6 +76,14 @@ contract D3MALMDelegateControllerPlan is ID3MPlan {
         emit Deny(usr);
     }
 
+    function file(bytes32 what, uint256 data) external auth {
+        if (what == "enabled") {
+            require(data <= 1, "D3MALMDelegateControllerPlan/invalid-value");
+            enabled = data;
+        } else revert("D3MALMDelegateControllerPlan/file-unrecognized-param");
+        emit File(what, data);
+    }
+
     function addAllocator(address allocator) external auth {
         allocators[allocator] = 1;
         emit AddAllocator(allocator);
@@ -88,17 +94,10 @@ contract D3MALMDelegateControllerPlan is ID3MPlan {
         emit RemoveAllocator(allocator);
     }
 
-    function file(bytes32 what, uint256 data) external auth {
-        if (what == "enabled") {
-            require(data <= 1, "D3MALMDelegateControllerPlan/invalid-value");
-            enabled = data;
-        } else revert("D3MALMDelegateControllerPlan/file-unrecognized-param");
-        emit File(what, data);
-    }
-
     function setMaxAllocation(bytes32 ilk, uint256 max) external auth {
         _totalAllocations[ilk].max = max;
         uint256 length = _totalAllocations[ilk].allocators.length();
+        // Note this is a loop, but we are enforcing an upper limit of allocators per ilk
         for (uint256 i = 0; i < length; i++) {
             address allocator = _totalAllocations[ilk].allocators.at(i);
             if (max < allocations[allocator][ilk].current) {
@@ -148,6 +147,11 @@ contract D3MALMDelegateControllerPlan is ID3MPlan {
         , "D3MALMDelegateControllerPlan/amount-exceeds-max");
         allocations[allocator][ilk].current = amount;
         _totalAllocations[ilk].current = _totalAllocations[ilk].current - allocation.current + amount;
+        if (amount > 0 && !_totalAllocations[ilk].allocators.contains(allocator)) {
+            _totalAllocations[ilk].allocators.add(allocator);
+        } else if (amount == 0 && _totalAllocations[ilk].allocators.contains(allocator)) {
+            _totalAllocations[ilk].allocators.remove(allocator);
+        }
     }
 
     // --- Getter Functions ---

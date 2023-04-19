@@ -54,9 +54,7 @@ contract D3MAaveTypeBufferPlanTest is D3MPlanBaseTest {
     DaiMock dai;
 
     D3MAaveTypeBufferPlan plan;
-
-    event Disable();
-
+    
     function setUp() public {
         dai = new DaiMock();
         adai = new ADaiMock(address(dai));
