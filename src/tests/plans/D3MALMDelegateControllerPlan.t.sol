@@ -26,15 +26,11 @@ contract D3MALMDelegateControllerPlanTest is D3MPlanBaseTest {
 
     address constant ALLOCATOR1 = address(1);
     address constant ALLOCATOR2 = address(2);
-    address constant ALLOCATOR3 = address(3);
 
     address constant ALLOCATORDELEGATE1 = address(4);
-    address constant ALLOCATORDELEGATE2 = address(5);
-    address constant ALLOCATORDELEGATE3 = address(6);
 
     bytes32 constant ILK1 = "ILK1";
     bytes32 constant ILK2 = "ILK2";
-    bytes32 constant ILK3 = "ILK3";
 
     event AddAllocator(address indexed allocator);
     event RemoveAllocator(address indexed allocator);
@@ -129,7 +125,6 @@ contract D3MALMDelegateControllerPlanTest is D3MPlanBaseTest {
     function _initAllocators() internal {
         plan.addAllocator(ALLOCATOR1);
         plan.addAllocator(ALLOCATOR2);
-        plan.addAllocator(ALLOCATOR3);
     }
 
     function test_addAllocatorDelegate_ward_any() public {
@@ -300,6 +295,47 @@ contract D3MALMDelegateControllerPlanTest is D3MPlanBaseTest {
         
         vm.expectRevert(abi.encodePacked(contractName, "/amount-exceeds-max"));
         plan.setAllocation(ALLOCATOR1, ILK1, 100 ether + 1);
+    }
+
+    function test_getTargetAssets() public {
+        _initAllocators();
+        plan.setMaxAllocation(ALLOCATOR1, ILK1, 100 ether);
+        plan.setMaxAllocation(ALLOCATOR2, ILK1, 50 ether);
+        plan.setMaxAllocation(ALLOCATOR1, ILK2, 150 ether);
+        plan.setMaxAllocation(ALLOCATOR2, ILK2, 200 ether);
+
+        assertEq(plan.getTargetAssets(ILK1, 0), 0);
+        assertEq(plan.getTargetAssets(ILK2, 0), 0);
+
+        plan.setAllocation(ALLOCATOR1, ILK1, 100 ether);
+
+        assertEq(plan.getTargetAssets(ILK1, 0), 100 ether);
+        assertEq(plan.getTargetAssets(ILK2, 0), 0);
+
+        plan.setAllocation(ALLOCATOR2, ILK1, 25 ether);
+        
+        assertEq(plan.getTargetAssets(ILK1, 0), 125 ether);
+        assertEq(plan.getTargetAssets(ILK2, 0), 0);
+
+        plan.setAllocation(ALLOCATOR2, ILK2, 125 ether);
+        
+        assertEq(plan.getTargetAssets(ILK1, 0), 125 ether);
+        assertEq(plan.getTargetAssets(ILK2, 0), 125 ether);
+
+        plan.setAllocation(ALLOCATOR1, ILK2, 75 ether);
+        
+        assertEq(plan.getTargetAssets(ILK1, 0), 125 ether);
+        assertEq(plan.getTargetAssets(ILK2, 0), 200 ether);
+
+        plan.setMaxAllocation(ALLOCATOR1, ILK1, 25 ether);
+        
+        assertEq(plan.getTargetAssets(ILK1, 0), 50 ether);
+        assertEq(plan.getTargetAssets(ILK2, 0), 200 ether);
+
+        plan.disable();
+        
+        assertEq(plan.getTargetAssets(ILK1, 0), 0);
+        assertEq(plan.getTargetAssets(ILK2, 0), 0);
     }
 
     function test_active_enabled_set() public {
