@@ -80,6 +80,15 @@ interface CDaiLike {
     function implementation() external view returns (address);
 }
 
+interface D3MSwapPoolLike {
+    function hub() external view returns (address);
+    function dai() external view returns (address);
+    function ilk() external view returns (bytes32);
+    function vat() external view returns (address);
+    function gem() external view returns (address);
+    function file(bytes32, address) external;
+}
+
 interface D3MOracleLike {
     function vat() external view returns (address);
     function ilk() external view returns (bytes32);
@@ -146,6 +155,13 @@ struct D3MCompoundRateTargetPlanConfig {
     address cdai;
     address tack;
     address delegate;
+}
+
+struct D3MSwapPoolConfig {
+    address gem;
+    address pip;
+    address buyGemPip;
+    address sellGemPip;
 }
 
 // Init a D3M instance
@@ -273,6 +289,26 @@ library D3MInit {
         require(pool.cDai() == compoundCfg.cdai, "Pool cDai mismatch");
 
         pool.file("king", compoundCfg.king);
+    }
+
+    function initSwapPool(
+        DssInstance memory dss,
+        D3MInstance memory d3m,
+        D3MCommonConfig memory cfg,
+        D3MSwapPoolConfig memory swapPoolCfg
+    ) internal {
+        D3MSwapPoolLike pool = D3MSwapPoolLike(d3m.pool);
+
+        // Sanity checks
+        require(pool.hub() == cfg.hub, "Pool hub mismatch");
+        require(pool.ilk() == cfg.ilk, "Pool ilk mismatch");
+        require(pool.vat() == address(dss.vat), "Pool vat mismatch");
+        require(pool.dai() == address(dss.dai), "Pool dai mismatch");
+        require(pool.gem() == swapPoolCfg.gem, "Pool gem mismatch");
+
+        pool.file("pip", swapPoolCfg.pip);
+        pool.file("buyGemPip", swapPoolCfg.buyGemPip);
+        pool.file("sellGemPip", swapPoolCfg.sellGemPip);
     }
 
     function initAaveRateTargetPlan(

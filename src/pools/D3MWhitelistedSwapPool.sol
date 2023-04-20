@@ -54,11 +54,8 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
         bytes32 _ilk,
         address _hub,
         address _dai,
-        address _gem,
-        address _plan
+        address _gem
     ) D3MSwapPool(_ilk, _hub, _dai, _gem) {
-        plan = ID3MPlan(_plan);
-
         // Initialize all fees to zero
         feeData = FeeData({
             tin: uint128(WAD),

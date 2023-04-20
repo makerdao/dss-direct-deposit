@@ -26,10 +26,13 @@ import { D3MMom } from "../D3MMom.sol";
 import { D3MInstance } from "./D3MInstance.sol";
 import { D3MAaveV2TypeRateTargetPlan } from "../plans/D3MAaveV2TypeRateTargetPlan.sol";
 import { D3MAaveTypeBufferPlan } from "../plans/D3MAaveTypeBufferPlan.sol";
+import { D3MCompoundV2TypeRateTargetPlan } from "../plans/D3MCompoundV2TypeRateTargetPlan.sol";
+import { D3MALMDelegateControllerPlan } from "../plans/D3MALMDelegateControllerPlan.sol";
 import { D3MAaveV2TypePool } from "../pools/D3MAaveV2TypePool.sol";
 import { D3MAaveV3NoSupplyCapTypePool } from "../pools/D3MAaveV3NoSupplyCapTypePool.sol";
-import { D3MCompoundV2TypeRateTargetPlan } from "../plans/D3MCompoundV2TypeRateTargetPlan.sol";
 import { D3MCompoundV2TypePool } from "../pools/D3MCompoundV2TypePool.sol";
+import { D3MLinearFeeSwapPool } from "../pools/D3MLinearFeeSwapPool.sol";
+import { D3MWhitelistedSwapPool } from "../pools/D3MWhitelistedSwapPool.sol";
 import { D3MOracle } from "../D3MOracle.sol";
 
 // Deploy a D3M instance
@@ -123,6 +126,41 @@ library D3MDeploy {
         address cdai
     ) internal returns (address plan) {
         plan = address(new D3MCompoundV2TypeRateTargetPlan(cdai));
+
+        ScriptTools.switchOwner(plan, deployer, owner);
+    }
+
+    function deployLinearFeeSwapPool(
+        address deployer,
+        address owner,
+        bytes32 ilk,
+        address hub,
+        address dai,
+        address gem
+    ) internal returns (address pool) {
+        pool = address(new D3MLinearFeeSwapPool(ilk, hub, dai, gem));
+
+        ScriptTools.switchOwner(pool, deployer, owner);
+    }
+
+    function deployWhitelistedSwapPool(
+        address deployer,
+        address owner,
+        bytes32 ilk,
+        address hub,
+        address dai,
+        address gem
+    ) internal returns (address pool) {
+        pool = address(new D3MWhitelistedSwapPool(ilk, hub, dai, gem));
+
+        ScriptTools.switchOwner(pool, deployer, owner);
+    }
+
+    function deployALMDelegateControllerPlan(
+        address deployer,
+        address owner
+    ) internal returns (address plan) {
+        plan = address(new D3MALMDelegateControllerPlan());
 
         ScriptTools.switchOwner(plan, deployer, owner);
     }

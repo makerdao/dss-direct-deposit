@@ -52,7 +52,8 @@ contract D3MWhitelistedSwapPoolTest is D3MSwapPoolTest {
 
         plan = new PlanMock();
 
-        pool = new D3MWhitelistedSwapPool(ILK, address(hub), address(dai), address(gem), address(plan));
+        pool = new D3MWhitelistedSwapPool(ILK, address(hub), address(dai), address(gem));
+        pool.setPlan(address(plan));
 
         // Fees set to tin=-5bps, tout=10bps
         pool.file("fees", 1.0005 ether, 0.9990 ether);

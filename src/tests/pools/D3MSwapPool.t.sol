@@ -17,21 +17,9 @@
 pragma solidity ^0.8.14;
 
 import "./D3MPoolBase.t.sol";
+import { PipMock } from "../mocks/PipMock.sol";
 
 import { D3MSwapPool } from "../../pools/D3MSwapPool.sol";
-
-contract PipMock {
-    uint256 public val;
-    function read() external view returns (bytes32) {
-        return bytes32(val);
-    }
-    function void() external {
-        val = 0;
-    }
-    function poke(uint256 wut) external {
-        val = wut;
-    }
-}
 
 abstract contract D3MSwapPoolTest is D3MPoolBaseTest {
 
