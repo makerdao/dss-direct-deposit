@@ -111,9 +111,7 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
 
         vm.stopPrank();
         
-        // Give us some dai and gems and infinite approval
-        dai.setBalance(address(this), debtCeiling);
-        address(gem).setBalance(address(this), daiToGem(debtCeiling));
+        // Give infinite approval to the pools
         dai.approve(address(pool), type(uint256).max);
         gem.approve(address(pool), type(uint256).max);
 
@@ -142,9 +140,11 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
         if (deltaAmount > 0) {
             uint256 amt = uint256(deltaAmount);
             dai.setBalance(address(pool), dai.balanceOf(address(pool)) + amt);
+            address(gem).setBalance(address(pool), gem.balanceOf(address(pool)) - daiToGem(amt));
         } else {
             uint256 amt = uint256(-deltaAmount);
             dai.setBalance(address(pool), dai.balanceOf(address(pool)) - amt);
+            address(gem).setBalance(address(pool), gem.balanceOf(address(pool)) + daiToGem(amt));
         }
     }
 
@@ -155,6 +155,10 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
 
     function getLiquidity() internal override view returns (uint256) {
         return dai.balanceOf(address(pool));
+    }
+
+    function getLPTokenBalanceInAssets(address a) internal view override returns (uint256) {
+        return gemToDai(gem.balanceOf(a));
     }
 
     // --- Helper functions ---

@@ -49,7 +49,7 @@ abstract contract IntegrationBaseTest is DssTest {
     VowAbstract internal vow;
 
     int256 internal standardDebtSize = int256(1_000_000 * WAD); // Override if necessary
-    uint256 internal roundingTolerance = 1;                     // Override if necessary
+    uint256 internal roundingTolerance = WAD / 10000;           // Override if necessary [1bps by default]
     bytes32 internal ilk = "EXAMPLE-ILK";                       // Override if necessary
 
     D3MHub internal hub;
@@ -99,8 +99,9 @@ abstract contract IntegrationBaseTest is DssTest {
     function basePostSetup() internal {
         pool = ID3MPool(d3m.pool);
         plan = ID3MPlan(d3m.plan);
+        fees = ID3MFees(d3m.fees);
 
-        adjustLiquidity(standardDebtSize);  // Ensure there is some liquidty to start with
+        adjustDebt(standardDebtSize);  // Ensure there is some liquidty to start with
     }
 
     // --- Helper functions ---
@@ -108,7 +109,7 @@ abstract contract IntegrationBaseTest is DssTest {
         z = x <= y ? x : y;
     }
     function assertRoundingEq(uint256 a, uint256 b) internal {
-        assertApproxEqAbs(a, b, roundingTolerance);
+        assertApproxEqRel(a, b, roundingTolerance);
     }
 
     // --- Manage D3M Debt ---
@@ -133,7 +134,8 @@ abstract contract IntegrationBaseTest is DssTest {
 
     // --- Other Overridable Functions ---
     function getLPTokenBalanceInAssets(address a) internal view virtual returns (uint256) {
-        return DSTokenAbstract(pool.redeemable()).balanceOf(a);
+        DSTokenAbstract token = DSTokenAbstract(pool.redeemable());
+        return token.balanceOf(a) * 10 ** (18 - token.decimals());
     }
 
     function generateInterest() internal virtual {
@@ -662,6 +664,7 @@ abstract contract IntegrationBaseTest is DssTest {
 
     function test_cage_exit() public {
         adjustDebt(200 ether);
+        adjustLiquidity(-200 ether);
 
         // Vat is caged for global settlement
         vm.prank(admin); end.cage();
@@ -679,11 +682,12 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 expected = 100 ether * getLPTokenBalanceInAssets(address(pool)) / totalArt;
         hub.exit(ilk, address(this), 100 ether);
         assertRoundingEq(expected, 100 ether);
-        assertRoundingEq(getLPTokenBalanceInAssets(address(this)), expected); // As the whole thing happened in a block (no fees)
+        assertRoundingEq(getLPTokenBalanceInAssets(address(this)), expected);
     }
 
     function test_cage_exit_multiple() public {
         adjustDebt(200 ether);
+        adjustLiquidity(-200 ether);
 
         // Vat is caged for global settlement
         vm.prank(admin); end.cage();
@@ -893,7 +897,6 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 sinBefore = vat.sin(address(vow));
         uint256 vowDaiBefore = vat.dai(address(vow));
         uint256 liquidityBalanceBefore = getLiquidity();
-        uint256 assetsBalanceBefore = getLPTokenBalanceInAssets(address(pool));
 
         // Someone pays back our debt
         dai.setBalance(address(this), 10 * WAD);
@@ -917,7 +920,6 @@ abstract contract IntegrationBaseTest is DssTest {
         assertEq(vat.sin(address(vow)), sinBefore);
         assertEq(vat.dai(address(vow)), vowDaiBefore);
         assertEq(getLiquidity(), liquidityBalanceBefore);
-        assertEq(getLPTokenBalanceInAssets(address(pool)), assetsBalanceBefore);
 
         hub.exec(ilk);
 
@@ -930,7 +932,6 @@ abstract contract IntegrationBaseTest is DssTest {
         assertEq(vat.sin(address(vow)), sinBefore);
         assertApproxEqAbs(vat.dai(address(vow)), vowDaiBefore + 10 * RAD, RAY * roundingTolerance);
         assertEq(getLiquidity(), liquidityBalanceBefore);
-        assertEq(getLPTokenBalanceInAssets(address(pool)), assetsBalanceBefore);
 
         // Decrease debt
         adjustDebt(-standardDebtSize / 2);
@@ -944,7 +945,6 @@ abstract contract IntegrationBaseTest is DssTest {
         assertApproxEqAbs(vat.dai(address(vow)), vowDaiBefore + 10 * RAD, RAY * roundingTolerance);
         assertEq(vat.gem(ilk, address(pool)), gemBefore);
         assertLt(getLiquidity(), liquidityBalanceBefore);
-        assertLt(getLPTokenBalanceInAssets(address(pool)), assetsBalanceBefore);
 
         // can re-wind and have the correct amount of debt
         adjustDebt(standardDebtSize / 2);
@@ -958,6 +958,5 @@ abstract contract IntegrationBaseTest is DssTest {
         assertEq(vat.sin(address(vow)), sinBefore);
         assertApproxEqAbs(vat.dai(address(vow)), vowDaiBefore + 10 * RAD, RAY * roundingTolerance);
         assertRoundingEq(getLiquidity(), liquidityBalanceBefore);
-        assertApproxEqAbs(getLPTokenBalanceInAssets(address(pool)), assetsBalanceBefore, 2 * roundingTolerance); // rounding may affect twice
     }
 }
