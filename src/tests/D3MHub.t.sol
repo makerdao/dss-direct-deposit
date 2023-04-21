@@ -23,6 +23,8 @@ import { D3MHub } from "../D3MHub.sol";
 import { D3MOracle } from "../D3MOracle.sol";
 import { ID3MPool } from "../pools/ID3MPool.sol";
 import { ID3MPlan } from "../plans/ID3MPlan.sol";
+import { ID3MFees } from "../fees/ID3MFees.sol";
+import { D3MForwardFees } from "../fees/D3MForwardFees.sol";
 
 import { TokenMock } from "./mocks/TokenMock.sol";
 
@@ -159,6 +161,7 @@ contract D3MHubTest is DssTest {
     D3MHub hub;
     PoolMock pool;
     PlanMock plan;
+    D3MForwardFees fees;
     D3MOracle pip;
 
     function setUp() public {
@@ -184,12 +187,14 @@ contract D3MHubTest is DssTest {
 
         pool = new PoolMock(address(vat), address(hub), address(dai), address(testGem));
         plan = new PlanMock();
+        fees = new D3MForwardFees(address(vat), address(vow));
 
         hub.file("vow", vow);
         hub.file("end", address(end));
 
         hub.file(ilk, "pool", address(pool));
         hub.file(ilk, "plan", address(plan));
+        hub.file(ilk, "fees", address(fees));
         hub.file(ilk, "tau", 7 days);
 
         // Init new collateral
@@ -266,6 +271,17 @@ contract D3MHubTest is DssTest {
 
         (, _plan, , , , ) = hub.ilks(ilk);
         assertEq(address(_plan), address(this));
+    }
+
+    function test_can_file_fees() public {
+        (, ,  ID3MFees _fees, , , ) = hub.ilks(ilk);
+
+        assertEq(address(_fees), address(fees));
+
+        hub.file(ilk, "fees", address(this));
+
+        (, , _fees, , , ) = hub.ilks(ilk);
+        assertEq(address(_fees), address(this));
     }
 
     function test_can_file_vow() public {

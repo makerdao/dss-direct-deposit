@@ -88,7 +88,7 @@ contract D3MHub {
     struct Ilk {
         ID3MPool pool;   // Access external pool and holds balances
         ID3MPlan plan;   // How we calculate target debt
-        ID3MFees fees;   // Custom logic for fees (set to address(0) to send to the vow)
+        ID3MFees fees;   // Fee logic handler
         uint256  tau;    // Time until you can write off the debt [sec]
         uint256  culled; // Debt write off triggered
         uint256  tic;    // Timestamp when the d3m can be culled (tau + timestamp when caged)
@@ -275,14 +275,14 @@ contract D3MHub {
                 fixArt = ink - art; // Amount of fees + permissionless DAI paid we will now transform to debt
             }
             art = ink;
-            address fees = address(ilks[ilk].fees);
-            if (fees == address(0)) fees = vow;
-            vat.suck(fees, fees, fixArt * RAY); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+            ID3MFees fees = ilks[ilk].fees;
+            uint256 feesRad = fixArt * RAY;
+            vat.suck(address(fees), address(fees), feesRad); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
             // No need for `fixArt <= MAXINT256` require as:
             // MAXINT256 >>> MAXUINT256 / RAY which is already restricted above
             // Also fixArt should be always <= SAFEMAX (MAXINT256 / RAY)
-            vat.grab(ilk, address(_pool), address(_pool), fees, 0, int256(fixArt)); // Generating the debt
-            if (fees != address(0)) ID3MFees(fees).feesCollected(ilk, fixArt);
+            vat.grab(ilk, address(_pool), address(_pool), address(fees), 0, int256(fixArt)); // Generating the debt
+            fees.feesCollected(ilk, feesRad);
         }
 
         // Determine if it needs to unwind or wind

@@ -3,6 +3,7 @@
     "admin": "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB",
     "poolType": "aave-v2",
     "planType": "rate-target",
+    "feesType": "forward",
     "ilk": "DIRECT-AAVEV2-DAI",
     "existingIlk": false,
     "maxLine": 5000000,
@@ -11,5 +12,6 @@
     "tau": 604800,
     "lendingPool": "0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9",
     "king": "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB",
-    "bar": 370
+    "bar": 370,
+    "feesForwardTo": "0xA950524441892A31ebddF91d3cEEFa04Bf454466"
 }

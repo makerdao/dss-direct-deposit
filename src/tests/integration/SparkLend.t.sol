@@ -18,6 +18,7 @@ pragma solidity ^0.8.14;
 
 import "./IntegrationBase.t.sol";
 import { DSTokenAbstract } from "dss-interfaces/Interfaces.sol";
+import { D3MForwardFees } from "../../fees/D3MForwardFees.sol";
 
 import { D3MAaveTypeBufferPlan } from "../../plans/D3MAaveTypeBufferPlan.sol";
 import { D3MAaveV3NoSupplyCapTypePool } from "../../pools/D3MAaveV3NoSupplyCapTypePool.sol";
@@ -215,6 +216,10 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
             address(adai)
         );
         plan = D3MAaveTypeBufferPlan(d3m.plan);
+        d3m.fees = D3MDeploy.deployForwardFees(
+            address(vat),
+            address(vow)
+        );
 
         // Init
         vm.startPrank(admin);

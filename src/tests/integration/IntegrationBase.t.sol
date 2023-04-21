@@ -21,6 +21,7 @@ import "dss-interfaces/Interfaces.sol";
 
 import { ID3MPlan } from "../../plans/ID3MPlan.sol";
 import { ID3MPool } from "../../pools/ID3MPool.sol";
+import { ID3MFees } from "../../fees/ID3MFees.sol";
 
 import { D3MHub } from "../../D3MHub.sol";
 import { D3MMom } from "../../D3MMom.sol";
@@ -57,13 +58,35 @@ abstract contract IntegrationBaseTest is DssTest {
     // These are private as inheriting contract should use a more specific type
     ID3MPool private pool;
     ID3MPlan private plan;
+    ID3MFees private fees;
 
     function baseInit() internal {
         vm.createSelectFork(vm.envString("ETH_RPC_URL"));
 
         dss = MCD.loadFromChainlog(0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F);
         admin = dss.chainlog.getAddress("MCD_PAUSE_PROXY");
-        hub = D3MHub(dss.chainlog.getAddress("DIRECT_HUB"));
+
+        // The Hub needs an upgrade so deactivate and replace the old one
+        address _hub = D3MDeploy.deployHub(
+            address(this),
+            admin,
+            address(dss.daiJoin)
+        );
+
+        vm.startPrank(admin);
+
+        D3MInit.deactivateHub(
+            dss,
+            dss.chainlog.getAddress("DIRECT_HUB")
+        );
+        D3MInit.initHub(
+            dss,
+            _hub
+        );
+
+        vm.stopPrank();
+
+        hub = D3MHub(_hub);
         mom = D3MMom(dss.chainlog.getAddress("DIRECT_MOM"));
 
         vat = dss.vat;

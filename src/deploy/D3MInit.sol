@@ -24,7 +24,6 @@ import { DssInstance } from "dss-test/MCD.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
 
 import { D3MInstance } from "./D3MInstance.sol";
-import { D3MCoreInstance } from "./D3MCoreInstance.sol";
 
 interface D3MAavePoolLike {
     function hub() external view returns (address);
@@ -167,12 +166,11 @@ struct D3MSwapPoolConfig {
 // Init a D3M instance
 library D3MInit {
 
-    function initCore(
+    function initHub(
         DssInstance memory dss,
-        D3MCoreInstance memory d3mCore
+        address _hub
     ) internal {
-        D3MHubLike hub = D3MHubLike(d3mCore.hub);
-        D3MMomLike mom = D3MMomLike(d3mCore.mom);
+        D3MHubLike hub = D3MHubLike(_hub);
 
         // Sanity checks
         require(hub.vat() == address(dss.vat), "Hub vat mismatch");
@@ -181,11 +179,30 @@ library D3MInit {
         hub.file("vow", address(dss.vow));
         hub.file("end", address(dss.end));
 
-        mom.setAuthority(dss.chainlog.getAddress("MCD_ADM"));
-
         dss.vat.rely(address(hub));
 
         dss.chainlog.setAddress("DIRECT_HUB", address(hub));
+    }
+
+    function deactivateHub(
+        DssInstance memory dss,
+        address _hub
+    ) internal {
+        D3MHubLike hub = D3MHubLike(_hub);
+
+        dss.vat.deny(address(hub));
+
+        dss.chainlog.removeAddress("DIRECT_HUB");
+    }
+
+    function initMom(
+        DssInstance memory dss,
+        address _mom
+    ) internal {
+        D3MMomLike mom = D3MMomLike(_mom);
+
+        mom.setAuthority(dss.chainlog.getAddress("MCD_ADM"));
+
         dss.chainlog.setAddress("DIRECT_MOM", address(mom));
     }
 
@@ -206,6 +223,7 @@ library D3MInit {
 
         hub.file(ilk, "pool", d3m.pool);
         hub.file(ilk, "plan", d3m.plan);
+        hub.file(ilk, "fees", d3m.fees);
         hub.file(ilk, "tau", cfg.tau);
 
         oracle.file("hub", address(hub));

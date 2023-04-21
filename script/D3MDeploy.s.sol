@@ -45,6 +45,7 @@ contract D3MDeployScript is Script {
 
     string poolType;
     string planType;
+    string feesType;
     address admin;
     address hub;
     bytes32 ilk;
@@ -62,6 +63,7 @@ contract D3MDeployScript is Script {
 
         poolType = config.readString(".poolType");
         planType = config.readString(".planType");
+        feesType = config.readString(".feesType");
         admin = config.readAddress(".admin");
         hub = dependencies.eq("") ? dss.chainlog.getAddress("DIRECT_HUB") : dependencies.readAddress(".hub");
         ilk = config.readString(".ilk").stringToBytes32();
@@ -138,10 +140,22 @@ contract D3MDeployScript is Script {
         } else {
             revert("Unknown plan type");
         }
+
+        // Fees
+        if (planType.eq("forward")) {
+            d3m.fees = D3MDeploy.deployForwardFees(
+                address(dss.vat),
+                config.readAddress(".feesForwardTo")
+            );
+        } else {
+            revert("Unknown fee type");
+        }
+
         vm.stopBroadcast();
 
         ScriptTools.exportContract("pool", d3m.pool);
         ScriptTools.exportContract("plan", d3m.plan);
+        ScriptTools.exportContract("fees", d3m.fees);
         ScriptTools.exportContract("oracle", d3m.oracle);
     }
 

@@ -22,8 +22,7 @@ import { MCD, DssInstance } from "dss-test/MCD.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
 
 import {
-    D3MInit,
-    D3MCoreInstance
+    D3MInit
 } from "../src/deploy/D3MInit.sol";
 
 contract D3MCoreInitScript is Script {
@@ -37,22 +36,19 @@ contract D3MCoreInitScript is Script {
     string dependencies;
     DssInstance dss;
 
-    D3MCoreInstance d3mCore;
-
     function run() external {
         config = ScriptTools.loadConfig(NAME);
         dependencies = ScriptTools.loadDependencies(NAME);
         dss = MCD.loadFromChainlog(config.readAddress(".chainlog"));
 
-        d3mCore = D3MCoreInstance({
-            hub: dependencies.readAddress(".hub"),
-            mom: dependencies.readAddress(".mom")
-        });
-
         vm.startBroadcast();
-        D3MInit.initCore(
+        D3MInit.initHub(
             dss,
-            d3mCore
+            dependencies.readAddress(".hub")
+        );
+        D3MInit.initMom(
+            dss,
+            dependencies.readAddress(".mom")
         );
         vm.stopBroadcast();
     }

@@ -3,6 +3,7 @@
     "admin": "0x5DCdbD3cCF9B09EAAD03bc5f50fA2B3d3ACA0121",
     "poolType": "aave-v3-no-supply-cap",
     "planType": "liquidity-buffer",
+    "feesType": "forward",
     "ilk": "DIRECT-SPARK-DAI",
     "existingIlk": false,
     "maxLine": 5000000,
@@ -12,5 +13,6 @@
     "lendingPool": "0x26ca51Af4506DE7a6f0785D20CD776081a05fF6d",
     "king": "0x5DCdbD3cCF9B09EAAD03bc5f50fA2B3d3ACA0121",
     "adai": "0x4480b29AB7a1b0761e6d0d480325de28B7266d73",
-    "buffer": 5000000
+    "buffer": 5000000,
+    "feesForwardTo": "0x23f78612769b9013b3145E43896Fa1578cAa2c2a"
 }

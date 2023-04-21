@@ -70,6 +70,7 @@ contract D3MInitScript is Script {
         d3m = D3MInstance({
             pool: dependencies.readAddress(".pool"),
             plan: dependencies.readAddress(".plan"),
+            fees: dependencies.readAddress(".fees"),
             oracle: dependencies.readAddress(".oracle")
         });
         cfg = D3MCommonConfig({

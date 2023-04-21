@@ -70,6 +70,10 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
             admin
         );
         plan = D3MALMDelegateControllerPlan(d3m.plan);
+        d3m.fees = D3MDeploy.deployForwardFees(
+            address(vat),
+            address(vow)
+        );
 
         // Init
         vm.startPrank(admin);
@@ -146,7 +150,7 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
 
     function generateInterest() internal override {
         // Generate interest by adding more gems to the pool
-        gem.transfer(address(pool), daiToGem(standardDebtSize / 10));
+        gem.transfer(address(pool), daiToGem(uint256(standardDebtSize) / 10));
     }
 
     function getLiquidity() internal override view returns (uint256) {

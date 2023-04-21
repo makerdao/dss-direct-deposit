@@ -14,26 +14,34 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.8.0;
+pragma solidity ^0.8.14;
+
+import "./ID3MFees.sol";
+
+interface VatLike {
+    function dai(address) external view returns (uint256);
+    function move(address, address, uint256) external;
+}
 
 /**
-    @title D3M Fees Interface
-    @notice Receives fees from the Hub and distributes them
-*/
-interface ID3MFees {
+ * @title Forward Fees
+ * @notice Forwards all fees to a single contract
+ */
+contract D3MForwardFees is ID3MFees {
 
-    /**
-     * @notice Emitted when fees are collected
-     * @param ilk The ilk where the fees were collected
-     * @param fees The amount of fees collected [rad]
-     */
-    event FeesCollected(bytes32 indexed ilk, uint256 fees);
+    VatLike public immutable vat;
+    address public immutable target;
 
-    /**
-     * @notice Called after fees have been received.
-     * @param ilk The ilk where the fees were collected
-     * @param fees The amount of fees collected [rad]
-     */
-    function feesCollected(bytes32 ilk, uint256 fees) external;
+    constructor(address _vat, address _target) {
+        vat = VatLike(_vat);
+        target = _target;
+    }
+
+    function feesCollected(bytes32 ilk, uint256) external {
+        uint256 dai = vat.dai(address(this));   // Maybe someone permissionlessly sent us DAI
+        vat.move(address(this), target, dai);
+
+        emit FeesCollected(ilk, dai);
+    }
 
 }
