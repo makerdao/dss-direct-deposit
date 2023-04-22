@@ -91,8 +91,15 @@ interface ID3MPool {
     function maxWithdraw() external view returns (uint256);
 
     /**
+        @notice Return the amount of liquidity available at this moment in time.
+        @dev Available liquidity is Dai that be immediately withdrawn not limited by your previous deposits
+        @return uint256 available liquidity in Dai [wad]
+    */
+    function liquidityAvailable() external view returns (uint256);
+
+    /**
         @notice Return what is considered idle liquidity.
-        @dev Idle liquidity is the amount of liquidity that is not being used
+        @dev Idle liquidity is the amount of liquidity that is considered not being used
         @return uint256 idle liquidity in Dai [wad]
     */
     function idleLiquidity() external view returns (uint256);

@@ -231,6 +231,10 @@ contract D3MAaveV3NoSupplyCapTypePool is ID3MPool {
         return _min(dai.balanceOf(address(adai)), assetBalance());
     }
 
+    function liquidityAvailable() external view override returns (uint256) {
+        return dai.balanceOf(address(adai));
+    }
+
     function idleLiquidity() external pure override returns (uint256) {
         // TODO this should be the 100% - utiliztion rate of the pool * adai balance
         return 0;

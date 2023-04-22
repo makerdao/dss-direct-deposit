@@ -161,6 +161,10 @@ abstract contract D3MSwapPool is ID3MPool {
         return dai.balanceOf(address(this));
     }
 
+    function liquidityAvailable() external view override returns (uint256) {
+        return dai.balanceOf(address(this));
+    }
+
     function idleLiquidity() external view override returns (uint256) {
         return dai.balanceOf(address(this));
     }

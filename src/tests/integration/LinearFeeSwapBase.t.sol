@@ -41,8 +41,6 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
     function setUp() public {
         baseInit();
 
-        uint256 debtCeiling = uint256(standardDebtSize) * 100;
-
         gem = GemAbstract(getGem());
         gemConversionFactor = 10 ** (18 - gem.decimals());
         pip = DSValueAbstract(getPip());
@@ -83,8 +81,8 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
             mom: address(mom),
             ilk: ilk,
             existingIlk: false,
-            maxLine: debtCeiling * RAY,
-            gap: debtCeiling * RAY,
+            maxLine: standardDebtCeiling * RAY,
+            gap: standardDebtCeiling * RAY,
             ttl: 0,
             tau: 7 days
         });
@@ -107,7 +105,7 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
 
         // Add ourselves to the plan
         plan.addAllocator(address(this));
-        plan.setMaxAllocation(address(this), ilk, uint128(debtCeiling));
+        plan.setMaxAllocation(address(this), ilk, uint128(standardDebtCeiling));
 
         vm.stopPrank();
         
@@ -125,39 +123,35 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
     function getBuyGemPip() internal virtual view returns (address);
 
     // --- Overrides ---
-    function adjustDebt(int256 deltaAmount) internal override {
-        if (deltaAmount == 0) return;
-        
-        (uint128 current,) = plan.allocations(address(this), ilk);
-        int256 newValue = int256(uint256(current)) + deltaAmount;
-        plan.setAllocation(address(this), ilk, newValue > 0 ? uint128(uint256(newValue)) : 0);
+    function setDebt(uint256 amount) internal override {
+        plan.setAllocation(address(this), ilk, amount);
         hub.exec(ilk);
     }
 
-    function adjustLiquidity(int256 deltaAmount) internal override {
-        if (deltaAmount == 0) return;
-
-        if (deltaAmount > 0) {
-            uint256 amt = uint256(deltaAmount);
-            dai.setBalance(address(pool), dai.balanceOf(address(pool)) + amt);
-            address(gem).setBalance(address(pool), gem.balanceOf(address(pool)) - daiToGem(amt));
+    function setLiquidity(uint256 amount) internal override {
+        // This would normally be done by a swap, but the fees make that more difficult
+        // We will test the swap functionality inside this contract instead of the base
+        uint256 prev = dai.balanceOf(address(pool));
+        dai.setBalance(address(pool), amount);
+        if (amount >= prev) {
+            uint256 gemBalance = gem.balanceOf(address(pool));
+            uint256 gemAmount = daiToGem(amount - prev);
+            if (gemBalance >= gemAmount) {
+                address(gem).setBalance(address(pool), gemBalance - gemAmount);
+            } else {
+                address(gem).setBalance(address(pool), 0);
+            }
         } else {
-            uint256 amt = uint256(-deltaAmount);
-            dai.setBalance(address(pool), dai.balanceOf(address(pool)) - amt);
-            address(gem).setBalance(address(pool), gem.balanceOf(address(pool)) + daiToGem(amt));
+            address(gem).setBalance(address(pool), gem.balanceOf(address(pool)) + daiToGem(prev - amount));
         }
     }
 
     function generateInterest() internal override {
         // Generate interest by adding more gems to the pool
-        gem.transfer(address(pool), daiToGem(uint256(standardDebtSize) / 10));
+        gem.transfer(address(pool), daiToGem(standardDebtSize / 100));
     }
 
-    function getLiquidity() internal override view returns (uint256) {
-        return dai.balanceOf(address(pool));
-    }
-
-    function getLPTokenBalanceInAssets(address a) internal view override returns (uint256) {
+    function getTokenBalanceInAssets(address a) internal view override returns (uint256) {
         return gemToDai(gem.balanceOf(a));
     }
 

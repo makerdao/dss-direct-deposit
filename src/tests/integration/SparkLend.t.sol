@@ -191,7 +191,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
         adai = ATokenLike(0x4DEDf26112B3Ec8eC46e7E31EA5e123490B05B8B);
         treasury = TreasuryLike(adai.RESERVE_TREASURY_ADDRESS());
         treasuryAdmin = treasury.getFundsAdmin();
-        buffer = 5_000_000 * WAD;
+        buffer = standardDebtSize * 5;
         flashLender = IERC3156FlashLender(dss.chainlog.getAddress("MCD_FLASH"));
 
         // Deploy
@@ -229,8 +229,8 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
             mom: address(mom),
             ilk: ilk,
             existingIlk: false,
-            maxLine: buffer * RAY * 100000,     // Set gap and max line to large number to avoid hitting limits
-            gap: buffer * RAY * 100000,
+            maxLine: standardDebtCeiling * RAY,
+            gap: standardDebtCeiling * RAY,
             ttl: 0,
             tau: 7 days
         });
@@ -260,9 +260,6 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
 
         vm.stopPrank();
 
-        // Give us some DAI
-        dai.setBalance(address(this), buffer * 100000000);
-
         // Deposit WETH into the pool
         uint256 amt = 1_000_000 * WAD;
         DSTokenAbstract weth = DSTokenAbstract(dss.getIlk("ETH", "A").gem);
@@ -271,8 +268,6 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
         dai.approve(address(sparkPool), type(uint256).max);
         sparkPool.supply(address(weth), amt, address(this), 0);
 
-        assertGt(getDebtCeiling(), 0);
-
         // Recompute the dai interest rate strategy to ensure the new line is taken into account
         daiInterestRateStrategy.recompute();
 
@@ -280,25 +275,21 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
     }
 
     // --- Overrides ---
-    function adjustDebt(int256 deltaAmount) internal override {
-        if (deltaAmount == 0) return;
-
-        int256 newBuffer = int256(plan.buffer()) + deltaAmount;
-        vm.prank(admin); plan.file("buffer", newBuffer >= 0 ? uint256(newBuffer) : 0);
+    function setDebt(uint256 amount) internal override {
+        vm.prank(admin); plan.file("buffer", amount);
         hub.exec(ilk);
     }
 
-    function adjustLiquidity(int256 deltaAmount) internal override {
-        if (deltaAmount == 0) return;
-
-        if (deltaAmount > 0) {
+    function setLiquidity(int256 amount) internal override {
+        uint256 currLiquidity = getLiquidity();
+        if (amount >= currLiquidity) {
             // Supply to increase liquidity
-            uint256 amt = uint256(deltaAmount);
+            uint256 amt = amount - currLiquidity;
             dai.setBalance(address(this), dai.balanceOf(address(this)) + amt);
             sparkPool.supply(address(dai), amt, address(0), 0);
         } else {
             // Borrow to decrease liquidity
-            uint256 amt = uint256(-deltaAmount);
+            uint256 amt = currLiquidity - amount;
             sparkPool.borrow(address(dai), amt, 2, 0, address(this));
         }
     }
@@ -306,6 +297,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
     function generateInterest() internal override {
         // Generate interest by borrowing and repaying
         uint256 performanceBonus = daiInterestRateStrategy.performanceBonus();
+        if (performanceBonus == 0) performanceBonus = standardDebtSize;
         sparkPool.supply(address(dai), performanceBonus * 4, address(this), 0);
         sparkPool.borrow(address(dai), performanceBonus * 2, 2, 0, address(this));
         vm.warp(block.timestamp + 1 days);
@@ -313,21 +305,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
         sparkPool.withdraw(address(dai), performanceBonus * 4, address(this));
     }
 
-    function getLiquidity() internal override view returns (uint256) {
-        return dai.balanceOf(address(adai));
-    }
-
     // --- Helper functions ---
-    function getDebtCeiling() internal view returns (uint256) {
-        (,,, uint256 line,) = dss.vat.ilks(ilk);
-        return line;
-    }
-
-    function getDebt() internal view returns (uint256) {
-        (, uint256 art) = dss.vat.urns(ilk, address(pool));
-        return art;
-    }
-
     function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
         unchecked {
             z = x != 0 ? ((x - 1) / y) + 1 : 0;
