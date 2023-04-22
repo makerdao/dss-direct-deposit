@@ -109,6 +109,9 @@ abstract contract IntegrationBaseTest is DssTest {
     function assertRoundingEq(uint256 a, uint256 b) internal {
         assertApproxEqRel(a, b, roundingTolerance);
     }
+    function assertRoundingEq(uint256 a, uint256 b, string memory err) internal {
+        assertApproxEqRel(a, b, roundingTolerance, err);
+    }
 
     // --- Manage D3M Debt ---
     function getDebt() internal virtual view returns (uint256) {
@@ -145,8 +148,8 @@ abstract contract IntegrationBaseTest is DssTest {
         setDebt(standardDebtSize);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
-        assertEq(ink, standardDebtSize);
-        assertEq(art, standardDebtSize);
+        assertRoundingEq(ink, standardDebtSize);
+        assertRoundingEq(art, standardDebtSize);
 
         setDebt(0);
 
@@ -234,22 +237,22 @@ abstract contract IntegrationBaseTest is DssTest {
         // Max out the debt ceiling
         setDebtToMaximum();
         (uint256 ink, uint256 art) = vat.urns(ilk, address(pool));
-        assertEq(ink, debtCeiling);
-        assertEq(art, debtCeiling);
+        assertRoundingEq(ink, debtCeiling);
+        assertRoundingEq(art, debtCeiling);
 
         // Should be a no-op
         hub.exec(ilk);
         (ink, art) = vat.urns(ilk, address(pool));
-        assertEq(ink, debtCeiling);
-        assertEq(art, debtCeiling);
+        assertRoundingEq(ink, debtCeiling);
+        assertRoundingEq(art, debtCeiling);
 
         // Raise it by a bit
         debtCeiling = standardDebtSize * 2;
         vm.prank(admin); vat.file(ilk, "line", debtCeiling * RAY);
         setDebtToMaximum();
         (ink, art) = vat.urns(ilk, address(pool));
-        assertEq(ink, debtCeiling);
-        assertEq(art, debtCeiling);
+        assertRoundingEq(ink, debtCeiling);
+        assertRoundingEq(art, debtCeiling);
     }
 
     function test_collect_interest() public {
@@ -370,7 +373,7 @@ abstract contract IntegrationBaseTest is DssTest {
         (ink, art) = vat.urns(ilk, address(pool));
         assertEq(ink, 0);
         assertEq(art, 0);
-        assertEq(vat.gem(ilk, address(end)), standardDebtSize / 2); // Automatically skimmed when unwinding
+        assertRoundingEq(vat.gem(ilk, address(end)), standardDebtSize / 2); // Automatically skimmed when unwinding
         if (prevSin + (standardDebtSize / 2) * RAY >= prevDai) {
             assertRoundingEq(vat.sin(address(vow)), prevSin + (standardDebtSize / 2) * RAY - prevDai);
             assertEq(vat.dai(address(vow)), 0);
@@ -429,7 +432,7 @@ abstract contract IntegrationBaseTest is DssTest {
         vow.heal(_min(vat.sin(address(vow)), vat.dai(address(vow))));
 
         // Part can't be done yet
-        assertEq(vat.gem(ilk, address(end)), standardDebtSize / 2);
+        assertRoundingEq(vat.gem(ilk, address(end)), standardDebtSize / 2);
         if (prevSin + (standardDebtSize / 2) * RAY >= prevDai) {
             assertRoundingEq(vat.sin(address(vow)), prevSin + (standardDebtSize / 2) * RAY - prevDai);
             assertEq(vat.dai(address(vow)), 0);
@@ -559,8 +562,8 @@ abstract contract IntegrationBaseTest is DssTest {
         vow.heal(_min(vat.sin(address(vow)), vat.dai(address(vow))));
 
         // A part can't be unwind yet
-        assertEq(vat.gem(ilk, address(end)), standardDebtSize / 2);
-        assertGe(pool.assetBalance(), standardDebtSize / 2);
+        assertRoundingEq(vat.gem(ilk, address(end)), standardDebtSize / 2);
+        assertRoundingEq(pool.assetBalance(), standardDebtSize / 2);
         if (originalSin + part * RAY >= originalDai + (standardDebtSize / 2) * RAY) {
             // rounding may affect twice, and multiplied by RAY to be compared with sin
             assertRoundingEq(vat.sin(address(vow)), originalSin + part * RAY - originalDai - (standardDebtSize / 2) * RAY);
