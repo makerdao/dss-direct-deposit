@@ -124,7 +124,7 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
 
     // --- Overrides ---
     function setDebt(uint256 amount) internal override {
-        plan.setAllocation(address(this), ilk, amount);
+        plan.setAllocation(address(this), ilk, uint128(amount));
         hub.exec(ilk);
     }
 

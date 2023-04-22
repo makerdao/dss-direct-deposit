@@ -280,7 +280,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
         hub.exec(ilk);
     }
 
-    function setLiquidity(int256 amount) internal override {
+    function setLiquidity(uint256 amount) internal override {
         uint256 currLiquidity = getLiquidity();
         if (amount >= currLiquidity) {
             // Supply to increase liquidity
@@ -352,7 +352,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
 
     // --- Tests ---
     function test_simple_wind_unwind() public {
-        setLiquidityToZero();
+        setLiquidity(0);
 
         assertEq(getDebt(), 0);
 

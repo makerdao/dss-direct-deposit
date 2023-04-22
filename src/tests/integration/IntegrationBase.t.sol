@@ -149,7 +149,7 @@ abstract contract IntegrationBaseTest is DssTest {
         assertEq(ink, standardDebtSize);
         assertEq(art, standardDebtSize);
 
-        setDebt();
+        setDebt(0);
 
         (ink, art) = vat.urns(ilk, address(pool));
         assertEq(ink, 0);
@@ -215,7 +215,7 @@ abstract contract IntegrationBaseTest is DssTest {
         assertEq(vat.dai(address(vow)), vowDai);
 
         // Some time later DAI liquidity returns
-        adjustLiquidity(standardDebtSize / 2);
+        setLiquidity(standardDebtSize / 2);
 
         // Close out the remainder of the position
         uint256 balance = pool.assetBalance();
@@ -396,6 +396,8 @@ abstract contract IntegrationBaseTest is DssTest {
         setDebt(standardDebtSize);
         setLiquidity(standardDebtSize / 2);
 
+        (uint256 pink,) = vat.urns(ilk, address(pool));
+
         // MCD shutdowns
         vm.prank(admin); end.cage();
         end.cage(ilk);
@@ -429,8 +431,8 @@ abstract contract IntegrationBaseTest is DssTest {
         vow.heal(_min(vat.sin(address(vow)), vat.dai(address(vow))));
 
         // Part can't be done yet
-        assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
-        if (prevSin + (amountSupplied / 2) * RAY >= prevDai) {
+        assertEq(vat.gem(ilk, address(end)), standardDebtSize / 2);
+        if (prevSin + (standardDebtSize / 2) * RAY >= prevDai) {
             assertRoundingEq(vat.sin(address(vow)), prevSin + (standardDebtSize / 2) * RAY - prevDai);
             assertEq(vat.dai(address(vow)), 0);
         } else {
@@ -474,6 +476,8 @@ abstract contract IntegrationBaseTest is DssTest {
     function test_unwind_culled_then_mcd_caged() public {
         setDebt(standardDebtSize);
         setLiquidity(standardDebtSize / 2);
+
+        (uint256 pink, uint256 part) = vat.urns(ilk, address(pool));
 
         vm.prank(admin); hub.cage(ilk);
 
@@ -557,20 +561,20 @@ abstract contract IntegrationBaseTest is DssTest {
         vow.heal(_min(vat.sin(address(vow)), vat.dai(address(vow))));
 
         // A part can't be unwind yet
-        assertEq(vat.gem(ilk, address(end)), amountSupplied / 2);
-        assertGe(pool.assetBalance(), amountSupplied / 2);
-        if (originalSin + part * RAY >= originalDai + (amountSupplied / 2) * RAY) {
+        assertEq(vat.gem(ilk, address(end)), standardDebtSize / 2);
+        assertGe(pool.assetBalance(), standardDebtSize / 2);
+        if (originalSin + part * RAY >= originalDai + (standardDebtSize / 2) * RAY) {
             // rounding may affect twice, and multiplied by RAY to be compared with sin
-            assertRoundingEq(vat.sin(address(vow)), originalSin + part * RAY - originalDai - (amountSupplied / 2) * RAY);
+            assertRoundingEq(vat.sin(address(vow)), originalSin + part * RAY - originalDai - (standardDebtSize / 2) * RAY);
             assertEq(vat.dai(address(vow)), 0);
         } else {
             // rounding may affect twice, and multiplied by RAY to be compared with sin
-            assertRoundingEq(vat.dai(address(vow)), originalDai + (amountSupplied / 2) * RAY - originalSin - part * RAY);
+            assertRoundingEq(vat.dai(address(vow)), originalDai + (standardDebtSize / 2) * RAY - originalSin - part * RAY);
             assertEq(vat.sin(address(vow)), 0);
         }
 
         // Then pool gets some liquidity
-        adjustLiquidity(int256(amountToBorrow));
+        setLiquidity(standardDebtSize / 2);
 
         // Rest of the liquidity can be withdrawn
         hub.exec(ilk);
@@ -881,7 +885,7 @@ abstract contract IntegrationBaseTest is DssTest {
         assertEq(getLiquidity(), liquidityBalanceBefore);
 
         // Decrease debt
-        adjustDebt(-standardDebtSize / 2);
+        setDebt(standardDebtSize / 2);
 
         (ink, art) = vat.urns(ilk, address(pool));
         assertLt(ink, pink);
@@ -894,7 +898,7 @@ abstract contract IntegrationBaseTest is DssTest {
         assertLt(getLiquidity(), liquidityBalanceBefore);
 
         // can re-wind and have the correct amount of debt
-        adjustDebt(standardDebtSize / 2);
+        setDebt(standardDebtSize);
 
         (ink, art) = vat.urns(ilk, address(pool));
         assertRoundingEq(ink, pink);
