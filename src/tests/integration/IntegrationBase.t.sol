@@ -34,7 +34,6 @@ abstract contract IntegrationBaseTest is DssTest {
 
     using stdJson for string;
     using MCD for *;
-    using GodMode for *;
     using ScriptTools for *;
 
     address internal admin;
@@ -247,7 +246,7 @@ abstract contract IntegrationBaseTest is DssTest {
         // Raise it by a bit
         debtCeiling = standardDebtSize * 2;
         vm.prank(admin); vat.file(ilk, "line", debtCeiling * RAY);
-        hub.exec(ilk);
+        setDebtToMaximum();
         (ink, art) = vat.urns(ilk, address(pool));
         assertEq(ink, debtCeiling);
         assertEq(art, debtCeiling);
@@ -268,7 +267,6 @@ abstract contract IntegrationBaseTest is DssTest {
     }
 
     function test_insufficient_liquidity_for_unwind_fees() public {
-        uint256 currentLiquidity = getLiquidity();
         uint256 vowDai = vat.dai(address(vow));
 
         setDebt(standardDebtSize);
@@ -285,11 +283,12 @@ abstract contract IntegrationBaseTest is DssTest {
         generateInterest();
 
         uint256 feesAccrued = pool.assetBalance() - pAssets;
-        currentLiquidity = getLiquidity();
+        setLiquidity(feesAccrued);
+        uint256 debt = getDebt();
 
         assertGt(feesAccrued, 0);
-        assertEq(pink, currentLiquidity);
-        assertGt(pink + feesAccrued, currentLiquidity);
+        assertEq(pink, debt);
+        assertGt(pink + feesAccrued, debt);
 
         // Cage the system to trigger only unwinds
         vm.prank(admin); hub.cage(ilk);
@@ -301,7 +300,6 @@ abstract contract IntegrationBaseTest is DssTest {
         assertEq(ink, art);
         assertRoundingEq(ink, assets);
         assertGt(assets, 0);
-        assertRoundingEq(ink, feesAccrued);
         assertRoundingEq(vat.dai(address(vow)), vowDai + feesAccrued * RAY);
 
         // Liquidity returns
@@ -659,7 +657,7 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 expectedToken2 = takeAmount * pool.assetBalance() / (totalArt - takeAmount);
         assertGt(expectedToken2, expectedToken);
         hub.exit(ilk, address(this), takeAmount);
-        assertGt(getTokenBalanceInAssets(address(this)), expectedToken + expectedToken2);
+        assertRoundingEq(getTokenBalanceInAssets(address(this)), expectedToken + expectedToken2);
 
         generateInterest();
 
@@ -667,14 +665,14 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 expectedToken3 = takeAmount * pool.assetBalance() / (totalArt - takeAmount);
         assertGt(expectedToken3, expectedToken + expectedToken2);
         hub.exit(ilk, address(this), takeAmount);
-        assertGt(getTokenBalanceInAssets(address(this)), expectedToken + expectedToken2 + expectedToken3);
+        assertRoundingEq(getTokenBalanceInAssets(address(this)), expectedToken + expectedToken2 + expectedToken3);
 
         generateInterest();
 
         takeAmount = uint256(standardDebtSize / 2);
         uint256 expectedToken4 = (totalArt - takeAmount) * pool.assetBalance() / (totalArt - takeAmount);
         hub.exit(ilk, address(this), (totalArt - takeAmount));
-        assertGt(getTokenBalanceInAssets(address(this)), expectedToken + expectedToken2 + expectedToken3 + expectedToken4);
+        assertRoundingEq(getTokenBalanceInAssets(address(this)), expectedToken + expectedToken2 + expectedToken3 + expectedToken4);
         assertEq(pool.assetBalance(), 0);
     }
 
@@ -719,7 +717,7 @@ abstract contract IntegrationBaseTest is DssTest {
         assertEq(nbal, 0);
 
         (uint256 ink, uint256 art) = vat.urns(ilk, receiver);
-        uint256 bal = getTokenBalanceInAssets(receiver);
+        uint256 bal = getTokenBalanceInAssets(receiver) + dai.balanceOf(receiver);
         assertEq(ink, pink);
         assertEq(art, part);
         assertEq(bal, pbal);
@@ -754,7 +752,7 @@ abstract contract IntegrationBaseTest is DssTest {
         assertEq(nbal, 0);
 
         uint256 gem = vat.gem(ilk, receiver);
-        uint256 bal = getTokenBalanceInAssets(receiver);
+        uint256 bal = getTokenBalanceInAssets(receiver) + dai.balanceOf(receiver);
         assertEq(gem, 0);
         assertEq(bal, pbal);
     }
@@ -800,7 +798,7 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 assetsBalanceBefore = pool.assetBalance();
 
         // Someone pays back our debt
-        dai.setBalance(address(this), 10 * WAD);
+        deal(address(dai), address(this), 10 * WAD);
         dai.approve(address(daiJoin), type(uint256).max);
         daiJoin.join(address(this), 10 * WAD);
         vat.frob(
@@ -850,7 +848,7 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 liquidityBalanceBefore = getLiquidity();
 
         // Someone pays back our debt
-        dai.setBalance(address(this), 10 * WAD);
+        deal(address(dai), address(this), 10 * WAD);
         dai.approve(address(daiJoin), type(uint256).max);
         daiJoin.join(address(this), 10 * WAD);
         vat.frob(

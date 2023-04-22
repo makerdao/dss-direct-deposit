@@ -263,7 +263,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
         // Deposit WETH into the pool
         uint256 amt = 1_000_000 * WAD;
         DSTokenAbstract weth = DSTokenAbstract(dss.getIlk("ETH", "A").gem);
-        weth.setBalance(address(this), amt);
+        deal(address(weth), address(this), amt);
         weth.approve(address(sparkPool), type(uint256).max);
         dai.approve(address(sparkPool), type(uint256).max);
         sparkPool.supply(address(weth), amt, address(this), 0);
@@ -285,7 +285,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
         if (amount >= currLiquidity) {
             // Supply to increase liquidity
             uint256 amt = amount - currLiquidity;
-            dai.setBalance(address(this), dai.balanceOf(address(this)) + amt);
+            deal(address(dai), address(this), dai.balanceOf(address(this)) + amt);
             sparkPool.supply(address(dai), amt, address(0), 0);
         } else {
             // Borrow to decrease liquidity
@@ -456,7 +456,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
         // Remove all DAI liquidity from the pool
         sparkPool.borrow(address(dai), dai.balanceOf(address(adai)), 2, 0, address(this));
         assertEq(dai.balanceOf(address(adai)), 0);
-        dai.setBalance(address(this), 0);       // We have no DAI as well
+        deal(address(dai), address(this), 0);       // We have no DAI as well
 
         // Withdrawing won't work because no available DAI
         vm.expectRevert();

@@ -26,7 +26,6 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
 
     using stdJson for string;
     using MCD for *;
-    using GodMode for *;
     using ScriptTools for *;
 
     GemAbstract gem;
@@ -132,23 +131,23 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
         // This would normally be done by a swap, but the fees make that more difficult
         // We will test the swap functionality inside this contract instead of the base
         uint256 prev = dai.balanceOf(address(pool));
-        dai.setBalance(address(pool), amount);
+        deal(address(dai), address(pool), amount);
         if (amount >= prev) {
             uint256 gemBalance = gem.balanceOf(address(pool));
             uint256 gemAmount = daiToGem(amount - prev);
             if (gemBalance >= gemAmount) {
-                address(gem).setBalance(address(pool), gemBalance - gemAmount);
+                deal(address(gem), address(pool), gemBalance - gemAmount);
             } else {
-                address(gem).setBalance(address(pool), 0);
+                deal(address(gem), address(pool), 0);
             }
         } else {
-            address(gem).setBalance(address(pool), gem.balanceOf(address(pool)) + daiToGem(prev - amount));
+            deal(address(gem), address(pool), gem.balanceOf(address(pool)) + daiToGem(prev - amount));
         }
     }
 
     function generateInterest() internal override {
         // Generate interest by adding more gems to the pool
-        gem.transfer(address(pool), daiToGem(standardDebtSize / 100));
+        deal(address(gem), address(pool), gem.balanceOf(address(pool)) + daiToGem(standardDebtSize / 100));
     }
 
     function getTokenBalanceInAssets(address a) internal view override returns (uint256) {
