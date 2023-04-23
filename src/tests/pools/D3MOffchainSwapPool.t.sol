@@ -18,7 +18,7 @@ pragma solidity ^0.8.14;
 
 import "./D3MSwapPool.t.sol";
 
-import { D3MWhitelistedSwapPool } from "../../pools/D3MWhitelistedSwapPool.sol";
+import { D3MOffchainSwapPool } from "../../pools/D3MOffchainSwapPool.sol";
 
 contract PlanMock {
 
@@ -34,13 +34,13 @@ contract PlanMock {
 
 }
 
-contract D3MWhitelistedSwapPoolTest is D3MSwapPoolTest {
+contract D3MOffchainSwapPoolTest is D3MSwapPoolTest {
 
     using stdStorage for StdStorage;
 
     PlanMock plan;
 
-    D3MWhitelistedSwapPool internal pool;
+    D3MOffchainSwapPool internal pool;
 
     event SetPlan(address plan);
     event File(bytes32 indexed what, uint128 tin, uint128 tout);
@@ -52,7 +52,7 @@ contract D3MWhitelistedSwapPoolTest is D3MSwapPoolTest {
 
         plan = new PlanMock();
 
-        pool = new D3MWhitelistedSwapPool(ILK, address(hub), address(dai), address(gem));
+        pool = new D3MOffchainSwapPool(ILK, address(hub), address(dai), address(gem));
         pool.setPlan(address(plan));
 
         // Fees set to tin=-5bps, tout=10bps
@@ -70,10 +70,10 @@ contract D3MWhitelistedSwapPoolTest is D3MSwapPoolTest {
         pool.deny(address(this));
 
         checkModifier(address(pool), string(abi.encodePacked(contractName, "/not-authorized")), [
-            D3MWhitelistedSwapPool.setPlan.selector,
+            D3MOffchainSwapPool.setPlan.selector,
             bytes4(keccak256("file(bytes32,uint128,uint128)")),
-            D3MWhitelistedSwapPool.addOperator.selector,
-            D3MWhitelistedSwapPool.removeOperator.selector
+            D3MOffchainSwapPool.addOperator.selector,
+            D3MOffchainSwapPool.removeOperator.selector
         ]);
     }
 
@@ -236,9 +236,9 @@ contract D3MWhitelistedSwapPoolTest is D3MSwapPoolTest {
         assertEq(gem.balanceOf(address(this)), 25 * 1e6);
         assertEq(pool.gemsOutstanding(), 25 * 1e6);
         assertEq(pool.assetBalance(), 50 ether);
-        gem.mint(address(this), 10 * 1e6);
-        gem.approve(address(pool), 35 * 1e6);
-        pool.push(35 * 1e6);
+        gem.mint(address(pool), 10 * 1e6);
+        gem.approve(address(pool), 25 * 1e6);
+        pool.push(25 * 1e6);
         assertEq(gem.balanceOf(address(pool)), 35 * 1e6);
         assertEq(gem.balanceOf(address(this)), 0);
         assertEq(pool.gemsOutstanding(), 0);

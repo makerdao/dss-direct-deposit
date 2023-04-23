@@ -32,7 +32,7 @@ import { D3MAaveV2TypePool } from "../pools/D3MAaveV2TypePool.sol";
 import { D3MAaveV3NoSupplyCapTypePool } from "../pools/D3MAaveV3NoSupplyCapTypePool.sol";
 import { D3MCompoundV2TypePool } from "../pools/D3MCompoundV2TypePool.sol";
 import { D3MLinearFeeSwapPool } from "../pools/D3MLinearFeeSwapPool.sol";
-import { D3MWhitelistedSwapPool } from "../pools/D3MWhitelistedSwapPool.sol";
+import { D3MOffchainSwapPool } from "../pools/D3MOffchainSwapPool.sol";
 import { D3MForwardFees } from "../fees/D3MForwardFees.sol";
 
 // Deploy a D3M instance
@@ -149,7 +149,7 @@ library D3MDeploy {
         ScriptTools.switchOwner(pool, deployer, owner);
     }
 
-    function deployWhitelistedSwapPool(
+    function deployOffchainSwapPool(
         address deployer,
         address owner,
         bytes32 ilk,
@@ -157,7 +157,7 @@ library D3MDeploy {
         address dai,
         address gem
     ) internal returns (address pool) {
-        pool = address(new D3MWhitelistedSwapPool(ilk, hub, dai, gem));
+        pool = address(new D3MOffchainSwapPool(ilk, hub, dai, gem));
 
         ScriptTools.switchOwner(pool, deployer, owner);
     }

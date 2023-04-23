@@ -20,12 +20,12 @@ import "./D3MSwapPool.sol";
 import {ID3MPlan} from "../plans/ID3MPlan.sol";
 
 /**
- *  @title D3M Whitelisted Swap Pool
- *  @notice Whitelisted addresses can remove gems from this pool.
+ *  @title D3M Offchain Swap Pool
+ *  @notice Offchain addresses can remove gems from this pool.
  *  @dev DAI to GEM swaps only occur in one direction depending on if the outstanding debt is lower
  *       or higher than the debt ceiling.
  */
-contract D3MWhitelistedSwapPool is D3MSwapPool {
+contract D3MOffchainSwapPool is D3MSwapPool {
 
     struct FeeData {
         uint128 tin;     // toll in  [wad]
@@ -138,21 +138,27 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
         gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * pipValue);
     }
 
-    // --- Whitelisted push/pull + helper functions ---
+    // --- Offchain push/pull + helper functions ---
 
+    /**
+     * @notice Pull a principal amount out to invest.
+     * @param to The address to pull the gems to.
+     * @param amount The amount of gems to pull.
+     */
     function pull(address to, uint256 amount) external onlyOperator {
         require(amount <= pendingDeposits(), "D3MSwapPool/amount-exceeds-pending");
         gemsOutstanding += amount;
         require(gem.transfer(to, amount), "D3MSwapPool/failed-transfer");
     }
 
+    /**
+     * @notice Repay a principal amount back to the pool. NOTE this is not for interest payments.
+     *         Interest payments can be done by just transferring gems to this pool permissionlessly.
+     * @param amount The amount of gems to repay.
+     */
     function push(uint256 amount) external onlyOperator {
         require(gem.transferFrom(msg.sender, address(this), amount), "D3MSwapPool/failed-transfer");
-        if (gemsOutstanding > amount) {
-            gemsOutstanding -= amount;
-        } else {
-            gemsOutstanding = 0;
-        }
+        gemsOutstanding -= amount;
     }
     
     /**
