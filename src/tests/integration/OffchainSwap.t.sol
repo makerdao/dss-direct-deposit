@@ -128,6 +128,7 @@ abstract contract OffchainSwapBaseTest is IntegrationBaseTest {
     }
 
     function setLiquidity(uint256 amount) internal override virtual {
+        (uint128 currentAllocation, uint128 max) = plan.allocations(address(this), ilk);
         uint256 prev = dai.balanceOf(address(pool));
         if (amount >= prev) {
             // Increase dai liquidity by swapping dai for gems (or just adding it if there isn't enough gems)
@@ -139,14 +140,17 @@ abstract contract OffchainSwapBaseTest is IntegrationBaseTest {
                 deal(address(gem), address(pool), gemAmount);
             }
             deal(address(dai), address(this), delta);
+            plan.setAllocation(address(this), ilk, 0);
             pool.swapDaiForGem(address(this), delta, 0);
         } else {
             // Decrease DAI liquidity by swapping gems for dai
             uint256 delta = prev - amount;
             uint256 gemAmount = daiToGem(delta);
             deal(address(gem), address(this), gemAmount);
+            plan.setAllocation(address(this), ilk, max);
             pool.swapGemForDai(address(this), gemAmount, 0);
         }
+        plan.setAllocation(address(this), ilk, currentAllocation);
     }
 
     function generateInterest() internal override virtual {
@@ -199,6 +203,7 @@ abstract contract OffchainSwapBaseTest is IntegrationBaseTest {
 
         assertApproxEqAbs(dai.balanceOf(address(pool)), 0, 1);
         assertRoundingEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling));
+        plan.setAllocation(address(this), ilk, 0);
         pool.swapDaiForGem(address(this), standardDebtCeiling / 2, 0);
         assertRoundingEq(dai.balanceOf(address(pool)), standardDebtCeiling / 2);
         assertRoundingEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling / 2));
