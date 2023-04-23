@@ -19,6 +19,7 @@ pragma solidity ^0.8.14;
 import "./ID3MPool.sol";
 
 interface TokenLike {
+    function totalSupply() external view returns (uint256);
     function balanceOf(address) external view returns (uint256);
     function approve(address, uint256) external returns (bool);
     function transfer(address, uint256) external returns (bool);
@@ -214,9 +215,10 @@ contract D3MAaveV2TypePool is ID3MPool {
         return dai.balanceOf(address(adai));
     }
 
-    function idleLiquidity() external pure override returns (uint256) {
-        // TODO this should be the 100% - utiliztion rate of the pool * adai balance
-        return 0;
+    function idleLiquidity() external view override returns (uint256) {
+        uint256 totalDebt = stableDebt.totalSupply() + variableDebt.totalSupply();
+        uint256 totalPoolSize = dai.balanceOf(address(adai)) + totalDebt;
+        return adai.balanceOf(address(this)) * (totalPoolSize - totalDebt) / totalPoolSize;
     }
 
     function redeemable() external view override returns (address) {
