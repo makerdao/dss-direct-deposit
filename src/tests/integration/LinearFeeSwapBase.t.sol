@@ -122,12 +122,12 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
     function getSwapDaiForGemPip() internal virtual view returns (address);
 
     // --- Overrides ---
-    function setDebt(uint256 amount) internal override {
+    function setDebt(uint256 amount) internal override virtual {
         plan.setAllocation(address(this), ilk, uint128(amount));
         hub.exec(ilk);
     }
 
-    function setLiquidity(uint256 amount) internal override {
+    function setLiquidity(uint256 amount) internal override virtual {
         uint256 prev = dai.balanceOf(address(pool));
         if (amount >= prev) {
             // Increase dai liquidity by swapping dai for gems (or just adding it if there isn't enough gems)
@@ -149,7 +149,7 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
         }
     }
 
-    function generateInterest() internal override {
+    function generateInterest() internal override virtual {
         // Generate interest by adding more gems to the pool
         deal(address(gem), address(pool), gem.balanceOf(address(pool)) + daiToGem(standardDebtSize / 100));
     }
@@ -304,6 +304,11 @@ contract BackedIB01SwapTest is LinearFeeSwapBaseTest {
 
     function getSwapDaiForGemPip() internal override view returns (address) {
         return address(_pip);
+    }
+
+    // Backed IB01 earns interest by asset value appreciation vs getting more tokens
+    function generateInterest() internal override {
+        _pip.poke(uint256(_pip.read()) * 101 / 100);
     }
 
 }
