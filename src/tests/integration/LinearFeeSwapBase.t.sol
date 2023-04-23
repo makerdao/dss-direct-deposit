@@ -175,7 +175,7 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
     }
     
     // --- Tests ---
-    function test_swapGemForDai_no_fees() public {
+    function test_swapGemForDai() public {
         initSwaps();
 
         assertEq(dai.balanceOf(address(pool)), standardDebtCeiling);
@@ -185,7 +185,7 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
         assertEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling / 2));
     }
 
-    function test_swapDaiForGem_no_fees() public {
+    function test_swapDaiForGem() public {
         initSwaps();
         pool.swapGemForDai(address(this), daiToGem(standardDebtCeiling), 0);
 
@@ -214,6 +214,58 @@ contract USDCSwapTest is LinearFeeSwapBaseTest {
 
     function getSwapDaiForGemPip() internal override pure returns (address) {
         return 0x77b68899b99b686F415d074278a9a16b336085A0;
+    }
+
+}
+
+contract GUSDSwapTest is LinearFeeSwapBaseTest {
+
+    using stdStorage for StdStorage;
+    
+    function getGem() internal override pure returns (address) {
+        return 0x056Fd409E1d7A124BD7017459dFEa2F387b6d5Cd;
+    }
+
+    function getPip() internal override pure returns (address) {
+        return 0xf45Ae69CcA1b9B043dAE2C83A5B65Bc605BEc5F5;  // Hardcoded $1 pip
+    }
+
+    function getSwapGemForDaiPip() internal override pure returns (address) {
+        return 0xf45Ae69CcA1b9B043dAE2C83A5B65Bc605BEc5F5;
+    }
+
+    function getSwapDaiForGemPip() internal override pure returns (address) {
+        return 0xf45Ae69CcA1b9B043dAE2C83A5B65Bc605BEc5F5;
+    }
+
+    // GUSD has a separate storage contract so we need to override deal
+    function deal(address token, address to, uint256 give) internal override {
+        if (token == getGem()) {
+            // Target the storage contract for GUSD
+            stdstore.target(0xc42B14e49744538e3C239f8ae48A1Eaaf35e68a0).sig(bytes4(abi.encodeWithSignature("balances(address)"))).with_key(to).checked_write(give);
+        } else {
+            super.deal(token, to, give);
+        }
+    }
+
+}
+
+contract USDPSwapTest is LinearFeeSwapBaseTest {
+    
+    function getGem() internal override pure returns (address) {
+        return 0x8E870D67F660D95d5be530380D0eC0bd388289E1;
+    }
+
+    function getPip() internal override pure returns (address) {
+        return 0x043B963E1B2214eC90046167Ea29C2c8bDD7c0eC;  // Hardcoded $1 pip
+    }
+
+    function getSwapGemForDaiPip() internal override pure returns (address) {
+        return 0x043B963E1B2214eC90046167Ea29C2c8bDD7c0eC;
+    }
+
+    function getSwapDaiForGemPip() internal override pure returns (address) {
+        return 0x043B963E1B2214eC90046167Ea29C2c8bDD7c0eC;
     }
 
 }
