@@ -118,23 +118,23 @@ contract D3MWhitelistedSwapPool is D3MSwapPool {
 
     // --- Swaps ---
 
-    function previewSellGem(uint256 gemAmt) public view override returns (uint256 daiAmt) {
-        uint256 gemBalance = (gem.balanceOf(address(this)) + gemsOutstanding) * GEM_CONVERSION_FACTOR * uint256(sellGemPip.read()) / WAD;
+    function previewSwapGemForDai(uint256 gemAmt) public view override returns (uint256 daiAmt) {
+        uint256 gemBalance = (gem.balanceOf(address(this)) + gemsOutstanding) * GEM_CONVERSION_FACTOR * uint256(swapGemForDaiPip.read()) / WAD;
         uint256 targetAssets = plan.getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
-        uint256 pipValue = uint256(sellGemPip.read());
+        uint256 pipValue = uint256(swapGemForDaiPip.read());
         uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * pipValue / WAD;
         require(gemBalance + gemValue <= targetAssets, "D3MSwapPool/not-accepting-gems");
         FeeData memory _feeData = feeData;
         daiAmt = gemValue * _feeData.tin / WAD;
     }
 
-    function previewBuyGem(uint256 daiAmt) public view override returns (uint256 gemAmt) {
-        uint256 gemBalance = (gem.balanceOf(address(this)) + gemsOutstanding) * GEM_CONVERSION_FACTOR * uint256(buyGemPip.read()) / WAD;
+    function previewSwapDaiForGem(uint256 daiAmt) public view override returns (uint256 gemAmt) {
+        uint256 gemBalance = (gem.balanceOf(address(this)) + gemsOutstanding) * GEM_CONVERSION_FACTOR * uint256(swapDaiForGemPip.read()) / WAD;
         uint256 targetAssets = plan.getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
         FeeData memory _feeData = feeData;
         uint256 gemValue = daiAmt * _feeData.tout / WAD;
         require(targetAssets + gemValue <= gemBalance, "D3MSwapPool/not-accepting-dai");
-        uint256 pipValue = uint256(buyGemPip.read());
+        uint256 pipValue = uint256(swapDaiForGemPip.read());
         gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * pipValue);
     }
 

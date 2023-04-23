@@ -145,30 +145,30 @@ contract D3MWhitelistedSwapPoolTest is D3MSwapPoolTest {
         assertEq(pool.assetBalance(), 120 ether);
     }
 
-    function test_previewSellGem() public {
+    function test_previewSwapGemForDai() public {
         _ensureRatio(5000, 100 ether, true);
         
-        assertEq(pool.previewSellGem(10 * 1e6), 20.01 ether);
+        assertEq(pool.previewSwapGemForDai(10 * 1e6), 20.01 ether);
     }
 
-    function test_previewSellGem_not_accepting_gems() public {
+    function test_previewSwapGemForDai_not_accepting_gems() public {
         _ensureRatio(5000, 100 ether, false);
         
         vm.expectRevert(abi.encodePacked(contractName, "/not-accepting-gems"));
-        pool.previewSellGem(10 * 1e6);
+        pool.previewSwapGemForDai(10 * 1e6);
     }
 
-    function test_previewBuyGem() public {
+    function test_previewSwapDaiForGem() public {
         _ensureRatio(5000, 100 ether, false);
         
-        assertEq(pool.previewBuyGem(20 ether), 9.99 * 1e6);
+        assertEq(pool.previewSwapDaiForGem(20 ether), 9.99 * 1e6);
     }
 
-    function test_previewBuyGem_not_accepting_gems() public {
+    function test_previewSwapDaiForGem_not_accepting_gems() public {
         _ensureRatio(5000, 100 ether, true);
         
         vm.expectRevert(abi.encodePacked(contractName, "/not-accepting-dai"));
-        pool.previewBuyGem(20 ether);
+        pool.previewSwapDaiForGem(20 ether);
     }
 
     function _initPushPull() public {

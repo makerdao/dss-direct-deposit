@@ -30,8 +30,8 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
 
     GemAbstract gem;
     DSValueAbstract pip;
-    DSValueAbstract sellGemPip;
-    DSValueAbstract buyGemPip;
+    DSValueAbstract swapGemForDaiPip;
+    DSValueAbstract swapDaiForGemPip;
     uint256 gemConversionFactor;
 
     D3MALMDelegateControllerPlan plan;
@@ -43,8 +43,8 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
         gem = GemAbstract(getGem());
         gemConversionFactor = 10 ** (18 - gem.decimals());
         pip = DSValueAbstract(getPip());
-        sellGemPip = DSValueAbstract(getSellGemPip());
-        buyGemPip = DSValueAbstract(getBuyGemPip());
+        swapGemForDaiPip = DSValueAbstract(getSwapGemForDaiPip());
+        swapDaiForGemPip = DSValueAbstract(getSwapDaiForGemPip());
 
         // Deploy
         d3m.oracle = D3MDeploy.deployOracle(
@@ -97,8 +97,8 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
             D3MSwapPoolConfig({
                 gem: address(gem),
                 pip: address(pip),
-                sellGemPip: address(sellGemPip),
-                buyGemPip: address(buyGemPip)
+                swapGemForDaiPip: address(swapGemForDaiPip),
+                swapDaiForGemPip: address(swapDaiForGemPip)
             })
         );
 
@@ -118,8 +118,8 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
     // --- To Override ---
     function getGem() internal virtual view returns (address);
     function getPip() internal virtual view returns (address);
-    function getSellGemPip() internal virtual view returns (address);
-    function getBuyGemPip() internal virtual view returns (address);
+    function getSwapGemForDaiPip() internal virtual view returns (address);
+    function getSwapDaiForGemPip() internal virtual view returns (address);
 
     // --- Overrides ---
     function setDebt(uint256 amount) internal override {
@@ -139,13 +139,13 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
                 deal(address(gem), address(pool), gemAmount);
             }
             deal(address(dai), address(this), delta);
-            pool.buyGem(address(this), delta, 0);
+            pool.swapDaiForGem(address(this), delta, 0);
         } else {
             // Decrease DAI liquidity by swapping gems for dai
             uint256 delta = prev - amount;
             uint256 gemAmount = daiToGem(delta);
             deal(address(gem), address(this), gemAmount);
-            pool.sellGem(address(this), gemAmount, 0);
+            pool.swapGemForDai(address(this), gemAmount, 0);
         }
     }
 
@@ -175,23 +175,23 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
     }
     
     // --- Tests ---
-    function test_sellGem_no_fees() public {
+    function test_swapGemForDai_no_fees() public {
         initSwaps();
 
         assertEq(dai.balanceOf(address(pool)), standardDebtCeiling);
         assertEq(gem.balanceOf(address(pool)), 0);
-        pool.sellGem(address(this), daiToGem(standardDebtCeiling / 2), 0);
+        pool.swapGemForDai(address(this), daiToGem(standardDebtCeiling / 2), 0);
         assertEq(dai.balanceOf(address(pool)), standardDebtCeiling / 2);
         assertEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling / 2));
     }
 
-    function test_buyGem_no_fees() public {
+    function test_swapDaiForGem_no_fees() public {
         initSwaps();
-        pool.sellGem(address(this), daiToGem(standardDebtCeiling), 0);
+        pool.swapGemForDai(address(this), daiToGem(standardDebtCeiling), 0);
 
         assertEq(dai.balanceOf(address(pool)), 0);
         assertEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling));
-        pool.buyGem(address(this), standardDebtCeiling / 2, 0);
+        pool.swapDaiForGem(address(this), standardDebtCeiling / 2, 0);
         assertEq(dai.balanceOf(address(pool)), standardDebtCeiling / 2);
         assertEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling / 2));
     }
@@ -208,11 +208,11 @@ contract USDCSwapTest is LinearFeeSwapBaseTest {
         return 0x77b68899b99b686F415d074278a9a16b336085A0;  // Hardcoded $1 pip
     }
 
-    function getSellGemPip() internal override pure returns (address) {
+    function getSwapGemForDaiPip() internal override pure returns (address) {
         return 0x77b68899b99b686F415d074278a9a16b336085A0;
     }
 
-    function getBuyGemPip() internal override pure returns (address) {
+    function getSwapDaiForGemPip() internal override pure returns (address) {
         return 0x77b68899b99b686F415d074278a9a16b336085A0;
     }
 

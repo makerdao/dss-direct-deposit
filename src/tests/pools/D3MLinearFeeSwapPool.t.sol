@@ -71,92 +71,92 @@ contract D3MLinearFeeSwapPoolTest is D3MSwapPoolTest {
         pool.file("fees1", uint64(WAD + 1), uint64(WAD));
     }
 
-    function test_previewSellGem_tin1_edge() public {
+    function test_previewSwapGemForDai_tin1_edge() public {
         dai.transfer(address(pool), 100 ether);
         // 10% between 1.0005 and 0.9990 (average of 0% and 20% endpoints)
-        assertEq(pool.previewSellGem(10 * 1e6), 20.007 ether);  
+        assertEq(pool.previewSwapGemForDai(10 * 1e6), 20.007 ether);  
     }
 
-    function test_previewSellGem_tin2_edge() public {
+    function test_previewSwapGemForDai_tin2_edge() public {
         dai.transfer(address(pool), 20 ether);
         gem.transfer(address(pool), 40 * 1e6);
         // 90% between 1.0005 and 0.9990 (average of 80% and 100% endpoints)
-        assertEq(pool.previewSellGem(10 * 1e6), 19.983 ether);  
+        assertEq(pool.previewSwapGemForDai(10 * 1e6), 19.983 ether);  
     }
 
-    function test_previewSellGem_middle() public {
+    function test_previewSwapGemForDai_middle() public {
         dai.transfer(address(pool), 80 ether);
         gem.transfer(address(pool), 10 * 1e6);
         // 30% between 1.0005 and 0.9990 (average of 20% and 40% endpoints)
-        assertEq(pool.previewSellGem(10 * 1e6), 20.001 ether);  
+        assertEq(pool.previewSwapGemForDai(10 * 1e6), 20.001 ether);  
     }
 
-    function test_previewSellGem_take_all_dai() public {
+    function test_previewSwapGemForDai_take_all_dai() public {
         dai.transfer(address(pool), 100 ether);
         // 50% between 1.0005 and 0.9990 (average of 0% and 100% endpoints)
-        assertEq(pool.previewSellGem(50 * 1e6), 99.975 ether);
+        assertEq(pool.previewSwapGemForDai(50 * 1e6), 99.975 ether);
     }
 
-    function test_previewSellGem_cant_take_all_dai_plus_one() public {
+    function test_previewSwapGemForDai_cant_take_all_dai_plus_one() public {
         dai.transfer(address(pool), 100 ether);
         // Even though the fee makes it so you could take more in theory
         // the linear function ends at 100% of the pre-fee amount
         vm.expectRevert(abi.encodePacked(contractName, "/insufficient-dai-in-pool"));
-        pool.previewSellGem(50 * 1e6 + 1);
+        pool.previewSwapGemForDai(50 * 1e6 + 1);
     }
 
-    function test_previewSellGem_empty() public {
+    function test_previewSwapGemForDai_empty() public {
         vm.expectRevert(abi.encodePacked(contractName, "/insufficient-dai-in-pool"));
-        pool.previewSellGem(10 * 1e6);
+        pool.previewSwapGemForDai(10 * 1e6);
     }
 
-    function test_previewSellGem_zero() public {
+    function test_previewSwapGemForDai_zero() public {
         dai.transfer(address(pool), 100 ether);
-        assertEq(pool.previewSellGem(0), 0);
+        assertEq(pool.previewSwapGemForDai(0), 0);
     }
 
-    function test_previewBuyGem_tout2_edge() public {
+    function test_previewSwapDaiForGem_tout2_edge() public {
         gem.transfer(address(pool), 50 * 1e6);
         // 10% between 1.0008 and 0.9980 (average of 0% and 20% endpoints)
-        assertEq(pool.previewBuyGem(20 ether), 10.0052 * 1e6);
+        assertEq(pool.previewSwapDaiForGem(20 ether), 10.0052 * 1e6);
     }
 
-    function test_previewBuyGem_tout1_edge() public {
+    function test_previewSwapDaiForGem_tout1_edge() public {
         dai.transfer(address(pool), 80 ether);
         gem.transfer(address(pool), 10 * 1e6);
         // 90% between 1.0008 and 0.9980 (average of 80% and 100% endpoints)
-        assertEq(pool.previewBuyGem(20 ether), 9.9828 * 1e6);  
+        assertEq(pool.previewSwapDaiForGem(20 ether), 9.9828 * 1e6);  
     }
 
-    function test_previewBuyGem_middle() public {
+    function test_previewSwapDaiForGem_middle() public {
         dai.transfer(address(pool), 20 ether);
         gem.transfer(address(pool), 40 * 1e6);
         // 30% between 1.0008 and 0.9980 (average of 20% and 40% endpoints)
-        assertEq(pool.previewBuyGem(20 ether), 9.9996 * 1e6);  
+        assertEq(pool.previewSwapDaiForGem(20 ether), 9.9996 * 1e6);  
     }
 
-    function test_previewBuyGem_take_all_gems() public {
+    function test_previewSwapDaiForGem_take_all_gems() public {
         gem.transfer(address(pool), 50 * 1e6);
         // 50% between 1.0008 and 0.9980 (average of 0% and 100% endpoints)
-        assertEq(pool.previewBuyGem(100 ether), 49.97 * 1e6);
+        assertEq(pool.previewSwapDaiForGem(100 ether), 49.97 * 1e6);
     }
 
-    function test_previewBuyGem_cant_take_all_gems_plus_one() public {
+    function test_previewSwapDaiForGem_cant_take_all_gems_plus_one() public {
         gem.transfer(address(pool), 50 * 1e6);
         // Even though the fee makes it so you could take more in theory
         // the linear function ends at 100% of the pre-fee amount
         vm.expectRevert(abi.encodePacked(contractName, "/insufficient-gems-in-pool"));
-        pool.previewBuyGem(100 ether + 1);
+        pool.previewSwapDaiForGem(100 ether + 1);
     }
 
-    function test_previewBuyGem_empty() public {
+    function test_previewSwapDaiForGem_empty() public {
         vm.expectRevert(abi.encodePacked(contractName, "/insufficient-gems-in-pool"));
-        pool.previewBuyGem(20 ether);
+        pool.previewSwapDaiForGem(20 ether);
     }
 
-    function test_previewBuyGem_zero() public {
+    function test_previewSwapDaiForGem_zero() public {
         gem.transfer(address(pool), 50 * 1e6);
-        assertEq(pool.previewBuyGem(0), 0);
+        assertEq(pool.previewSwapDaiForGem(0), 0);
     }
 
 }

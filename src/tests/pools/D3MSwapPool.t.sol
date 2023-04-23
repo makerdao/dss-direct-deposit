@@ -29,8 +29,8 @@ abstract contract D3MSwapPoolTest is D3MPoolBaseTest {
     TokenMock internal gem;
     PipMock internal pip;
 
-    event SellGem(address indexed owner, uint256 gems, uint256 dai);
-    event BuyGem(address indexed owner, uint256 gems, uint256 dai);
+    event SwapGemForDai(address indexed owner, uint256 gems, uint256 dai);
+    event SwapDaiForGem(address indexed owner, uint256 dai, uint256 gems);
 
     function baseInit(string memory _contractName) internal virtual override {
         super.baseInit(_contractName);
@@ -50,8 +50,8 @@ abstract contract D3MSwapPoolTest is D3MPoolBaseTest {
         dai.approve(_pool, type(uint256).max);
 
         pool.file("pip", address(pip));
-        pool.file("sellGemPip", address(pip));
-        pool.file("buyGemPip", address(pip));
+        pool.file("swapGemForDaiPip", address(pip));
+        pool.file("swapDaiForGemPip", address(pip));
     }
 
     function _ensureRatio(uint256 ratioInBps, uint256 totalBalance, bool isSellingGem) internal virtual {
@@ -69,7 +69,7 @@ abstract contract D3MSwapPoolTest is D3MPoolBaseTest {
     }
 
     function test_file_addresses() public {
-        checkFileAddress(address(pool), contractName, ["hub", "pip", "sellGemPip", "buyGemPip"]);
+        checkFileAddress(address(pool), contractName, ["hub", "pip", "swapGemForDaiPip", "swapDaiForGemPip"]);
     }
 
     function test_withdraw() public {
@@ -143,70 +143,70 @@ abstract contract D3MSwapPoolTest is D3MPoolBaseTest {
         assertEq(pool.maxWithdraw(), 100 ether);
     }
 
-    function test_sellGem() public {
+    function test_swapGemForDai() public {
         _ensureRatio(0, 100 ether, true);
 
         uint256 gemBal = gem.balanceOf(address(this));
         assertEq(dai.balanceOf(TEST_ADDRESS), 0);
 
-        uint256 amountOut =  pool.previewSellGem(10 * 1e6);
+        uint256 amountOut =  pool.previewSwapGemForDai(10 * 1e6);
         vm.expectEmit(true, true, true, true);
-        emit SellGem(TEST_ADDRESS, 10 * 1e6, amountOut);
-        pool.sellGem(TEST_ADDRESS, 10 * 1e6, amountOut);
+        emit SwapGemForDai(TEST_ADDRESS, 10 * 1e6, amountOut);
+        pool.swapGemForDai(TEST_ADDRESS, 10 * 1e6, amountOut);
 
         assertEq(gem.balanceOf(address(this)), gemBal - 10 * 1e6);
         assertEq(dai.balanceOf(TEST_ADDRESS), amountOut);
     }
 
-    function test_sellGem_minDaiAmt_too_high() public {
+    function test_swapGemForDai_minDaiAmt_too_high() public {
         _ensureRatio(0, 100 ether, true);
 
-        uint256 amountOut = pool.previewSellGem(10 * 1e6);
+        uint256 amountOut = pool.previewSwapGemForDai(10 * 1e6);
         vm.expectRevert("D3MSwapPool/too-little-dai");
-        pool.sellGem(TEST_ADDRESS, 10 * 1e6, amountOut + 1);
+        pool.swapGemForDai(TEST_ADDRESS, 10 * 1e6, amountOut + 1);
     }
 
-    function test_previewSellGem_uses_sellPip() public {
+    function test_previewSwapGemForDai_uses_sellPip() public {
         _ensureRatio(0, 100 ether, true);
 
-        uint256 amountOut =  pool.previewSellGem(10 * 1e6);
+        uint256 amountOut =  pool.previewSwapGemForDai(10 * 1e6);
         PipMock pip2 = new PipMock();
         pip2.poke(3 * WAD); // Gems are worth more
-        pool.file("sellGemPip", address(pip2));
-        assertGt(pool.previewSellGem(10 * 1e6), amountOut);
+        pool.file("swapGemForDaiPip", address(pip2));
+        assertGt(pool.previewSwapGemForDai(10 * 1e6), amountOut);
     }
 
-    function test_buyGem() public {
+    function test_swapDaiForGem() public {
         _ensureRatio(10000, 100 ether, false);
 
         uint256 daiBal = dai.balanceOf(address(this));
         assertEq(gem.balanceOf(TEST_ADDRESS), 0);
 
-        uint256 amountOut =  pool.previewBuyGem(10 ether);
+        uint256 amountOut =  pool.previewSwapDaiForGem(10 ether);
         vm.expectEmit(true, true, true, true);
-        emit BuyGem(TEST_ADDRESS, amountOut, 10 ether);
-        pool.buyGem(TEST_ADDRESS, 10 ether, amountOut);
+        emit SwapDaiForGem(TEST_ADDRESS, 10 ether, amountOut);
+        pool.swapDaiForGem(TEST_ADDRESS, 10 ether, amountOut);
 
         assertEq(gem.balanceOf(TEST_ADDRESS), amountOut);
         assertEq(dai.balanceOf(address(this)), daiBal - 10 ether);
     }
 
-    function test_buyGem_minGemAmt_too_high() public {
+    function test_swapDaiForGem_minGemAmt_too_high() public {
         _ensureRatio(10000, 100 ether, false);
 
-        uint256 amountOut = pool.previewBuyGem(10 ether);
+        uint256 amountOut = pool.previewSwapDaiForGem(10 ether);
         vm.expectRevert("D3MSwapPool/too-little-gems");
-        pool.buyGem(TEST_ADDRESS, 10 ether, amountOut + 1);
+        pool.swapDaiForGem(TEST_ADDRESS, 10 ether, amountOut + 1);
     }
 
-    function test_previewBuyGem_uses_buyPip() public {
+    function test_previewSwapDaiForGem_uses_buyPip() public {
         _ensureRatio(10000, 100 ether, false);
 
-        uint256 amountOut =  pool.previewBuyGem(20 ether);
+        uint256 amountOut =  pool.previewSwapDaiForGem(20 ether);
         PipMock pip2 = new PipMock();
         pip2.poke(1 * WAD); // Gems are worth less
-        pool.file("buyGemPip", address(pip2));
-        assertGt(pool.previewBuyGem(20 ether), amountOut);
+        pool.file("swapDaiForGemPip", address(pip2));
+        assertGt(pool.previewSwapDaiForGem(20 ether), amountOut);
     }
 
 }

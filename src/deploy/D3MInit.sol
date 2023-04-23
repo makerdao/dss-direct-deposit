@@ -159,8 +159,8 @@ struct D3MCompoundRateTargetPlanConfig {
 struct D3MSwapPoolConfig {
     address gem;
     address pip;
-    address buyGemPip;
-    address sellGemPip;
+    address swapDaiForGemPip;
+    address swapGemForDaiPip;
 }
 
 // Init a D3M instance
@@ -325,8 +325,8 @@ library D3MInit {
         require(pool.gem() == swapPoolCfg.gem, "Pool gem mismatch");
 
         pool.file("pip", swapPoolCfg.pip);
-        pool.file("buyGemPip", swapPoolCfg.buyGemPip);
-        pool.file("sellGemPip", swapPoolCfg.sellGemPip);
+        pool.file("swapDaiForGemPip", swapPoolCfg.swapDaiForGemPip);
+        pool.file("swapGemForDaiPip", swapPoolCfg.swapGemForDaiPip);
     }
 
     function initAaveRateTargetPlan(

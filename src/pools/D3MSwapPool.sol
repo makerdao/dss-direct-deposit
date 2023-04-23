@@ -55,8 +55,8 @@ abstract contract D3MSwapPool is ID3MPool {
 
     HubLike public hub;
     PipLike public pip;
-    PipLike public sellGemPip;
-    PipLike public buyGemPip;
+    PipLike public swapGemForDaiPip;
+    PipLike public swapDaiForGemPip;
     uint256 public exited;
 
     bytes32   immutable public ilk;
@@ -72,8 +72,8 @@ abstract contract D3MSwapPool is ID3MPool {
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, address data);
-    event SellGem(address indexed owner, uint256 gems, uint256 dai);
-    event BuyGem(address indexed owner, uint256 gems, uint256 dai);
+    event SwapGemForDai(address indexed owner, uint256 gems, uint256 dai);
+    event SwapDaiForGem(address indexed owner, uint256 dai, uint256 gems);
 
     modifier auth {
         require(wards[msg.sender] == 1, "D3MSwapPool/not-authorized");
@@ -120,10 +120,10 @@ abstract contract D3MSwapPool is ID3MPool {
             vat.hope(data);
         } else if (what == "pip") {
             pip = PipLike(data);
-        } else if (what == "sellGemPip") {
-            sellGemPip = PipLike(data);
-        } else if (what == "buyGemPip") {
-            buyGemPip = PipLike(data);
+        } else if (what == "swapGemForDaiPip") {
+            swapGemForDaiPip = PipLike(data);
+        } else if (what == "swapDaiForGemPip") {
+            swapDaiForGemPip = PipLike(data);
         } else revert("D3MSwapPool/file-unrecognized-param");
 
         emit File(what, data);
@@ -182,26 +182,26 @@ abstract contract D3MSwapPool is ID3MPool {
 
     // --- Swaps ---
 
-    function previewSellGem(uint256 gemAmt) public view virtual returns (uint256 daiAmt);
+    function previewSwapGemForDai(uint256 gemAmt) public view virtual returns (uint256 daiAmt);
 
-    function previewBuyGem(uint256 daiAmt) public view virtual returns (uint256 gemAmt);
+    function previewSwapDaiForGem(uint256 daiAmt) public view virtual returns (uint256 gemAmt);
 
-    function sellGem(address usr, uint256 gemAmt, uint256 minDaiAmt) external returns (uint256 daiAmt) {
-        daiAmt = previewSellGem(gemAmt);
+    function swapGemForDai(address usr, uint256 gemAmt, uint256 minDaiAmt) external returns (uint256 daiAmt) {
+        daiAmt = previewSwapGemForDai(gemAmt);
         require(daiAmt >= minDaiAmt, "D3MSwapPool/too-little-dai");
         require(gem.transferFrom(msg.sender, address(this), gemAmt), "D3MSwapPool/failed-transfer");
         dai.transfer(usr, daiAmt);
 
-        emit SellGem(usr, gemAmt, daiAmt);
+        emit SwapGemForDai(usr, gemAmt, daiAmt);
     }
 
-    function buyGem(address usr, uint256 daiAmt, uint256 minGemAmt) external returns (uint256 gemAmt) {
-        gemAmt = previewBuyGem(daiAmt);
+    function swapDaiForGem(address usr, uint256 daiAmt, uint256 minGemAmt) external returns (uint256 gemAmt) {
+        gemAmt = previewSwapDaiForGem(daiAmt);
         require(gemAmt >= minGemAmt, "D3MSwapPool/too-little-gems");
         dai.transferFrom(msg.sender, address(this), daiAmt);
         require(gem.transfer(usr, gemAmt), "D3MSwapPool/failed-transfer");
 
-        emit BuyGem(usr, gemAmt, daiAmt);
+        emit SwapDaiForGem(usr, daiAmt, gemAmt);
     }
 
 }

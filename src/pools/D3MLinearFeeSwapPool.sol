@@ -85,11 +85,11 @@ contract D3MLinearFeeSwapPool is D3MSwapPool {
 
     // --- Swaps ---
 
-    function previewSellGem(uint256 gemAmt) public view override returns (uint256 daiAmt) {
+    function previewSwapGemForDai(uint256 gemAmt) public view override returns (uint256 daiAmt) {
         if (gemAmt == 0) return 0;
 
         uint256 daiBalance = dai.balanceOf(address(this));
-        uint256 pipValue = uint256(sellGemPip.read());
+        uint256 pipValue = uint256(swapGemForDaiPip.read());
         uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * pipValue / WAD;
         require(daiBalance >= gemValue, "D3MSwapPool/insufficient-dai-in-pool");
         FeeData memory _feeData = feeData;
@@ -100,11 +100,11 @@ contract D3MLinearFeeSwapPool is D3MSwapPool {
         daiAmt = gemValue * (_feeData.tin1 + _feeData.tin2 * g / totalBalanceTimesTwo - _feeData.tin1 * g / totalBalanceTimesTwo) / WAD;
     }
 
-    function previewBuyGem(uint256 daiAmt) public view override returns (uint256 gemAmt) {
+    function previewSwapDaiForGem(uint256 daiAmt) public view override returns (uint256 gemAmt) {
         if (daiAmt == 0) return 0;
 
         FeeData memory _feeData = feeData;
-        uint256 pipValue = uint256(buyGemPip.read());
+        uint256 pipValue = uint256(swapDaiForGemPip.read());
         uint256 gemBalance = gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * pipValue / WAD;
         require(gemBalance >= daiAmt, "D3MSwapPool/insufficient-gems-in-pool");
         uint256 daiBalance = dai.balanceOf(address(this));
