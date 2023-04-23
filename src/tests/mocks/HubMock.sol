@@ -21,9 +21,18 @@ import { EndMock } from "./EndMock.sol";
 contract HubMock {
     address public immutable vat;
     EndMock public immutable end;
+    address public _plan;
 
     constructor(address vat_, address end_) {
         vat = vat_;
         end = EndMock(end_);
+    }
+
+    function setPlan(address plan_) external {
+        _plan = plan_;
+    }
+
+    function plan(bytes32) external view returns (address) {
+        return _plan;
     }
 }

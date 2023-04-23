@@ -275,14 +275,14 @@ contract D3MHub {
                 fixArt = ink - art; // Amount of fees + permissionless DAI paid we will now transform to debt
             }
             art = ink;
-            ID3MFees fees = ilks[ilk].fees;
+            ID3MFees _fees = ilks[ilk].fees;
             uint256 feesRad = fixArt * RAY;
-            vat.suck(address(fees), address(fees), feesRad); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+            vat.suck(address(_fees), address(_fees), feesRad); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
             // No need for `fixArt <= MAXINT256` require as:
             // MAXINT256 >>> MAXUINT256 / RAY which is already restricted above
             // Also fixArt should be always <= SAFEMAX (MAXINT256 / RAY)
-            vat.grab(ilk, address(_pool), address(_pool), address(fees), 0, int256(fixArt)); // Generating the debt
-            fees.feesCollected(ilk, feesRad);
+            vat.grab(ilk, address(_pool), address(_pool), address(_fees), 0, int256(fixArt)); // Generating the debt
+            _fees.feesCollected(ilk, feesRad);
         }
 
         // Determine if it needs to unwind or wind
@@ -504,6 +504,15 @@ contract D3MHub {
     */
     function plan(bytes32 ilk) external view returns (address) {
         return address(ilks[ilk].plan);
+    }
+
+    /**
+        @notice Return fees of an ilk
+        @param ilk   bytes32 of the D3M ilk
+        @return fees address of fees contract
+    */
+    function fees(bytes32 ilk) external view returns (address) {
+        return address(ilks[ilk].fees);
     }
 
     /**

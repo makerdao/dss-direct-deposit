@@ -36,11 +36,9 @@ contract D3MOffchainSwapPool is D3MSwapPool {
     mapping (address => uint256) public operators;
 
     FeeData public feeData;
-    ID3MPlan public plan;
     uint256 public gemsOutstanding;
 
     // --- Events ---
-    event SetPlan(address plan);
     event File(bytes32 indexed what, uint128 tin, uint128 tout);
     event AddOperator(address indexed operator);
     event RemoveOperator(address indexed operator);
@@ -64,14 +62,6 @@ contract D3MOffchainSwapPool is D3MSwapPool {
     }
 
     // --- Administration ---
-
-    function setPlan(address _plan) external auth {
-        require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
-
-        plan = ID3MPlan(_plan);
-
-        emit SetPlan(_plan);
-    }
 
     function file(bytes32 what, uint128 _tin, uint128 _tout) external auth {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
@@ -120,7 +110,7 @@ contract D3MOffchainSwapPool is D3MSwapPool {
 
     function previewSwapGemForDai(uint256 gemAmt) public view override returns (uint256 daiAmt) {
         uint256 gemBalance = (gem.balanceOf(address(this)) + gemsOutstanding) * GEM_CONVERSION_FACTOR * uint256(swapGemForDaiPip.read()) / WAD;
-        uint256 targetAssets = plan.getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
+        uint256 targetAssets = ID3MPlan(hub.plan(ilk)).getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
         uint256 pipValue = uint256(swapGemForDaiPip.read());
         uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * pipValue / WAD;
         require(gemBalance + gemValue <= targetAssets, "D3MSwapPool/not-accepting-gems");
@@ -130,7 +120,7 @@ contract D3MOffchainSwapPool is D3MSwapPool {
 
     function previewSwapDaiForGem(uint256 daiAmt) public view override returns (uint256 gemAmt) {
         uint256 gemBalance = (gem.balanceOf(address(this)) + gemsOutstanding) * GEM_CONVERSION_FACTOR * uint256(swapDaiForGemPip.read()) / WAD;
-        uint256 targetAssets = plan.getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
+        uint256 targetAssets = ID3MPlan(hub.plan(ilk)).getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
         FeeData memory _feeData = feeData;
         uint256 gemValue = daiAmt * _feeData.tout / WAD;
         require(targetAssets + gemValue <= gemBalance, "D3MSwapPool/not-accepting-dai");
@@ -169,7 +159,7 @@ contract D3MOffchainSwapPool is D3MSwapPool {
         uint256 conversionFactor = GEM_CONVERSION_FACTOR * uint256(pip.read());
         uint256 gemBalance = gem.balanceOf(address(this));
         uint256 gemsPlusOutstanding = (gemBalance + gemsOutstanding) * conversionFactor / WAD;
-        uint256 targetAssets = plan.getTargetAssets(ilk, gemsPlusOutstanding + dai.balanceOf(address(this)));
+        uint256 targetAssets = ID3MPlan(hub.plan(ilk)).getTargetAssets(ilk, gemsPlusOutstanding + dai.balanceOf(address(this)));
         // We can ignore the DAI as that will just be removed right away
         if (targetAssets >= gemsPlusOutstanding) {
             // Target debt is higher than the current exposure
@@ -195,7 +185,7 @@ contract D3MOffchainSwapPool is D3MSwapPool {
         uint256 conversionFactor = GEM_CONVERSION_FACTOR * uint256(pip.read());
         uint256 _gemsOutstanding = gemsOutstanding;
         uint256 gemBalance = (gem.balanceOf(address(this)) + gemsOutstanding) * conversionFactor / WAD;
-        uint256 targetAssetsInGems = plan.getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this))) * WAD / conversionFactor;
+        uint256 targetAssetsInGems = ID3MPlan(hub.plan(ilk)).getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this))) * WAD / conversionFactor;
         if (targetAssetsInGems < _gemsOutstanding) {
             // Need to liquidate
             gemAmt = _gemsOutstanding - targetAssetsInGems;

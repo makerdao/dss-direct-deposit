@@ -38,6 +38,7 @@ interface PipLike {
 interface HubLike {
     function vat() external view returns (VatLike);
     function end() external view returns (EndLike);
+    function plan(bytes32) external view returns (address);
 }
 
 interface EndLike {

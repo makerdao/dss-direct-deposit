@@ -42,7 +42,6 @@ contract D3MOffchainSwapPoolTest is D3MSwapPoolTest {
 
     D3MOffchainSwapPool internal pool;
 
-    event SetPlan(address plan);
     event File(bytes32 indexed what, uint128 tin, uint128 tout);
     event AddOperator(address indexed operator);
     event RemoveOperator(address indexed operator);
@@ -51,9 +50,9 @@ contract D3MOffchainSwapPoolTest is D3MSwapPoolTest {
         baseInit("D3MSwapPool");
 
         plan = new PlanMock();
+        hub.setPlan(address(plan));
 
         pool = new D3MOffchainSwapPool(ILK, address(hub), address(dai), address(gem));
-        pool.setPlan(address(plan));
 
         // Fees set to tin=-5bps, tout=10bps
         pool.file("fees", 1.0005 ether, 0.9990 ether);
@@ -70,23 +69,10 @@ contract D3MOffchainSwapPoolTest is D3MSwapPoolTest {
         pool.deny(address(this));
 
         checkModifier(address(pool), string(abi.encodePacked(contractName, "/not-authorized")), [
-            D3MOffchainSwapPool.setPlan.selector,
             bytes4(keccak256("file(bytes32,uint128,uint128)")),
             D3MOffchainSwapPool.addOperator.selector,
             D3MOffchainSwapPool.removeOperator.selector
         ]);
-    }
-
-    function test_setPlan() public {
-        assertEq(address(pool.plan()), address(plan));
-        vm.expectEmit(true, true, true, true);
-        emit SetPlan(TEST_ADDRESS);
-        pool.setPlan(TEST_ADDRESS);
-        assertEq(address(pool.plan()), TEST_ADDRESS);
-
-        vat.cage();
-        vm.expectRevert(abi.encodePacked(contractName, "/no-file-during-shutdown"));
-        pool.setPlan(address(1));
     }
 
     function test_file_fees() public {
