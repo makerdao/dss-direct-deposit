@@ -128,20 +128,24 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
     }
 
     function setLiquidity(uint256 amount) internal override {
-        // This would normally be done by a swap, but the fees make that more difficult
-        // We will test the swap functionality inside this contract instead of the base
         uint256 prev = dai.balanceOf(address(pool));
-        deal(address(dai), address(pool), amount);
         if (amount >= prev) {
+            // Increase dai liquidity by swapping dai for gems (or just adding it if there isn't enough gems)
+            uint256 delta = amount - prev;
             uint256 gemBalance = gem.balanceOf(address(pool));
-            uint256 gemAmount = daiToGem(amount - prev);
-            if (gemBalance >= gemAmount) {
-                deal(address(gem), address(pool), gemBalance - gemAmount);
-            } else {
-                deal(address(gem), address(pool), 0);
+            uint256 gemAmount = daiToGem(delta);
+            if (gemBalance < gemAmount) {
+                // Ensure there is enough gems to swap
+                deal(address(gem), address(pool), gemAmount);
             }
+            deal(address(dai), address(this), delta);
+            pool.buyGem(address(this), delta, 0);
         } else {
-            deal(address(gem), address(pool), gem.balanceOf(address(pool)) + daiToGem(prev - amount));
+            // Decrease DAI liquidity by swapping gems for dai
+            uint256 delta = prev - amount;
+            uint256 gemAmount = daiToGem(delta);
+            deal(address(gem), address(this), gemAmount);
+            pool.sellGem(address(this), gemAmount, 0);
         }
     }
 
@@ -162,10 +166,34 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
     function gemToDai(uint256 gemAmount) internal view returns (uint256) {
         return gemAmount * (gemConversionFactor * uint256(pip.read())) / WAD;
     }
+
+    function initSwaps() internal {
+        plan.setAllocation(address(this), ilk, uint128(standardDebtCeiling));
+        hub.exec(ilk);
+        deal(address(gem), address(this), daiToGem(standardDebtCeiling));
+        deal(address(dai), address(this), standardDebtCeiling);
+    }
     
     // --- Tests ---
-    function test_swap() public {
-        
+    function test_sellGem_no_fees() public {
+        initSwaps();
+
+        assertEq(dai.balanceOf(address(pool)), standardDebtCeiling);
+        assertEq(gem.balanceOf(address(pool)), 0);
+        pool.sellGem(address(this), daiToGem(standardDebtCeiling / 2), 0);
+        assertEq(dai.balanceOf(address(pool)), standardDebtCeiling / 2);
+        assertEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling / 2));
+    }
+
+    function test_buyGem_no_fees() public {
+        initSwaps();
+        pool.sellGem(address(this), daiToGem(standardDebtCeiling), 0);
+
+        assertEq(dai.balanceOf(address(pool)), 0);
+        assertEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling));
+        pool.buyGem(address(this), standardDebtCeiling / 2, 0);
+        assertEq(dai.balanceOf(address(pool)), standardDebtCeiling / 2);
+        assertEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling / 2));
     }
 
 }
