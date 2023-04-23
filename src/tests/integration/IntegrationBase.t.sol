@@ -106,6 +106,11 @@ abstract contract IntegrationBaseTest is DssTest {
     function _min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x <= y ? x : y;
     }
+    function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        unchecked {
+            z = x != 0 ? ((x - 1) / y) + 1 : 0;
+        }
+    }
     function assertRoundingEq(uint256 a, uint256 b) internal {
         assertApproxEqRel(a, b, roundingTolerance);
     }
@@ -180,8 +185,8 @@ abstract contract IntegrationBaseTest is DssTest {
 
         hub.exec(ilk);
         (ink, art) = vat.urns(ilk, address(pool));
-        assertEq(ink, 0);
-        assertEq(art, 0);
+        assertApproxEqAbs(ink, 0, 1);
+        assertApproxEqAbs(art, 0, 1);
     }
 
     function test_cage_perm_insufficient_liquidity() public {
@@ -223,9 +228,9 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 balance = pool.assetBalance();
         assertGe(balance, art);
         hub.exec(ilk);
-        assertEq(pool.assetBalance(), 0);
+        assertApproxEqAbs(pool.assetBalance(), 0, 1);
         assertEq(vat.sin(address(vow)), sin + art * RAY);
-        assertEq(vat.dai(address(vow)), vowDai + balance * RAY);
+        assertRoundingEq(vat.dai(address(vow)), vowDai + balance * RAY);
         assertEq(vat.gem(ilk, address(pool)), 0);
     }
 
@@ -311,9 +316,9 @@ abstract contract IntegrationBaseTest is DssTest {
 
         // Now the CDP completely unwinds and surplus buffer doesn't change
         (ink, art) = vat.urns(ilk, address(pool));
-        assertRoundingEq(ink, 0);
-        assertRoundingEq(art, 0);
-        assertEq(pool.assetBalance(), 0);
+        assertApproxEqAbs(ink, 0, 1);
+        assertApproxEqAbs(art, 0, 1);
+        assertApproxEqAbs(pool.assetBalance(), 0, 1);
         assertRoundingEq(vat.dai(address(vow)), vowDai + feesAccrued * RAY);
     }
 
@@ -581,7 +586,7 @@ abstract contract IntegrationBaseTest is DssTest {
         hub.exec(ilk);
         vow.heal(_min(vat.sin(address(vow)), vat.dai(address(vow))));
         assertEq(vat.gem(ilk, address(end)), 0);
-        assertEq(pool.assetBalance(), 0);
+        assertApproxEqAbs(pool.assetBalance(), 0, 1);
         assertEq(vat.sin(address(vow)), 0);
         assertRoundingEq(vat.dai(address(vow)), originalDai - originalSin + daiEarned * RAY);
     }
@@ -676,7 +681,7 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 expectedToken4 = (totalArt - takeAmount) * pool.assetBalance() / (totalArt - takeAmount);
         hub.exit(ilk, address(this), (totalArt - takeAmount));
         assertRoundingEq(getTokenBalanceInAssets(address(this)), expectedToken + expectedToken2 + expectedToken3 + expectedToken4);
-        assertEq(pool.assetBalance(), 0);
+        assertApproxEqAbs(pool.assetBalance(), 0, 1);
     }
 
     function test_shutdown_cant_cull() public {

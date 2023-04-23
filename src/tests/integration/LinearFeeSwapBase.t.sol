@@ -37,7 +37,7 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
     D3MALMDelegateControllerPlan plan;
     D3MLinearFeeSwapPool pool;
 
-    function setUp() public {
+    function setUp() public virtual {
         baseInit();
 
         gem = GemAbstract(getGem());
@@ -133,7 +133,7 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
             // Increase dai liquidity by swapping dai for gems (or just adding it if there isn't enough gems)
             uint256 delta = amount - prev;
             uint256 gemBalance = gem.balanceOf(address(pool));
-            uint256 gemAmount = daiToGem(delta);
+            uint256 gemAmount = daiToGemRoundUp(delta);
             if (gemBalance < gemAmount) {
                 // Ensure there is enough gems to swap
                 deal(address(gem), address(pool), gemAmount);
@@ -163,8 +163,16 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
         return daiAmount * WAD / (gemConversionFactor * uint256(pip.read()));
     }
 
+    function daiToGemRoundUp(uint256 daiAmount) internal view returns (uint256) {
+        return _divup(daiAmount * WAD, gemConversionFactor * uint256(pip.read()));
+    }
+
     function gemToDai(uint256 gemAmount) internal view returns (uint256) {
         return gemAmount * (gemConversionFactor * uint256(pip.read())) / WAD;
+    }
+
+    function gemToDaiRoundUp(uint256 gemAmount) internal view returns (uint256) {
+        return _divup(gemAmount * gemConversionFactor * uint256(pip.read()), WAD);
     }
 
     function initSwaps() internal {
@@ -181,19 +189,19 @@ abstract contract LinearFeeSwapBaseTest is IntegrationBaseTest {
         assertEq(dai.balanceOf(address(pool)), standardDebtCeiling);
         assertEq(gem.balanceOf(address(pool)), 0);
         pool.swapGemForDai(address(this), daiToGem(standardDebtCeiling / 2), 0);
-        assertEq(dai.balanceOf(address(pool)), standardDebtCeiling / 2);
-        assertEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling / 2));
+        assertRoundingEq(dai.balanceOf(address(pool)), standardDebtCeiling / 2);
+        assertRoundingEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling / 2));
     }
 
     function test_swapDaiForGem() public {
         initSwaps();
         pool.swapGemForDai(address(this), daiToGem(standardDebtCeiling), 0);
 
-        assertEq(dai.balanceOf(address(pool)), 0);
-        assertEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling));
+        assertApproxEqAbs(dai.balanceOf(address(pool)), 0, 1);
+        assertRoundingEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling));
         pool.swapDaiForGem(address(this), standardDebtCeiling / 2, 0);
-        assertEq(dai.balanceOf(address(pool)), standardDebtCeiling / 2);
-        assertEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling / 2));
+        assertRoundingEq(dai.balanceOf(address(pool)), standardDebtCeiling / 2);
+        assertRoundingEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling / 2));
     }
 
 }
@@ -266,6 +274,36 @@ contract USDPSwapTest is LinearFeeSwapBaseTest {
 
     function getSwapDaiForGemPip() internal override pure returns (address) {
         return 0x043B963E1B2214eC90046167Ea29C2c8bDD7c0eC;
+    }
+
+}
+
+contract BackedIB01SwapTest is LinearFeeSwapBaseTest {
+
+    PipMock private _pip;
+
+    function setUp() public override {
+        // Setup an oracle
+        _pip = new PipMock();
+        _pip.poke(1.2 ether);   // Set to some non-$1 value
+        
+        super.setUp();
+    }
+    
+    function getGem() internal override pure returns (address) {
+        return 0xCA30c93B02514f86d5C86a6e375E3A330B435Fb5;
+    }
+
+    function getPip() internal override view returns (address) {
+        return address(_pip);
+    }
+
+    function getSwapGemForDaiPip() internal override view returns (address) {
+        return address(_pip);
+    }
+
+    function getSwapDaiForGemPip() internal override view returns (address) {
+        return address(_pip);
     }
 
 }
