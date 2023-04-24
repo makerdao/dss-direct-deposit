@@ -147,6 +147,18 @@ abstract contract D3MSwapPoolTest is D3MPoolBaseTest {
         assertEq(pool.maxWithdraw(), 100 ether);
     }
 
+    function test_liquidityAvailable() public {
+        dai.transfer(address(pool), 100 ether);
+
+        assertEq(pool.liquidityAvailable(), 100 ether);
+    }
+
+    function test_idleLiquidity() public {
+        dai.transfer(address(pool), 100 ether);
+
+        assertEq(pool.idleLiquidity(), 100 ether);
+    }
+
     function test_swapGemForDai() public {
         _ensureRatio(0, 100 ether, true);
 
