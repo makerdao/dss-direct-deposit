@@ -312,4 +312,10 @@ contract D3MAaveV3NoSupplyCapTypePoolTest is D3MPoolBaseTest {
     function test_maxDeposit_returns_max_uint() public {
         assertEq(pool.maxDeposit(), type(uint256).max);
     }
+
+    function test_liquidityAvailable() public {
+        dai.mint(address(adai), 100 ether);
+        assertEq(dai.balanceOf(address(adai)), 100 ether);
+        assertEq(pool.liquidityAvailable(), 100 ether);
+    }
 }
