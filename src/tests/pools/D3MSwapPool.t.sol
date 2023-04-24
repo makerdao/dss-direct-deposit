@@ -70,6 +70,10 @@ abstract contract D3MSwapPoolTest is D3MPoolBaseTest {
 
     function test_file_addresses() public {
         checkFileAddress(address(pool), contractName, ["hub", "pip", "swapGemForDaiPip", "swapDaiForGemPip"]);
+
+        vat.cage();
+        vm.expectRevert(abi.encodePacked(contractName, "/no-file-during-shutdown"));
+        pool.file("some value", address(1));
     }
 
     function test_withdraw() public {

@@ -75,6 +75,14 @@ contract D3MOffchainSwapPoolTest is D3MSwapPoolTest {
         ]);
     }
 
+    function test_file_uint() public {
+        checkFileUint(address(pool), contractName, ["gemsOutstanding"]);
+
+        vat.cage();
+        vm.expectRevert(abi.encodePacked(contractName, "/no-file-during-shutdown"));
+        pool.file("some value", 1);
+    }
+
     function test_file_fees() public {
         vm.expectRevert(abi.encodePacked(contractName, "/file-unrecognized-param"));
         pool.file("an invalid value", 1, 2);
@@ -104,7 +112,7 @@ contract D3MOffchainSwapPoolTest is D3MSwapPoolTest {
         assertEq(pool.operators(TEST_ADDRESS), 1);
 
         vat.cage();
-        vm.expectRevert(abi.encodePacked(contractName, "/no-file-during-shutdown"));
+        vm.expectRevert(abi.encodePacked(contractName, "/no-addOperator-during-shutdown"));
         pool.addOperator(address(1));
     }
 
@@ -118,8 +126,8 @@ contract D3MOffchainSwapPoolTest is D3MSwapPoolTest {
         assertEq(pool.operators(TEST_ADDRESS), 0);
 
         vat.cage();
-        vm.expectRevert(abi.encodePacked(contractName, "/no-file-during-shutdown"));
-        pool.addOperator(address(1));
+        vm.expectRevert(abi.encodePacked(contractName, "/no-removeOperator-during-shutdown"));
+        pool.removeOperator(address(1));
     }
 
     function test_assetBalance() public override {

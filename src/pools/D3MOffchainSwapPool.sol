@@ -39,6 +39,7 @@ contract D3MOffchainSwapPool is D3MSwapPool {
     uint256 public gemsOutstanding;
 
     // --- Events ---
+    event File(bytes32 indexed what, uint256 data);
     event File(bytes32 indexed what, uint128 tin, uint128 tout);
     event AddOperator(address indexed operator);
     event RemoveOperator(address indexed operator);
@@ -63,6 +64,16 @@ contract D3MOffchainSwapPool is D3MSwapPool {
 
     // --- Administration ---
 
+    function file(bytes32 what, uint256 data) external auth {
+        require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
+
+        if (what == "gemsOutstanding") {
+            gemsOutstanding = data;
+        } else revert("D3MSwapPool/file-unrecognized-param");
+
+        emit File(what, data);
+    }
+
     function file(bytes32 what, uint128 _tin, uint128 _tout) external auth {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
         // We need to restrict tin/tout combinations to be less than 100% to avoid arbitragers able to endlessly take money
@@ -77,14 +88,14 @@ contract D3MOffchainSwapPool is D3MSwapPool {
     }
 
     function addOperator(address operator) external auth {
-        require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
+        require(vat.live() == 1, "D3MSwapPool/no-addOperator-during-shutdown");
 
         operators[operator] = 1;
         emit AddOperator(operator);
     }
 
     function removeOperator(address operator) external auth {
-        require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
+        require(vat.live() == 1, "D3MSwapPool/no-removeOperator-during-shutdown");
 
         operators[operator] = 0;
         emit RemoveOperator(operator);
@@ -131,7 +142,7 @@ contract D3MOffchainSwapPool is D3MSwapPool {
     // --- Offchain push/pull + helper functions ---
 
     /**
-     * @notice Pull a principal amount out to invest.
+     * @notice Pull out the gem to invest off-chain.
      * @param to The address to pull the gems to.
      * @param amount The amount of gems to pull.
      */
@@ -142,8 +153,7 @@ contract D3MOffchainSwapPool is D3MSwapPool {
     }
 
     /**
-     * @notice Repay a principal amount back to the pool. NOTE this is not for interest payments.
-     *         Interest payments can be done by just transferring gems to this pool permissionlessly.
+     * @notice Repay the loan with gems.
      * @param amount The amount of gems to repay.
      */
     function push(uint256 amount) external onlyOperator {
