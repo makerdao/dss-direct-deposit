@@ -101,6 +101,8 @@ contract FakeLendingPool {
     }
 
     address public adai;
+    address public variableDebtToken;
+    address public stableDebtToken;
     address public dai;
 
     struct DepositCall {
@@ -118,8 +120,10 @@ contract FakeLendingPool {
     }
     WithdrawCall public lastWithdraw;
 
-    constructor(address adai_, address dai_) {
+    constructor(address adai_, address variableDebtToken_, address stableDebtToken_, address dai_) {
         adai = adai_;
+        variableDebtToken = variableDebtToken_;
+        stableDebtToken = stableDebtToken_;
         dai = dai_;
     }
 
@@ -127,8 +131,8 @@ contract FakeLendingPool {
         ReserveData memory result
     ) {
         result.aTokenAddress = adai;
-        result.stableDebtTokenAddress = address(2);
-        result.variableDebtTokenAddress = address(3);
+        result.stableDebtTokenAddress = stableDebtToken;
+        result.variableDebtTokenAddress = variableDebtToken;
         result.interestRateStrategyAddress = address(4);
     }
 
@@ -139,6 +143,7 @@ contract FakeLendingPool {
             forWhom,
             code
         );
+        TokenMock(dai).transferFrom(msg.sender, address(adai), amt);
         TokenMock(adai).mint(forWhom, amt);
     }
 
@@ -148,7 +153,7 @@ contract FakeLendingPool {
             amt,
             dst
         );
-        TokenMock(asset).transfer(dst, amt);
+        TokenMock(asset).transferFrom(address(adai), dst, amt);
     }
 
     function getReserveNormalizedIncome(address asset) external pure returns (uint256) {
@@ -160,6 +165,8 @@ contract FakeLendingPool {
 contract D3MAaveV3NoSupplyCapTypePoolTest is D3MPoolBaseTest {
 
     AToken adai;
+    TokenMock variableDebtToken;
+    TokenMock stableDebtToken;
     FakeLendingPool aavePool;
     
     D3MAaveV3NoSupplyCapTypePool pool;
@@ -169,8 +176,11 @@ contract D3MAaveV3NoSupplyCapTypePoolTest is D3MPoolBaseTest {
 
         adai = new AToken(18);
         adai.mint(address(this), 1_000_000 ether);
-        aavePool = new FakeLendingPool(address(adai), address(dai));
+        variableDebtToken = new TokenMock(18);
+        stableDebtToken = new TokenMock(18);
+        aavePool = new FakeLendingPool(address(adai), address(variableDebtToken), address(stableDebtToken), address(dai));
         adai.rely(address(aavePool));
+        vm.prank(address(adai)); dai.approve(address(aavePool), type(uint256).max);
 
         setPoolContract(address(pool = new D3MAaveV3NoSupplyCapTypePool("", address(hub), address(dai), address(aavePool))));
     }
@@ -198,7 +208,7 @@ contract D3MAaveV3NoSupplyCapTypePoolTest is D3MPoolBaseTest {
     }
 
     function test_deposit_calls_lending_pool_deposit() public {
-        TokenMock(address(adai)).rely(address(aavePool));
+        dai.mint(address(pool), 1);
         vm.prank(address(hub)); pool.deposit(1);
         (address asset, uint256 amt, address dst, uint256 code) = FakeLendingPool(address(aavePool)).lastDeposit();
         assertEq(asset, address(dai));
@@ -209,7 +219,7 @@ contract D3MAaveV3NoSupplyCapTypePoolTest is D3MPoolBaseTest {
 
     function test_withdraw_calls_lending_pool_withdraw() public {
         // make sure we have Dai to withdraw
-        TokenMock(address(dai)).mint(address(aavePool), 1);
+        TokenMock(address(dai)).mint(address(adai), 1);
 
         vm.prank(address(hub)); pool.withdraw(1);
         (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
@@ -220,7 +230,7 @@ contract D3MAaveV3NoSupplyCapTypePoolTest is D3MPoolBaseTest {
 
     function test_withdraw_calls_lending_pool_withdraw_vat_caged() public {
         // make sure we have Dai to withdraw
-        TokenMock(address(dai)).mint(address(aavePool), 1);
+        TokenMock(address(dai)).mint(address(adai), 1);
 
         vat.cage();
         vm.prank(address(hub)); pool.withdraw(1);
@@ -317,5 +327,23 @@ contract D3MAaveV3NoSupplyCapTypePoolTest is D3MPoolBaseTest {
         dai.mint(address(adai), 100 ether);
         assertEq(dai.balanceOf(address(adai)), 100 ether);
         assertEq(pool.liquidityAvailable(), 100 ether);
+    }
+
+    function test_idleLiquidity() public {
+        dai.mint(address(pool), 100 ether);
+        vm.prank(address(hub)); pool.deposit(100 ether);
+        assertEq(pool.idleLiquidity(), 100 ether);
+
+        // Simulate a variable borrow
+        aavePool.withdraw(address(dai), 50 ether, address(this));
+        variableDebtToken.mint(address(this), 50 ether);
+
+        assertEq(pool.idleLiquidity(), 50 ether);
+
+        // Simulate a stable borrow
+        aavePool.withdraw(address(dai), 25 ether, address(this));
+        stableDebtToken.mint(address(this), 25 ether);
+
+        assertEq(pool.idleLiquidity(), 25 ether);
     }
 }

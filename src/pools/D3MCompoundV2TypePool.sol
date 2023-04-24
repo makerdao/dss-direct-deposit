@@ -202,6 +202,7 @@ contract D3MCompoundV2TypePool is ID3MPool {
     function idleLiquidity() external view override returns (uint256) {
         uint256 totalDebt = cDai.totalBorrows();
         uint256 totalPoolSize = cDai.getCash() + totalDebt /* - cDai.totalReserves() */;    // TODO - check if we need to subtract reserves
+        if (totalPoolSize == 0) return assetBalance();
         return assetBalance() * (totalPoolSize - totalDebt) / totalPoolSize;
     }
 

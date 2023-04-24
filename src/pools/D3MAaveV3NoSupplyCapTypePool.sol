@@ -239,6 +239,7 @@ contract D3MAaveV3NoSupplyCapTypePool is ID3MPool {
     function idleLiquidity() external view override returns (uint256) {
         uint256 totalDebt = stableDebt.totalSupply() + variableDebt.totalSupply();
         uint256 totalPoolSize = dai.balanceOf(address(adai)) + totalDebt;
+        //if (totalPoolSize == 0) return adai.balanceOf(address(this));
         return adai.balanceOf(address(this)) * (totalPoolSize - totalDebt) / totalPoolSize;
     }
 
