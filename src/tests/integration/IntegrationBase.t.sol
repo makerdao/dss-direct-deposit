@@ -139,9 +139,14 @@ abstract contract IntegrationBaseTest is DssTest {
     function setLiquidity(uint256 amount) internal virtual;
 
     // --- Other Overridable Functions ---
+    function getTokenBalance(address a) internal view virtual returns (uint256) {
+        DSTokenAbstract token = DSTokenAbstract(pool.redeemable());
+        return token.balanceOf(a);
+    }
+
     function getTokenBalanceInAssets(address a) internal view virtual returns (uint256) {
         DSTokenAbstract token = DSTokenAbstract(pool.redeemable());
-        return token.balanceOf(a) * 10 ** (18 - token.decimals());
+        return getTokenBalance(a) * 10 ** (18 - token.decimals());
     }
 
     function generateInterest() internal virtual {
@@ -625,19 +630,16 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 takeAmount = standardDebtSize / 2;
         vm.prank(address(end)); vat.flux(ilk, address(end), address(this), takeAmount);
 
-        uint256 totalArt = end.Art(ilk);
+        uint256 totalTokens = getTokenBalance(address(pool));
 
-        assertEq(getTokenBalanceInAssets(address(this)), 0);
+        assertEq(getTokenBalance(address(this)), 0);
 
         // User can exit and get the Token
-        uint256 expected = takeAmount * pool.assetBalance() / totalArt;
         hub.exit(ilk, address(this), takeAmount);
-        assertRoundingEq(expected, takeAmount);
-        assertRoundingEq(getTokenBalanceInAssets(address(this)), expected);
+        assertRoundingEq(getTokenBalance(address(this)), totalTokens / 2);
     }
 
-    // FIXME this test is not properly taking asset value appreciation into account and needs to be rewritten
-    /*function test_cage_exit_multiple() public {
+    function test_cage_exit_multiple() public {
         setDebt(standardDebtSize);
         setLiquidity(0);
 
@@ -651,47 +653,36 @@ abstract contract IntegrationBaseTest is DssTest {
         // Simulate DAI holder gets some gems from GS
         vm.prank(address(end)); vat.flux(ilk, address(end), address(this), totalArt);
 
-        assertEq(getTokenBalanceInAssets(address(this)), 0);
+        assertEq(getTokenBalance(address(this)), 0);
 
         // User can exit and get the Token
         uint256 takeAmount = standardDebtSize / 8;
-        uint256 expectedToken = takeAmount * pool.assetBalance() / totalArt;
+        uint256 expectedToken = takeAmount * getTokenBalance(address(pool)) / totalArt;
         hub.exit(ilk, address(this), takeAmount);
-        assertRoundingEq(expectedToken, takeAmount);
-        assertRoundingEq(getTokenBalanceInAssets(address(this)), expectedToken);
-        uint256 lastOraclePrice = uint256(DSValueAbstract(d3m.oracle).read());
+        assertRoundingEq(getTokenBalance(address(this)), expectedToken);
+
+        // Interest can come in the form of more tokens or higher value / token
+        generateInterest();
+
+        uint256 expectedToken2 = takeAmount * getTokenBalance(address(pool)) / (totalArt - standardDebtSize / 8);
+        hub.exit(ilk, address(this), takeAmount);
+        assertRoundingEq(getTokenBalance(address(this)), expectedToken + expectedToken2);
 
         generateInterest();
 
-        uint256 expectedToken2 = takeAmount * pool.assetBalance() / (totalArt - takeAmount);
-        assertGt(expectedToken2, expectedToken);
-        expectedToken = expectedToken * uint256(DSValueAbstract(d3m.oracle).read()) / lastOraclePrice;
+        takeAmount = standardDebtSize / 4;
+        uint256 expectedToken3 = takeAmount * getTokenBalance(address(pool)) / (totalArt - standardDebtSize / 4);
         hub.exit(ilk, address(this), takeAmount);
-        assertRoundingEq(getTokenBalanceInAssets(address(this)), expectedToken + expectedToken2);
-        lastOraclePrice = uint256(DSValueAbstract(d3m.oracle).read());
+        assertRoundingEq(getTokenBalance(address(this)), expectedToken + expectedToken2 + expectedToken3);
 
         generateInterest();
 
-        takeAmount = uint256(standardDebtSize / 4);
-        uint256 expectedToken3 = takeAmount * pool.assetBalance() / (totalArt - takeAmount);
-        assertGt(expectedToken3, expectedToken + expectedToken2);
-        expectedToken = expectedToken * uint256(DSValueAbstract(d3m.oracle).read()) / lastOraclePrice;
-        expectedToken2 = expectedToken2 * uint256(DSValueAbstract(d3m.oracle).read()) / lastOraclePrice;
+        takeAmount = (totalArt - standardDebtSize / 2);
+        uint256 expectedToken4 = takeAmount * getTokenBalance(address(pool)) / (totalArt - standardDebtSize / 2);
         hub.exit(ilk, address(this), takeAmount);
-        assertRoundingEq(getTokenBalanceInAssets(address(this)), expectedToken + expectedToken2 + expectedToken3);
-        lastOraclePrice = uint256(DSValueAbstract(d3m.oracle).read());
-
-        generateInterest();
-
-        takeAmount = uint256(standardDebtSize / 2);
-        uint256 expectedToken4 = (totalArt - takeAmount) * pool.assetBalance() / (totalArt - takeAmount);
-        expectedToken = expectedToken * uint256(DSValueAbstract(d3m.oracle).read()) / lastOraclePrice;
-        expectedToken2 = expectedToken2 * uint256(DSValueAbstract(d3m.oracle).read()) / lastOraclePrice;
-        expectedToken3 = expectedToken3 * uint256(DSValueAbstract(d3m.oracle).read()) / lastOraclePrice;
-        hub.exit(ilk, address(this), (totalArt - takeAmount));
-        assertRoundingEq(getTokenBalanceInAssets(address(this)), expectedToken + expectedToken2 + expectedToken3 + expectedToken4);
+        assertRoundingEq(getTokenBalance(address(this)), expectedToken + expectedToken2 + expectedToken3 + expectedToken4);
         assertApproxEqAbs(pool.assetBalance(), 0, 1);
-    }*/
+    }
 
     function test_shutdown_cant_cull() public {
         setDebt(standardDebtSize);
