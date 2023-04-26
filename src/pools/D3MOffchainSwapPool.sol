@@ -76,8 +76,6 @@ contract D3MOffchainSwapPool is D3MSwapPool {
 
     function file(bytes32 what, uint128 _tin, uint128 _tout) external auth {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
-        // We need to restrict tin/tout combinations to be less than 100% to avoid arbitragers able to endlessly take money
-        require(uint256(_tin) * uint256(_tout) <= WAD * WAD, "D3MSwapPool/invalid-fees");
 
         if (what == "fees") {
             feeData.tin = _tin;

@@ -36,6 +36,76 @@ abstract contract OffchainSwapBaseTest is SwapPoolBaseTest {
         return address(pool);
     }
 
+    function test_full_offchain_investment_cycle() public {
+        // We pay 10bps to fill or empty the gems
+        uint128 fee = uint128(10010 * WAD / 10000);
+        vm.prank(admin); pool.file("fees", fee, fee);
+        vm.prank(admin); pool.addOperator(TEST_ADDRESS);
+
+        plan.setAllocation(address(this), ilk, uint128(standardDebtSize));
+        hub.exec(ilk);
+
+        assertEq(dai.balanceOf(address(pool)), standardDebtSize);
+        assertEq(gem.balanceOf(address(pool)), 0);
+        assertEq(dai.balanceOf(address(this)), 0);
+        assertEq(gem.balanceOf(address(this)), 0);
+        assertEq(pool.assetBalance(), standardDebtSize);
+
+        // We want an arbitrager to fill the pool
+        uint256 gemAmt = daiToGem(standardDebtSize) * WAD / fee;
+        deal(address(gem), address(this), gemAmt);
+        pool.swapGemForDai(address(this), gemAmt, 0);
+
+        assertLe(dai.balanceOf(address(pool)), WAD); // 1 DAI dust is fine
+        assertRoundingEq(gem.balanceOf(address(pool)), gemAmt);
+        assertRoundingEq(dai.balanceOf(address(this)), standardDebtSize);
+        assertEq(gem.balanceOf(address(this)), 0);
+        assertRoundingEq(pool.assetBalance(), standardDebtSize * WAD / fee); // Lost a bit of assets from the fees paid out
+
+        // Top up the pool just to simplify the future calculations
+        // This could be done via pulling from the vow
+        gemAmt = daiToGem(standardDebtSize);
+        deal(address(gem), address(pool), gemAmt);
+        (, uint256 art) = vat.urns(ilk, address(pool));
+        assertRoundingEq(art, pool.assetBalance());
+
+        // Operator queries how much can be pulled out and deploys
+        uint256 pendingDeposits = pool.pendingDeposits();
+        assertRoundingEq(pendingDeposits, gemAmt);
+        assertEq(pool.pendingWithdrawals(), 0);
+        assertEq(pool.gemsOutstanding(), 0);
+        vm.prank(TEST_ADDRESS); pool.pull(TEST_ADDRESS, pendingDeposits);
+        assertEq(pool.pendingDeposits(), 0);
+        assertEq(pool.pendingWithdrawals(), 0);
+        assertEq(gem.balanceOf(address(pool)), 0);
+        assertEq(gem.balanceOf(address(TEST_ADDRESS)), gemAmt);
+        assertEq(pool.gemsOutstanding(), gemAmt);
+
+        // --- Offchain deploy of funds occurs here ---
+
+        // Some time passes and interest accumulates (5%)
+        uint256 positionSize = pool.gemsOutstanding() * 105 / 100;
+        uint256 earned = positionSize - pool.gemsOutstanding();
+        deal(address(gem), TEST_ADDRESS, gemAmt + earned);
+        uint256 vowDai = vat.dai(address(vow));
+        vm.prank(admin); pool.file("gemsOutstanding", positionSize);
+        (, art) = vat.urns(ilk, address(pool));
+        assertRoundingEq(art, pool.assetBalance() * 100 / 105);    // Debt should be about 5% less than assets
+        hub.exec(ilk);
+        (, art) = vat.urns(ilk, address(pool));
+        assertRoundingEq(art, pool.assetBalance());
+        assertRoundingEq(vat.dai(address(vow)), vowDai + gemToDai(earned) * RAY);   // Surplus increases due to asset appreciation
+        assertRoundingEq(pool.assetBalance(), standardDebtSize + gemToDai(earned));
+
+        // Due to position size being at the target debt limit the operator is required to repay the interest
+        assertRoundingEq(pool.pendingWithdrawals(), earned);
+        vm.prank(TEST_ADDRESS); gem.approve(address(pool), type(uint256).max);
+        vm.prank(TEST_ADDRESS); pool.push(earned);
+        assertEq(pool.pendingWithdrawals(), 0);
+
+        // 
+    }
+
 }
 
 contract MonetalisSwapTest is OffchainSwapBaseTest {

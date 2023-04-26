@@ -99,11 +99,6 @@ contract D3MOffchainSwapPoolTest is D3MSwapPoolTest {
         pool.file("some value", 1, 2);
     }
 
-    function test_file_invalid_fees() public {
-        vm.expectRevert(abi.encodePacked(contractName, "/invalid-fees"));
-        pool.file("fees", uint128(WAD + 1), uint128(WAD));
-    }
-
     function test_addOperator() public {
         assertEq(pool.operators(TEST_ADDRESS), 0);
         vm.expectEmit(true, true, true, true);
