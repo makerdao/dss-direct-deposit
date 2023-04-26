@@ -98,12 +98,28 @@ abstract contract OffchainSwapBaseTest is SwapPoolBaseTest {
         assertRoundingEq(pool.assetBalance(), standardDebtSize + gemToDai(earned));
 
         // Due to position size being at the target debt limit the operator is required to repay the interest
-        assertRoundingEq(pool.pendingWithdrawals(), earned);
+        assertEq(pool.pendingWithdrawals(), earned);
         vm.prank(TEST_ADDRESS); gem.approve(address(pool), type(uint256).max);
         vm.prank(TEST_ADDRESS); pool.push(earned);
         assertEq(pool.pendingWithdrawals(), 0);
 
-        // 
+        // Arbitrager swaps gem for dai
+        assertEq(gem.balanceOf(address(pool)), earned);
+        assertEq(gem.balanceOf(address(this)), 0);
+        assertEq(dai.balanceOf(address(pool)), 0);
+        uint256 daiAmt = gemToDai(earned) * WAD / fee;
+        deal(address(dai), address(this), daiAmt);
+        pool.swapDaiForGem(address(this), daiAmt, 0);
+        assertLe(gem.balanceOf(address(pool)), daiToGem(1 ether));  // Some dust is fine
+        assertRoundingEq(gem.balanceOf(address(this)), earned);
+        assertEq(dai.balanceOf(address(pool)), daiAmt);
+
+        // Exec should now clear out the excess debt to get us back to desired amount
+        (, art) = vat.urns(ilk, address(pool));
+        assertRoundingEq(art, standardDebtSize * 105 / 100);
+        hub.exec(ilk);
+        (, art) = vat.urns(ilk, address(pool));
+        assertRoundingEq(art, standardDebtSize);
     }
 
 }
