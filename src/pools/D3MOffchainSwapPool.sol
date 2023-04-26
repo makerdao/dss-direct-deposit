@@ -76,6 +76,9 @@ contract D3MOffchainSwapPool is D3MSwapPool {
 
     function file(bytes32 what, uint128 _tin, uint128 _tout) external auth {
         require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
+        // Please note we allow tin and tout to be both negative fees because swaps are gated by
+        // the desired target debt which only allows filling/emptying this pool in one direction
+        // at a time.
 
         if (what == "fees") {
             feeData.tin = _tin;
