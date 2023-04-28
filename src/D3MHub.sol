@@ -277,7 +277,7 @@ contract D3MHub {
             art = ink;
             ID3MFees _fees = ilks[ilk].fees;
             uint256 feesRad = fixArt * RAY;
-            vat.suck(address(_fees), address(_fees), feesRad); // This needs to be done to make sure we can deduct sin[vow] and vice in the next call
+            vat.suck(address(_fees), address(_fees), feesRad); // This needs to be done to make sure we can deduct sin[_fees] and vice in the next call
             // No need for `fixArt <= MAXINT256` require as:
             // MAXINT256 >>> MAXUINT256 / RAY which is already restricted above
             // Also fixArt should be always <= SAFEMAX (MAXINT256 / RAY)

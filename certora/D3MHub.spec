@@ -54,10 +54,11 @@ methods {
     share.balanceOf(address) returns (uint256) envfree
     share.totalSupply() returns (uint256) envfree
     share.wards(address) returns (uint256) envfree
+    fees.target() returns (address) envfree
     debt() returns (uint256) => DISPATCHER(true)
     skim(bytes32, address) => DISPATCHER(true)
     active() returns (bool) => DISPATCHER(true)
-    getTargetAssets(uint256) returns (uint256) => DISPATCHER(true)
+    getTargetAssets(bytes32,uint256) returns (uint256) => DISPATCHER(true)
     assetBalance() returns (uint256) => DISPATCHER(true)
     maxDeposit() returns (uint256) => DISPATCHER(true)
     maxWithdraw() returns (uint256) => DISPATCHER(true)
@@ -69,6 +70,7 @@ methods {
     balanceOf(address) returns (uint256) => DISPATCHER(true)
     burn(address, uint256) => DISPATCHER(true)
     mint(address, uint256) => DISPATCHER(true)
+    feesCollected(bytes32, uint256) => DISPATCHER(true)
 }
 
 definition WAD() returns uint256 = 10^18;
@@ -233,6 +235,8 @@ rule exec_normal(bytes32 ilk) {
     require(pool.hub() == currentContract);
     require(pool.vat() == vat);
     require(pool.dai() == dai);
+    require(fees.target() == vow);
+    require(vat.dai(fees) == 0);
 
     uint256 tic = tic(ilk);
     uint256 culled = culled(ilk);
@@ -527,6 +531,8 @@ rule exec_normal_revert(bytes32 ilk) {
     require(pool.hub() == currentContract);
     require(pool.vat() == vat);
     require(pool.dai() == dai);
+    require(fees.target() == vow);
+    require(vat.dai(fees) == 0);
 
     uint256 locked = locked();
     uint256 Line = vat.Line();
