@@ -48,7 +48,7 @@ jobs:
         run: solc-select install 0.8.14
 
       - name: Install Certora
-        run: pip3 install certora-cli
+        run: pip3 install certora-cli-beta
 
       - name: Certora ${{ matrix.name }}
         run: make certora-hub short=1 rule="${{ matrix.rules }}"
