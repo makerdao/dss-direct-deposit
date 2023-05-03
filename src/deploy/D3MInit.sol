@@ -23,7 +23,6 @@ import "dss-interfaces/ERC/GemAbstract.sol";
 import { DssInstance } from "dss-test/MCD.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
 
-import { ID3MPool } from "../pools/ID3MPool.sol";
 import { D3MInstance } from "./D3MInstance.sol";
 import { D3MCoreInstance } from "./D3MCoreInstance.sol";
 
@@ -97,6 +96,10 @@ interface D3MHubLike {
 
 interface D3MMomLike {
     function setAuthority(address) external;
+}
+
+interface RedeemableLike {
+    function redeemable() external view returns (address);
 }
 
 struct D3MCommonConfig {
@@ -192,7 +195,7 @@ library D3MInit {
         oracle.file("hub", address(hub));
 
         dss.spotter.file(ilk, "pip", address(oracle));
-        dss.spotter.file(ilk, "mat", 10 ** 27);
+        dss.spotter.file(ilk, "mat", 10 ** 27);     // 100% as a RAY
         uint256 previousIlkLine;
         if (cfg.existingIlk) {
             (,,, previousIlkLine,) = dss.vat.ilks(ilk);
@@ -210,13 +213,13 @@ library D3MInit {
         );
         dss.spotter.poke(ilk);
 
-        GemAbstract gem = GemAbstract(ID3MPool(d3m.pool).redeemable());
+        GemAbstract gem = GemAbstract(RedeemableLike(d3m.pool).redeemable());
         IlkRegistryAbstract(dss.chainlog.getAddress("ILK_REGISTRY")).put(
             ilk,
             address(hub),
             address(gem),
             gem.decimals(),
-            4,
+            4,  // ilk registry class for D3Ms
             address(oracle),
             address(0),
             gem.name(),
