@@ -1134,7 +1134,8 @@ rule exec_exec(bytes32 ilk) {
     mathint artAfter2;
     inkAfter2, artAfter2 = vat.urns(ilk, pool);
 
-    assert assetsAfter2 == assetsAfter1, "assetsAfter did not remain as expected";
+    assert assetsAfter2 <= assetsAfter1, "assetsAfter did not remain or decrease as expected";
+    assert assetsAfter2 == artAfter2, "assetsAfter did not match artAfter";
     assert inkAfter2 == inkAfter1, "inkAfter did not remain as expected";
     assert artAfter2 == artAfter1, "artAfter did not remain as expected";
 }
