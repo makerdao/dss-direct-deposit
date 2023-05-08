@@ -63,7 +63,7 @@ methods {
     function _.withdraw(uint256) external => DISPATCHER(true);
     function _.preDebtChange() external => DISPATCHER(true);
     function _.postDebtChange() external => DISPATCHER(true);
-    function _.transfer(address, uint256) external => DISPATCHER(true);
+    function _.exit(address, uint256) external => DISPATCHER(true);
     function _.balanceOf(address) external => DISPATCHER(true);
     function _.burn(address, uint256) external => DISPATCHER(true);
     function _.mint(address, uint256) external => DISPATCHER(true);
