@@ -100,6 +100,8 @@ contract D3MAaveV2IntegrationTest is DssTest {
     uint256 constant EPSILON_TOLERANCE = 4;
 
     function setUp() public {
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
+
         vat = VatAbstract(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndAbstract(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
