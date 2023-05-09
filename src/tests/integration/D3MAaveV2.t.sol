@@ -19,11 +19,12 @@ pragma solidity ^0.8.14;
 import "dss-test/DssTest.sol";
 import "dss-interfaces/Interfaces.sol";
 
-import { D3MHub } from "../../D3MHub.sol";
-import { D3MMom } from "../../D3MMom.sol";
+import { D3MHub }    from "../../D3MHub.sol";
+import { D3MMom }    from "../../D3MMom.sol";
 import { D3MOracle } from "../../D3MOracle.sol";
 
 import { D3MAaveV2TypeRateTargetPlan } from "../../plans/D3MAaveV2TypeRateTargetPlan.sol";
+
 import { D3MAaveV2TypePool } from "../../pools/D3MAaveV2TypePool.sol";
 
 interface LendingPoolLike {
@@ -74,45 +75,49 @@ contract D3MAaveV2IntegrationTest is DssTest {
 
     using GodMode for *;
 
-    VatAbstract vat;
-    EndAbstract end;
-    LendingPoolLike aavePool;
-    InterestRateStrategyLike interestStrategy;
-    RewardsClaimerLike rewardsClaimer;
-    DaiAbstract dai;
-    DaiJoinAbstract daiJoin;
-    AGemAbstract adai;
-    GemAbstract stkAave;
-    SpotAbstract spot;
-    GemAbstract weth;
-    address vow;
-    address pauseProxy;
-
     bytes32 constant ilk = "DD-DAI-A";
-    D3MHub d3mHub;
-    D3MAaveV2TypePool d3mAavePool;
-    D3MAaveV2TypeRateTargetPlan d3mAavePlan;
-    D3MMom d3mMom;
-    D3MOracle pip;
 
     // Allow for a 1 BPS margin of error on interest rates
     uint256 constant INTEREST_RATE_TOLERANCE = RAY / 10000;
     uint256 constant EPSILON_TOLERANCE = 4;
 
+    address vow;
+    address pauseProxy;
+
+    DaiAbstract     dai;
+    DaiJoinAbstract daiJoin;
+    EndAbstract     end;
+    SpotAbstract    spot;
+    VatAbstract     vat;
+
+    AGemAbstract adai;
+    GemAbstract  stkAave;
+    GemAbstract  weth;
+
+    InterestRateStrategyLike interestStrategy;
+    LendingPoolLike          aavePool;
+    RewardsClaimerLike       rewardsClaimer;
+
+    D3MAaveV2TypePool           d3mAavePool;
+    D3MAaveV2TypeRateTargetPlan d3mAavePlan;
+    D3MHub                      d3mHub;
+    D3MMom                      d3mMom;
+    D3MOracle                   pip;
+
     function setUp() public {
-        vat = VatAbstract(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
-        end = EndAbstract(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
-        aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
-        adai = AGemAbstract(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
-        stkAave = GemAbstract(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
-        dai = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
-        daiJoin = DaiJoinAbstract(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
+        vat              = VatAbstract(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
+        end              = EndAbstract(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
+        aavePool         = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
+        adai             = AGemAbstract(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
+        stkAave          = GemAbstract(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
+        dai              = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+        daiJoin          = DaiJoinAbstract(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
         interestStrategy = InterestRateStrategyLike(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
-        rewardsClaimer = RewardsClaimerLike(0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5);
-        spot = SpotAbstract(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
-        weth = GemAbstract(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-        vow = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
-        pauseProxy = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
+        rewardsClaimer   = RewardsClaimerLike(0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5);
+        spot             = SpotAbstract(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
+        weth             = GemAbstract(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+        vow              = 0xA950524441892A31ebddF91d3cEEFa04Bf454466;
+        pauseProxy       = 0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB;
 
         // Force give admin access to these contracts via vm magic
         address(vat).setWard(address(this), 1);
