@@ -20,7 +20,7 @@ import "./SwapPoolBase.t.sol";
 
 import { D3MGatedOffchainSwapPool } from "../../pools/D3MGatedOffchainSwapPool.sol";
 
-abstract contract OffchainSwapBaseTest is SwapPoolBaseTest {
+abstract contract GatedOffchainSwapBaseTest is SwapPoolBaseTest {
 
     D3MGatedOffchainSwapPool pool;
 
@@ -124,7 +124,8 @@ abstract contract OffchainSwapBaseTest is SwapPoolBaseTest {
 
 }
 
-contract MonetalisSwapTest is OffchainSwapBaseTest {
+// Monetalis via USDC
+contract MonetalisSwapTest is GatedOffchainSwapBaseTest {
     
     function getGem() internal override pure returns (address) {
         return 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
