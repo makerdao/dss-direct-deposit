@@ -66,6 +66,8 @@ contract D3MCompoundV2TypePoolTest is D3MPoolBaseTest {
     }
 
     function setUp() public {
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
+
         baseInit("D3MCompoundV2TypePool");
 
         // TODO these should be mocked

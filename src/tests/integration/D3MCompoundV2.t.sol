@@ -92,6 +92,8 @@ contract D3MCompoundV2IntegrationTest is DssTest {
     uint256 constant INTEREST_RATE_TOLERANCE = WAD / 10000;
 
     function setUp() public {
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
+
         vat = VatAbstract(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndAbstract(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
         cDai = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);

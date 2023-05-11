@@ -53,12 +53,14 @@ abstract contract IntegrationBaseTest is DssTest {
 
     D3MHub internal hub;
     D3MMom internal mom;
-    
+
     // These are private as inheriting contract should use a more specific type
     ID3MPool private pool;
     ID3MPlan private plan;
 
     function baseInit() internal {
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
+
         dss = MCD.loadFromChainlog(0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F);
         admin = dss.chainlog.getAddress("MCD_PAUSE_PROXY");
         hub = D3MHub(dss.chainlog.getAddress("DIRECT_HUB"));
@@ -456,7 +458,7 @@ abstract contract IntegrationBaseTest is DssTest {
         vow.heal(_min(vat.sin(address(vow)), vat.dai(address(vow))));
         assertEq(vat.gem(ilk, address(end)), 0);
         assertEq(vat.sin(address(vow)), 0);
-        assertGe(vat.dai(address(vow)), prevDai); // As also probably accrues interest 
+        assertGe(vat.dai(address(vow)), prevDai); // As also probably accrues interest
     }
 
     function test_unwind_mcd_caged_wait_done() public {

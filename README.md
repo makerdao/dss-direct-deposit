@@ -50,3 +50,21 @@ Below is a configurable parameter for the Compound DAI D3M:
 - `barb` [wad] - The target borrow rate per block on Compound for the DAI market. This module will aim to enforce that borrow limit.
 
 Any Comp that is accured can be permissionlessly collected into the pause proxy by calling `collect()`.
+
+### Setup and Testing
+
+To set up the environment and run tests, run the following commands:
+
+```bash
+forge install
+export ETH_RPC_URL=<your eth rpc url>
+forge test
+```
+
+To run specific tests, run the following command:
+
+```bash
+forge t --mt <test name>
+```
+
+Verbosity can also be specified inline (`-vvv`), more information on forge test can be found [here](https://book.getfoundry.sh/reference/forge/forge-test).

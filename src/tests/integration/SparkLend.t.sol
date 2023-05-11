@@ -181,6 +181,10 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
     function setUp() public {
         baseInit();
 
+        // NOTE: Adding past block until fix to work against deployed protocol is introduced.
+        // TODO: Update the test to work against deployed protocol with latest block.
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"), 17_200_000);
+
         sparkPool = PoolLike(0xC13e21B648A5Ee794902342038FF3aDAB66BE987);
         daiInterestRateStrategy = DaiInterestRateStrategyLike(getInterestRateStrategy(address(dai)));
         adai = ATokenLike(0x4DEDf26112B3Ec8eC46e7E31EA5e123490B05B8B);
@@ -250,7 +254,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
         );
 
         vm.stopPrank();
-        
+
         // Give us some DAI
         dai.setBalance(address(this), buffer * 100000000);
 
@@ -273,7 +277,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
     // --- Overrides ---
     function adjustDebt(int256 deltaAmount) internal override {
         if (deltaAmount == 0) return;
-        
+
         int256 newBuffer = int256(plan.buffer()) + deltaAmount;
         vm.prank(admin); plan.file("buffer", newBuffer >= 0 ? uint256(newBuffer) : 0);
         hub.exec(ilk);
@@ -387,7 +391,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
         assertEq(getDebt(), buffer + buffer / 2 - buffer / 4, "should be back down to 1.25x the buffer");
     }
 
-    /** 
+    /**
      * The DAI market is using a new interest model which over-allocates interest to the treasury.
      * This is due to the reserve factor not being flexible enough to account for this.
      * Confirm that we can later correct the discrepancy by donating the excess liabilities back to the DAI pool. (This can be automated later on)
@@ -410,7 +414,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
             liabilities = getTotalLiabilities(address(dai));
             assertLe(assets, liabilities, "assets should be less than or equal to liabilities");
         }
-        
+
         // Let's fix the accounting
         uint256 delta = liabilities - assets;
 
@@ -450,7 +454,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
             liabilities = getTotalLiabilities(address(dai));
             assertLe(assets, liabilities, "assets should be less than or equal to liabilities");
         }
-        
+
         // Let's fix the accounting
         uint256 delta = liabilities - assets;
 
@@ -495,7 +499,7 @@ contract SparkLendTest is IntegrationBaseTest, IERC3156FlashBorrower {
         sparkPool.withdraw(address(dai), amount, address(this));
 
         ATokenLike(token).approve(address(msg.sender), amount + fee);
-        
+
         return keccak256("ERC3156FlashBorrower.onFlashLoan");
     }
 }
