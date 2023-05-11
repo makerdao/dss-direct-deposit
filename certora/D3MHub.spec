@@ -590,7 +590,6 @@ rule exec_normal_revert(bytes32 ilk) {
 
     mathint vatGemPool = vat.gem(ilk, pool);
     require(ink == 0 || vatGemPool == 0); // To ensure correct behavior
-    mathint toSlip = vatGemPool < maxWithdraw ? vatGemPool : maxWithdraw;
     mathint vatWardHub = vat.wards(currentContract);
     mathint shareBalPool = share.balanceOf(pool);
     mathint shareSupply = share.totalSupply();
