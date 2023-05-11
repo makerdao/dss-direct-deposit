@@ -85,7 +85,7 @@ rule rely(address usr) {
     env e;
 
     address other;
-    require(other != usr);
+    require other != usr;
     uint256 wardOther = wards(other);
 
     rely(e, usr);
@@ -114,7 +114,7 @@ rule deny(address usr) {
     env e;
 
     address other;
-    require(other != usr);
+    require other != usr;
     uint256 wardOther = wards(other);
 
     deny(e, usr);
@@ -215,17 +215,17 @@ rule exec_normal(bytes32 ilk) {
 
     address vow = vow();
 
-    require(vat() == vat);
-    require(daiJoin() == daiJoin);
-    require(plan(ilk) == plan);
-    require(pool(ilk) == pool);
-    require(vow != daiJoin);
-    require(daiJoin.dai() == dai);
-    require(daiJoin.vat() == vat);
-    require(plan.dai() == dai);
-    require(pool.hub() == currentContract);
-    require(pool.vat() == vat);
-    require(pool.dai() == dai);
+    require vat() == vat;
+    require daiJoin() == daiJoin;
+    require plan(ilk) == plan;
+    require pool(ilk) == pool;
+    require vow != daiJoin;
+    require daiJoin.dai() == dai;
+    require daiJoin.vat() == vat;
+    require plan.dai() == dai;
+    require pool.hub() == currentContract;
+    require pool.vat() == vat;
+    require pool.dai() == dai;
 
     mathint tic = tic(ilk);
     mathint culled = culled(ilk);
@@ -249,8 +249,8 @@ rule exec_normal(bytes32 ilk) {
     mathint targetAssets = plan.getTargetAssets(e, assert_uint256(assetsBefore));
     mathint vatDaiVowBefore = vat.dai(vow);
 
-    require(vat.live() == 1);
-    require(culled == 0);
+    require vat.live() == 1;
+    require culled == 0;
 
     exec(e, ilk);
 
@@ -284,15 +284,15 @@ rule exec_normal(bytes32 ilk) {
     mathint debtMiddle = debtBefore + fixArt * RAY();
 
     // General asserts
-    assert(LineAfter == LineBefore, "Line should not change");
-    assert(lineAfter == lineBefore, "line should not change");
-    assert(artAfter == ArtAfter, "art should be same than Art");
-    assert(inkAfter == artAfter, "ink and art should end up being the same");
-    assert(inkAfter <= lineWad || inkAfter <= inkBefore, "ink can not overpass debt ceiling or be higher than prev one");
-    assert(inkAfter <= safe_max(), "ink can not overpass max_int256 / RAY");
-    assert(vatDaiVowAfter == vatDaiVowBefore + fixArt * RAY(), "vatDaiVow did not increase as expected");
+    assert LineAfter == LineBefore, "Line should not change";
+    assert lineAfter == lineBefore, "line should not change";
+    assert artAfter == ArtAfter, "art should be same than Art";
+    assert inkAfter == artAfter, "ink and art should end up being the same";
+    assert inkAfter <= lineWad || inkAfter <= inkBefore, "ink can not overpass debt ceiling or be higher than prev one";
+    assert inkAfter <= safe_max(), "ink can not overpass max_int256 / RAY";
+    assert vatDaiVowAfter == vatDaiVowBefore + fixArt * RAY(), "vatDaiVow did not increase as expected";
     // Winding to targetAssets
-    assert(
+    assert
         tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         maxDeposit >= targetAssets - assetsBefore && // target IS NOT restricted by maxDeposit
@@ -301,8 +301,8 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == targetAssets &&
                assetsAfter == artAfter,
                "wind: error 1"
-    );
-    assert(
+    ;
+    assert
         tic == 0 && active && inkBefore > assetsBefore && inkBefore - assetsBefore <= WAD() && // regular path in normal path but assets right below ink
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         maxDeposit >= targetAssets - assetsBefore && // target IS NOT restricted by maxDeposit
@@ -311,9 +311,9 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == targetAssets + (inkBefore - assetsBefore) &&
                assetsAfter == targetAssets,
                "wind: error 2"
-    );
+    ;
     // Winding to ilk line
-    assert(
+    assert
         tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         maxDeposit >= targetAssets - assetsBefore && // target IS NOT restricted by maxDeposit
@@ -323,8 +323,8 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == lineWad &&
                assetsAfter >= artAfter,
                "wind: error 3"
-    );
-    assert(
+    ;
+    assert
         tic == 0 && active && inkBefore > assetsBefore && inkBefore - assetsBefore <= WAD() && // regular path in normal path but assets right below ink
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         maxDeposit >= targetAssets - assetsBefore && // target IS NOT restricted by maxDeposit
@@ -334,8 +334,8 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == lineWad &&
                assetsAfter == artAfter - (inkBefore - assetsBefore),
                "wind: error 4"
-    );
-    assert(
+    ;
+    assert
         tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         maxDeposit >= targetAssets - assetsBefore && // target IS NOT restricted by maxDeposit
@@ -346,9 +346,9 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == lineWad &&
                assetsAfter == artAfter,
                "wind: error 5"
-    );
+    ;
     // Unwinding to targetAssets
-    assert(
+    assert
         tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets <= assetsBefore && // plan determines we need to go down (or keep the same)
         targetAssets <= lineWad && // target IS NOT restricted by ilk line
@@ -358,8 +358,8 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == targetAssets &&
                assetsAfter == artAfter,
                "unwind: error 1"
-    );
-    assert(
+    ;
+    assert
         tic == 0 && active && inkBefore > assetsBefore && inkBefore - assetsBefore <= WAD() && // regular path in normal path but assets right below ink
         targetAssets <= assetsBefore && // plan determines we need to go down (or keep the same)
         targetAssets + (inkBefore - assetsBefore) <= lineWad && // target IS NOT restricted by ilk line
@@ -369,9 +369,9 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == targetAssets + (inkBefore - assetsBefore) &&
                assetsAfter == targetAssets,
                "unwind: error 2"
-    );
+    ;
     // Unwinding due to targetAssets but restricted
-    assert(
+    assert
         tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets <= assetsBefore && // plan determines we need to go down (or keep the same)
         targetAssets <= lineWad && // target IS NOT restricted by ilk line
@@ -381,8 +381,8 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == assetsBefore - maxWithdraw &&
                assetsAfter == artAfter,
                "unwind: error 3"
-    );
-    assert(
+    ;
+    assert
         tic == 0 && active && inkBefore > assetsBefore && inkBefore - assetsBefore <= WAD() && // regular path in normal path but assets right below ink
         targetAssets <= assetsBefore && // plan determines we need to go down (or keep the same)
         targetAssets <= lineWad && // target IS NOT restricted by ilk line
@@ -392,8 +392,8 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == assetsAfter + (inkBefore - assetsBefore) &&
                assetsAfter == assetsBefore - maxWithdraw,
                "unwind: error 4"
-    );
-    assert(
+    ;
+    assert
         tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets <= assetsBefore && // plan determines we need to go down (or keep the same)
         targetAssets <= lineWad && // target IS NOT restricted by ilk line
@@ -404,9 +404,9 @@ rule exec_normal(bytes32 ilk) {
         assetsBefore - inkBefore > maxWithdraw
             => artAfter == inkBefore,
                "unwind: error 5"
-    );
+    ;
     // Unwinding due to line
-    assert(
+    assert
         tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         targetAssets > lineWad && // target IS restricted by ilk line
@@ -417,8 +417,8 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == lineWad &&
                assetsAfter == artAfter,
                "unwind: error 6"
-    );
-    assert(
+    ;
+    assert
         tic == 0 && active && inkBefore > assetsBefore && inkBefore - assetsBefore <= WAD() && // regular path in normal path but assets right below ink
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         targetAssets + (inkBefore - assetsBefore) > lineWad && // target IS restricted by ilk line
@@ -429,8 +429,8 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == lineWad &&
                assetsAfter == artAfter - (inkBefore - assetsBefore),
                "unwind: error 7"
-    );
-    assert(
+    ;
+    assert
         tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         targetAssets > lineWad && // target IS restricted by ilk line
@@ -441,8 +441,8 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == inkBefore &&
                assetsAfter > artAfter,
                "unwind: error 8"
-    );
-    assert(
+    ;
+    assert
         tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         targetAssets > lineWad && // target IS restricted by ilk line
@@ -452,8 +452,8 @@ rule exec_normal(bytes32 ilk) {
             => artAfter == inkBefore + fixInk - maxWithdraw &&
                assetsAfter >= artAfter,
                "unwind: error 9"
-    );
-    assert(
+    ;
+    assert
         tic == 0 && active && assetsBefore >= inkBefore && // regular path in normal path
         targetAssets >= assetsBefore && // plan determines we need to go up (or keep the same)
         targetAssets > lineWad && // target IS restricted by ilk line
@@ -467,39 +467,39 @@ rule exec_normal(bytes32 ilk) {
                artAfter >= lineWad &&
                assetsAfter == artAfter,
                "unwind: error 10"
-    );
+    ;
     // Force unwinding due to ilk caged (but not culled yet) or plan inactive or assets being missing:
-    assert(
+    assert
         (tic > 0 || !active || assetsBefore + WAD() < inkBefore) &&
         assetsBefore <= safe_max() && // full unwinding is NOT restricted by safe maxint256 wad
         assetsBefore >= inkBefore &&
         assetsBefore <= maxWithdraw
             => artAfter == 0, "unwind: error 11"
-    );
-    assert(
+    ;
+    assert
         (tic > 0 || !active || assetsBefore + WAD() < inkBefore) &&
         assetsBefore <= safe_max() && // full unwinding is NOT restricted by safe maxint256 wad
         assetsBefore >= inkBefore &&
         assetsBefore > maxWithdraw &&
         assetsBefore - maxWithdraw < lineWad
             => artAfter == assetsBefore - maxWithdraw, "unwind: error 12"
-    );
-    assert(
+    ;
+    assert
         (tic > 0 || !active || assetsBefore + WAD() < inkBefore) &&
         assetsBefore <= safe_max() && // full unwinding is NOT restricted by safe maxint256 wad
         assetsBefore > maxWithdraw &&
         assetsBefore - maxWithdraw >= lineWad &&
         inkBefore <= lineWad
             => artAfter == lineWad, "unwind: error 13"
-    );
-    assert(
+    ;
+    assert
         (tic > 0 || !active || assetsBefore + WAD() < inkBefore) &&
         assetsBefore <= safe_max() && // full unwinding is NOT restricted by safe maxint256 wad
         assetsBefore > maxWithdraw &&
         assetsBefore - maxWithdraw >= inkBefore &&
         inkBefore > lineWad
             => artAfter == inkBefore, "unwind: error 14"
-    );
+    ;
 }
 
 rule exec_normal_revert(bytes32 ilk) {
@@ -507,18 +507,18 @@ rule exec_normal_revert(bytes32 ilk) {
 
     address vow = vow();
 
-    require(vat() == vat);
-    require(daiJoin() == daiJoin);
-    require(plan(ilk) == plan);
-    require(pool(ilk) == pool);
-    require(vow != currentContract);
-    require(vow != daiJoin);
-    require(daiJoin.dai() == dai);
-    require(daiJoin.vat() == vat);
-    require(plan.dai() == dai);
-    require(pool.hub() == currentContract);
-    require(pool.vat() == vat);
-    require(pool.dai() == dai);
+    require vat() == vat;
+    require daiJoin() == daiJoin;
+    require plan(ilk) == plan;
+    require pool(ilk) == pool;
+    require vow != currentContract;
+    require vow != daiJoin;
+    require daiJoin.dai() == dai;
+    require daiJoin.vat() == vat;
+    require plan.dai() == dai;
+    require pool.hub() == currentContract;
+    require pool.vat() == vat;
+    require pool.dai() == dai;
 
     mathint locked = locked();
     mathint Line = vat.Line();
@@ -533,11 +533,11 @@ rule exec_normal_revert(bytes32 ilk) {
     ink, art = vat.urns(ilk, pool);
     mathint assets = pool.assetBalance(e);
 
-    require(vat.live() == 1);
-    require(culled(ilk) == 0);
-    require(dust == 0);
-    require(dai.wards(daiJoin) == 1);
-    require(share.wards(pool) == 1);
+    require vat.live() == 1;
+    require culled(ilk) == 0;
+    require dust == 0;
+    require dai.wards(daiJoin) == 1;
+    require share.wards(pool) == 1;
 
     mathint maxWithdraw = min(to_mathint(pool.maxWithdraw(e)), safe_max());
     mathint maxDeposit = pool.maxDeposit(e);
@@ -589,15 +589,15 @@ rule exec_normal_revert(bytes32 ilk) {
                     : 0;
 
     mathint vatGemPool = vat.gem(ilk, pool);
-    require(ink == 0 || vatGemPool == 0); // To ensure correct behavior
+    require ink == 0 || vatGemPool == 0; // To ensure correct behaviour
     mathint vatWardHub = vat.wards(currentContract);
     mathint shareBalPool = share.balanceOf(pool);
     mathint shareSupply = share.totalSupply();
-    require(shareSupply >= shareBalPool); // To ensure correct behaviour
+    require shareSupply >= shareBalPool; // To ensure correct behaviour
     mathint daiBalShare = dai.balanceOf(share);
     mathint daiBalPool = dai.balanceOf(pool);
     mathint daiSupply = dai.totalSupply();
-    require(daiSupply >= daiBalShare + daiBalPool); // To ensure correct behaviour
+    require daiSupply >= daiBalShare + daiBalPool; // To ensure correct behaviour
     mathint daiAllowanceSharePool = dai.allowance(share, pool);
     mathint daiBalHub = dai.balanceOf(currentContract);
     mathint vatDaiDaiJoin = vat.dai(daiJoin);
@@ -607,7 +607,7 @@ rule exec_normal_revert(bytes32 ilk) {
     mathint vatDaiVow = vat.dai(vow);
     mathint vatVice = vat.vice();
     mathint vatDebt = vat.debt();
-    require(vatDebt >= art * rate); // To ensure correct behaviour
+    require vatDebt >= art * rate; // To ensure correct behaviour
     mathint vatCanPoolHub = vat.can(pool, currentContract);
     mathint vatCanHubDaiJoin = vat.can(currentContract, daiJoin);
     mathint daiJoinLive = daiJoin.live();
@@ -666,46 +666,46 @@ rule exec_normal_revert(bytes32 ilk) {
     // pool.deposit:
     bool revert38 = toWind > 0 && shareSupply + toWind > max_uint256;
 
-    assert(revert1  => lastReverted, "revert1 failed");
-    assert(revert2  => lastReverted, "revert2 failed");
-    assert(revert3  => lastReverted, "revert3 failed");
-    assert(revert4  => lastReverted, "revert4 failed");
-    assert(revert5  => lastReverted, "revert5 failed");
-    assert(revert6  => lastReverted, "revert6 failed");
-    assert(revert7  => lastReverted, "revert7 failed");
-    assert(revert8  => lastReverted, "revert8 failed");
-    assert(revert9  => lastReverted, "revert9 failed");
-    assert(revert10 => lastReverted, "revert10 failed");
-    assert(revert11 => lastReverted, "revert11 failed");
-    assert(revert12 => lastReverted, "revert12 failed");
-    assert(revert13 => lastReverted, "revert13 failed");
-    assert(revert14 => lastReverted, "revert14 failed");
-    assert(revert15 => lastReverted, "revert15 failed");
-    assert(revert16 => lastReverted, "revert16 failed");
-    assert(revert17 => lastReverted, "revert17 failed");
-    assert(revert18 => lastReverted, "revert18 failed");
-    assert(revert19 => lastReverted, "revert19 failed");
-    assert(revert20 => lastReverted, "revert20 failed");
-    assert(revert21 => lastReverted, "revert21 failed");
-    assert(revert22 => lastReverted, "revert22 failed");
-    assert(revert23 => lastReverted, "revert23 failed");
-    assert(revert24 => lastReverted, "revert24 failed");
-    assert(revert25 => lastReverted, "revert25 failed");
-    assert(revert26 => lastReverted, "revert26 failed");
-    assert(revert27 => lastReverted, "revert27 failed");
-    assert(revert28 => lastReverted, "revert28 failed");
-    assert(revert29 => lastReverted, "revert29 failed");
-    assert(revert30 => lastReverted, "revert30 failed");
-    assert(revert31 => lastReverted, "revert31 failed");
-    assert(revert32 => lastReverted, "revert32 failed");
-    assert(revert33 => lastReverted, "revert33 failed");
-    assert(revert34 => lastReverted, "revert34 failed");
-    assert(revert35 => lastReverted, "revert35 failed");
-    assert(revert36 => lastReverted, "revert36 failed");
-    assert(revert37 => lastReverted, "revert37 failed");
-    assert(revert38 => lastReverted, "revert38 failed");
+    assert revert1  => lastReverted, "revert1 failed";
+    assert revert2  => lastReverted, "revert2 failed";
+    assert revert3  => lastReverted, "revert3 failed";
+    assert revert4  => lastReverted, "revert4 failed";
+    assert revert5  => lastReverted, "revert5 failed";
+    assert revert6  => lastReverted, "revert6 failed";
+    assert revert7  => lastReverted, "revert7 failed";
+    assert revert8  => lastReverted, "revert8 failed";
+    assert revert9  => lastReverted, "revert9 failed";
+    assert revert10 => lastReverted, "revert10 failed";
+    assert revert11 => lastReverted, "revert11 failed";
+    assert revert12 => lastReverted, "revert12 failed";
+    assert revert13 => lastReverted, "revert13 failed";
+    assert revert14 => lastReverted, "revert14 failed";
+    assert revert15 => lastReverted, "revert15 failed";
+    assert revert16 => lastReverted, "revert16 failed";
+    assert revert17 => lastReverted, "revert17 failed";
+    assert revert18 => lastReverted, "revert18 failed";
+    assert revert19 => lastReverted, "revert19 failed";
+    assert revert20 => lastReverted, "revert20 failed";
+    assert revert21 => lastReverted, "revert21 failed";
+    assert revert22 => lastReverted, "revert22 failed";
+    assert revert23 => lastReverted, "revert23 failed";
+    assert revert24 => lastReverted, "revert24 failed";
+    assert revert25 => lastReverted, "revert25 failed";
+    assert revert26 => lastReverted, "revert26 failed";
+    assert revert27 => lastReverted, "revert27 failed";
+    assert revert28 => lastReverted, "revert28 failed";
+    assert revert29 => lastReverted, "revert29 failed";
+    assert revert30 => lastReverted, "revert30 failed";
+    assert revert31 => lastReverted, "revert31 failed";
+    assert revert32 => lastReverted, "revert32 failed";
+    assert revert33 => lastReverted, "revert33 failed";
+    assert revert34 => lastReverted, "revert34 failed";
+    assert revert35 => lastReverted, "revert35 failed";
+    assert revert36 => lastReverted, "revert36 failed";
+    assert revert37 => lastReverted, "revert37 failed";
+    assert revert38 => lastReverted, "revert38 failed";
 
-    assert(lastReverted => revert1  || revert2  || revert3  ||
+    assert lastReverted => revert1  || revert2  || revert3  ||
                            revert4  || revert5  || revert6  ||
                            revert7  || revert8  || revert9  ||
                            revert10 || revert11 || revert12 ||
@@ -717,7 +717,7 @@ rule exec_normal_revert(bytes32 ilk) {
                            revert28 || revert29 || revert30 ||
                            revert31 || revert32 || revert33 ||
                            revert34 || revert35 || revert36 ||
-                           revert37 || revert38, "Revert rules are not covering all the cases");
+                           revert37 || revert38, "Revert rules are not covering all the cases";
 }
 
 rule exec_ilk_culled(bytes32 ilk) {
@@ -725,17 +725,17 @@ rule exec_ilk_culled(bytes32 ilk) {
 
     address vow = vow();
 
-    require(vat() == vat);
-    require(daiJoin() == daiJoin);
-    require(plan(ilk) == plan);
-    require(pool(ilk) == pool);
-    require(vow != daiJoin);
-    require(daiJoin.dai() == dai);
-    require(daiJoin.vat() == vat);
-    require(plan.dai() == dai);
-    require(pool.hub() == currentContract);
-    require(pool.vat() == vat);
-    require(pool.dai() == dai);
+    require vat() == vat;
+    require daiJoin() == daiJoin;
+    require plan(ilk) == plan;
+    require pool(ilk) == pool;
+    require vow != daiJoin;
+    require daiJoin.dai() == dai;
+    require daiJoin.vat() == vat;
+    require plan.dai() == dai;
+    require pool.hub() == currentContract;
+    require pool.vat() == vat;
+    require pool.dai() == dai;
 
     mathint LineBefore = vat.Line();
     mathint debtBefore = vat.debt();
@@ -753,9 +753,9 @@ rule exec_ilk_culled(bytes32 ilk) {
     mathint assetsBefore = pool.assetBalance(e);
     mathint targetAssets = plan.getTargetAssets(e, assert_uint256(assetsBefore));
 
-    require(vat.live() == 1);
-    require(inkBefore >= artBefore);
-    require(assetsBefore >= inkBefore);
+    require vat.live() == 1;
+    require inkBefore >= artBefore;
+    require assetsBefore >= inkBefore;
 
     cull(e, ilk);
 
@@ -797,17 +797,17 @@ rule exec_ilk_culled_revert(bytes32 ilk) {
 
     address vow = vow();
 
-    require(vat() == vat);
-    require(daiJoin() == daiJoin);
-    require(plan(ilk) == plan);
-    require(pool(ilk) == pool);
-    require(vow != daiJoin);
-    require(daiJoin.dai() == dai);
-    require(daiJoin.vat() == vat);
-    require(plan.dai() == dai);
-    require(pool.hub() == currentContract);
-    require(pool.vat() == vat);
-    require(pool.dai() == dai);
+    require vat() == vat;
+    require daiJoin() == daiJoin;
+    require plan(ilk) == plan;
+    require pool(ilk) == pool;
+    require vow != daiJoin;
+    require daiJoin.dai() == dai;
+    require daiJoin.vat() == vat;
+    require plan.dai() == dai;
+    require pool.hub() == currentContract;
+    require pool.vat() == vat;
+    require pool.dai() == dai;
 
     mathint locked = locked();
     mathint Art;
@@ -819,27 +819,27 @@ rule exec_ilk_culled_revert(bytes32 ilk) {
     mathint ink;
     mathint art;
     ink, art = vat.urns(ilk, pool);
-    require(Art >= art);
+    require Art >= art;
 
     mathint maxWithdraw = pool.maxWithdraw(e);
     mathint assets = pool.assetBalance(e);
 
-    require(vat.live() == 1);
-    require(ink >= art);
-    require(assets >= ink);
+    require vat.live() == 1;
+    require ink >= art;
+    require assets >= ink;
 
     cull(e, ilk);
 
     mathint vatGemPool = vat.gem(ilk, pool);
-    require(ink == 0 || vatGemPool == 0); // To ensure correct behavior
+    require ink == 0 || vatGemPool == 0; // To ensure correct behaviour
     mathint toSlip = vatGemPool < maxWithdraw ? vatGemPool : maxWithdraw;
     mathint vatWardHub = vat.wards(currentContract);
     mathint shareBalPool = share.balanceOf(pool);
     mathint shareSupply = share.totalSupply();
-    require(shareSupply >= shareBalPool); // To ensure correct behaviour
+    require shareSupply >= shareBalPool; // To ensure correct behaviour
     mathint daiBalShare = dai.balanceOf(share);
     mathint daiSupply = dai.totalSupply();
-    require(daiSupply >= daiBalShare); // To ensure correct behaviour
+    require daiSupply >= daiBalShare; // To ensure correct behaviour
     mathint daiAllowanceSharePool = dai.allowance(share, pool);
     mathint daiBalHub = dai.balanceOf(currentContract);
     mathint vatDaiDaiJoin = vat.dai(daiJoin);
@@ -864,26 +864,26 @@ rule exec_ilk_culled_revert(bytes32 ilk) {
     bool revert13 = maxWithdraw > 0 && vatDaiHub + maxWithdraw * RAY() > max_uint256;
     bool revert14 = maxWithdraw > 0 && vatDaiVow + maxWithdraw * RAY() > max_uint256;
 
-    assert(revert1  => lastReverted, "revert1 failed");
-    assert(revert2  => lastReverted, "revert2 failed");
-    assert(revert3  => lastReverted, "revert3 failed");
-    assert(revert4  => lastReverted, "revert4 failed");
-    assert(revert5  => lastReverted, "revert5 failed");
-    assert(revert6  => lastReverted, "revert6 failed");
-    assert(revert7  => lastReverted, "revert7 failed");
-    assert(revert8  => lastReverted, "revert8 failed");
-    assert(revert9  => lastReverted, "revert9 failed");
-    assert(revert10 => lastReverted, "revert10 failed");
-    assert(revert11 => lastReverted, "revert11 failed");
-    assert(revert12 => lastReverted, "revert12 failed");
-    assert(revert13 => lastReverted, "revert13 failed");
-    assert(revert14 => lastReverted, "revert14 failed");
+    assert revert1  => lastReverted, "revert1 failed";
+    assert revert2  => lastReverted, "revert2 failed";
+    assert revert3  => lastReverted, "revert3 failed";
+    assert revert4  => lastReverted, "revert4 failed";
+    assert revert5  => lastReverted, "revert5 failed";
+    assert revert6  => lastReverted, "revert6 failed";
+    assert revert7  => lastReverted, "revert7 failed";
+    assert revert8  => lastReverted, "revert8 failed";
+    assert revert9  => lastReverted, "revert9 failed";
+    assert revert10 => lastReverted, "revert10 failed";
+    assert revert11 => lastReverted, "revert11 failed";
+    assert revert12 => lastReverted, "revert12 failed";
+    assert revert13 => lastReverted, "revert13 failed";
+    assert revert14 => lastReverted, "revert14 failed";
 
-    assert(lastReverted => revert1  || revert2  || revert3  ||
+    assert lastReverted => revert1  || revert2  || revert3  ||
                            revert4  || revert5  || revert6  ||
                            revert7  || revert8  || revert9  ||
                            revert10 || revert11 || revert12 ||
-                           revert13 || revert14, "Revert rules are not covering all the cases");
+                           revert13 || revert14, "Revert rules are not covering all the cases";
 }
 
 rule exec_vat_caged(bytes32 ilk) {
@@ -891,19 +891,19 @@ rule exec_vat_caged(bytes32 ilk) {
 
     address vow = vow();
 
-    require(vat() == vat);
-    require(daiJoin() == daiJoin);
-    require(end() == end);
-    require(plan(ilk) == plan);
-    require(pool(ilk) == pool);
-    require(vow != daiJoin);
-    require(daiJoin.dai() == dai);
-    require(daiJoin.vat() == vat);
-    require(end.vat() == vat);
-    require(plan.dai() == dai);
-    require(pool.hub() == currentContract);
-    require(pool.vat() == vat);
-    require(pool.dai() == dai);
+    require vat() == vat;
+    require daiJoin() == daiJoin;
+    require end() == end;
+    require plan(ilk) == plan;
+    require pool(ilk) == pool;
+    require vow != daiJoin;
+    require daiJoin.dai() == dai;
+    require daiJoin.vat() == vat;
+    require end.vat() == vat;
+    require plan.dai() == dai;
+    require pool.hub() == currentContract;
+    require pool.vat() == vat;
+    require pool.dai() == dai;
 
     mathint LineBefore = vat.Line();
     mathint debtBefore = vat.debt();
@@ -921,17 +921,17 @@ rule exec_vat_caged(bytes32 ilk) {
     mathint assetsBefore = pool.assetBalance(e);
     mathint targetAssets = plan.getTargetAssets(e, assert_uint256(assetsBefore));
 
-    require(vat.live() == 0);
-    require(to_mathint(end.tag(ilk)) == RAY());
-    require(inkBefore >= artBefore);
-    require(assetsBefore >= inkBefore);
+    require vat.live() == 0;
+    require to_mathint(end.tag(ilk)) == RAY();
+    require inkBefore >= artBefore;
+    require assetsBefore >= inkBefore;
 
     mathint vatGemEndBeforeOriginal = vat.gem(ilk, end);
-    require(inkBefore == 0 || vatGemEndBeforeOriginal == 0); // To ensure correct behavior
+    require inkBefore == 0 || vatGemEndBeforeOriginal == 0; // To ensure correct behaviour
     mathint vatGemEndBefore = vatGemEndBeforeOriginal != 0 ? vatGemEndBeforeOriginal : artBefore;
     mathint vatDaiVowBefore = vat.dai(vow);
 
-    require(assetsBefore >= vatGemEndBefore);
+    require assetsBefore >= vatGemEndBefore;
 
     exec(e, ilk);
 
@@ -967,20 +967,20 @@ rule exec_vat_caged_revert(bytes32 ilk) {
 
     address vow = vow();
 
-    require(vat() == vat);
-    require(daiJoin() == daiJoin);
-    require(end() == end);
-    require(plan(ilk) == plan);
-    require(pool(ilk) == pool);
-    require(vow != daiJoin);
-    require(daiJoin.dai() == dai);
-    require(daiJoin.vat() == vat);
-    require(end.vat() == vat);
-    require(end.vow() == vow);
-    require(plan.dai() == dai);
-    require(pool.hub() == currentContract);
-    require(pool.vat() == vat);
-    require(pool.dai() == dai);
+    require vat() == vat;
+    require daiJoin() == daiJoin;
+    require end() == end;
+    require plan(ilk) == plan;
+    require pool(ilk) == pool;
+    require vow != daiJoin;
+    require daiJoin.dai() == dai;
+    require daiJoin.vat() == vat;
+    require end.vat() == vat;
+    require end.vow() == vow;
+    require plan.dai() == dai;
+    require pool.hub() == currentContract;
+    require pool.vat() == vat;
+    require pool.dai() == dai;
 
     mathint locked = locked();
     mathint Art;
@@ -992,35 +992,35 @@ rule exec_vat_caged_revert(bytes32 ilk) {
     mathint ink;
     mathint art;
     ink, art = vat.urns(ilk, pool);
-    require(Art >= art);
+    require Art >= art;
     mathint endDebt = end.debt();
     mathint culled = culled(ilk);
 
     mathint maxWithdraw = pool.maxWithdraw(e);
     mathint assets = pool.assetBalance(e);
 
-    require(vat.live() == 0);
+    require vat.live() == 0;
     mathint tag = end.tag(ilk);
-    require(tag == RAY());
-    require(ink >= art);
-    require(assets >= ink);
+    require tag == RAY();
+    require ink >= art;
+    require assets >= ink;
 
     mathint vatWardEnd = vat.wards(end);
     mathint gap = end.gap(ilk);
     mathint owe   = art * rate / RAY() * tag / RAY();
     mathint wad   = ink < owe ? ink : owe;
     mathint vatGemEnd = vat.gem(ilk, end);
-    require(ink == 0 || vatGemEnd == 0); // To ensure correct behavior
+    require ink == 0 || vatGemEnd == 0; // To ensure correct behaviour
     mathint vatSinVow = vat.sin(vow);
     mathint vatVice = vat.vice();
     mathint toSlip = vatGemEnd < maxWithdraw ? vatGemEnd : maxWithdraw;
     mathint vatWardHub = vat.wards(currentContract);
     mathint shareBalPool = share.balanceOf(pool);
     mathint shareSupply = share.totalSupply();
-    require(shareSupply >= shareBalPool); // To ensure correct behaviour
+    require shareSupply >= shareBalPool; // To ensure correct behaviour
     mathint daiBalShare = dai.balanceOf(share);
     mathint daiSupply = dai.totalSupply();
-    require(daiSupply >= daiBalShare); // To ensure correct behaviour
+    require daiSupply >= daiBalShare; // To ensure correct behaviour
     mathint daiAllowanceSharePool = dai.allowance(share, pool);
     mathint daiBalHub = dai.balanceOf(currentContract);
     mathint vatDaiDaiJoin = vat.dai(daiJoin);
@@ -1100,23 +1100,23 @@ rule exec_vat_caged_revert(bytes32 ilk) {
 rule exec_exec(bytes32 ilk) {
     env e;
 
-    require(vat() == vat);
-    require(daiJoin() == daiJoin);
-    require(plan(ilk) == plan);
-    require(pool(ilk) == pool);
-    require(daiJoin.dai() == dai);
-    require(daiJoin.vat() == vat);
-    require(plan.dai() == dai);
-    require(pool.hub() == currentContract);
-    require(pool.vat() == vat);
-    require(pool.dai() == dai);
+    require vat() == vat;
+    require daiJoin() == daiJoin;
+    require plan(ilk) == plan;
+    require pool(ilk) == pool;
+    require daiJoin.dai() == dai;
+    require daiJoin.vat() == vat;
+    require plan.dai() == dai;
+    require pool.hub() == currentContract;
+    require pool.vat() == vat;
+    require pool.dai() == dai;
 
     mathint maxDeposit = pool.maxDeposit(e);
     mathint assetsBefore = pool.assetBalance(e);
     mathint targetAssets = plan.getTargetAssets(e, assert_uint256(assetsBefore));
 
-    require(maxDeposit > targetAssets - assetsBefore);
-    require(assetsBefore <= safe_max());
+    require maxDeposit > targetAssets - assetsBefore;
+    require assetsBefore <= safe_max();
 
     exec(e, ilk);
 
@@ -1142,11 +1142,11 @@ rule exec_exec(bytes32 ilk) {
 rule exit(bytes32 ilk, address usr, uint256 wad) {
     env e;
 
-    require(vat() == vat);
-    require(pool(ilk) == pool);
-    require(pool.hub() == currentContract);
-    require(pool.vat() == vat);
-    require(pool.share() == share);
+    require vat() == vat;
+    require pool(ilk) == pool;
+    require pool.hub() == currentContract;
+    require pool.vat() == vat;
+    require pool.share() == share;
 
     mathint vatGemSenderBefore = vat.gem(ilk, e.msg.sender);
     mathint poolShareUsrBefore = share.balanceOf(usr);
@@ -1163,11 +1163,11 @@ rule exit(bytes32 ilk, address usr, uint256 wad) {
 rule exit_revert(bytes32 ilk, address usr, uint256 wad) {
     env e;
 
-    require(vat() == vat);
-    require(pool(ilk) == pool);
-    require(pool.hub() == currentContract);
-    require(pool.vat() == vat);
-    require(pool.share() == share);
+    require vat() == vat;
+    require pool(ilk) == pool;
+    require pool.hub() == currentContract;
+    require pool.vat() == vat;
+    require pool.share() == share;
 
     mathint locked = locked();
     mathint gem = vat.gem(ilk, e.msg.sender);
@@ -1201,7 +1201,7 @@ rule exit_revert(bytes32 ilk, address usr, uint256 wad) {
 rule cage(bytes32 ilk) {
     env e;
 
-    require(vat() == vat);
+    require vat() == vat;
 
     cage(e, ilk);
 
@@ -1237,7 +1237,7 @@ rule cage_revert(bytes32 ilk) {
 rule cull(bytes32 ilk) {
     env e;
 
-    require(vat() == vat);
+    require vat() == vat;
 
     mathint ArtBefore;
     mathint rateBefore;
@@ -1246,7 +1246,7 @@ rule cull(bytes32 ilk) {
     mathint dustBefore;
     ArtBefore, rateBefore, spotBefore, lineBefore, dustBefore = vat.ilks(ilk);
 
-    require(rateBefore == RAY());
+    require rateBefore == RAY();
 
     mathint inkBefore;
     mathint artBefore;
@@ -1293,8 +1293,8 @@ rule cull_revert(bytes32 ilk) {
     mathint line;
     mathint dust;
     Art, rate, spot, line, dust = vat.ilks(ilk);
-    require(Art >= art);
-    require(rate == RAY());
+    require Art >= art;
+    require rate == RAY();
     mathint vatGemPool = vat.gem(ilk, pool(ilk));
     mathint vatSinVow = vat.sin(vow());
     mathint vatVice = vat.vice();
@@ -1336,7 +1336,7 @@ rule cull_revert(bytes32 ilk) {
 rule uncull(bytes32 ilk) {
     env e;
 
-    require(vat() == vat);
+    require vat() == vat;
 
     mathint ArtBefore;
     mathint rateBefore;
@@ -1345,7 +1345,7 @@ rule uncull(bytes32 ilk) {
     mathint dustBefore;
     ArtBefore, rateBefore, spotBefore, lineBefore, dustBefore = vat.ilks(ilk);
 
-    require(rateBefore == RAY());
+    require rateBefore == RAY();
 
     mathint inkBefore;
     mathint artBefore;
@@ -1389,7 +1389,7 @@ rule uncull_revert(bytes32 ilk) {
     mathint line;
     mathint dust;
     Art, rate, spot, line, dust = vat.ilks(ilk);
-    require(rate == RAY());
+    require rate == RAY();
     mathint ink;
     mathint art;
     ink, art = vat.urns(ilk, pool(ilk));
@@ -1409,21 +1409,21 @@ rule uncull_revert(bytes32 ilk) {
     bool revert11 = Art + vatGemPool > max_uint256;
     bool revert12 = rate * vatGemPool > max_int256();
 
-    assert(revert1  => lastReverted, "revert1 failed");
-    assert(revert2  => lastReverted, "revert2 failed");
-    assert(revert3  => lastReverted, "revert3 failed");
-    assert(revert4  => lastReverted, "revert4 failed");
-    assert(revert5  => lastReverted, "revert5 failed");
-    assert(revert6  => lastReverted, "revert6 failed");
-    assert(revert7  => lastReverted, "revert7 failed");
-    assert(revert8  => lastReverted, "revert8 failed");
-    assert(revert9  => lastReverted, "revert9 failed");
-    assert(revert10 => lastReverted, "revert10 failed");
-    assert(revert11 => lastReverted, "revert11 failed");
-    assert(revert12 => lastReverted, "revert12 failed");
+    assert revert1  => lastReverted, "revert1 failed";
+    assert revert2  => lastReverted, "revert2 failed";
+    assert revert3  => lastReverted, "revert3 failed";
+    assert revert4  => lastReverted, "revert4 failed";
+    assert revert5  => lastReverted, "revert5 failed";
+    assert revert6  => lastReverted, "revert6 failed";
+    assert revert7  => lastReverted, "revert7 failed";
+    assert revert8  => lastReverted, "revert8 failed";
+    assert revert9  => lastReverted, "revert9 failed";
+    assert revert10 => lastReverted, "revert10 failed";
+    assert revert11 => lastReverted, "revert11 failed";
+    assert revert12 => lastReverted, "revert12 failed";
 
-    assert(lastReverted => revert1  || revert2  || revert3  ||
+    assert lastReverted => revert1  || revert2  || revert3  ||
                            revert4  || revert5  || revert6  ||
                            revert7  || revert8  || revert9  ||
-                           revert10 || revert11 || revert12, "Revert rules are not covering all the cases");
+                           revert10 || revert11 || revert12, "Revert rules are not covering all the cases";
 }
