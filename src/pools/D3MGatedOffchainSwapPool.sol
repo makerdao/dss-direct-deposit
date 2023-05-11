@@ -16,31 +16,21 @@
 
 pragma solidity ^0.8.14;
 
-import "./D3MSwapPool.sol";
-import {ID3MPlan} from "../plans/ID3MPlan.sol";
+import "./D3MGatedSwapPool.sol";
 
 /**
- *  @title D3M Offchain Swap Pool
- *  @notice Offchain addresses can remove gems from this pool.
- *  @dev DAI to GEM swaps only occur in one direction depending on if the outstanding debt is lower
- *       or higher than the debt ceiling.
+ *  @title D3M Gated Offchain Swap Pool
+ *  @notice Approved operators can add/remove gems from this pool for off-chain investment.
  */
-contract D3MOffchainSwapPool is D3MSwapPool {
-
-    struct FeeData {
-        uint128 tin;     // toll in  [wad]
-        uint128 tout;    // toll out [wad]
-    }
+contract D3MGatedOffchainSwapPool is D3MGatedSwapPool {
 
     // --- Data ---
     mapping (address => uint256) public operators;
 
-    FeeData public feeData;
     uint256 public gemsOutstanding;
 
     // --- Events ---
     event File(bytes32 indexed what, uint256 data);
-    event File(bytes32 indexed what, uint128 tin, uint128 tout);
     event AddOperator(address indexed operator);
     event RemoveOperator(address indexed operator);
 
@@ -54,12 +44,7 @@ contract D3MOffchainSwapPool is D3MSwapPool {
         address _hub,
         address _dai,
         address _gem
-    ) D3MSwapPool(_ilk, _hub, _dai, _gem) {
-        // Initialize all fees to zero
-        feeData = FeeData({
-            tin: uint128(WAD),
-            tout: uint128(WAD)
-        });
+    ) D3MGatedSwapPool(_ilk, _hub, _dai, _gem) {
     }
 
     // --- Administration ---
@@ -72,20 +57,6 @@ contract D3MOffchainSwapPool is D3MSwapPool {
         } else revert("D3MSwapPool/file-unrecognized-param");
 
         emit File(what, data);
-    }
-
-    function file(bytes32 what, uint128 _tin, uint128 _tout) external auth {
-        require(vat.live() == 1, "D3MSwapPool/no-file-during-shutdown");
-        // Please note we allow tin and tout to be both negative fees because swaps are gated by
-        // the desired target debt which only allows filling/emptying this pool in one direction
-        // at a time.
-
-        if (what == "fees") {
-            feeData.tin = _tin;
-            feeData.tout = _tout;
-        } else revert("D3MSwapPool/file-unrecognized-param");
-
-        emit File(what, _tin, _tout);
     }
 
     function addOperator(address operator) external auth {
@@ -104,40 +75,8 @@ contract D3MOffchainSwapPool is D3MSwapPool {
 
     // --- Pool Support ---
 
-    function assetBalance() external view override returns (uint256) {
+    function assetBalance() public view override returns (uint256) {
         return dai.balanceOf(address(this)) + (gem.balanceOf(address(this)) + gemsOutstanding) * GEM_CONVERSION_FACTOR * uint256(pip.read()) / WAD;
-    }
-
-    // --- Getters ---
-
-    function tin() external view returns (uint256) {
-        return feeData.tin;
-    }
-
-    function tout() external view returns (uint256) {
-        return feeData.tout;
-    }
-
-    // --- Swaps ---
-
-    function previewSwapGemForDai(uint256 gemAmt) public view override returns (uint256 daiAmt) {
-        uint256 gemBalance = (gem.balanceOf(address(this)) + gemsOutstanding) * GEM_CONVERSION_FACTOR * uint256(swapGemForDaiPip.read()) / WAD;
-        uint256 targetAssets = ID3MPlan(hub.plan(ilk)).getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
-        uint256 pipValue = uint256(swapGemForDaiPip.read());
-        uint256 gemValue = gemAmt * GEM_CONVERSION_FACTOR * pipValue / WAD;
-        require(gemBalance + gemValue <= targetAssets, "D3MSwapPool/not-accepting-gems");
-        FeeData memory _feeData = feeData;
-        daiAmt = gemValue * _feeData.tin / WAD;
-    }
-
-    function previewSwapDaiForGem(uint256 daiAmt) public view override returns (uint256 gemAmt) {
-        uint256 gemBalance = (gem.balanceOf(address(this)) + gemsOutstanding) * GEM_CONVERSION_FACTOR * uint256(swapDaiForGemPip.read()) / WAD;
-        uint256 targetAssets = ID3MPlan(hub.plan(ilk)).getTargetAssets(ilk, gemBalance + dai.balanceOf(address(this)));
-        FeeData memory _feeData = feeData;
-        uint256 gemValue = daiAmt * _feeData.tout / WAD;
-        require(targetAssets + gemValue <= gemBalance, "D3MSwapPool/not-accepting-dai");
-        uint256 pipValue = uint256(swapDaiForGemPip.read());
-        gemAmt = gemValue * WAD / (GEM_CONVERSION_FACTOR * pipValue);
     }
 
     // --- Offchain push/pull + helper functions ---

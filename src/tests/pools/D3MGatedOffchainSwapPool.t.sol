@@ -16,46 +16,23 @@
 
 pragma solidity ^0.8.14;
 
-import "./D3MSwapPool.t.sol";
+import "./D3MGatedSwapPool.t.sol";
 
-import { D3MOffchainSwapPool } from "../../pools/D3MOffchainSwapPool.sol";
+import { D3MGatedOffchainSwapPool } from "../../pools/D3MGatedOffchainSwapPool.sol";
 
-contract PlanMock {
-
-    uint256 public targetAssets;
-
-    function setTargetAssets(uint256 _targetAssets) external {
-        targetAssets = _targetAssets;
-    }
-
-    function getTargetAssets(bytes32, uint256) external view returns (uint256) {
-        return targetAssets;
-    }
-
-}
-
-contract D3MOffchainSwapPoolTest is D3MSwapPoolTest {
+contract D3MGatedOffchainSwapPoolTest is D3MGatedSwapPoolTest {
 
     using stdStorage for StdStorage;
 
-    PlanMock plan;
+    D3MGatedOffchainSwapPool private pool;
 
-    D3MOffchainSwapPool internal pool;
-
-    event File(bytes32 indexed what, uint128 tin, uint128 tout);
     event AddOperator(address indexed operator);
     event RemoveOperator(address indexed operator);
 
-    function setUp() public {
+    function setUp() public override {
         baseInit("D3MSwapPool");
 
-        plan = new PlanMock();
-        hub.setPlan(address(plan));
-
-        pool = new D3MOffchainSwapPool(ILK, address(hub), address(dai), address(gem));
-
-        // Fees set to tin=-5bps, tout=10bps
-        pool.file("fees", 1.0005 ether, 0.9990 ether);
+        pool = new D3MGatedOffchainSwapPool(ILK, address(hub), address(dai), address(gem));
 
         setPoolContract(address(pool));
     }
@@ -65,13 +42,12 @@ contract D3MOffchainSwapPoolTest is D3MSwapPoolTest {
         plan.setTargetAssets(isSellingGem ? totalBalance : 0);
     }
 
-    function test_authModifier() public {
+    function test_operator_authModifier() public {
         pool.deny(address(this));
 
         checkModifier(address(pool), string(abi.encodePacked(contractName, "/not-authorized")), [
-            bytes4(keccak256("file(bytes32,uint128,uint128)")),
-            D3MOffchainSwapPool.addOperator.selector,
-            D3MOffchainSwapPool.removeOperator.selector
+            D3MGatedOffchainSwapPool.addOperator.selector,
+            D3MGatedOffchainSwapPool.removeOperator.selector
         ]);
     }
 
@@ -81,22 +57,6 @@ contract D3MOffchainSwapPoolTest is D3MSwapPoolTest {
         vat.cage();
         vm.expectRevert(abi.encodePacked(contractName, "/no-file-during-shutdown"));
         pool.file("some value", 1);
-    }
-
-    function test_file_fees() public {
-        vm.expectRevert(abi.encodePacked(contractName, "/file-unrecognized-param"));
-        pool.file("an invalid value", 1, 2);
-
-        vm.expectEmit(true, true, true, true);
-        emit File("fees", 1, 2);
-        pool.file("fees", 1, 2);
-
-        assertEq(pool.tin(), 1);
-        assertEq(pool.tout(), 2);
-
-        vat.cage();
-        vm.expectRevert(abi.encodePacked(contractName, "/no-file-during-shutdown"));
-        pool.file("some value", 1, 2);
     }
 
     function test_addOperator() public {
@@ -132,32 +92,6 @@ contract D3MOffchainSwapPoolTest is D3MSwapPoolTest {
         assertEq(pool.assetBalance(), 100 ether);
         stdstore.target(address(pool)).sig("gemsOutstanding()").checked_write(bytes32(uint256(10 * 1e6)));
         assertEq(pool.assetBalance(), 120 ether);
-    }
-
-    function test_previewSwapGemForDai() public {
-        _ensureRatio(5000, 100 ether, true);
-        
-        assertEq(pool.previewSwapGemForDai(10 * 1e6), 20.01 ether);
-    }
-
-    function test_previewSwapGemForDai_not_accepting_gems() public {
-        _ensureRatio(5000, 100 ether, false);
-        
-        vm.expectRevert(abi.encodePacked(contractName, "/not-accepting-gems"));
-        pool.previewSwapGemForDai(10 * 1e6);
-    }
-
-    function test_previewSwapDaiForGem() public {
-        _ensureRatio(5000, 100 ether, false);
-        
-        assertEq(pool.previewSwapDaiForGem(20 ether), 9.99 * 1e6);
-    }
-
-    function test_previewSwapDaiForGem_not_accepting_gems() public {
-        _ensureRatio(5000, 100 ether, true);
-        
-        vm.expectRevert(abi.encodePacked(contractName, "/not-accepting-dai"));
-        pool.previewSwapDaiForGem(20 ether);
     }
 
     function _initPushPull() public {

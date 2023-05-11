@@ -18,14 +18,14 @@ pragma solidity ^0.8.14;
 
 import "./SwapPoolBase.t.sol";
 
-import { D3MOffchainSwapPool } from "../../pools/D3MOffchainSwapPool.sol";
+import { D3MGatedOffchainSwapPool } from "../../pools/D3MGatedOffchainSwapPool.sol";
 
 abstract contract OffchainSwapBaseTest is SwapPoolBaseTest {
 
-    D3MOffchainSwapPool pool;
+    D3MGatedOffchainSwapPool pool;
 
     function deployPool() internal override returns (address) {
-        pool = D3MOffchainSwapPool(D3MDeploy.deployOffchainSwapPool(
+        pool = D3MGatedOffchainSwapPool(D3MDeploy.deployGatedOffchainSwapPool(
             address(this),
             admin,
             ilk,

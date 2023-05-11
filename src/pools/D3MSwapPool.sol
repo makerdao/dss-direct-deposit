@@ -150,7 +150,7 @@ abstract contract D3MSwapPool is ID3MPool {
 
     function postDebtChange() external override {}
 
-    function assetBalance() external view virtual returns (uint256) {
+    function assetBalance() public view virtual returns (uint256) {
         return dai.balanceOf(address(this)) + gem.balanceOf(address(this)) * GEM_CONVERSION_FACTOR * uint256(pip.read()) / WAD;
     }
 
