@@ -38,6 +38,8 @@ abstract contract SwapPoolBaseTest is IntegrationBaseTest {
     D3MSwapPool private pool;
 
     function setUp() public virtual {
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
+
         baseInit();
 
         gem = GemAbstract(getGem());

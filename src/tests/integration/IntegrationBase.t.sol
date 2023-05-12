@@ -60,9 +60,7 @@ abstract contract IntegrationBaseTest is DssTest {
     ID3MPlan private plan;
     ID3MFees private fees;
 
-    function baseInit() internal {
-        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
-
+    function baseInit() internal virtual {
         dss = MCD.loadFromChainlog(0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F);
         admin = dss.chainlog.getAddress("MCD_PAUSE_PROXY");
 
@@ -96,7 +94,7 @@ abstract contract IntegrationBaseTest is DssTest {
         vow = dss.vow;
     }
 
-    function basePostSetup() internal {
+    function basePostSetup() internal virtual {
         pool = ID3MPool(d3m.pool);
         plan = ID3MPlan(d3m.plan);
         fees = ID3MFees(d3m.fees);

@@ -116,12 +116,12 @@ contract BackedIB01SwapTest is LinearFeeSwapBaseTest {
 
     PipMock private _pip;
 
-    function setUp() public override {
+    function baseInit() internal override {
+        super.baseInit();
+
         // Setup an oracle
         _pip = new PipMock();
         _pip.poke(1.2 ether);   // Set to some non-$1 value
-        
-        super.setUp();
     }
     
     function getGem() internal override pure returns (address) {

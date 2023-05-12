@@ -106,11 +106,11 @@ contract SparkLendTest is IntegrationBaseTest {
     D3MAaveV3NoSupplyCapTypePool pool;
 
     function setUp() public {
-        baseInit();
-
         // NOTE: Adding past block until fix to work against deployed protocol is introduced.
         // TODO: Update the test to work against deployed protocol with latest block.
         vm.createSelectFork(vm.envString("ETH_RPC_URL"), 17_200_000);
+
+        baseInit();
 
         sparkPool = PoolLike(0xC13e21B648A5Ee794902342038FF3aDAB66BE987);
         daiInterestRateStrategy = DaiInterestRateStrategyLike(getInterestRateStrategy(address(dai)));
