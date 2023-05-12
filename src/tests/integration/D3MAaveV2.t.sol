@@ -22,6 +22,7 @@ import "dss-interfaces/Interfaces.sol";
 import { D3MHub } from "../../D3MHub.sol";
 import { D3MMom } from "../../D3MMom.sol";
 import { D3MOracle } from "../../D3MOracle.sol";
+import { D3MForwardFees } from "../../fees/D3MForwardFees.sol";
 
 import { D3MAaveV2TypeRateTargetPlan } from "../../plans/D3MAaveV2TypeRateTargetPlan.sol";
 import { D3MAaveV2TypePool } from "../../pools/D3MAaveV2TypePool.sol";
@@ -128,6 +129,7 @@ contract D3MAaveV2IntegrationTest is DssTest {
 
         d3mHub.file(ilk, "pool", address(d3mAavePool));
         d3mHub.file(ilk, "plan", address(d3mAavePlan));
+        d3mHub.file(ilk, "fees", address(new D3MForwardFees(address(vat), address(vow))));
         d3mHub.file(ilk, "tau", 7 days);
 
         d3mHub.file("vow", vow);
@@ -359,7 +361,7 @@ contract D3MAaveV2IntegrationTest is DssTest {
         uint256 vowDai = vat.dai(vow);
         d3mHub.cull(ilk);
         (uint256 ink2, uint256 art2) = vat.urns(ilk, address(d3mAavePool));
-        (, , , uint256 culled, ) = d3mHub.ilks(ilk);
+        (, , , , uint256 culled, ) = d3mHub.ilks(ilk);
         assertEq(culled, 1);
         assertEq(ink2, 0);
         assertEq(art2, 0);
@@ -697,7 +699,7 @@ contract D3MAaveV2IntegrationTest is DssTest {
 
         d3mHub.cage(ilk);
 
-        (, , uint256 tau, , ) = d3mHub.ilks(ilk);
+        (, , , uint256 tau, , ) = d3mHub.ilks(ilk);
 
         vm.warp(block.timestamp + tau);
 
@@ -817,7 +819,7 @@ contract D3MAaveV2IntegrationTest is DssTest {
         _setRelBorrowTarget(5000);
         d3mHub.cage(ilk);
 
-        (, , uint256 tau, , ) = d3mHub.ilks(ilk);
+        (, , , uint256 tau, , ) = d3mHub.ilks(ilk);
         vm.warp(block.timestamp + tau);
 
         d3mHub.cull(ilk);
@@ -944,7 +946,7 @@ contract D3MAaveV2IntegrationTest is DssTest {
         // Vat is caged for global settlement
         vat.cage();
 
-        (, , uint256 tau, , ) = d3mHub.ilks(ilk);
+        (, , , uint256 tau, , ) = d3mHub.ilks(ilk);
         vm.warp(block.timestamp + tau);
 
         assertRevert(address(d3mHub), abi.encodeWithSignature("cull(bytes32)", ilk), "D3MHub/no-cull-during-shutdown");
@@ -987,7 +989,7 @@ contract D3MAaveV2IntegrationTest is DssTest {
 
         d3mHub.cage(ilk);
 
-        (, , uint256 tau, , ) = d3mHub.ilks(ilk);
+        (, , , uint256 tau, , ) = d3mHub.ilks(ilk);
         vm.warp(block.timestamp + tau);
 
         d3mHub.cull(ilk);
@@ -1035,10 +1037,10 @@ contract D3MAaveV2IntegrationTest is DssTest {
     }
 
     function test_set_tau_not_caged() public {
-        (, , uint256 tau, , ) = d3mHub.ilks(ilk);
+        (, , , uint256 tau, , ) = d3mHub.ilks(ilk);
         assertEq(tau, 7 days);
         d3mHub.file(ilk, "tau", 1 days);
-        (, , tau, , ) = d3mHub.ilks(ilk);
+        (, , , tau, , ) = d3mHub.ilks(ilk);
         assertEq(tau, 1 days);
     }
 

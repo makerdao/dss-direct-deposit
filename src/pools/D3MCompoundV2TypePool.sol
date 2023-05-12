@@ -41,6 +41,8 @@ interface EndLike {
 
 // cDai - https://github.com/compound-finance/compound-protocol/blob/master/contracts/CErc20.sol
 interface CErc20Like is TokenLike {
+    function totalBorrows() external view returns (uint256);
+    function totalReserves() external view returns (uint256);
     function underlying() external view returns (address);
     function comptroller() external view returns (address);
     function exchangeRateStored() external view returns (uint256);
@@ -191,6 +193,17 @@ contract D3MCompoundV2TypePool is ID3MPool {
 
     function maxWithdraw() external view override returns (uint256) {
         return _min(cDai.getCash(), assetBalance());
+    }
+
+    function liquidityAvailable() external view override returns (uint256) {
+        return cDai.getCash();
+    }
+
+    function idleLiquidity() external view override returns (uint256) {
+        uint256 totalDebt = cDai.totalBorrows();
+        uint256 totalPoolSize = cDai.getCash() + totalDebt /* - cDai.totalReserves() */;    // TODO - check if we need to subtract reserves
+        if (totalPoolSize == 0) return assetBalance();
+        return assetBalance() * (totalPoolSize - totalDebt) / totalPoolSize;
     }
 
     function redeemable() external view override returns (address) {

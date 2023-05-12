@@ -152,6 +152,14 @@ contract D3MTestPool is ID3MPool {
         return _min(TokenMock(dai).balanceOf(share), assetBalance());
     }
 
+    function liquidityAvailable() external view override returns (uint256) {
+        return TokenMock(dai).balanceOf(share);
+    }
+
+    function idleLiquidity() external view override returns (uint256) {
+        return TokenMock(dai).balanceOf(share);
+    }
+
     function shareBalance() public view returns (uint256) {
         return TokenMock(share).balanceOf(address(this));
     }

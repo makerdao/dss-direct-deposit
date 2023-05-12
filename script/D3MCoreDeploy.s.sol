@@ -22,8 +22,7 @@ import { MCD, DssInstance } from "dss-test/MCD.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
 
 import {
-    D3MDeploy,
-    D3MCoreInstance
+    D3MDeploy
 } from "../src/deploy/D3MDeploy.sol";
 
 contract D3MCoreDeployScript is Script {
@@ -37,7 +36,6 @@ contract D3MCoreDeployScript is Script {
     DssInstance dss;
 
     address admin;
-    D3MCoreInstance d3mCore;
 
     function run() external {
         config = ScriptTools.loadConfig(NAME);
@@ -46,15 +44,18 @@ contract D3MCoreDeployScript is Script {
         admin = config.readAddress(".admin");
 
         vm.startBroadcast();
-        d3mCore = D3MDeploy.deployCore(
+        address hub = D3MDeploy.deployHub(
             msg.sender,
             admin,
             address(dss.daiJoin)
         );
+        address mom = D3MDeploy.deployMom(
+            admin
+        );
         vm.stopBroadcast();
 
-        ScriptTools.exportContract(NAME, "hub", d3mCore.hub);
-        ScriptTools.exportContract(NAME, "mom", d3mCore.mom);
+        ScriptTools.exportContract(NAME, "hub", hub);
+        ScriptTools.exportContract(NAME, "mom", mom);
     }
 
 }

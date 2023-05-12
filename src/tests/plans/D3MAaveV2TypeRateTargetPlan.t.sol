@@ -161,12 +161,12 @@ contract D3MAaveV2TypeRateTargetPlanTest is D3MPlanBaseTest {
 
     function test_set_bar_too_high_unwinds() public {
         plan.file("bar", interestStrategy.getMaxVariableBorrowRate() + 1);
-        assertEq(plan.getTargetAssets(1), 0);
+        assertEq(plan.getTargetAssets("", 1), 0);
     }
 
     function test_set_bar_too_low_unwinds() public {
         plan.file("bar", interestStrategy.baseVariableBorrowRate());
-        assertEq(plan.getTargetAssets(1), 0);
+        assertEq(plan.getTargetAssets("", 1), 0);
     }
 
     function test_interest_rate_calc() public {
@@ -188,18 +188,18 @@ contract D3MAaveV2TypeRateTargetPlanTest is D3MPlanBaseTest {
     function test_getTargetAssets() public {
         plan.file("bar", interestStrategy.baseVariableBorrowRate() + 2 * RAY / 100);
 
-        uint256 initialTargetAssets = plan.getTargetAssets(0);
+        uint256 initialTargetAssets = plan.getTargetAssets("", 0);
 
         // Reduce target rate (increase needed number of target Assets)
         plan.file("bar", interestStrategy.baseVariableBorrowRate() + 1 * RAY / 100);
 
-        uint256 newTargetAssets = plan.getTargetAssets(0);
+        uint256 newTargetAssets = plan.getTargetAssets("", 0);
         assertGt(newTargetAssets, initialTargetAssets);
     }
 
     function test_getTargetAssets_bar_zero() public {
         assertEq(plan.bar(), 0);
-        assertEq(plan.getTargetAssets(0), 0);
+        assertEq(plan.getTargetAssets("", 0), 0);
     }
 
     function test_interestStrategy_changed_not_active() public {

@@ -24,7 +24,6 @@ import { DssInstance } from "dss-test/MCD.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
 
 import { D3MInstance } from "./D3MInstance.sol";
-import { D3MCoreInstance } from "./D3MCoreInstance.sol";
 
 interface D3MAavePoolLike {
     function hub() external view returns (address);
@@ -78,6 +77,15 @@ interface D3MCompoundRateTargetPlanLike {
 interface CDaiLike {
     function interestRateModel() external view returns (address);
     function implementation() external view returns (address);
+}
+
+interface D3MSwapPoolLike {
+    function hub() external view returns (address);
+    function dai() external view returns (address);
+    function ilk() external view returns (bytes32);
+    function vat() external view returns (address);
+    function gem() external view returns (address);
+    function file(bytes32, address) external;
 }
 
 interface D3MOracleLike {
@@ -148,15 +156,21 @@ struct D3MCompoundRateTargetPlanConfig {
     address delegate;
 }
 
+struct D3MSwapPoolConfig {
+    address gem;
+    address pip;
+    address swapDaiForGemPip;
+    address swapGemForDaiPip;
+}
+
 // Init a D3M instance
 library D3MInit {
 
-    function initCore(
+    function initHub(
         DssInstance memory dss,
-        D3MCoreInstance memory d3mCore
+        address _hub
     ) internal {
-        D3MHubLike hub = D3MHubLike(d3mCore.hub);
-        D3MMomLike mom = D3MMomLike(d3mCore.mom);
+        D3MHubLike hub = D3MHubLike(_hub);
 
         // Sanity checks
         require(hub.vat() == address(dss.vat), "Hub vat mismatch");
@@ -165,11 +179,30 @@ library D3MInit {
         hub.file("vow", address(dss.vow));
         hub.file("end", address(dss.end));
 
-        mom.setAuthority(dss.chainlog.getAddress("MCD_ADM"));
-
         dss.vat.rely(address(hub));
 
         dss.chainlog.setAddress("DIRECT_HUB", address(hub));
+    }
+
+    function deactivateHub(
+        DssInstance memory dss,
+        address _hub
+    ) internal {
+        D3MHubLike hub = D3MHubLike(_hub);
+
+        dss.vat.deny(address(hub));
+
+        dss.chainlog.removeAddress("DIRECT_HUB");
+    }
+
+    function initMom(
+        DssInstance memory dss,
+        address _mom
+    ) internal {
+        D3MMomLike mom = D3MMomLike(_mom);
+
+        mom.setAuthority(dss.chainlog.getAddress("MCD_ADM"));
+
         dss.chainlog.setAddress("DIRECT_MOM", address(mom));
     }
 
@@ -190,6 +223,7 @@ library D3MInit {
 
         hub.file(ilk, "pool", d3m.pool);
         hub.file(ilk, "plan", d3m.plan);
+        hub.file(ilk, "fees", d3m.fees);
         hub.file(ilk, "tau", cfg.tau);
 
         oracle.file("hub", address(hub));
@@ -273,6 +307,26 @@ library D3MInit {
         require(pool.cDai() == compoundCfg.cdai, "Pool cDai mismatch");
 
         pool.file("king", compoundCfg.king);
+    }
+
+    function initSwapPool(
+        DssInstance memory dss,
+        D3MInstance memory d3m,
+        D3MCommonConfig memory cfg,
+        D3MSwapPoolConfig memory swapPoolCfg
+    ) internal {
+        D3MSwapPoolLike pool = D3MSwapPoolLike(d3m.pool);
+
+        // Sanity checks
+        require(pool.hub() == cfg.hub, "Pool hub mismatch");
+        require(pool.ilk() == cfg.ilk, "Pool ilk mismatch");
+        require(pool.vat() == address(dss.vat), "Pool vat mismatch");
+        require(pool.dai() == address(dss.dai), "Pool dai mismatch");
+        require(pool.gem() == swapPoolCfg.gem, "Pool gem mismatch");
+
+        pool.file("pip", swapPoolCfg.pip);
+        pool.file("swapDaiForGemPip", swapPoolCfg.swapDaiForGemPip);
+        pool.file("swapGemForDaiPip", swapPoolCfg.swapGemForDaiPip);
     }
 
     function initAaveRateTargetPlan(

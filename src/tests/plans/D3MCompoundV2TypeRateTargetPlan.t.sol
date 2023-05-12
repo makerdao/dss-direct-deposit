@@ -302,19 +302,19 @@ contract D3MCompoundV2TypeRateTargetPlanTest is D3MPlanBaseTest {
 
         plan.file("barb", initialRatePerBlock - (1 * WAD / 1000) / model.blocksPerYear()); // minus 0.1% from current yearly rate
 
-        uint256 initialTargetAssets = plan.getTargetAssets(0);
+        uint256 initialTargetAssets = plan.getTargetAssets("", 0);
         assertGt(initialTargetAssets, 0);
 
         // Reduce target rate (increase needed number of target Assets)
         plan.file("barb", initialRatePerBlock - (2 * WAD / 1000) / model.blocksPerYear()); // minus 0.2% from current yearly rate
 
-        uint256 newTargetAssets = plan.getTargetAssets(0);
+        uint256 newTargetAssets = plan.getTargetAssets("", 0);
         assertGt(newTargetAssets, initialTargetAssets);
     }
 
     function test_getTargetAssets_barb_zero() public {
         assertEq(plan.barb(), 0);
-        assertEq(plan.getTargetAssets(0), 0);
+        assertEq(plan.getTargetAssets("", 0), 0);
     }
 
     function test_getTargetAssets_current_rate() public {
@@ -322,7 +322,7 @@ contract D3MCompoundV2TypeRateTargetPlanTest is D3MPlanBaseTest {
         uint256 borrowRatePerBlock = cDai.borrowRatePerBlock();
         plan.file("barb", borrowRatePerBlock);
 
-        uint256 targetAssets = plan.getTargetAssets(0);
+        uint256 targetAssets = plan.getTargetAssets("", 0);
         assertEqAbsolute(targetAssets, 0, WAD);
     }
 

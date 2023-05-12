@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: © 2022 Dai Foundation <www.daifoundation.org>
+// SPDX-FileCopyrightText: © 2023 Dai Foundation <www.daifoundation.org>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,24 @@
 
 pragma solidity >=0.8.0;
 
-struct D3MCoreInstance {
-    address hub;
-    address mom;
+/**
+    @title D3M Fees Interface
+    @notice Receives fees from the Hub and distributes them
+*/
+interface ID3MFees {
+
+    /**
+     * @notice Emitted when fees are collected
+     * @param ilk The ilk where the fees were collected
+     * @param fees The amount of fees collected [rad]
+     */
+    event FeesCollected(bytes32 indexed ilk, uint256 fees);
+
+    /**
+     * @notice Called after fees have been received.
+     * @param ilk The ilk where the fees were collected
+     * @param fees The amount of fees collected [rad]
+     */
+    function feesCollected(bytes32 ilk, uint256 fees) external;
+
 }

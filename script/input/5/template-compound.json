@@ -3,6 +3,7 @@
     "admin": "0x5DCdbD3cCF9B09EAAD03bc5f50fA2B3d3ACA0121",
     "poolType": "compound-v2",
     "planType": "rate-target",
+    "feesType": "forward",
     "ilk": "DIRECT-COMPV2-DAI",
     "existingIlk": false,
     "maxLine": 5000000,
@@ -11,5 +12,6 @@
     "tau": 604800,
     "cdai": "0x0000000000000000000000000000000000000000",
     "king": "0x5DCdbD3cCF9B09EAAD03bc5f50fA2B3d3ACA0121",
-    "barb": 7535450719
+    "barb": 7535450719,
+    "feesForwardTo": "0x23f78612769b9013b3145E43896Fa1578cAa2c2a"
 }

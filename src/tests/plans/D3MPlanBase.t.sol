@@ -27,6 +27,8 @@ abstract contract D3MPlanBaseTest is DssTest {
 
     ID3MPlan private plan;
 
+    event Disable();
+
     function baseInit(ID3MPlan _plan, string memory _contractName) internal {
         plan = _plan;
         contractName = _contractName;

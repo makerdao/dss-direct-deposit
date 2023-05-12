@@ -41,7 +41,7 @@ abstract contract D3MPoolBaseTest is DssTest {
 
     ID3MPool private pool;      // Override with stronger type in child contract
 
-    function baseInit(string memory _contractName) internal {
+    function baseInit(string memory _contractName) internal virtual {
         vat = new VatMock();
         end = new EndMock();
         hub = new HubMock(address(vat), address(end));
@@ -49,8 +49,8 @@ abstract contract D3MPoolBaseTest is DssTest {
         contractName = _contractName;
     }
 
-    function setPoolContract(ID3MPool _pool) internal {
-        pool = _pool;
+    function setPoolContract(address _pool) internal virtual {
+        pool = ID3MPool(_pool);
     }
 
     function test_auth() public virtual {

@@ -74,7 +74,7 @@ contract D3MAaveTypeBufferPlan is ID3MPlan {
         emit File(what, data);
     }
 
-    function getTargetAssets(uint256 currentAssets) external override view returns (uint256) {
+    function getTargetAssets(bytes32, uint256 currentAssets) external override view returns (uint256) {
         if (buffer == 0) return 0; // De-activated
 
         // Note that this can be manipulated by flash loans

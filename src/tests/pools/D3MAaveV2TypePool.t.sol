@@ -159,7 +159,7 @@ contract D3MAaveV2TypePoolTest is D3MPoolBaseTest {
         aavePool = LendingPoolLike(address(new LendingPoolMock(address(adai))));
         adai.rely(address(aavePool));
 
-        setPoolContract(pool = new D3MAaveV2TypePool(ILK, address(hub), address(dai), address(aavePool)));
+        setPoolContract(address(pool = new D3MAaveV2TypePool(ILK, address(hub), address(dai), address(aavePool))));
     }
 
     function test_sets_dai_value() public {

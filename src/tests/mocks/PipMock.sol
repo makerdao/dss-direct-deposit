@@ -14,11 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity >=0.8.0;
+pragma solidity ^0.8.14;
 
-struct D3MInstance {
-    address plan;
-    address pool;
-    address fees;
-    address oracle;
+contract PipMock {
+    uint256 public val;
+    function read() external view returns (bytes32) {
+        return bytes32(val);
+    }
+    function void() external {
+        val = 0;
+    }
+    function poke(uint256 wut) external {
+        val = wut;
+    }
 }

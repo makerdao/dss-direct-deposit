@@ -20,31 +20,41 @@ import "dss-interfaces/Interfaces.sol";
 import { DssInstance } from "dss-test/MCD.sol";
 import { ScriptTools } from "dss-test/ScriptTools.sol";
 
-import { D3MCoreInstance } from "./D3MCoreInstance.sol";
 import { D3MHub } from "../D3MHub.sol";
 import { D3MMom } from "../D3MMom.sol";
+import { D3MOracle } from "../D3MOracle.sol";
 import { D3MInstance } from "./D3MInstance.sol";
 import { D3MAaveV2TypeRateTargetPlan } from "../plans/D3MAaveV2TypeRateTargetPlan.sol";
 import { D3MAaveTypeBufferPlan } from "../plans/D3MAaveTypeBufferPlan.sol";
+import { D3MCompoundV2TypeRateTargetPlan } from "../plans/D3MCompoundV2TypeRateTargetPlan.sol";
+import { D3MALMDelegateControllerPlan } from "../plans/D3MALMDelegateControllerPlan.sol";
 import { D3MAaveV2TypePool } from "../pools/D3MAaveV2TypePool.sol";
 import { D3MAaveV3NoSupplyCapTypePool } from "../pools/D3MAaveV3NoSupplyCapTypePool.sol";
-import { D3MCompoundV2TypeRateTargetPlan } from "../plans/D3MCompoundV2TypeRateTargetPlan.sol";
 import { D3MCompoundV2TypePool } from "../pools/D3MCompoundV2TypePool.sol";
-import { D3MOracle } from "../D3MOracle.sol";
+import { D3MLinearFeeSwapPool } from "../pools/D3MLinearFeeSwapPool.sol";
+import { D3MGatedSwapPool } from "../pools/D3MGatedSwapPool.sol";
+import { D3MGatedOffchainSwapPool } from "../pools/D3MGatedOffchainSwapPool.sol";
+import { D3MForwardFees } from "../fees/D3MForwardFees.sol";
 
 // Deploy a D3M instance
 library D3MDeploy {
 
-    function deployCore(
+    function deployHub(
         address deployer,
         address owner,
         address daiJoin
-    ) internal returns (D3MCoreInstance memory d3mCore) {
-        d3mCore.hub = address(new D3MHub(daiJoin));
-        d3mCore.mom = address(new D3MMom());
+    ) internal returns (address hub) {
+        hub = address(new D3MHub(daiJoin));
 
-        ScriptTools.switchOwner(d3mCore.hub, deployer, owner);
-        DSAuthAbstract(d3mCore.mom).setOwner(owner);
+        ScriptTools.switchOwner(hub, deployer, owner);
+    }
+
+    function deployMom(
+        address owner
+    ) internal returns (address mom) {
+        mom = address(new D3MMom());
+
+        DSAuthAbstract(mom).setOwner(owner);
     }
 
     function deployOracle(
@@ -125,6 +135,61 @@ library D3MDeploy {
         plan = address(new D3MCompoundV2TypeRateTargetPlan(cdai));
 
         ScriptTools.switchOwner(plan, deployer, owner);
+    }
+
+    function deployLinearFeeSwapPool(
+        address deployer,
+        address owner,
+        bytes32 ilk,
+        address hub,
+        address dai,
+        address gem
+    ) internal returns (address pool) {
+        pool = address(new D3MLinearFeeSwapPool(ilk, hub, dai, gem));
+
+        ScriptTools.switchOwner(pool, deployer, owner);
+    }
+
+    function deployGatedSwapPool(
+        address deployer,
+        address owner,
+        bytes32 ilk,
+        address hub,
+        address dai,
+        address gem
+    ) internal returns (address pool) {
+        pool = address(new D3MGatedSwapPool(ilk, hub, dai, gem));
+
+        ScriptTools.switchOwner(pool, deployer, owner);
+    }
+
+    function deployGatedOffchainSwapPool(
+        address deployer,
+        address owner,
+        bytes32 ilk,
+        address hub,
+        address dai,
+        address gem
+    ) internal returns (address pool) {
+        pool = address(new D3MGatedOffchainSwapPool(ilk, hub, dai, gem));
+
+        ScriptTools.switchOwner(pool, deployer, owner);
+    }
+
+    function deployALMDelegateControllerPlan(
+        address deployer,
+        address owner
+    ) internal returns (address plan) {
+        plan = address(new D3MALMDelegateControllerPlan());
+
+        ScriptTools.switchOwner(plan, deployer, owner);
+    }
+
+    function deployForwardFees(
+        address vat,
+        address target
+    ) internal returns (address fees) {
+        fees = address(new D3MForwardFees(vat, target));
     }
 
 }

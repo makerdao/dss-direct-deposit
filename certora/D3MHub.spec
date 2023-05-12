@@ -6,6 +6,7 @@ using DaiJoin as daiJoin
 using End as end
 using D3MTestPool as pool
 using D3MTestPlan as plan
+using D3MForwardFees as fees
 using TokenMock as share
 
 methods {
@@ -13,10 +14,11 @@ methods {
     daiJoin() returns (address) envfree
     vow() returns (address) envfree
     end() returns (address) envfree
-    ilks(bytes32) returns (address, address, uint256, uint256, uint256) envfree
+    ilks(bytes32) returns (address, address, address, uint256, uint256, uint256) envfree
     locked() returns (uint256) envfree
     plan(bytes32) returns (address) envfree => DISPATCHER(true)
     pool(bytes32) returns (address) envfree => DISPATCHER(true)
+    fees(bytes32) returns (address) envfree => DISPATCHER(true)
     tic(bytes32) returns (uint256) envfree
     tau(bytes32) returns (uint256) envfree
     culled(bytes32) returns (uint256) envfree
@@ -52,10 +54,11 @@ methods {
     share.balanceOf(address) returns (uint256) envfree
     share.totalSupply() returns (uint256) envfree
     share.wards(address) returns (uint256) envfree
+    fees.target() returns (address) envfree
     debt() returns (uint256) => DISPATCHER(true)
     skim(bytes32, address) => DISPATCHER(true)
     active() returns (bool) => DISPATCHER(true)
-    getTargetAssets(uint256) returns (uint256) => DISPATCHER(true)
+    getTargetAssets(bytes32,uint256) returns (uint256) => DISPATCHER(true)
     assetBalance() returns (uint256) => DISPATCHER(true)
     maxDeposit() returns (uint256) => DISPATCHER(true)
     maxWithdraw() returns (uint256) => DISPATCHER(true)
@@ -67,6 +70,7 @@ methods {
     balanceOf(address) returns (uint256) => DISPATCHER(true)
     burn(address, uint256) => DISPATCHER(true)
     mint(address, uint256) => DISPATCHER(true)
+    feesCollected(bytes32, uint256) => DISPATCHER(true)
 }
 
 definition WAD() returns uint256 = 10^18;
@@ -172,6 +176,7 @@ rule file_ilk_address(bytes32 ilk, bytes32 what, address data) {
 
     assert(what == 0x706f6f6c00000000000000000000000000000000000000000000000000000000 => pool(ilk) == data, "file did not set pool as expected");
     assert(what == 0x706c616e00000000000000000000000000000000000000000000000000000000 => plan(ilk) == data, "file did not set plan as expected");
+    assert(what == 0x6665657300000000000000000000000000000000000000000000000000000000 => fees(ilk) == data, "file did not set fees as expected");
 }
 
 rule file_ilk_address_revert(bytes32 ilk, bytes32 what, address data) {
@@ -187,7 +192,9 @@ rule file_ilk_address_revert(bytes32 ilk, bytes32 what, address data) {
     bool revert2 = ward != 1;
     bool revert3 = vatLive != 1;
     bool revert4 = tic != 0;
-    bool revert5 = what != 0x706f6f6c00000000000000000000000000000000000000000000000000000000 && what != 0x706c616e00000000000000000000000000000000000000000000000000000000;
+    bool revert5 =  what != 0x706f6f6c00000000000000000000000000000000000000000000000000000000 &&
+                    what != 0x706c616e00000000000000000000000000000000000000000000000000000000 &&
+                    what != 0x6665657300000000000000000000000000000000000000000000000000000000;
 
     assert(revert1 => lastReverted, "revert1 failed");
     assert(revert2 => lastReverted, "revert2 failed");
@@ -201,10 +208,11 @@ rule file_ilk_address_revert(bytes32 ilk, bytes32 what, address data) {
 
 rule ilk_getters() {
     bytes32 ilk;
-    address pool_; address plan_; uint256 tau; uint256 culled; uint256 tic;
-    pool_, plan_, tau, culled, tic = ilks(ilk);
+    address pool_; address plan_; address fees_; uint256 tau; uint256 culled; uint256 tic;
+    pool_, plan_, fees_, tau, culled, tic = ilks(ilk);
     assert(pool_ == pool(ilk), "pool getter did not return ilk.pool");
     assert(plan_ == plan(ilk), "plan getter did not return ilk.plan");
+    assert(fees_ == fees(ilk), "fees getter did not return ilk.fees");
     assert(tau == tau(ilk), "tau getter did not return ilk.tau");
     assert(culled == culled(ilk), "culled getter did not return ilk.culled");
     assert(tic == tic(ilk), "tic getter did not return ilk.tic");
@@ -219,6 +227,7 @@ rule exec_normal(bytes32 ilk) {
     require(daiJoin() == daiJoin);
     require(plan(ilk) == plan);
     require(pool(ilk) == pool);
+    require(fees(ilk) == fees);
     require(vow != daiJoin);
     require(daiJoin.dai() == dai);
     require(daiJoin.vat() == vat);
@@ -226,6 +235,8 @@ rule exec_normal(bytes32 ilk) {
     require(pool.hub() == currentContract);
     require(pool.vat() == vat);
     require(pool.dai() == dai);
+    require(fees.target() == vow);
+    require(vat.dai(fees) == 0);
 
     uint256 tic = tic(ilk);
     uint256 culled = culled(ilk);
@@ -246,7 +257,7 @@ rule exec_normal(bytes32 ilk) {
     uint256 maxDeposit = pool.maxDeposit(e);
     mathint maxWithdraw = min(to_mathint(pool.maxWithdraw(e)), safe_max());
     uint256 assetsBefore = pool.assetBalance(e);
-    uint256 targetAssets = plan.getTargetAssets(e, assetsBefore);
+    uint256 targetAssets = plan.getTargetAssets(e, ilk, assetsBefore);
     uint256 vatDaiVowBefore = vat.dai(vow);
 
     require(vat.live() == 1);
@@ -511,6 +522,7 @@ rule exec_normal_revert(bytes32 ilk) {
     require(daiJoin() == daiJoin);
     require(plan(ilk) == plan);
     require(pool(ilk) == pool);
+    require(fees(ilk) == fees);
     require(vow != currentContract);
     require(vow != daiJoin);
     require(daiJoin.dai() == dai);
@@ -519,6 +531,8 @@ rule exec_normal_revert(bytes32 ilk) {
     require(pool.hub() == currentContract);
     require(pool.vat() == vat);
     require(pool.dai() == dai);
+    require(fees.target() == vow);
+    require(vat.dai(fees) == 0);
 
     uint256 locked = locked();
     uint256 Line = vat.Line();
@@ -561,7 +575,7 @@ rule exec_normal_revert(bytes32 ilk) {
     uint256 tic = tic(ilk);
     bool active = plan.active(e);
 
-    uint256 targetAssets = plan.getTargetAssets(e, assets);
+    uint256 targetAssets = plan.getTargetAssets(e, ilk, assets);
 
     mathint toUnwindAux = max(
                             max(
@@ -729,6 +743,7 @@ rule exec_ilk_culled(bytes32 ilk) {
     require(daiJoin() == daiJoin);
     require(plan(ilk) == plan);
     require(pool(ilk) == pool);
+    require(fees(ilk) == fees);
     require(vow != daiJoin);
     require(daiJoin.dai() == dai);
     require(daiJoin.vat() == vat);
@@ -751,7 +766,7 @@ rule exec_ilk_culled(bytes32 ilk) {
 
     uint256 maxWithdraw = pool.maxWithdraw(e);
     uint256 assetsBefore = pool.assetBalance(e);
-    uint256 targetAssets = plan.getTargetAssets(e, assetsBefore);
+    uint256 targetAssets = plan.getTargetAssets(e, ilk, assetsBefore);
 
     require(vat.live() == 1);
     require(inkBefore >= artBefore);
@@ -801,6 +816,7 @@ rule exec_ilk_culled_revert(bytes32 ilk) {
     require(daiJoin() == daiJoin);
     require(plan(ilk) == plan);
     require(pool(ilk) == pool);
+    require(fees(ilk) == fees);
     require(vow != daiJoin);
     require(daiJoin.dai() == dai);
     require(daiJoin.vat() == vat);
@@ -896,6 +912,7 @@ rule exec_vat_caged(bytes32 ilk) {
     require(end() == end);
     require(plan(ilk) == plan);
     require(pool(ilk) == pool);
+    require(fees(ilk) == fees);
     require(vow != daiJoin);
     require(daiJoin.dai() == dai);
     require(daiJoin.vat() == vat);
@@ -919,7 +936,7 @@ rule exec_vat_caged(bytes32 ilk) {
 
     uint256 maxWithdraw = pool.maxWithdraw(e);
     uint256 assetsBefore = pool.assetBalance(e);
-    uint256 targetAssets = plan.getTargetAssets(e, assetsBefore);
+    uint256 targetAssets = plan.getTargetAssets(e, ilk, assetsBefore);
 
     require(vat.live() == 0);
     require(end.tag(ilk) == RAY());
@@ -972,6 +989,7 @@ rule exec_vat_caged_revert(bytes32 ilk) {
     require(end() == end);
     require(plan(ilk) == plan);
     require(pool(ilk) == pool);
+    require(fees(ilk) == fees);
     require(vow != daiJoin);
     require(daiJoin.dai() == dai);
     require(daiJoin.vat() == vat);
@@ -1104,6 +1122,7 @@ rule exec_exec(bytes32 ilk) {
     require(daiJoin() == daiJoin);
     require(plan(ilk) == plan);
     require(pool(ilk) == pool);
+    require(fees(ilk) == fees);
     require(daiJoin.dai() == dai);
     require(daiJoin.vat() == vat);
     require(plan.dai() == dai);
@@ -1113,7 +1132,7 @@ rule exec_exec(bytes32 ilk) {
 
     uint256 maxDeposit = pool.maxDeposit(e);
     uint256 assetsBefore = pool.assetBalance(e);
-    uint256 targetAssets = plan.getTargetAssets(e, assetsBefore);
+    uint256 targetAssets = plan.getTargetAssets(e, ilk, assetsBefore);
 
     require(maxDeposit > targetAssets - assetsBefore);
     require(assetsBefore <= safe_max());
