@@ -52,21 +52,6 @@ methods {
     function share.balanceOf(address) external returns (uint256) envfree;
     function share.totalSupply() external returns (uint256) envfree;
     function share.wards(address) external returns (uint256) envfree;
-    function _.debt() external => DISPATCHER(true);
-    function _.skim(bytes32, address) external => DISPATCHER(true);
-    function _.active() external => DISPATCHER(true);
-    function _.getTargetAssets(uint256) external => DISPATCHER(true);
-    function _.assetBalance() external => DISPATCHER(true);
-    function _.maxDeposit() external => DISPATCHER(true);
-    function _.maxWithdraw() external => DISPATCHER(true);
-    function _.deposit(uint256) external => DISPATCHER(true);
-    function _.withdraw(uint256) external => DISPATCHER(true);
-    function _.preDebtChange() external => DISPATCHER(true);
-    function _.postDebtChange() external => DISPATCHER(true);
-    function _.exit(address, uint256) external => DISPATCHER(true);
-    function _.balanceOf(address) external => DISPATCHER(true);
-    function _.burn(address, uint256) external => DISPATCHER(true);
-    function _.mint(address, uint256) external => DISPATCHER(true);
 }
 
 definition WAD() returns mathint = 10^18;
@@ -215,17 +200,9 @@ rule exec_normal(bytes32 ilk) {
 
     address vow = vow();
 
-    require vat() == vat;
-    require daiJoin() == daiJoin;
     require plan(ilk) == plan;
     require pool(ilk) == pool;
     require vow != daiJoin;
-    require daiJoin.dai() == dai;
-    require daiJoin.vat() == vat;
-    require plan.dai() == dai;
-    require pool.hub() == currentContract;
-    require pool.vat() == vat;
-    require pool.dai() == dai;
 
     mathint tic = tic(ilk);
     mathint culled = culled(ilk);
@@ -507,18 +484,10 @@ rule exec_normal_revert(bytes32 ilk) {
 
     address vow = vow();
 
-    require vat() == vat;
-    require daiJoin() == daiJoin;
     require plan(ilk) == plan;
     require pool(ilk) == pool;
     require vow != currentContract;
     require vow != daiJoin;
-    require daiJoin.dai() == dai;
-    require daiJoin.vat() == vat;
-    require plan.dai() == dai;
-    require pool.hub() == currentContract;
-    require pool.vat() == vat;
-    require pool.dai() == dai;
 
     mathint locked = locked();
     mathint Line = vat.Line();
@@ -725,17 +694,9 @@ rule exec_ilk_culled(bytes32 ilk) {
 
     address vow = vow();
 
-    require vat() == vat;
-    require daiJoin() == daiJoin;
     require plan(ilk) == plan;
     require pool(ilk) == pool;
     require vow != daiJoin;
-    require daiJoin.dai() == dai;
-    require daiJoin.vat() == vat;
-    require plan.dai() == dai;
-    require pool.hub() == currentContract;
-    require pool.vat() == vat;
-    require pool.dai() == dai;
 
     mathint LineBefore = vat.Line();
     mathint debtBefore = vat.debt();
@@ -797,17 +758,9 @@ rule exec_ilk_culled_revert(bytes32 ilk) {
 
     address vow = vow();
 
-    require vat() == vat;
-    require daiJoin() == daiJoin;
     require plan(ilk) == plan;
     require pool(ilk) == pool;
     require vow != daiJoin;
-    require daiJoin.dai() == dai;
-    require daiJoin.vat() == vat;
-    require plan.dai() == dai;
-    require pool.hub() == currentContract;
-    require pool.vat() == vat;
-    require pool.dai() == dai;
 
     mathint locked = locked();
     mathint Art;
@@ -891,19 +844,9 @@ rule exec_vat_caged(bytes32 ilk) {
 
     address vow = vow();
 
-    require vat() == vat;
-    require daiJoin() == daiJoin;
-    require end() == end;
     require plan(ilk) == plan;
     require pool(ilk) == pool;
     require vow != daiJoin;
-    require daiJoin.dai() == dai;
-    require daiJoin.vat() == vat;
-    require end.vat() == vat;
-    require plan.dai() == dai;
-    require pool.hub() == currentContract;
-    require pool.vat() == vat;
-    require pool.dai() == dai;
 
     mathint LineBefore = vat.Line();
     mathint debtBefore = vat.debt();
@@ -967,20 +910,10 @@ rule exec_vat_caged_revert(bytes32 ilk) {
 
     address vow = vow();
 
-    require vat() == vat;
-    require daiJoin() == daiJoin;
-    require end() == end;
     require plan(ilk) == plan;
     require pool(ilk) == pool;
     require vow != daiJoin;
-    require daiJoin.dai() == dai;
-    require daiJoin.vat() == vat;
-    require end.vat() == vat;
     require end.vow() == vow;
-    require plan.dai() == dai;
-    require pool.hub() == currentContract;
-    require pool.vat() == vat;
-    require pool.dai() == dai;
 
     mathint locked = locked();
     mathint Art;
@@ -1100,16 +1033,8 @@ rule exec_vat_caged_revert(bytes32 ilk) {
 rule exec_exec(bytes32 ilk) {
     env e;
 
-    require vat() == vat;
-    require daiJoin() == daiJoin;
     require plan(ilk) == plan;
     require pool(ilk) == pool;
-    require daiJoin.dai() == dai;
-    require daiJoin.vat() == vat;
-    require plan.dai() == dai;
-    require pool.hub() == currentContract;
-    require pool.vat() == vat;
-    require pool.dai() == dai;
 
     mathint maxDeposit = pool.maxDeposit(e);
     mathint assetsBefore = pool.assetBalance(e);
@@ -1142,11 +1067,7 @@ rule exec_exec(bytes32 ilk) {
 rule exit(bytes32 ilk, address usr, uint256 wad) {
     env e;
 
-    require vat() == vat;
     require pool(ilk) == pool;
-    require pool.hub() == currentContract;
-    require pool.vat() == vat;
-    require pool.share() == share;
 
     mathint vatGemSenderBefore = vat.gem(ilk, e.msg.sender);
     mathint poolShareUsrBefore = share.balanceOf(usr);
@@ -1163,11 +1084,7 @@ rule exit(bytes32 ilk, address usr, uint256 wad) {
 rule exit_revert(bytes32 ilk, address usr, uint256 wad) {
     env e;
 
-    require vat() == vat;
     require pool(ilk) == pool;
-    require pool.hub() == currentContract;
-    require pool.vat() == vat;
-    require pool.share() == share;
 
     mathint locked = locked();
     mathint gem = vat.gem(ilk, e.msg.sender);
@@ -1201,7 +1118,6 @@ rule exit_revert(bytes32 ilk, address usr, uint256 wad) {
 rule cage(bytes32 ilk) {
     env e;
 
-    require vat() == vat;
 
     cage(e, ilk);
 
@@ -1236,8 +1152,6 @@ rule cage_revert(bytes32 ilk) {
 
 rule cull(bytes32 ilk) {
     env e;
-
-    require vat() == vat;
 
     mathint ArtBefore;
     mathint rateBefore;
@@ -1336,7 +1250,6 @@ rule cull_revert(bytes32 ilk) {
 rule uncull(bytes32 ilk) {
     env e;
 
-    require vat() == vat;
 
     mathint ArtBefore;
     mathint rateBefore;
