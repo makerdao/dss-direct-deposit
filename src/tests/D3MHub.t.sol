@@ -158,6 +158,8 @@ contract D3MHubTest is DssTest {
     D3MOracle pip;
 
     function setUp() public {
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
+
         // TODO these should be mocked (or this should be moved to an integration test)
         vat = VatAbstract(0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B);
         end = EndAbstract(0x0e2e8F1D1326A4B9633D96222Ce399c708B19c28);
@@ -1162,7 +1164,7 @@ contract D3MHubTest is DssTest {
         vat.grab(ilk, receiver, receiver, receiver, int256(pink), int256(part));
 
         assertEq(dai.balanceOf(receiver), balBefore + 50 * WAD);
-        (uint256 joinInk, uint256 joinArt) = vat.urns( 
+        (uint256 joinInk, uint256 joinArt) = vat.urns(
             ilk,
             address(pool)
         );

@@ -96,6 +96,8 @@ contract D3MCompoundV2TypeRateTargetPlanTest is D3MPlanBaseTest {
     }
 
     function setUp() public {
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
+
         // TODO these should be mocked
         dai                = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         cDai               = CErc20Like(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);

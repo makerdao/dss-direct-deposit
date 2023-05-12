@@ -60,6 +60,8 @@ contract D3MAaveV2TypeRateTargetPlanTest is D3MPlanBaseTest {
     uint256 constant INTEREST_RATE_TOLERANCE = RAY / 10000;
 
     function setUp() public {
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"));
+
         // TODO these should be mocked
         dai = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
