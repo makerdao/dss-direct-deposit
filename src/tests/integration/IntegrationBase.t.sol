@@ -188,8 +188,8 @@ abstract contract IntegrationBaseTest is DssTest {
 
         hub.exec(ilk);
         (ink, art) = vat.urns(ilk, address(pool));
-        assertApproxEqAbs(ink, 0, 1);
-        assertApproxEqAbs(art, 0, 1);
+        assertApproxEqAbs(ink, 0, 1 ether);
+        assertApproxEqAbs(art, 0, 1 ether);
     }
 
     function test_cage_perm_insufficient_liquidity() public {
@@ -231,7 +231,7 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 balance = pool.assetBalance();
         assertGe(balance, art);
         hub.exec(ilk);
-        assertApproxEqAbs(pool.assetBalance(), 0, 1);
+        assertApproxEqAbs(pool.assetBalance(), 0, 1 ether);
         assertEq(vat.sin(address(vow)), sin + art * RAY);
         assertRoundingEq(vat.dai(address(vow)), vowDai + balance * RAY);
         assertEq(vat.gem(ilk, address(pool)), 0);
@@ -317,9 +317,9 @@ abstract contract IntegrationBaseTest is DssTest {
 
         // Now the CDP completely unwinds and surplus buffer doesn't change
         (ink, art) = vat.urns(ilk, address(pool));
-        assertApproxEqAbs(ink, 0, 1);
-        assertApproxEqAbs(art, 0, 1);
-        assertApproxEqAbs(pool.assetBalance(), 0, 1);
+        assertApproxEqAbs(ink, 0, 1 ether);
+        assertApproxEqAbs(art, 0, 1 ether);
+        assertApproxEqAbs(pool.assetBalance(), 0, 1 ether);
         assertRoundingEq(vat.dai(address(vow)), vowDai + feesAccrued * RAY);
     }
 
@@ -588,7 +588,7 @@ abstract contract IntegrationBaseTest is DssTest {
         hub.exec(ilk);
         vow.heal(_min(vat.sin(address(vow)), vat.dai(address(vow))));
         assertEq(vat.gem(ilk, address(end)), 0);
-        assertApproxEqAbs(pool.assetBalance(), 0, 1);
+        assertApproxEqAbs(pool.assetBalance(), 0, 1 ether);
         assertEq(vat.sin(address(vow)), 0);
         assertRoundingEq(vat.dai(address(vow)), originalDai - originalSin + daiEarned * RAY);
     }
@@ -679,7 +679,7 @@ abstract contract IntegrationBaseTest is DssTest {
         uint256 expectedToken4 = takeAmount * getTokenBalance(address(pool)) / (totalArt - standardDebtSize / 2);
         hub.exit(ilk, address(this), takeAmount);
         assertRoundingEq(getTokenBalance(address(this)), expectedToken + expectedToken2 + expectedToken3 + expectedToken4);
-        assertApproxEqAbs(pool.assetBalance(), 0, 1);
+        assertApproxEqAbs(pool.assetBalance(), 0, 1 ether);
     }
 
     function test_shutdown_cant_cull() public {

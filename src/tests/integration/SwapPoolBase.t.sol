@@ -197,7 +197,7 @@ abstract contract SwapPoolBaseTest is IntegrationBaseTest {
         initSwaps();
         pool.swapGemForDai(address(this), daiToGem(standardDebtCeiling), 0);
 
-        assertApproxEqAbs(dai.balanceOf(address(pool)), 0, 1);
+        assertApproxEqAbs(dai.balanceOf(address(pool)), 0, 1 ether);
         assertRoundingEq(gem.balanceOf(address(pool)), daiToGem(standardDebtCeiling));
         plan.setAllocation(address(this), ilk, 0);
         pool.swapDaiForGem(address(this), standardDebtCeiling / 2, 0);
