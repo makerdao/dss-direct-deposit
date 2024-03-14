@@ -66,7 +66,7 @@ contract D3MAaveV2TypeRateTargetPlanTest is D3MPlanBaseTest {
         dai = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         aavePool = LendingPoolLike(0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9);
         adai = GemAbstract(0x028171bCA77440897B824Ca71D1c56caC55b68A3);
-        interestStrategy = InterestRateStrategyLike(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
+        interestStrategy = InterestRateStrategyLike(0xab7f8ca781C736EB624A9E321cd043F8E6292C96);
 
         plan = new D3MAaveV2TypeRateTargetPlanWrapper(address(dai), address(aavePool));
 
