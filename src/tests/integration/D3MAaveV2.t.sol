@@ -109,7 +109,7 @@ contract D3MAaveV2IntegrationTest is DssTest {
         stkAave = GemAbstract(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
         dai = DaiAbstract(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         daiJoin = DaiJoinAbstract(0x9759A6Ac90977b93B58547b4A71c78317f391A28);
-        interestStrategy = InterestRateStrategyLike(0xfffE32106A68aA3eD39CcCE673B646423EEaB62a);
+        interestStrategy = InterestRateStrategyLike(0xab7f8ca781C736EB624A9E321cd043F8E6292C96);
         rewardsClaimer = RewardsClaimerLike(0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5);
         spot = SpotAbstract(0x65C79fcB50Ca1594B025960e539eD7A9a6D434A3);
         weth = GemAbstract(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
