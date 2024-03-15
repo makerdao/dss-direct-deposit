@@ -30,8 +30,6 @@ contract D3MOperatorPlan is ID3MPlan {
     address public operator;
     uint256 public targetAssets;
 
-    uint256 constant RAY = 10 ** 27;
-
     // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
