@@ -25,6 +25,15 @@ interface VatLike {
     function nope(address) external;
 }
 
+interface D3mHubLike {
+    function vat() external view returns (address);
+    function end() external view returns (EndLike);
+}
+
+interface EndLike {
+    function Art(bytes32) external view returns (uint256);
+}
+
 contract D3M4626TypePool is ID3MPool {
     /* EVENTS */
 
@@ -37,23 +46,28 @@ contract D3M4626TypePool is ID3MPool {
     IERC20 public immutable dai;
     IERC4626 public immutable vault;
     VatLike public immutable vat;
+    bytes32 public immutable ilk;
 
     /* STORAGE */
 
     address public hub;
+    uint256 public exited;
     mapping(address => uint256) public wards;
 
     /* CONSTRUCTOR */
 
-    constructor(address newDai, address newVault, address newVat) {
-        require(newDai != address(0), "D3M4626TypePool/zero-address");
-        require(newVat != address(0), "D3M4626TypePool/zero-address");
-        require(newVault != address(0), "D3M4626TypePool/zero-address");
-        require(IERC4626(newVault).asset() == address(newDai), "D3M4626TypePool/vault-asset-is-not-dai");
+    constructor(bytes32 ilk_, address hub_, address dai_, address vault_) {
+        require(ilk_ != bytes32(0), "D3M4626TypePool/zero-bytes32");
+        require(hub_ != address(0), "D3M4626TypePool/zero-address");
+        require(dai_ != address(0), "D3M4626TypePool/zero-address");
+        require(vault_ != address(0), "D3M4626TypePool/zero-address");
+        require(IERC4626(vault_).asset() == dai_, "D3M4626TypePool/vault-asset-is-not-dai");
 
-        dai = IERC20(newDai);
-        vault = IERC4626(newVault);
-        vat = VatLike(newVat);
+        ilk = ilk_;
+        hub = hub_;
+        dai = IERC20(dai_);
+        vault = IERC4626(vault_);
+        vat = VatLike(D3mHubLike(hub).vat());
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -64,7 +78,7 @@ contract D3M4626TypePool is ID3MPool {
     /* MODIFIERS */
 
     modifier onlyHub() {
-        require(msg.sender == hub, "D3M4626TypePool/only-hub");
+        require(msg.sender == address(hub), "D3M4626TypePool/only-hub");
         _;
     }
 
@@ -76,20 +90,21 @@ contract D3M4626TypePool is ID3MPool {
     /* ONLY HUB */
 
     /// @inheritdoc ID3MPool
-    function deposit(uint256 assets) external override onlyHub {
-        vault.deposit(assets, address(this));
+    function deposit(uint256 wad) external override onlyHub {
+        vault.deposit(wad, address(this));
     }
 
     /// @inheritdoc ID3MPool
-    function withdraw(uint256 assets) external override onlyHub {
-        vault.withdraw(assets, msg.sender, address(this));
+    function withdraw(uint256 wad) external override onlyHub {
+        vault.withdraw(wad, msg.sender, address(this));
     }
 
     /// @inheritdoc ID3MPool
-    /// @dev prop = 100 ether exists 100%.
-    function exit(address dst, uint256 prop) external onlyHub {
-        uint256 shares = prop * vault.balanceOf(address(this)) / 100 ether;
-        vault.transfer(dst, shares);
+    function exit(address dst, uint256 wad) external override onlyHub {
+        uint256 exited_ = exited;
+        exited = exited_ + wad;
+        uint256 amt = wad * vault.balanceOf(address(this)) / (D3mHubLike(hub).end().Art(ilk) - exited_);
+        require(vault.transfer(dst, amt), "D3M4626TypePool/transfer-failed");
     }
 
     /* ONLY AUTHORIZED */
@@ -97,7 +112,7 @@ contract D3M4626TypePool is ID3MPool {
     /// @inheritdoc ID3MPool
     function quit(address dst) external auth {
         require(vat.live() == 1, "D3M4626TypePool/no-quit-during-shutdown");
-        vault.transfer(dst, vault.balanceOf(address(this)));
+        require(vault.transfer(dst, vault.balanceOf(address(this))), "D3M4626TypePool/transfer-failed");
     }
 
     function rely(address usr) public auth {
