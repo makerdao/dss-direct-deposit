@@ -21,8 +21,6 @@ import { D3MOperatorPlan } from "../../plans/D3MOperatorPlan.sol";
 
 contract D3MOperatorPlanTest is D3MPlanBaseTest {
 
-    bytes32 ilk = "DIRECT-PROTOCOL-A";
-
     D3MOperatorPlan plan;
 
     address operator = makeAddr("operator");
