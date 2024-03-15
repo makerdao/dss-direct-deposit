@@ -84,7 +84,7 @@ contract D3MOperatorPlanTest is D3MPlanBaseTest {
     function test_implements_getTargetAssets() public {
         _setupOperatorAndTargetAssets();
         
-        uint256 result = plan.getTargetAssets(123e18);
+        uint256 result = plan.getTargetAssets(123e18);  // argument doesn't matter
 
         assertEq(result, 100e18);
     }
@@ -94,11 +94,15 @@ contract D3MOperatorPlanTest is D3MPlanBaseTest {
 
         assertEq(plan.enabled(), 1);
         assertTrue(plan.active());
+        assertEq(plan.getTargetAssets(0), 100e18);
+
         vm.expectEmit(true, true, true, true);
         emit Disable();
         plan.disable();
+
         assertTrue(!plan.active());
         assertEq(plan.enabled(), 0);
+        assertEq(plan.getTargetAssets(0), 0);  // returns 0 when disabled
     }
 
 }

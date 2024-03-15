@@ -80,6 +80,8 @@ contract D3MOperatorPlan is ID3MPlan {
     }
 
     function getTargetAssets(uint256) external override view returns (uint256) {
+        if (enabled == 0) return 0;
+
         return targetAssets;
     }
 
