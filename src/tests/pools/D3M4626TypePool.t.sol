@@ -99,11 +99,11 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
         assertEq(dai.balanceOf(address(hub)), 1);
     }
 
-    function test_redeemable_returns_adai() public {
+    function test_redeemable_returns_vault() public {
         assertEq(pool.redeemable(), address(vault));
     }
 
-    function test_exit_adai() public {
+    function test_exit_vault_tokens() public {
         deal(address(dai), address(this), 1e18);
         vault.deposit(1e18, address(this));
         uint256 tokens = vault.totalSupply();
@@ -131,7 +131,7 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
         assertEq(vault.balanceOf(address(pool)), 0);
     }
 
-    function test_assetBalance_gets_adai_balanceOf_pool() public {
+    function test_assetBalance_gets_vault_balanceOf_pool() public {
         deal(address(dai), address(this), 1e18);
         vault.deposit(1e18, address(this));
         assertEq(pool.assetBalance(), 0);
