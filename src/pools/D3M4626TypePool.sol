@@ -64,7 +64,7 @@ contract D3M4626TypePool is ID3MPool {
         dai.approve(vault_, type(uint256).max);
 
         hub = hub_;
-        vat = VatLike(D3mHubLike(hub).vat());
+        vat = VatLike(D3mHubLike(hub_).vat());
         vat.hope(hub_);
 
         wards[msg.sender] = 1;
