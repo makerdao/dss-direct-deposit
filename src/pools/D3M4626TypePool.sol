@@ -71,13 +71,13 @@ contract D3M4626TypePool is ID3MPool {
         emit Rely(msg.sender);
     }
 
-    modifier onlyHub() {
-        require(msg.sender == hub, "D3M4626TypePool/only-hub");
+    modifier auth() {
+        require(wards[msg.sender] == 1, "D3M4626TypePool/not-authorized");
         _;
     }
 
-    modifier auth() {
-        require(wards[msg.sender] == 1, "D3M4626TypePool/not-authorized");
+    modifier onlyHub() {
+        require(msg.sender == hub, "D3M4626TypePool/only-hub");
         _;
     }
 
