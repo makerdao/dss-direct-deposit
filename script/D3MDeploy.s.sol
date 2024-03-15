@@ -103,6 +103,14 @@ contract D3MDeployScript is Script {
                 hub,
                 config.readAddress(".cdai")
             );
+        } else if (poolType.eq("erc4626")) {
+            d3m.pool = D3MDeploy.deploy4626TypePool(
+                msg.sender,
+                admin,
+                ilk,
+                hub,
+                config.readAddress(".vault")
+            );
         } else {
             revert("Unknown pool type");
         }
@@ -135,6 +143,11 @@ contract D3MDeployScript is Script {
             } else {
                 revert("Invalid pool type for liquidity buffer plan type");
             }
+        } else if (planType.eq("operator")) {
+            d3m.plan = D3MDeploy.deployOperatorPlan(
+                msg.sender,
+                admin
+            );
         } else {
             revert("Unknown plan type");
         }

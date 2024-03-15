@@ -80,6 +80,18 @@ interface CDaiLike {
     function implementation() external view returns (address);
 }
 
+interface D3M4626PoolLike {
+    function hub() external view returns (address);
+    function dai() external view returns (address);
+    function ilk() external view returns (bytes32);
+    function vat() external view returns (address);
+    function vault() external view returns (address);
+}
+
+interface D3MOperatorPlanLike {
+    function file(bytes32, address) external;
+}
+
 interface D3MOracleLike {
     function vat() external view returns (address);
     function ilk() external view returns (bytes32);
@@ -146,6 +158,14 @@ struct D3MCompoundRateTargetPlanConfig {
     address cdai;
     address tack;
     address delegate;
+}
+
+struct D3M4626PoolConfig {
+    address vault;
+}
+
+struct D3MOperatorPlanConfig {
+    address operator;
 }
 
 // Init a D3M instance
@@ -275,6 +295,25 @@ library D3MInit {
         pool.file("king", compoundCfg.king);
     }
 
+    /**
+     * @dev Initialize a 4626 pool.
+     */
+    function init4626Pool(
+        DssInstance memory dss,
+        D3MInstance memory d3m,
+        D3MCommonConfig memory cfg,
+        D3M4626PoolConfig memory erc4626Cfg
+    ) internal {
+        D3M4626PoolLike pool = D3M4626PoolLike(d3m.pool);
+
+        // Sanity checks
+        require(pool.hub() == cfg.hub, "Pool hub mismatch");
+        require(pool.ilk() == cfg.ilk, "Pool ilk mismatch");
+        require(pool.vat() == address(dss.vat), "Pool vat mismatch");
+        require(pool.dai() == address(dss.dai), "Pool dai mismatch");
+        require(pool.vault() == erc4626Cfg.vault, "Pool vault mismatch");
+    }
+
     function initAaveRateTargetPlan(
         D3MInstance memory d3m,
         D3MAaveRateTargetPlanConfig memory aaveCfg
@@ -321,6 +360,15 @@ library D3MInit {
         require(plan.cDai() == address(cdai), "Plan cDai mismatch");
 
         plan.file("barb", compoundCfg.barb);
+    }
+
+    function initOperatorPlan(
+        D3MInstance memory d3m,
+        D3MOperatorPlanConfig memory operatorCfg
+    ) internal {
+        D3MOperatorPlanLike plan = D3MOperatorPlanLike(d3m.plan);
+
+        plan.file("operator", operatorCfg.operator);
     }
 
 }
