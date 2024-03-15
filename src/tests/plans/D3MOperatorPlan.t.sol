@@ -77,7 +77,7 @@ contract D3MOperatorPlanTest is D3MPlanBaseTest {
         _setupOperatorAndTargetAssets();
 
         vm.prank(randomAddress);
-        vm.expectRevert("D3MOperatorPlan/not-authorized");
+        vm.expectRevert("D3MOperatorPlan/not-operator");
         plan.setTargetAssets(200e18);
     }
 
