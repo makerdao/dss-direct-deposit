@@ -45,8 +45,6 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
 
         setPoolContract(pool = new D3M4626TypePool(ILK, address(hub), address(dai), address(vault)));
 
-        pool.file("hub", address(hub));
-
         dai.approve(address(vault), type(uint256).max);
     }
 
