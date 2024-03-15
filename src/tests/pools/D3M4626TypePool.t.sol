@@ -36,13 +36,14 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
     
     D3M4626TypePool pool;
     ERC4626 vault;
+    bytes32 constant ILK = "TEST-ILK";
 
     function setUp() public {
         baseInit("D3M4626TypePool");
 
         vault = new ERC4626(ERC20(address(dai)), "dai vault", "DV");
 
-        setPoolContract(pool = new D3M4626TypePool(address(dai), address(vault), address(vat)));
+        setPoolContract(pool = new D3M4626TypePool(address(dai), address(vault), address(hub), ILK));
 
         pool.file("hub", address(hub));
 
@@ -59,6 +60,10 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
 
     function invariant_vat_value() public {
         assertEq(address(pool.vat()), address(vat));
+    }
+
+    function invariant_ilk_value() public {
+        assertEq(pool.ilk(), ILK);
     }
 
     function test_cannot_file_hub_no_auth() public {
@@ -103,14 +108,16 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
     function test_exit_adai() public {
         deal(address(dai), address(this), 1e18);
         vault.deposit(1e18, address(this));
-        vault.transfer(address(pool), vault.balanceOf(address(this)));
+        uint256 tokens = vault.totalSupply();
+        vault.transfer(address(pool), tokens);
         assertEq(vault.balanceOf(address(this)), 0);
-        assertEq(vault.balanceOf(address(pool)), 1e18);
+        assertEq(vault.balanceOf(address(pool)), tokens);
 
-        vm.prank(address(hub)); pool.exit(address(this), 1e18);
+        end.setArt(tokens);
+        vm.prank(address(hub)); pool.exit(address(this), tokens);
 
-        assertEq(vault.balanceOf(address(this)), 0.01e18);
-        assertEq(vault.balanceOf(address(pool)), 0.99e18);
+        assertEq(vault.balanceOf(address(this)), tokens);
+        assertEq(vault.balanceOf(address(pool)), 0);
     }
 
     function test_quit_moves_balance() public {
