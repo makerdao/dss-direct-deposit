@@ -121,5 +121,4 @@ abstract contract D3MPoolBaseTest is DssTest {
     //     assertApproxEqAbs(redeemableToken.balanceOf(TEST_ADDRESS), initialBalance * 30 / 100, 10);
     //     assertApproxEqAbs(redeemableToken.balanceOf(address(pool)), initialBalance * 70 / 100, 10);
     // }
-
 }

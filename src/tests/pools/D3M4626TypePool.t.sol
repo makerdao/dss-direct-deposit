@@ -45,6 +45,8 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
         setPoolContract(pool = new D3M4626TypePool(address(dai), address(vault), address(vat)));
 
         pool.file("hub", address(hub));
+
+        dai.approve(address(vault), type(uint256).max);
     }
 
     function test_sets_dai_value() public {
@@ -90,26 +92,13 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
         assertEq(dai.balanceOf(address(hub)), 1);
     }
 
-    // function test_urd_claim(address dst, address distributor, address reward, uint256 claimable, bytes32[] calldata proof) public {
-    //     vm.assume(dst != address(0));
-
-    //     vm.mockCall(distributor, abi.encodeCall(IUniversalRewardsDistributor.claim, (address(pool), reward, claimable, proof)), abi.encode(1));
-    //     vm.mockCall(reward, abi.encodeCall(IERC20.transfer, (address(dst), 1)), abi.encode(true));
-
-    //     pool.urdClaim(dst, distributor, reward, claimable, proof);
-    // }
-
-    function test_urd_claim_no_dst(address distributor, address reward, uint256 claimable, bytes32[] calldata proof) public {
-        vm.expectRevert("D3M4626TypePool/zero-address");
-        pool.urdClaim(address(0), distributor, reward, claimable, proof);
-    }
-
     function test_redeemable_returns_adai() public {
         assertEq(pool.redeemable(), address(vault));
     }
 
     function test_exit_adai() public {
-        deal(address(vault), address(this), 1e18);
+        deal(address(dai), address(this), 1e18);
+        vault.deposit(1e18, address(this));
         vault.transfer(address(pool), vault.balanceOf(address(this)));
         assertEq(vault.balanceOf(address(this)), 0);
         assertEq(vault.balanceOf(address(pool)), 1e18);
@@ -121,7 +110,8 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
     }
 
     function test_quit_moves_balance() public {
-        deal(address(vault), address(this), 1e18);
+        deal(address(dai), address(this), 1e18);
+        vault.deposit(1e18, address(this));
         vault.transfer(address(pool), vault.balanceOf(address(this)));
         assertEq(vault.balanceOf(address(this)), 0);
         assertEq(vault.balanceOf(address(pool)), 1e18);
@@ -133,7 +123,8 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
     }
 
     function test_assetBalance_gets_adai_balanceOf_pool() public {
-        deal(address(vault), address(this), 1e18);
+        deal(address(dai), address(this), 1e18);
+        vault.deposit(1e18, address(this));
         assertEq(pool.assetBalance(), 0);
         assertEq(vault.balanceOf(address(pool)), 0);
 
@@ -153,12 +144,13 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
     }
 
     function test_maxWithdraw_gets_available_assets_daiBal() public {
-        deal(address(vault), address(this), 1e18);
+        deal(address(dai), address(this), 1e18);
+        vault.deposit(1e18, address(this));
         vault.transfer(address(pool), 1e18);
-        assertEq(dai.balanceOf(address(vault)), 0);
+        assertEq(dai.balanceOf(address(vault)), 1e18);
         assertEq(vault.balanceOf(address(pool)), 1e18);
 
-        assertEq(pool.maxWithdraw(), 0);
+        assertEq(pool.maxWithdraw(), 1e18);
     }
 
     function test_maxDeposit_returns_max_uint() public {

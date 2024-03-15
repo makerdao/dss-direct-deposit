@@ -25,12 +25,6 @@ interface VatLike {
     function nope(address) external;
 }
 
-interface IUniversalRewardsDistributor {
-    function claim(address account, address reward, uint256 claimable, bytes32[] memory proof)
-        external
-        returns (uint256 amount);
-}
-
 contract D3M4626TypePool is ID3MPool {
     /* EVENTS */
 
@@ -47,7 +41,7 @@ contract D3M4626TypePool is ID3MPool {
     /* STORAGE */
 
     address public hub;
-    mapping(address => bool) public wards;
+    mapping(address => uint256) public wards;
 
     /* CONSTRUCTOR */
 
@@ -61,7 +55,7 @@ contract D3M4626TypePool is ID3MPool {
         vault = IERC4626(newVault);
         vat = VatLike(newVat);
 
-        wards[msg.sender] = true;
+        wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
         dai.approve(address(vault), type(uint256).max);
@@ -75,7 +69,7 @@ contract D3M4626TypePool is ID3MPool {
     }
 
     modifier onlyAuthorized() {
-        require(wards[msg.sender], "D3M4626TypePool/not-authorized");
+        require(wards[msg.sender] == 1, "D3M4626TypePool/not-authorized");
         _;
     }
 
@@ -106,12 +100,12 @@ contract D3M4626TypePool is ID3MPool {
     }
 
     function rely(address usr) public onlyAuthorized {
-        wards[usr] = true;
+        wards[usr] = 1;
         emit Rely(usr);
     }
 
     function deny(address usr) external onlyAuthorized {
-        wards[usr] = false;
+        wards[usr] = 0;
         emit Deny(usr);
     }
 
@@ -124,13 +118,6 @@ contract D3M4626TypePool is ID3MPool {
         vat.hope(data);
 
         emit File(what, data);
-    }
-
-    function urdClaim(address dst, address distributor, address reward, uint256 claimable, bytes32[] calldata proof) external payable {
-        require(dst != address(0), "D3M4626TypePool/zero-address");
-
-        uint256 amount = IUniversalRewardsDistributor(distributor).claim(address(this), reward, claimable, proof);
-        IERC20(reward).transfer(dst, amount);
     }
 
     /* EXTERNAL */
