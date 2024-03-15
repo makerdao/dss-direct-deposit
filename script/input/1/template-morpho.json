@@ -1,6 +1,6 @@
 {
     "chainlog": "0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F",
-    "admin": "0x3300f198988e4C9C63F75dF86De36421f06af8c4",
+    "admin": "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB",
     "poolType": "erc4626",
     "planType": "operator",
     "ilk": "DIRECT-SPARK-MORPHO-DAI",
