@@ -35,53 +35,40 @@ interface EndLike {
 }
 
 contract D3M4626TypePool is ID3MPool {
-    /* EVENTS */
 
+    mapping (address => uint256) public wards;
+    address                      public hub;
+    uint256                      public exited;
+
+    bytes32  public immutable ilk;
+    VatLike  public immutable vat;
+    IERC4626 public immutable vault;
+    IERC20   public immutable dai;
+
+    // --- Events ---
     event Rely(address indexed usr);
     event Deny(address indexed usr);
     event File(bytes32 indexed what, address data);
 
-    /* CONSTANTS */
-
-    IERC20 public immutable dai;
-    IERC4626 public immutable vault;
-    VatLike public immutable vat;
-    bytes32 public immutable ilk;
-
-    /* STORAGE */
-
-    address public hub;
-    uint256 public exited;
-    mapping(address => uint256) public wards;
-
-    /* CONSTRUCTOR */
-
     constructor(bytes32 ilk_, address hub_, address dai_, address vault_) {
+        ilk = ilk_;
+        dai = IERC20(dai_);
+        vault = IERC4626(vault_);
+
         require(ilk_ != bytes32(0), "D3M4626TypePool/zero-bytes32");
         require(hub_ != address(0), "D3M4626TypePool/zero-address");
         require(dai_ != address(0), "D3M4626TypePool/zero-address");
         require(vault_ != address(0), "D3M4626TypePool/zero-address");
         require(IERC4626(vault_).asset() == dai_, "D3M4626TypePool/vault-asset-is-not-dai");
 
-        ilk = ilk_;
-        hub = hub_;
-        dai = IERC20(dai_);
-        vault = IERC4626(vault_);
-        vat = VatLike(D3mHubLike(hub).vat());
+        dai.approve(vault_, type(uint256).max);
 
+        hub = hub_;
+        vat = VatLike(D3mHubLike(hub_).vat());
         vat.hope(hub_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
-
-        dai.approve(address(vault), type(uint256).max);
-    }
-
-    /* MODIFIERS */
-
-    modifier onlyHub() {
-        require(msg.sender == address(hub), "D3M4626TypePool/only-hub");
-        _;
     }
 
     modifier auth() {
@@ -89,39 +76,16 @@ contract D3M4626TypePool is ID3MPool {
         _;
     }
 
-    /* ONLY HUB */
-
-    /// @inheritdoc ID3MPool
-    function deposit(uint256 wad) external override onlyHub {
-        vault.deposit(wad, address(this));
+    modifier onlyHub() {
+        require(msg.sender == hub, "D3M4626TypePool/only-hub");
+        _;
     }
 
-    /// @inheritdoc ID3MPool
-    function withdraw(uint256 wad) external override onlyHub {
-        vault.withdraw(wad, msg.sender, address(this));
-    }
-
-    /// @inheritdoc ID3MPool
-    function exit(address dst, uint256 wad) external override onlyHub {
-        uint256 exited_ = exited;
-        exited = exited_ + wad;
-        uint256 amt = wad * vault.balanceOf(address(this)) / (D3mHubLike(hub).end().Art(ilk) - exited_);
-        require(vault.transfer(dst, amt), "D3M4626TypePool/transfer-failed");
-    }
-
-    /* ONLY AUTHORIZED */
-
-    /// @inheritdoc ID3MPool
-    function quit(address dst) external auth {
-        require(vat.live() == 1, "D3M4626TypePool/no-quit-during-shutdown");
-        require(vault.transfer(dst, vault.balanceOf(address(this))), "D3M4626TypePool/transfer-failed");
-    }
-
-    function rely(address usr) public auth {
+    // --- Admin ---
+    function rely(address usr) external auth {
         wards[usr] = 1;
         emit Rely(usr);
     }
-
     function deny(address usr) external auth {
         wards[usr] = 0;
         emit Deny(usr);
@@ -137,7 +101,31 @@ contract D3M4626TypePool is ID3MPool {
         emit File(what, data);
     }
 
-    /* EXTERNAL */
+    /// https://github.com/morpho-org/metamorpho/blob/fcf3c41d9c113514c9af0bbf6298e88a1060b220/src/MetaMorpho.sol#L531
+    /// @inheritdoc ID3MPool
+    function deposit(uint256 wad) external override onlyHub {
+        vault.deposit(wad, address(this));
+    }
+
+    /// https://github.com/morpho-org/metamorpho/blob/fcf3c41d9c113514c9af0bbf6298e88a1060b220/src/MetaMorpho.sol#L557
+    /// @inheritdoc ID3MPool
+    function withdraw(uint256 wad) external override onlyHub {
+        vault.withdraw(wad, msg.sender, address(this));
+    }
+
+    /// @inheritdoc ID3MPool
+    function exit(address dst, uint256 wad) external override onlyHub {
+        uint256 exited_ = exited;
+        exited = exited_ + wad;
+        uint256 amt = wad * vault.balanceOf(address(this)) / (D3mHubLike(hub).end().Art(ilk) - exited_);
+        require(vault.transfer(dst, amt), "D3M4626TypePool/transfer-failed");
+    }
+
+    /// @inheritdoc ID3MPool
+    function quit(address dst) external auth {
+        require(vat.live() == 1, "D3M4626TypePool/no-quit-during-shutdown");
+        require(vault.transfer(dst, vault.balanceOf(address(this))), "D3M4626TypePool/transfer-failed");
+    }
 
     /// @inheritdoc ID3MPool
     function preDebtChange() external override {}

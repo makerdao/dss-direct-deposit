@@ -74,7 +74,7 @@ contract D3MOperatorPlan is ID3MPlan {
     }
 
     function setTargetAssets(uint256 value) external {
-        require(msg.sender == operator, "D3MOperatorPlan/not-authorized");
+        require(msg.sender == operator, "D3MOperatorPlan/not-operator");
 
         targetAssets = value;
     }

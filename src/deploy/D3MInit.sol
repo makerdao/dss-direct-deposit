@@ -303,7 +303,7 @@ library D3MInit {
         D3MInstance memory d3m,
         D3MCommonConfig memory cfg,
         D3M4626PoolConfig memory erc4626Cfg
-    ) internal {
+    ) internal view {
         D3M4626PoolLike pool = D3M4626PoolLike(d3m.pool);
 
         // Sanity checks

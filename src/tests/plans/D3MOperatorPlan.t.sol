@@ -21,8 +21,6 @@ import { D3MOperatorPlan } from "../../plans/D3MOperatorPlan.sol";
 
 contract D3MOperatorPlanTest is D3MPlanBaseTest {
 
-    bytes32 ilk = "DIRECT-PROTOCOL-A";
-
     D3MOperatorPlan plan;
 
     address operator = makeAddr("operator");
@@ -77,7 +75,7 @@ contract D3MOperatorPlanTest is D3MPlanBaseTest {
         _setupOperatorAndTargetAssets();
 
         vm.prank(randomAddress);
-        vm.expectRevert("D3MOperatorPlan/not-authorized");
+        vm.expectRevert("D3MOperatorPlan/not-operator");
         plan.setTargetAssets(200e18);
     }
 
