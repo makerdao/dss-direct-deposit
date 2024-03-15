@@ -49,18 +49,22 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
         dai.approve(address(vault), type(uint256).max);
     }
 
-    function test_sets_dai_value() public {
+    function invariant_dai_value() public {
         assertEq(address(pool.dai()), address(dai));
     }
 
-    function test_cannot_file_king_no_auth() public {
-        pool.deny(address(this));
-        assertRevert(address(pool), abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3M4626TypePool/not-authorized");
+    function invariant_vault_value() public {
+        assertEq(address(pool.vault()), address(vault));
     }
 
-    function test_cannot_file_king_vat_caged() public {
-        vat.cage();
-        assertRevert(address(pool), abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3M4626TypePool/no-file-during-shutdown");
+    function invariant_vat_value() public {
+        assertEq(address(pool.vat()), address(vat));
+    }
+
+    function test_cannot_file_hub_no_auth() public {
+        pool.deny(address(this));
+        vm.expectRevert("D3M4626TypePool/not-authorized");
+        pool.file("hub", address(123));
     }
 
     function test_deposit_calls_vault_deposit() public {
