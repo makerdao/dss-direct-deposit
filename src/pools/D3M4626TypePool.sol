@@ -48,7 +48,7 @@ contract D3M4626TypePool is ID3MPool {
     constructor(address newDai, address newVault, address newVat) {
         require(newDai != address(0), "D3M4626TypePool/zero-address");
         require(newVat != address(0), "D3M4626TypePool/zero-address");
-        // Implicitely checks that vault addres is not zero.
+        require(newVault != address(0), "D3M4626TypePool/zero-address");
         require(IERC4626(newVault).asset() == address(newDai), "D3M4626TypePool/vault-asset-is-not-dai");
 
         dai = IERC20(newDai);
@@ -97,7 +97,6 @@ contract D3M4626TypePool is ID3MPool {
     /// @inheritdoc ID3MPool
     function quit(address dst) external auth {
         require(vat.live() == 1, "D3M4626TypePool/no-quit-during-shutdown");
-        
         vault.transfer(dst, vault.balanceOf(address(this)));
     }
 
@@ -113,7 +112,6 @@ contract D3M4626TypePool is ID3MPool {
 
     function file(bytes32 what, address data) external auth {
         require(vat.live() == 1, "D3M4626TypePool/no-file-during-shutdown");
-        
         if (what == "hub") {
             vat.nope(hub);
             hub = data;
