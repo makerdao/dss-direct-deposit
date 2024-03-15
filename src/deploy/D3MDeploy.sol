@@ -101,7 +101,7 @@ library D3MDeploy {
     function deploy4626TypePool(
         address deployer,
         address owner,
-        address ilk,
+        bytes32 ilk,
         address hub,
         address dai,
         address vault

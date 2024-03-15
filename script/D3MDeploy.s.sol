@@ -109,6 +109,7 @@ contract D3MDeployScript is Script {
                 admin,
                 ilk,
                 hub,
+                address(dss.dai),
                 config.readAddress(".vault")
             );
         } else {

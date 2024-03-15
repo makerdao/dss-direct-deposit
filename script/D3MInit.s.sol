@@ -36,7 +36,9 @@ import {
     D3MCompoundPoolLike,
     D3MCompoundRateTargetPlanLike,
     D3M4626PoolLike,
+    D3M4626PoolConfig,
     D3MOperatorPlanLike,
+    D3MOperatorPlanConfig,
     CDaiLike
 } from "../src/deploy/D3MInit.sol";
 
