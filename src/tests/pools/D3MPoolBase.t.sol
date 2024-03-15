@@ -103,22 +103,23 @@ abstract contract D3MPoolBaseTest is DssTest {
     }
 
     function test_exit() public virtual {
-        TokenMock redeemableToken = TokenMock(pool.redeemable());
-        deal(address(dai), address(pool), 1000 ether);
-        vm.prank(address(hub)); pool.deposit(1000 ether);
-        uint256 initialBalance = redeemableToken.balanceOf(address(pool));
-        end.setArt(100 ether);
+         TokenMock redeemableToken = TokenMock(pool.redeemable());
+         GodMode.setBalance(address(dai), address(pool), 1000 ether);
+         vm.prank(address(hub)); pool.deposit(1000 ether);
+         uint256 initialBalance = redeemableToken.balanceOf(address(pool));
+         end.setArt(100 ether);
 
-        assertEq(redeemableToken.balanceOf(TEST_ADDRESS), 0);
+         assertEq(redeemableToken.balanceOf(TEST_ADDRESS), 0);
 
-        vm.prank(address(hub)); pool.exit(TEST_ADDRESS, 10 ether);  // Exit 10%
+         vm.prank(address(hub)); pool.exit(TEST_ADDRESS, 10 ether);  // Exit 10%
 
-        assertApproxEqAbs(redeemableToken.balanceOf(TEST_ADDRESS), initialBalance * 10 / 100, 10);
-        assertApproxEqAbs(redeemableToken.balanceOf(address(pool)), initialBalance * 90 / 100, 10);
+         assertApproxEqAbs(redeemableToken.balanceOf(TEST_ADDRESS), initialBalance * 10 / 100, 10);
+         assertApproxEqAbs(redeemableToken.balanceOf(address(pool)), initialBalance * 90 / 100, 10);
 
-        vm.prank(address(hub)); pool.exit(TEST_ADDRESS, 20 ether);  // Exit another 20%
+         vm.prank(address(hub)); pool.exit(TEST_ADDRESS, 20 ether);  // Exit another 20%
 
-        assertApproxEqAbs(redeemableToken.balanceOf(TEST_ADDRESS), initialBalance * 30 / 100, 10);
-        assertApproxEqAbs(redeemableToken.balanceOf(address(pool)), initialBalance * 70 / 100, 10);
-    }
+         assertApproxEqAbs(redeemableToken.balanceOf(TEST_ADDRESS), initialBalance * 30 / 100, 10);
+         assertApproxEqAbs(redeemableToken.balanceOf(address(pool)), initialBalance * 70 / 100, 10);
+     }
+
 }

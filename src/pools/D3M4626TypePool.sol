@@ -86,7 +86,9 @@ contract D3M4626TypePool is ID3MPool {
     }
 
     /// @inheritdoc ID3MPool
-    function exit(address dst, uint256 shares) external onlyHub {
+    /// @dev prop = 100 ether exists 100%.
+    function exit(address dst, uint256 prop) external onlyHub {
+        uint256 shares = prop * vault.balanceOf(address(this)) / 100 ether;
         vault.transfer(dst, shares);
     }
 

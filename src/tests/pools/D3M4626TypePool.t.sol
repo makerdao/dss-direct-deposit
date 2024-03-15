@@ -109,8 +109,8 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
 
         vm.prank(address(hub)); pool.exit(address(this), 1e18);
 
-        assertEq(vault.balanceOf(address(this)), 1e18);
-        assertEq(vault.balanceOf(address(pool)), 0);
+        assertEq(vault.balanceOf(address(this)), 0.01e18);
+        assertEq(vault.balanceOf(address(pool)), 0.99e18);
     }
 
     function test_quit_moves_balance() public {
