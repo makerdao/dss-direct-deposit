@@ -69,6 +69,8 @@ contract D3M4626TypePool is ID3MPool {
         vault = IERC4626(vault_);
         vat = VatLike(D3mHubLike(hub).vat());
 
+        vat.hope(hub_);
+
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
 
