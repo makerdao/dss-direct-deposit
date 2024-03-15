@@ -56,17 +56,17 @@ contract D3M4626TypePool is ID3MPool {
 
     /* CONSTRUCTOR */
 
-    constructor(address newDai, address newVault, address newHub, bytes32 newIlk) {
-        require(newDai != address(0), "D3M4626TypePool/zero-address");
-        require(newHub != address(0), "D3M4626TypePool/zero-address");
-        require(newVault != address(0), "D3M4626TypePool/zero-address");
-        require(newIlk != bytes32(0), "D3M4626TypePool/zero-bytes32");
-        require(IERC4626(newVault).asset() == address(newDai), "D3M4626TypePool/vault-asset-is-not-dai");
+    constructor(bytes32 ilk_, address hub_, address dai_, address vault_) {
+        require(ilk_ != bytes32(0), "D3M4626TypePool/zero-bytes32");
+        require(hub_ != address(0), "D3M4626TypePool/zero-address");
+        require(dai_ != address(0), "D3M4626TypePool/zero-address");
+        require(vault_ != address(0), "D3M4626TypePool/zero-address");
+        require(IERC4626(vault_).asset() == dai_, "D3M4626TypePool/vault-asset-is-not-dai");
 
-        dai = IERC20(newDai);
-        vault = IERC4626(newVault);
-        hub = newHub;
-        ilk = newIlk;
+        ilk = ilk_;
+        hub = hub_;
+        dai = IERC20(dai_);
+        vault = IERC4626(vault_);
         vat = VatLike(D3mHubLike(hub).vat());
 
         wards[msg.sender] = 1;
@@ -90,13 +90,13 @@ contract D3M4626TypePool is ID3MPool {
     /* ONLY HUB */
 
     /// @inheritdoc ID3MPool
-    function deposit(uint256 assets) external override onlyHub {
-        vault.deposit(assets, address(this));
+    function deposit(uint256 wad) external override onlyHub {
+        vault.deposit(wad, address(this));
     }
 
     /// @inheritdoc ID3MPool
-    function withdraw(uint256 assets) external override onlyHub {
-        vault.withdraw(assets, msg.sender, address(this));
+    function withdraw(uint256 wad) external override onlyHub {
+        vault.withdraw(wad, msg.sender, address(this));
     }
 
     /// @inheritdoc ID3MPool

@@ -43,7 +43,7 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
 
         vault = new ERC4626(ERC20(address(dai)), "dai vault", "DV");
 
-        setPoolContract(pool = new D3M4626TypePool(address(dai), address(vault), address(hub), ILK));
+        setPoolContract(pool = new D3M4626TypePool(ILK, address(hub), address(dai), address(vault)));
 
         pool.file("hub", address(hub));
 
