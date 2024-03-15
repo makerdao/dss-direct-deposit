@@ -80,7 +80,7 @@ contract D3M4626TypePool is ID3MPool {
     /* MODIFIERS */
 
     modifier onlyHub() {
-        require(msg.sender == address(hub), "D3M4626TypePool/only-hub");
+        require(msg.sender == hub, "D3M4626TypePool/only-hub");
         _;
     }
 
@@ -117,7 +117,7 @@ contract D3M4626TypePool is ID3MPool {
         require(vault.transfer(dst, vault.balanceOf(address(this))), "D3M4626TypePool/transfer-failed");
     }
 
-    function rely(address usr) public auth {
+    function rely(address usr) external auth {
         wards[usr] = 1;
         emit Rely(usr);
     }
