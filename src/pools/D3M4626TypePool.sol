@@ -101,11 +101,13 @@ contract D3M4626TypePool is ID3MPool {
         emit File(what, data);
     }
 
+    /// https://github.com/morpho-org/metamorpho/blob/fcf3c41d9c113514c9af0bbf6298e88a1060b220/src/MetaMorpho.sol#L531
     /// @inheritdoc ID3MPool
     function deposit(uint256 wad) external override onlyHub {
         vault.deposit(wad, address(this));
     }
 
+    /// https://github.com/morpho-org/metamorpho/blob/fcf3c41d9c113514c9af0bbf6298e88a1060b220/src/MetaMorpho.sol#L557
     /// @inheritdoc ID3MPool
     function withdraw(uint256 wad) external override onlyHub {
         vault.withdraw(wad, msg.sender, address(this));
