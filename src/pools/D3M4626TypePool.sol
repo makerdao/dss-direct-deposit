@@ -68,7 +68,7 @@ contract D3M4626TypePool is ID3MPool {
         _;
     }
 
-    modifier onlyAuthorized() {
+    modifier auth() {
         require(wards[msg.sender] == 1, "D3M4626TypePool/not-authorized");
         _;
     }
@@ -95,30 +95,30 @@ contract D3M4626TypePool is ID3MPool {
     /* ONLY AUTHORIZED */
 
     /// @inheritdoc ID3MPool
-    function quit(address dst) external onlyAuthorized {
+    function quit(address dst) external auth {
         require(vat.live() == 1, "D3M4626TypePool/no-quit-during-shutdown");
         
         vault.transfer(dst, vault.balanceOf(address(this)));
     }
 
-    function rely(address usr) public onlyAuthorized {
+    function rely(address usr) public auth {
         wards[usr] = 1;
         emit Rely(usr);
     }
 
-    function deny(address usr) external onlyAuthorized {
+    function deny(address usr) external auth {
         wards[usr] = 0;
         emit Deny(usr);
     }
 
-    function file(bytes32 what, address data) external onlyAuthorized {
+    function file(bytes32 what, address data) external auth {
         require(vat.live() == 1, "D3M4626TypePool/no-file-during-shutdown");
-        require(what == "hub", "D3M4626TypePool/file-unrecognized-param");
-
-        vat.nope(hub);
-        hub = data;
-        vat.hope(data);
-
+        
+        if (what == "hub") {
+            vat.nope(hub);
+            hub = data;
+            vat.hope(data);
+        } else revert("D3M4626TypePool/file-unrecognized-param");
         emit File(what, data);
     }
 
