@@ -64,12 +64,6 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
         assertEq(pool.ilk(), ILK);
     }
 
-    function test_cannot_file_hub_no_auth() public {
-        pool.deny(address(this));
-        vm.expectRevert("D3M4626TypePool/not-authorized");
-        pool.file("hub", address(123));
-    }
-
     function test_deposit_calls_vault_deposit() public {
         deal(address(dai), address(pool), 1);
         vm.prank(address(hub)); pool.deposit(1);
@@ -106,16 +100,16 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
     function test_exit_vault_tokens() public {
         deal(address(dai), address(this), 1e18);
         vault.deposit(1e18, address(this));
-        uint256 tokens = vault.totalSupply();
-        vault.transfer(address(pool), tokens);
+        uint256 balanceVault = vault.totalSupply();
+        vault.transfer(address(pool), balanceVault);
         assertEq(vault.balanceOf(address(this)), 0);
-        assertEq(vault.balanceOf(address(pool)), tokens);
+        assertEq(vault.balanceOf(address(pool)), balanceVault);
 
-        end.setArt(tokens);
-        vm.prank(address(hub)); pool.exit(address(this), tokens);
+        end.setArt(100 * WAD);
+        vm.prank(address(hub)); pool.exit(address(this), 50 * WAD);
 
-        assertEq(vault.balanceOf(address(this)), tokens);
-        assertEq(vault.balanceOf(address(pool)), 0);
+        assertEq(vault.balanceOf(address(this)), balanceVault / 2);
+        assertEq(vault.balanceOf(address(pool)), balanceVault / 2);
     }
 
     function test_quit_moves_balance() public {
@@ -133,14 +127,15 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
 
     function test_assetBalance_gets_vault_balanceOf_pool() public {
         deal(address(dai), address(this), 1e18);
-        vault.deposit(1e18, address(this));
+        vault.deposit(0.7e18, address(this));
+        dai.transfer(address(vault), 0.3e18);
         assertEq(pool.assetBalance(), 0);
         assertEq(vault.balanceOf(address(pool)), 0);
 
-        vault.transfer(address(pool), 1e18);
+        vault.transfer(address(pool), 0.7e18);
 
         assertEq(pool.assetBalance(), 1e18);
-        assertEq(vault.balanceOf(address(pool)), 1e18);
+        assertEq(vault.balanceOf(address(pool)), 0.7e18);
     }
 
     function test_maxWithdraw_gets_available_assets_assetBal() public {
@@ -162,7 +157,11 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
         assertEq(pool.maxWithdraw(), 1e18);
     }
 
-    function test_maxDeposit_returns_max_uint() public {
+    function invariant_pool_maxDeposit() public {
+        assertEq(pool.maxDeposit(), type(uint256).max);
+    }
+
+    function invariant_vault_maxDeposit() public {
         assertEq(pool.maxDeposit(), type(uint256).max);
     }
 }

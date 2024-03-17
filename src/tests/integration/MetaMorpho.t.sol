@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity 0.8.14;
+pragma solidity ^0.8.14;
 
 import "forge-std/Test.sol";
 import "./IntegrationBase.t.sol";
@@ -53,14 +53,30 @@ contract MetaMorphoTest is IntegrationBaseTest {
         // Supply huge collat.
         morpho.supplyCollateral(marketParams, type(uint128).max, address(this), "");
 
-        // deploy D3M pool and plan.
+        // Deploy.
         d3m.oracle = D3MDeploy.deployOracle(address(this), admin, ilk, address(dss.vat));
         d3m.pool = D3MDeploy.deploy4626TypePool(address(this), admin, ilk, address(hub), address(dai), address(spDai));
         pool = D3M4626TypePool(d3m.pool);
         d3m.plan = D3MDeploy.deployOperatorPlan(address(this), admin);
         plan = D3MOperatorPlan(d3m.plan);
-        vm.prank(admin);
-        plan.file("operator", operator);
+        
+        // Init.
+        vm.startPrank(admin);
+        uint256 buffer = 5_000_000 * WAD;
+        D3MCommonConfig memory cfg = D3MCommonConfig({
+            hub: address(hub),
+            mom: address(mom),
+            ilk: ilk,
+            existingIlk: false,
+            maxLine: buffer * RAY * 100000,     // Set gap and max line to large number to avoid hitting limits
+            gap: buffer * RAY * 100000,
+            ttl: 0,
+            tau: 7 days
+        });
+        D3MInit.initCommon(dss, d3m, cfg);
+        D3MInit.init4626Pool(dss, d3m, cfg, D3M4626PoolConfig({vault: spDai}));
+        D3MInit.initOperatorPlan(d3m, D3MOperatorPlanConfig({operator: operator}));
+        vm.stopPrank();
 
         basePostSetup();
     }
@@ -69,8 +85,9 @@ contract MetaMorphoTest is IntegrationBaseTest {
     function adjustDebt(int256 deltaAmount) internal override {
         if (deltaAmount == 0) return;
 
+        uint256 newTargetAssets = uint256(int256(plan.targetAssets()) + deltaAmount);
         vm.prank(operator);
-        plan.setTargetAssets(uint256(int256(plan.targetAssets()) + deltaAmount));
+        plan.setTargetAssets(newTargetAssets);
         hub.exec(ilk);
     }
 
@@ -89,8 +106,6 @@ contract MetaMorphoTest is IntegrationBaseTest {
     }
 
     function generateInterest() internal override {
-        // Generate interest by borrowing and repaying
-        morpho.accrueInterest(marketParams);
         vm.warp(block.timestamp + 1 days);
         morpho.accrueInterest(marketParams);
     }
