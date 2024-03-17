@@ -162,6 +162,6 @@ contract D3M4626TypePoolTest is D3MPoolBaseTest {
     }
 
     function invariant_vault_maxDeposit() public {
-        assertEq(pool.maxDeposit(), type(uint256).max);
+        assertEq(vault.maxDeposit(address(pool)), type(uint256).max);
     }
 }
