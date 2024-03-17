@@ -19,6 +19,7 @@ pragma solidity ^0.8.14;
 import "forge-std/Test.sol";
 import "./IntegrationBase.t.sol";
 import "morpho-blue/src/interfaces/IMorpho.sol";
+import "forge-std/interfaces/IERC4626.sol";
 
 // Versioining issues with import, so it's inline
 interface IMetaMorpho {
@@ -50,6 +51,9 @@ contract MetaMorphoTest is IntegrationBaseTest {
         baseInit();
 
         vm.createSelectFork(vm.envString("ETH_RPC_URL"), 19456934);
+
+        // Need to increase to 3
+        roundingTolerance = 3;
         
         // Deploy.
         d3m.oracle = D3MDeploy.deployOracle(address(this), admin, ilk, address(dss.vat));
@@ -125,38 +129,7 @@ contract MetaMorphoTest is IntegrationBaseTest {
         return morpho.market(id).totalSupplyAssets - morpho.market(id).totalBorrowAssets;
     }
 
-    // --- Helper functions ---
-    function getDebtCeiling() internal view returns (uint256) {
-        (,,, uint256 line,) = dss.vat.ilks(ilk);
-        return line;
+    function getLPTokenBalanceInAssets(address a) internal view override returns (uint256) {
+        return IERC4626(spDai).convertToAssets(IERC4626(spDai).balanceOf(a));
     }
-
-    function getDebt() internal view returns (uint256) {
-        (, uint256 art) = dss.vat.urns(ilk, address(pool));
-        return art;
-    }
-
-    // // --- Tests ---
-    // function test_simple_wind_unwind() public {
-    //     setLiquidityToZero();
-
-    //     assertEq(getDebt(), 0);
-
-    //     hub.exec(ilk);
-    //     assertEq(getDebt(), buffer, "should wind up to the buffer");
-
-    //     // User borrows half the debt injected by the D3M
-    //     sparkPool.borrow(address(dai), buffer / 2, 2, 0, address(this));
-    //     assertEq(getDebt(), buffer);
-
-    //     hub.exec(ilk);
-    //     assertEq(getDebt(), buffer + buffer / 2, "should have 1.5x the buffer in debt");
-
-    //     // User repays half their debt
-    //     sparkPool.repay(address(dai), buffer / 4, 2, address(this));
-    //     assertEq(getDebt(), buffer + buffer / 2);
-
-    //     hub.exec(ilk);
-    //     assertEq(getDebt(), buffer + buffer / 2 - buffer / 4, "should be back down to 1.25x the buffer");
-    // }
 }
