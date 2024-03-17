@@ -9,6 +9,6 @@
     "gap": 10000000,
     "ttl": 21600,
     "tau": 604800,
-    "vault": "0xB8C7F2a4B3bF76CC04bd55Ebc259b33a67b3b36d",
+    "vault": "0x73e65DBD630f90604062f6E02fAb9138e713edD9",
     "operator": "0x298b375f24CeDb45e936D7e21d6Eb05e344adFb5"
 }
