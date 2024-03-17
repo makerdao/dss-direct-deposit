@@ -21,7 +21,7 @@ import "./IntegrationBase.t.sol";
 import "morpho-blue/src/interfaces/IMorpho.sol";
 
 contract MetaMorphoTest is IntegrationBaseTest {
-    address constant spDai = 0xB8C7F2a4B3bF76CC04bd55Ebc259b33a67b3b36d;
+    address constant spDai = 0x73e65DBD630f90604062f6E02fAb9138e713edD9;
     address constant sUsde = 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
     IMorpho constant morpho = IMorpho(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
     D3MOperatorPlan plan;
@@ -38,21 +38,13 @@ contract MetaMorphoTest is IntegrationBaseTest {
     });
 
     address operator = makeAddr("operator");
+    uint256 constant buffer = 5_000_000 * WAD;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("ETH_RPC_URL"), 19440000);
-
         baseInit();
 
-        // Give us some DAI.
-        deal(address(dai), address(this), type(uint256).max);
-        dai.approve(address(morpho), type(uint256).max);
-        // Give us some sUSDe.
-        deal(address(sUsde), address(this), type(uint256).max);
-        DaiAbstract(sUsde).approve(address(morpho), type(uint256).max);
-        // Supply huge collat.
-        morpho.supplyCollateral(marketParams, type(uint128).max, address(this), "");
-
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"), 19_455_000);
+        
         // Deploy.
         d3m.oracle = D3MDeploy.deployOracle(address(this), admin, ilk, address(dss.vat));
         d3m.pool = D3MDeploy.deploy4626TypePool(address(this), admin, ilk, address(hub), address(dai), address(spDai));
@@ -62,7 +54,6 @@ contract MetaMorphoTest is IntegrationBaseTest {
         
         // Init.
         vm.startPrank(admin);
-        uint256 buffer = 5_000_000 * WAD;
         D3MCommonConfig memory cfg = D3MCommonConfig({
             hub: address(hub),
             mom: address(mom),
@@ -78,6 +69,15 @@ contract MetaMorphoTest is IntegrationBaseTest {
         D3MInit.initOperatorPlan(d3m, D3MOperatorPlanConfig({operator: operator}));
         vm.stopPrank();
 
+        // Give us some DAI.
+        deal(address(dai), address(this), type(uint256).max);
+        dai.approve(address(morpho), type(uint256).max);
+        // Give us some sUSDe.
+        deal(address(sUsde), address(this), type(uint256).max);
+        DaiAbstract(sUsde).approve(address(morpho), type(uint256).max);
+        // Supply huge collat.
+        morpho.supplyCollateral(marketParams, type(uint128).max, address(this), "");
+
         basePostSetup();
     }
 
@@ -86,8 +86,7 @@ contract MetaMorphoTest is IntegrationBaseTest {
         if (deltaAmount == 0) return;
 
         uint256 newTargetAssets = uint256(int256(plan.targetAssets()) + deltaAmount);
-        vm.prank(operator);
-        plan.setTargetAssets(newTargetAssets);
+        vm.prank(operator); plan.setTargetAssets(newTargetAssets);
         hub.exec(ilk);
     }
 
