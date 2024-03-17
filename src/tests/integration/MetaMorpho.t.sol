@@ -20,6 +20,12 @@ import "forge-std/Test.sol";
 import "./IntegrationBase.t.sol";
 import "morpho-blue/src/interfaces/IMorpho.sol";
 
+// Versioining issues with import, so it's inline
+interface IMetaMorpho {
+    function owner() external view returns (address);
+    function setSupplyQueue(Id[] calldata newSupplyQueue) external;
+}
+
 contract MetaMorphoTest is IntegrationBaseTest {
     address constant spDai = 0x73e65DBD630f90604062f6E02fAb9138e713edD9;
     address constant sUsde = 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
@@ -38,12 +44,12 @@ contract MetaMorphoTest is IntegrationBaseTest {
     });
 
     address operator = makeAddr("operator");
-    uint256 constant buffer = 5_000_000 * WAD;
+    uint256 constant startingAmount = 5_000_000 * WAD;
 
     function setUp() public {
         baseInit();
 
-        vm.createSelectFork(vm.envString("ETH_RPC_URL"), 19_455_000);
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"), 19456934);
         
         // Deploy.
         d3m.oracle = D3MDeploy.deployOracle(address(this), admin, ilk, address(dss.vat));
@@ -59,8 +65,8 @@ contract MetaMorphoTest is IntegrationBaseTest {
             mom: address(mom),
             ilk: ilk,
             existingIlk: false,
-            maxLine: buffer * RAY * 100000,     // Set gap and max line to large number to avoid hitting limits
-            gap: buffer * RAY * 100000,
+            maxLine: startingAmount * RAY * 100000,     // Set gap and max line to large number to avoid hitting limits
+            gap: startingAmount * RAY * 100000,
             ttl: 0,
             tau: 7 days
         });
@@ -70,13 +76,19 @@ contract MetaMorphoTest is IntegrationBaseTest {
         vm.stopPrank();
 
         // Give us some DAI.
-        deal(address(dai), address(this), type(uint256).max);
+        deal(address(dai), address(this), startingAmount * 100000000);
         dai.approve(address(morpho), type(uint256).max);
         // Give us some sUSDe.
-        deal(address(sUsde), address(this), type(uint256).max);
+        deal(address(sUsde), address(this), startingAmount * 100000000);
         DaiAbstract(sUsde).approve(address(morpho), type(uint256).max);
         // Supply huge collat.
-        morpho.supplyCollateral(marketParams, type(uint128).max, address(this), "");
+        morpho.supplyCollateral(marketParams, startingAmount * 10000, address(this), "");
+
+        // Setup the supply queue
+        Id[] memory newSupplyQueue = new Id[](1);
+        newSupplyQueue[0] = id;
+        vm.prank(IMetaMorpho(spDai).owner());
+        IMetaMorpho(spDai).setSupplyQueue(newSupplyQueue);
 
         basePostSetup();
     }
@@ -85,8 +97,8 @@ contract MetaMorphoTest is IntegrationBaseTest {
     function adjustDebt(int256 deltaAmount) internal override {
         if (deltaAmount == 0) return;
 
-        uint256 newTargetAssets = uint256(int256(plan.targetAssets()) + deltaAmount);
-        vm.prank(operator); plan.setTargetAssets(newTargetAssets);
+        int256 newTargetAssets = int256(plan.targetAssets()) + deltaAmount;
+        vm.prank(operator); plan.setTargetAssets(newTargetAssets >= 0 ? uint256(newTargetAssets) : 0);
         hub.exec(ilk);
     }
 
