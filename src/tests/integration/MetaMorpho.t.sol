@@ -24,7 +24,7 @@ import "morpho-blue/src/libraries/periphery/MorphoBalancesLib.sol";
 import "metamorpho/libraries/PendingLib.sol";
 import "forge-std/interfaces/IERC4626.sol";
 
-// Versioining issues with import, so it's inline
+// Versioning issues with import, so it's inline
 interface IMetaMorpho is IERC4626 {
     function owner() external view returns (address);
     function timelock() external view returns (uint256);
