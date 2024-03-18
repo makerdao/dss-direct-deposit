@@ -1,4 +1,5 @@
 # Direct Deposit Module for Maker
+
 ![Build Status](https://github.com/makerdao/dss-direct-deposit/actions/workflows/.github/workflows/tests.yaml/badge.svg?branch=master)
 
 The Dai Direct Deposit Module (D3M) is a tool for directly injecting DAI into third party protocols.
@@ -11,7 +12,7 @@ The D3M is made of 3 components on the Maker side:
 
 ### D3MHub
 
-The primary manager contract responsible for collecting all information and determining which action to take (if any). Each D3M instance is regsitered on the Hub using relevant `file(ilk, ...)` admin functions.
+The primary manager contract responsible for collecting all information and determining which action to take (if any). Each D3M instance is registered on the Hub using relevant `file(ilk, ...)` admin functions.
 
 A permissionless `exec(ilk)` function exists which will perform all necessary steps to update the provided liquidity within the debt ceiling and external protocol constraints. `exec(ilk)` will need to be called on a somewhat regular basis to keep the system running properly. During each call to this function, interest will automatically be collected.
 
@@ -51,7 +52,7 @@ Below is a configurable parameter for the Compound DAI D3M:
 
 Any Comp that is accured can be permissionlessly collected into the pause proxy by calling `collect()`.
 
-### Setup and Testing
+# Setup and Testing
 
 To set up the environment and run tests, run the following commands:
 
