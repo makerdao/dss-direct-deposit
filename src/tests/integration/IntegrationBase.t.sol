@@ -388,8 +388,7 @@ abstract contract IntegrationBaseTest is DssTest {
         vow.heal(_min(vat.sin(address(vow)), vat.dai(address(vow))));
         assertRoundingEq(vat.gem(ilk, address(end)), 0);
         assertEq(vat.sin(address(vow)), 0);
-        // Adding 1e27 for rounding error earlier on
-        assertGe(vat.dai(address(vow)) + 1e27, prevDai); // As also probably accrues interest
+        assertApproxEqAbs(vat.dai(address(vow)), prevDai, 1e27);
     }
 
     function test_unwind_mcd_caged_skimmed() public {
@@ -459,8 +458,7 @@ abstract contract IntegrationBaseTest is DssTest {
         vow.heal(_min(vat.sin(address(vow)), vat.dai(address(vow))));
         assertRoundingEq(vat.gem(ilk, address(end)), 0);
         assertEq(vat.sin(address(vow)), 0);
-        // Adding 1e27 for rounding error earlier on
-        assertGe(vat.dai(address(vow)) + 1e27, prevDai); // As also probably accrues interest
+        assertApproxEqAbs(vat.dai(address(vow)), prevDai, 1e27);
     }
 
     function test_unwind_mcd_caged_wait_done() public {
