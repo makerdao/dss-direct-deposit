@@ -71,9 +71,6 @@ contract MetaMorphoTest is IntegrationBaseTest {
 
         vm.createSelectFork(vm.envString("ETH_RPC_URL"), 19456934);
 
-        // Need to increase to 3
-        roundingTolerance = 3;
-
         // Deploy.
         d3m.oracle = D3MDeploy.deployOracle(address(this), admin, ilk, address(dss.vat));
         d3m.pool = D3MDeploy.deploy4626TypePool(address(this), admin, ilk, address(hub), address(dai), address(spDai));
