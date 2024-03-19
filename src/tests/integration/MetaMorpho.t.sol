@@ -34,9 +34,15 @@ interface IMetaMorpho is IERC4626 {
     function setSupplyQueue(Id[] calldata newSupplyQueue) external;
     function submitCap(MarketParams memory marketParams, uint256 newSupplyCap) external;
     function acceptCap(MarketParams memory marketParams) external;
+    function reallocate(MarketAllocation[] calldata allocations) external;
+}
+struct MarketAllocation {
+    MarketParams marketParams;
+    uint256 assets;
 }
 
 contract MetaMorphoTest is IntegrationBaseTest {
+    using UtilsLib for uint256;
     using MorphoBalancesLib for IMorpho;
     using MarketParamsLib for MarketParams;
 
@@ -103,6 +109,9 @@ contract MetaMorphoTest is IntegrationBaseTest {
         DaiAbstract(sUsde).approve(address(morpho), type(uint256).max);
         // Supply huge collat.
         morpho.supplyCollateral(marketParams, startingAmount * 10000, address(this), "");
+
+        assertTrue(spDai.config(marketParams.id()).enabled, "low market is not enabled");
+        // assertTrue(spDai.config(marketParamsHighLltv.id()).enabled, "high market is not enabled");
 
         // Set sUSDe/USDC (91.5%) in the supply queue.
         Id[] memory newSupplyQueue = new Id[](1);
@@ -190,7 +199,7 @@ contract MetaMorphoTest is IntegrationBaseTest {
         hub.exec(ilk);
 
         (,,, uint256 line,) = VatAbstract(vat).ilks(ilk);
-        uint256 depositedAssets = UtilsLib.min(d3mDeposit, line * 1e18 / 1e45);
+        uint256 depositedAssets = min(d3mDeposit, line * 1e18 / 1e45);
         
         assertEq(plan.targetAssets(), d3mDeposit);
         
@@ -204,4 +213,88 @@ contract MetaMorphoTest is IntegrationBaseTest {
         assertEq(dai.balanceOf(address(morpho)), morphoBalanceBefore + depositedAssets);
         assertEq(dai.totalSupply(), daiTotalSupplyBefore + depositedAssets);
     }
+
+    function testDepositInCappedMarket(uint184 cap, uint256 d3mDeposit) public {
+        uint256 marketSupplyBefore = morpho.market(marketParams.id()).totalSupplyAssets;
+
+        setCap(marketParams, cap);
+        
+        // Set target assets at `d3mDeposit` and exec.
+        vm.prank(operator);
+        plan.setTargetAssets(d3mDeposit);
+        hub.exec(ilk);
+
+        (,,, uint256 line,) = VatAbstract(vat).ilks(ilk);
+        uint256 depositedAssets = min(d3mDeposit, min(line * 1e18 / 1e45, cap));
+        
+        assertEq(morpho.market(marketParams.id()).totalSupplyAssets, marketSupplyBefore + depositedAssets);
+    }
+
+    function testWithdrawLiquid(uint256 target1, uint256 target2) public {
+        uint256 marketSupplyStart = morpho.market(marketParams.id()).totalSupplyAssets;
+        
+        (,,, uint256 line,) = VatAbstract(vat).ilks(ilk);
+        vm.assume(target1 < line * 1e18 / 1e45);
+        
+        adjustDebt(int256(target1));
+        
+        vm.assume(target2 <= pool.assetBalance());
+        
+        uint256 marketSupplyMiddle = morpho.market(marketParams.id()).totalSupplyAssets;
+        
+        uint256 depositedAssets1 = min(target1, line * 1e18 / 1e45);
+        uint256 expectedWithdraw = min(pool.maxWithdraw(), pool.assetBalance() - target2);
+        uint256 depositedAssets2 = depositedAssets1 - expectedWithdraw;
+
+        // Set target assets at `target2` and exec.
+        vm.prank(operator);
+        plan.setTargetAssets(target2);
+        hub.exec(ilk);
+
+        uint256 marketSupplyEnd = morpho.market(marketParams.id()).totalSupplyAssets;
+        
+        assertGe(marketSupplyMiddle, marketSupplyStart);
+        assertLe(marketSupplyEnd, marketSupplyMiddle);
+        assertEq(marketSupplyEnd, marketSupplyMiddle - expectedWithdraw);
+        assertEq(marketSupplyEnd, marketSupplyStart + depositedAssets2);
+    }
+
+    function testWithdrawIlliquid(uint256 target1, uint256 target2, uint256 borrow) public {
+        uint256 marketSupplyStart = morpho.market(marketParams.id()).totalSupplyAssets;
+        uint256 marketBorrowStart = morpho.market(marketParams.id()).totalBorrowAssets;
+        vm.assume(borrow < marketSupplyStart - marketBorrowStart);
+        
+        (,,, uint256 line,) = VatAbstract(vat).ilks(ilk);
+        vm.assume(target1 < line * 1e18 / 1e45);
+        
+        adjustDebt(int256(target1));
+        adjustLiquidity(-int256(borrow));
+        
+        vm.assume(target2 <= pool.assetBalance());
+        
+        uint256 marketSupplyMiddle = morpho.market(marketParams.id()).totalSupplyAssets;
+        
+        uint256 depositedAssets1 = min(target1, line * 1e18 / 1e45);
+        uint256 expectedWithdraw = min(pool.maxWithdraw(), pool.assetBalance() - target2);
+        uint256 depositedAssets2 = depositedAssets1 - expectedWithdraw;
+
+        // Set target assets at `target2` and exec.
+        vm.prank(operator);
+        plan.setTargetAssets(target2);
+        hub.exec(ilk);
+
+        uint256 marketSupplyEnd = morpho.market(marketParams.id()).totalSupplyAssets;
+        
+        assertGe(marketSupplyMiddle, marketSupplyStart);
+        assertLe(marketSupplyEnd, marketSupplyMiddle);
+        assertEq(marketSupplyEnd, marketSupplyMiddle - expectedWithdraw);
+        assertEq(marketSupplyEnd, marketSupplyStart + depositedAssets2);
+    }
+}
+
+function min(uint256 x, uint256 y) pure returns (uint256) {
+    return x < y ? x : y;
+}
+function max(uint256 x, uint256 y) pure returns (uint256) {
+    return x > y ? x : y;
 }
