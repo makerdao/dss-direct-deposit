@@ -36,6 +36,7 @@ interface IMetaMorpho is IERC4626 {
     function acceptCap(MarketParams memory marketParams) external;
     function reallocate(MarketAllocation[] calldata allocations) external;
 }
+
 struct MarketAllocation {
     MarketParams marketParams;
     uint256 assets;
@@ -49,23 +50,25 @@ contract MetaMorphoTest is IntegrationBaseTest {
     IMetaMorpho constant spDai = IMetaMorpho(0x73e65DBD630f90604062f6E02fAb9138e713edD9);
     address constant sUsde = 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
     IMorpho constant morpho = IMorpho(0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb);
+    address constant sUsdeDaiOracle = 0x5D916980D5Ae1737a8330Bf24dF812b2911Aae25;
+    address constant adaptiveCurveIRM = 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC;
     D3MOperatorPlan plan;
     D3M4626TypePool pool;
 
     // sUSDe/USDC (91.5%).
     MarketParams public marketParams = MarketParams({
         loanToken: 0x6B175474E89094C44Da98b954EedeAC495271d0F,
-        collateralToken: 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497,
-        oracle: 0x5D916980D5Ae1737a8330Bf24dF812b2911Aae25,
-        irm: 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC,
+        collateralToken: sUsde,
+        oracle: sUsdeDaiOracle,
+        irm: adaptiveCurveIRM,
         lltv: 915000000000000000
     });
     // sUSDe/USDC (94.5%).
     MarketParams public marketParamsHighLltv = MarketParams({
         loanToken: 0x6B175474E89094C44Da98b954EedeAC495271d0F,
-        collateralToken: 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497,
-        oracle: 0x5D916980D5Ae1737a8330Bf24dF812b2911Aae25,
-        irm: 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC,
+        collateralToken: sUsde,
+        oracle: sUsdeDaiOracle,
+        irm: adaptiveCurveIRM,
         lltv: 945000000000000000
     });
 
@@ -111,7 +114,7 @@ contract MetaMorphoTest is IntegrationBaseTest {
         morpho.supplyCollateral(marketParams, startingAmount * 10000, address(this), "");
 
         assertTrue(spDai.config(marketParams.id()).enabled, "low market is not enabled");
-        // assertTrue(spDai.config(marketParamsHighLltv.id()).enabled, "high market is not enabled");
+        assertTrue(spDai.config(marketParamsHighLltv.id()).enabled, "high market is not enabled");
 
         // Set sUSDe/USDC (91.5%) in the supply queue.
         Id[] memory newSupplyQueue = new Id[](1);
@@ -201,16 +204,18 @@ contract MetaMorphoTest is IntegrationBaseTest {
 
         (,,, uint256 line,) = VatAbstract(vat).ilks(ilk);
         uint256 depositedAssets = min(d3mDeposit, line * 1e18 / 1e45);
-        
+
         assertEq(plan.targetAssets(), d3mDeposit);
-        
+
         assertEq(morpho.market(marketParams.id()).totalSupplyAssets, marketSupplyBefore + depositedAssets);
-        
+
         assertEq(spDai.balanceOf(address(pool)), depositedAssets);
         assertEq(spDai.totalSupply(), spDaiTotalSupplyBefore + depositedAssets);
-        assertEq(spDai.totalAssets(), spDaiTotalAssetsBefore + morpho.expectedSupplyAssets(marketParams, address(spDai)));
+        assertEq(
+            spDai.totalAssets(), spDaiTotalAssetsBefore + morpho.expectedSupplyAssets(marketParams, address(spDai))
+        );
         assertEq(spDai.maxDeposit(address(pool)), spDaiMaxDepositBefore - depositedAssets);
-        
+
         assertEq(dai.balanceOf(address(morpho)), morphoBalanceBefore + depositedAssets);
         assertEq(dai.totalSupply(), daiTotalSupplyBefore + depositedAssets);
     }
@@ -219,7 +224,7 @@ contract MetaMorphoTest is IntegrationBaseTest {
         uint256 marketSupplyBefore = morpho.market(marketParams.id()).totalSupplyAssets;
 
         setCap(marketParams, cap);
-        
+
         // Set target assets at `d3mDeposit` and exec.
         vm.prank(operator);
         plan.setTargetAssets(d3mDeposit);
@@ -227,7 +232,7 @@ contract MetaMorphoTest is IntegrationBaseTest {
 
         (,,, uint256 line,) = VatAbstract(vat).ilks(ilk);
         uint256 depositedAssets = min(d3mDeposit, min(line * 1e18 / 1e45, cap));
-        
+
         assertEq(morpho.market(marketParams.id()).totalSupplyAssets, marketSupplyBefore + depositedAssets);
     }
 
@@ -245,7 +250,7 @@ contract MetaMorphoTest is IntegrationBaseTest {
         morpho.accrueInterest(marketParamsHighLltv);
         uint256 lowSupplyBefore = morpho.market(marketParams.id()).totalSupplyAssets;
         uint256 highSupplyBefore = morpho.market(marketParamsHighLltv.id()).totalSupplyAssets;
-        
+
         // Set target assets at `d3mDeposit` and exec.
         vm.prank(operator);
         plan.setTargetAssets(d3mDeposit);
@@ -259,14 +264,14 @@ contract MetaMorphoTest is IntegrationBaseTest {
 
         uint256 expectedDepositedInLow = min(depositedAssets, capLow);
         uint256 expectedDepositedInHigh = UtilsLib.zeroFloorSub(depositedAssets, capLow);
-        
+
         assertEq(lowSupplyAfter, lowSupplyBefore + expectedDepositedInLow, "lowSupplyAfter");
         assertEq(highSupplyAfter, highSupplyBefore + expectedDepositedInHigh, "highSupplyAfter");
     }
 
     function testReallocate(int256 d3mDeposit, uint256 reallocation) public {
         d3mDeposit = bound(d3mDeposit, 0, type(int256).max);
-        
+
         setCap(marketParamsHighLltv, type(uint184).max);
 
         adjustDebt(d3mDeposit);
@@ -295,16 +300,16 @@ contract MetaMorphoTest is IntegrationBaseTest {
 
     function testWithdrawLiquid(uint256 target1, uint256 target2) public {
         uint256 marketSupplyStart = morpho.market(marketParams.id()).totalSupplyAssets;
-        
+
         (,,, uint256 line,) = VatAbstract(vat).ilks(ilk);
         target1 = bound(target1, 0, uint256(type(int256).max));
-        
+
         adjustDebt(int256(target1));
-        
+
         target2 = bound(target2, 0, pool.assetBalance());
-        
+
         uint256 marketSupplyMiddle = morpho.market(marketParams.id()).totalSupplyAssets;
-        
+
         uint256 depositedAssets1 = min(target1, line * 1e18 / 1e45);
         uint256 expectedWithdraw = min(pool.maxWithdraw(), pool.assetBalance() - target2);
         uint256 depositedAssets2 = depositedAssets1 - expectedWithdraw;
@@ -315,7 +320,7 @@ contract MetaMorphoTest is IntegrationBaseTest {
         hub.exec(ilk);
 
         uint256 marketSupplyEnd = morpho.market(marketParams.id()).totalSupplyAssets;
-        
+
         assertGe(marketSupplyMiddle, marketSupplyStart);
         assertLe(marketSupplyEnd, marketSupplyMiddle);
         assertEq(marketSupplyEnd, marketSupplyMiddle - expectedWithdraw);
@@ -327,14 +332,14 @@ contract MetaMorphoTest is IntegrationBaseTest {
         uint256 marketBorrowStart = morpho.market(marketParams.id()).totalBorrowAssets;
         borrow = bound(borrow, 0, marketSupplyStart - marketBorrowStart);
         target1 = bound(target1, 0, uint256(type(int256).max));
-        
+
         adjustDebt(int256(target1));
         adjustLiquidity(-int256(borrow));
-        
+
         target2 = bound(target2, 0, pool.assetBalance());
-        
+
         uint256 marketSupplyMiddle = morpho.market(marketParams.id()).totalSupplyAssets;
-        
+
         (,,, uint256 line,) = VatAbstract(vat).ilks(ilk);
         uint256 depositedAssets1 = min(target1, line * 1e18 / 1e45);
         uint256 expectedWithdraw = min(pool.maxWithdraw(), pool.assetBalance() - target2);
@@ -346,7 +351,7 @@ contract MetaMorphoTest is IntegrationBaseTest {
         hub.exec(ilk);
 
         uint256 marketSupplyEnd = morpho.market(marketParams.id()).totalSupplyAssets;
-        
+
         assertGe(marketSupplyMiddle, marketSupplyStart);
         assertLe(marketSupplyEnd, marketSupplyMiddle);
         assertEq(marketSupplyEnd, marketSupplyMiddle - expectedWithdraw);
@@ -357,6 +362,7 @@ contract MetaMorphoTest is IntegrationBaseTest {
 function min(uint256 x, uint256 y) pure returns (uint256) {
     return x < y ? x : y;
 }
+
 function max(uint256 x, uint256 y) pure returns (uint256) {
     return x > y ? x : y;
 }
