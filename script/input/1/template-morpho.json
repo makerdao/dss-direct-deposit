@@ -5,9 +5,9 @@
     "planType": "operator",
     "ilk": "DIRECT-SPARK-MORPHO-DAI",
     "existingIlk": false,
-    "maxLine": 500000000,
-    "gap": 10000000,
-    "ttl": 21600,
+    "maxLine": 100000000,
+    "gap": 100000000,
+    "ttl": 86400,
     "tau": 604800,
     "vault": "0x73e65DBD630f90604062f6E02fAb9138e713edD9",
     "operator": "0x298b375f24CeDb45e936D7e21d6Eb05e344adFb5"
