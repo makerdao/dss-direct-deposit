@@ -167,6 +167,7 @@ contract MetaMorphoTest is IntegrationBaseTest {
     }
 
     // --- Helpers ---
+    /// @dev Warning: set cap make some time pass, so it can accrue some interest on the markets.
     function setCap(MarketParams memory mp, uint256 newCap) internal {
         uint256 previousCap = spDai.config(mp.id()).cap;
         if (previousCap != newCap) {
@@ -228,6 +229,74 @@ contract MetaMorphoTest is IntegrationBaseTest {
         uint256 depositedAssets = min(d3mDeposit, min(line * 1e18 / 1e45, cap));
         
         assertEq(morpho.market(marketParams.id()).totalSupplyAssets, marketSupplyBefore + depositedAssets);
+    }
+
+    function testDepositInTwoMarkets(uint184 capLow, uint256 d3mDeposit) public {
+        vm.assume(capLow > 0);
+        (,,, uint256 line,) = VatAbstract(vat).ilks(ilk);
+        vm.assume(d3mDeposit < line * 1e18 / 1e45);
+        
+        setCap(marketParams, capLow);
+        setCap(marketParamsHighLltv, type(uint184).max);
+        Id[] memory newSupplyQueue = new Id[](2);
+        newSupplyQueue[0] = marketParams.id();
+        newSupplyQueue[1] = marketParamsHighLltv.id();
+        vm.prank(spDai.owner());
+        spDai.setSupplyQueue(newSupplyQueue);
+
+        morpho.accrueInterest(marketParams);
+        morpho.accrueInterest(marketParamsHighLltv);
+        uint256 daiTotalSupplyBefore = dai.totalSupply();
+        uint256 morphoBalanceBefore = dai.balanceOf(address(morpho));
+        uint256 lowSupplyBefore = morpho.market(marketParams.id()).totalSupplyAssets;
+        uint256 highSupplyBefore = morpho.market(marketParamsHighLltv.id()).totalSupplyAssets;
+        
+        // Set target assets at `d3mDeposit` and exec.
+        vm.prank(operator);
+        plan.setTargetAssets(d3mDeposit);
+        hub.exec(ilk);
+
+        uint256 lowSupplyAfter = morpho.market(marketParams.id()).totalSupplyAssets;
+        uint256 highSupplyAfter = morpho.market(marketParamsHighLltv.id()).totalSupplyAssets;
+        uint256 daiTotalSupplyAfter = dai.totalSupply();
+        uint256 morphoBalanceAfter = dai.balanceOf(address(morpho));
+
+        uint256 expectedDepositedInLow = min(d3mDeposit, capLow);
+        uint256 expectedDepositedInHigh = UtilsLib.zeroFloorSub(d3mDeposit, capLow);
+        
+        assertEq(lowSupplyAfter, lowSupplyBefore + expectedDepositedInLow, "lowSupplyAfter");
+        assertEq(daiTotalSupplyAfter, daiTotalSupplyBefore + d3mDeposit, "daiTotalSupply");
+        assertEq(morphoBalanceAfter, morphoBalanceBefore + d3mDeposit, "morphoBalance");
+        assertEq(highSupplyAfter, highSupplyBefore + expectedDepositedInHigh, "highSupplyAfter");
+    }
+
+    function testReallocate(uint256 d3mDeposit, uint256 reallocation) public {
+        vm.assume(d3mDeposit < uint256(type(int256).max));
+        
+        setCap(marketParamsHighLltv, type(uint184).max);
+
+        adjustDebt(int256(d3mDeposit));
+
+        uint256 vaultSupplyAssets = morpho.expectedSupplyAssets(marketParams, address(spDai));
+        vm.assume(reallocation <= vaultSupplyAssets);
+
+        morpho.accrueInterest(marketParams);
+        morpho.accrueInterest(marketParamsHighLltv);
+        uint256 lowSupplyBefore = morpho.market(marketParams.id()).totalSupplyAssets;
+        uint256 highSupplyBefore = morpho.market(marketParamsHighLltv.id()).totalSupplyAssets;
+
+        // Reallocate from low to high lltv.
+        MarketAllocation[] memory allocations = new MarketAllocation[](2);
+        allocations[0] = MarketAllocation({marketParams: marketParams, assets: vaultSupplyAssets - reallocation});
+        allocations[1] = MarketAllocation({marketParams: marketParamsHighLltv, assets: type(uint256).max});
+        vm.prank(IMetaMorpho(spDai).owner());
+        spDai.reallocate(allocations);
+
+        uint256 lowSupplyAfter = morpho.market(marketParams.id()).totalSupplyAssets;
+        uint256 highSupplyAfter = morpho.market(marketParamsHighLltv.id()).totalSupplyAssets;
+
+        assertEq(lowSupplyAfter, lowSupplyBefore - reallocation);
+        assertEq(highSupplyAfter, highSupplyBefore + reallocation);
     }
 
     function testWithdrawLiquid(uint256 target1, uint256 target2) public {
