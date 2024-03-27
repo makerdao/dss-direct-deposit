@@ -1,0 +1,14 @@
+{
+    "chainlog": "0xdA0Ab1e0017DEbCd72Be8599041a2aa3bA7e740F",
+    "admin": "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB",
+    "poolType": "erc4626",
+    "planType": "operator",
+    "ilk": "DIRECT-SPARK-MORPHO-DAI",
+    "existingIlk": false,
+    "maxLine": 100000000,
+    "gap": 100000000,
+    "ttl": 86400,
+    "tau": 604800,
+    "vault": "0x73e65DBD630f90604062f6E02fAb9138e713edD9",
+    "operator": "0x298b375f24CeDb45e936D7e21d6Eb05e344adFb5"
+}

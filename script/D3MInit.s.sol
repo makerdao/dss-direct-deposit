@@ -35,6 +35,10 @@ import {
     D3MAaveBufferPlanConfig,
     D3MCompoundPoolLike,
     D3MCompoundRateTargetPlanLike,
+    D3M4626PoolLike,
+    D3M4626PoolConfig,
+    D3MOperatorPlanLike,
+    D3MOperatorPlanConfig,
     CDaiLike
 } from "../src/deploy/D3MInit.sol";
 
@@ -119,6 +123,16 @@ contract D3MInitScript is Script {
                 cfg,
                 compoundCfg
             );
+        } else if (poolType.eq("erc4626")) {
+            D3M4626PoolConfig memory erc4626Cfg = D3M4626PoolConfig({
+                vault: D3M4626PoolLike(d3m.pool).vault()
+            });
+            D3MInit.init4626Pool(
+                dss,
+                d3m,
+                cfg,
+                erc4626Cfg
+            );
         } else {
             revert("Unknown pool type");
         }
@@ -165,6 +179,14 @@ contract D3MInitScript is Script {
             } else {
                 revert("Invalid pool type for liquidity buffer plan type");
             }
+        } else if (planType.eq("operator")) {
+            D3MOperatorPlanConfig memory operatorCfg = D3MOperatorPlanConfig({
+                operator: config.readAddress(".operator")
+            });
+            D3MInit.initOperatorPlan(
+                d3m,
+                operatorCfg
+            );
         } else {
             revert("Unknown plan type");
         }
