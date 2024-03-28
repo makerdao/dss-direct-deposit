@@ -18,13 +18,63 @@ pragma solidity ^0.8.14;
 
 import "forge-std/Test.sol";
 import "./IntegrationBase.t.sol";
-import "morpho-blue/src/interfaces/IMorpho.sol";
-import "morpho-blue/src/libraries/MarketParamsLib.sol";
-import "morpho-blue/src/libraries/periphery/MorphoBalancesLib.sol";
-import "metamorpho/libraries/PendingLib.sol";
 import "forge-std/interfaces/IERC4626.sol";
 
-// Versioning issues with import, so it's inline
+type Id is bytes32;
+
+struct MarketParams {
+    address loanToken;
+    address collateralToken;
+    address oracle;
+    address irm;
+    uint256 lltv;
+}
+
+struct Position {
+    uint256 supplyShares;
+    uint128 borrowShares;
+    uint128 collateral;
+}
+
+struct Market {
+    uint128 totalSupplyAssets;
+    uint128 totalSupplyShares;
+    uint128 totalBorrowAssets;
+    uint128 totalBorrowShares;
+    uint128 lastUpdate;
+    uint128 fee;
+}
+
+interface IMorpho {
+    function supply(
+        MarketParams memory marketParams,
+        uint256 assets,
+        uint256 shares,
+        address onBehalf,
+        bytes memory data
+    ) external returns (uint256 assetsSupplied, uint256 sharesSupplied);
+    function borrow(
+        MarketParams memory marketParams,
+        uint256 assets,
+        uint256 shares,
+        address onBehalf,
+        address receiver
+    ) external returns (uint256 assetsBorrowed, uint256 sharesBorrowed);
+    function supplyCollateral(MarketParams memory marketParams, uint256 assets, address onBehalf, bytes memory data)
+        external;
+    function accrueInterest(MarketParams memory marketParams) external;
+    function extSloads(bytes32[] memory slots) external view returns (bytes32[] memory);
+    function position(Id id, address user) external view returns (Position memory p);
+    function market(Id id) external view returns (Market memory m);
+    function idToMarketParams(Id id) external view returns (MarketParams memory);
+}
+
+struct MarketConfig {
+    uint184 cap;
+    bool enabled;
+    uint64 removableAt;
+}
+
 interface IMetaMorpho is IERC4626 {
     function owner() external view returns (address);
     function timelock() external view returns (uint256);
@@ -43,9 +93,7 @@ struct MarketAllocation {
 }
 
 contract MetaMorphoTest is IntegrationBaseTest {
-    using UtilsLib for uint256;
-    using MorphoBalancesLib for IMorpho;
-    using MarketParamsLib for MarketParams;
+    using {id} for MarketParams;
 
     IMetaMorpho constant spDai = IMetaMorpho(0x73e65DBD630f90604062f6E02fAb9138e713edD9);
     address constant sUsde = 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
@@ -189,6 +237,14 @@ contract MetaMorphoTest is IntegrationBaseTest {
         }
     }
 
+    function supplyAssets(MarketParams memory mp, address user) internal view returns (uint256) {
+        Id marketId = mp.id();
+        uint256 supplyShares = morpho.position(marketId, user).supplyShares;
+        uint256 totalSupplyAssets = morpho.market(marketId).totalSupplyAssets;
+        uint256 totalSupplyShares = morpho.market(marketId).totalSupplyShares;
+        return supplyShares * (totalSupplyAssets + 1) / (totalSupplyShares + 1e6);
+    }
+
     // --- Tests ---
     function testDepositInOneMarket() public {
         uint256 marketSupplyBefore = morpho.market(marketParams.id()).totalSupplyAssets;
@@ -213,9 +269,7 @@ contract MetaMorphoTest is IntegrationBaseTest {
 
         assertEq(spDai.balanceOf(address(pool)), 100_000_000e18);
         assertEq(spDai.totalSupply(), spDaiTotalSupplyBefore + 100_000_000e18);
-        assertEq(
-            spDai.totalAssets(), spDaiTotalAssetsBefore + morpho.expectedSupplyAssets(marketParams, address(spDai))
-        );
+        assertEq(spDai.totalAssets(), spDaiTotalAssetsBefore + supplyAssets(marketParams, address(spDai)));
         assertEq(spDai.maxDeposit(address(pool)), spDaiMaxDepositBefore - 100_000_000e18);
         assertEq(pool.assetBalance(), 100_000_000e18 - 1);
 
@@ -249,11 +303,9 @@ contract MetaMorphoTest is IntegrationBaseTest {
 
         assertEq(spDai.balanceOf(address(pool)), d3mDeposit);
         assertEq(spDai.totalSupply(), spDaiTotalSupplyBefore + d3mDeposit);
-        assertEq(
-            spDai.totalAssets(), spDaiTotalAssetsBefore + morpho.expectedSupplyAssets(marketParams, address(spDai))
-        );
+        assertEq(spDai.totalAssets(), spDaiTotalAssetsBefore + supplyAssets(marketParams, address(spDai)));
         assertEq(spDai.maxDeposit(address(pool)), spDaiMaxDepositBefore - d3mDeposit);
-        assertEq(pool.assetBalance(), UtilsLib.zeroFloorSub(d3mDeposit, 1));
+        assertEq(pool.assetBalance(), zeroFloorSub(d3mDeposit, 1));
 
         assertEq(dai.balanceOf(address(morpho)), morphoBalanceBefore + d3mDeposit);
         assertEq(dai.totalSupply(), daiTotalSupplyBefore + d3mDeposit);
@@ -285,11 +337,9 @@ contract MetaMorphoTest is IntegrationBaseTest {
 
         assertEq(spDai.balanceOf(address(pool)), maxLineScaled);
         assertEq(spDai.totalSupply(), spDaiTotalSupplyBefore + maxLineScaled);
-        assertEq(
-            spDai.totalAssets(), spDaiTotalAssetsBefore + morpho.expectedSupplyAssets(marketParams, address(spDai))
-        );
+        assertEq(spDai.totalAssets(), spDaiTotalAssetsBefore + supplyAssets(marketParams, address(spDai)));
         assertEq(spDai.maxDeposit(address(pool)), spDaiMaxDepositBefore - maxLineScaled);
-        assertEq(pool.assetBalance(), UtilsLib.zeroFloorSub(maxLineScaled, 1));
+        assertEq(pool.assetBalance(), zeroFloorSub(maxLineScaled, 1));
 
         assertEq(dai.balanceOf(address(morpho)), morphoBalanceBefore + maxLineScaled);
         assertEq(dai.totalSupply(), daiTotalSupplyBefore + maxLineScaled);
@@ -477,4 +527,12 @@ contract MetaMorphoTest is IntegrationBaseTest {
 
 function min(uint256 x, uint256 y) pure returns (uint256) {
     return x < y ? x : y;
+}
+
+function zeroFloorSub(uint256 x, uint256 y) pure returns (uint256) {
+    return x > y ? x - y : 0;
+}
+
+function id(MarketParams memory marketParams) pure returns (Id) {
+    return Id.wrap(keccak256(abi.encode(marketParams)));
 }
