@@ -18,6 +18,9 @@ pragma solidity ^0.8.14;
 
 import "./IntegrationBase.t.sol";
 
+import { NstDeploy, NstInstance } from "nst/deploy/NstDeploy.sol";
+import { NstInit } from "nst/deploy/NstInit.sol";
+
 import { D3MOperatorPlan } from "../../plans/D3MOperatorPlan.sol";
 import { D3MAaveV3NSTNoSupplyCapTypePool } from "../../pools/D3MAaveV3NSTNoSupplyCapTypePool.sol";
 
@@ -64,6 +67,32 @@ interface PoolLike {
     function withdraw(address asset, uint256 amount, address to) external;
 }
 
+interface PoolConfiguratorLike {
+
+    struct InitReserveInput {
+        address aTokenImpl;
+        address stableDebtTokenImpl;
+        address variableDebtTokenImpl;
+        bool useVirtualBalance;
+        address interestRateStrategyAddress;
+        address underlyingAsset;
+        address treasury;
+        address incentivesController;
+        string aTokenName;
+        string aTokenSymbol;
+        string variableDebtTokenName;
+        string variableDebtTokenSymbol;
+        string stableDebtTokenName;
+        string stableDebtTokenSymbol;
+        bytes params;
+        bytes interestRateData;
+    }
+
+    function initReserves(
+        InitReserveInput[] calldata input
+    ) external;
+}
+
 contract AaveV3LidoTest is IntegrationBaseTest {
 
     using stdJson for string;
@@ -71,9 +100,15 @@ contract AaveV3LidoTest is IntegrationBaseTest {
     using GodMode for *;
     using ScriptTools for *;
 
-    address OPEREATOR = 0x298b375f24CeDb45e936D7e21d6Eb05e344adFb5;  // Gov. facilitator multisig
+    address constant AAVE_POOL = 0x4e033931ad43597d96D6bcc25c280717730B58B1;
+    address constant AAVE_CONFIGURATOR = 0x342631c6CeFC9cfbf97b2fe4aa242a236e1fd517;
+    address constant OPERATOR = 0x298b375f24CeDb45e936D7e21d6Eb05e344adFb5;  // Gov. facilitator multisig
 
-    PoolLike aavePool;
+    PoolLike aavePool = PoolLike(AAVE_POOL);
+    PoolConfiguratorLike aaveConfigurator = PoolConfiguratorLike(AAVE_CONFIGURATOR);
+    NstInstance nstInstance;
+
+    IERC20 nst;
 
     D3MOperatorPlan plan;
     D3MAaveV3NSTNoSupplyCapTypePool pool;
@@ -84,9 +119,13 @@ contract AaveV3LidoTest is IntegrationBaseTest {
         vm.createSelectFork(vm.envString("ETH_RPC_URL"), 20469508);  // Aug 6, 2024
 
         // Setup NST
-        
+        NstInstance nstInstance = NstDeploy.deployNst(address(this), admin, dss.daiJoin);
+        nst = IERC20(nstInstance.nst);
+        vm.prank(admin);
+        NstInit.init(dss, nstInstance);
 
-        aavePool = PoolLike(0x4e033931ad43597d96D6bcc25c280717730B58B1);
+        // Add NST as a reserve to the Aave Lido pool
+
 
         // Deploy
         d3m.oracle = D3MDeploy.deployOracle(
@@ -129,13 +168,15 @@ contract AaveV3LidoTest is IntegrationBaseTest {
             d3m,
             cfg
         );
-        D3MInit.initAavePool(
+        D3MInit.initAaveNSTPool(
             dss,
             d3m,
             cfg,
-            D3MAavePoolConfig({
+            D3MAaveNSTPoolConfig({
                 king: admin,
-                adai: address(pool.adai()),
+                anst: address(pool.anst()),
+                nstJoin: nstInstance.nstJoin,
+                nst: nstInstance.nst,
                 stableDebt: address(pool.stableDebt()),
                 variableDebt: address(pool.variableDebt())
             })
@@ -143,7 +184,7 @@ contract AaveV3LidoTest is IntegrationBaseTest {
         D3MInit.initOperatorPlan(
             d3m,
             D3MOperatorPlanConfig({
-                operator: OPEREATOR
+                operator: OPERATOR
             })
         );
 
@@ -156,14 +197,11 @@ contract AaveV3LidoTest is IntegrationBaseTest {
         uint256 amt = 1_000_000 * WAD;
         DSTokenAbstract weth = DSTokenAbstract(dss.getIlk("ETH", "A").gem);
         weth.setBalance(address(this), amt);
-        weth.approve(address(sparkPool), type(uint256).max);
-        dai.approve(address(sparkPool), type(uint256).max);
-        sparkPool.supply(address(weth), amt, address(this), 0);
+        weth.approve(address(aavePool), type(uint256).max);
+        dai.approve(address(aavePool), type(uint256).max);
+        aavePool.supply(address(weth), amt, address(this), 0);
 
         assertGt(getDebtCeiling(), 0);
-
-        // Recompute the dai interest rate strategy to ensure the new line is taken into account
-        daiInterestRateStrategy.recompute();
 
         basePostSetup();
     }
@@ -172,8 +210,9 @@ contract AaveV3LidoTest is IntegrationBaseTest {
     function adjustDebt(int256 deltaAmount) internal override {
         if (deltaAmount == 0) return;
 
-        int256 newBuffer = int256(plan.buffer()) + deltaAmount;
-        vm.prank(admin); plan.file("buffer", newBuffer >= 0 ? uint256(newBuffer) : 0);
+        int256 newTargetAssets = int256(plan.targetAssets()) + deltaAmount;
+        vm.prank(operator);
+        plan.setTargetAssets(newTargetAssets >= 0 ? uint256(newTargetAssets) : 0);
         hub.exec(ilk);
     }
 
@@ -183,27 +222,26 @@ contract AaveV3LidoTest is IntegrationBaseTest {
         if (deltaAmount > 0) {
             // Supply to increase liquidity
             uint256 amt = uint256(deltaAmount);
-            dai.setBalance(address(this), dai.balanceOf(address(this)) + amt);
-            sparkPool.supply(address(dai), amt, address(0), 0);
+            nst.setBalance(address(this), nst.balanceOf(address(this)) + amt);
+            aavePool.supply(address(nst), amt, address(0), 0);
         } else {
             // Borrow to decrease liquidity
             uint256 amt = uint256(-deltaAmount);
-            sparkPool.borrow(address(dai), amt, 2, 0, address(this));
+            aavePool.borrow(address(nst), amt, 2, 0, address(this));
         }
     }
 
     function generateInterest() internal override {
         // Generate interest by borrowing and repaying
-        uint256 performanceBonus = daiInterestRateStrategy.performanceBonus();
-        sparkPool.supply(address(dai), performanceBonus * 4, address(this), 0);
-        sparkPool.borrow(address(dai), performanceBonus * 2, 2, 0, address(this));
+        aavePool.supply(address(nst), 10_000_000e18, address(this), 0);
+        aavePool.borrow(address(nst), 5_000_000e18, 2, 0, address(this));
         vm.warp(block.timestamp + 1 days);
-        sparkPool.repay(address(dai), performanceBonus * 2, 2, address(this));
-        sparkPool.withdraw(address(dai), performanceBonus * 4, address(this));
+        aavePool.repay(address(nst), 5_000_000e18, 2, address(this));
+        aavePool.withdraw(address(nst), 10_000_000e18, address(this));
     }
 
     function getLiquidity() internal override view returns (uint256) {
-        return dai.balanceOf(address(adai));
+        return nst.balanceOf(address(anst));
     }
 
     // --- Helper functions ---
@@ -217,50 +255,6 @@ contract AaveV3LidoTest is IntegrationBaseTest {
         return art;
     }
 
-    function _divup(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        unchecked {
-            z = x != 0 ? ((x - 1) / y) + 1 : 0;
-        }
-    }
-
-    function getInterestRateStrategy(address asset) internal view returns (address) {
-        PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
-        return data.interestRateStrategyAddress;
-    }
-
-    function forceUpdateIndicies(address asset) internal {
-        // Do the flashloan trick to force update indicies
-        sparkPool.flashLoanSimple(address(this), asset, 1, "", 0);
-    }
-
-    function executeOperation(
-        address,
-        uint256,
-        uint256,
-        address,
-        bytes calldata
-    ) external pure returns (bool) {
-        // Flashloan callback just immediately returns
-        return true;
-    }
-
-    function getTotalAssets(address asset) internal view returns (uint256) {
-        // Assets = DAI Liquidity + Total Debt
-        PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
-        return dai.balanceOf(address(adai)) + ATokenLike(data.variableDebtTokenAddress).totalSupply() + ATokenLike(data.stableDebtTokenAddress).totalSupply();
-    }
-
-    function getTotalLiabilities(address asset) internal view returns (uint256) {
-        // Liabilities = spDAI Supply + Amount Accrued to Treasury
-        PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
-        return _divup((adai.scaledTotalSupply() + uint256(data.accruedToTreasury)) * data.liquidityIndex, RAY);
-    }
-
-    function getAccruedToTreasury(address asset) internal view returns (uint256) {
-        PoolLike.ReserveData memory data = sparkPool.getReserveData(asset);
-        return data.accruedToTreasury;
-    }
-
     // --- Tests ---
     function test_simple_wind_unwind() public {
         setLiquidityToZero();
@@ -271,129 +265,18 @@ contract AaveV3LidoTest is IntegrationBaseTest {
         assertEq(getDebt(), buffer, "should wind up to the buffer");
 
         // User borrows half the debt injected by the D3M
-        sparkPool.borrow(address(dai), buffer / 2, 2, 0, address(this));
+        aavePool.borrow(address(nst), buffer / 2, 2, 0, address(this));
         assertEq(getDebt(), buffer);
 
         hub.exec(ilk);
         assertEq(getDebt(), buffer + buffer / 2, "should have 1.5x the buffer in debt");
 
         // User repays half their debt
-        sparkPool.repay(address(dai), buffer / 4, 2, address(this));
+        aavePool.repay(address(nst), buffer / 4, 2, address(this));
         assertEq(getDebt(), buffer + buffer / 2);
 
         hub.exec(ilk);
         assertEq(getDebt(), buffer + buffer / 2 - buffer / 4, "should be back down to 1.25x the buffer");
     }
 
-    /**
-     * The DAI market is using a new interest model which over-allocates interest to the treasury.
-     * This is due to the reserve factor not being flexible enough to account for this.
-     * Confirm that we can later correct the discrepancy by donating the excess liabilities back to the DAI pool. (This can be automated later on)
-     */
-    function test_asset_liabilities_fix() public {
-        uint256 assets = getTotalAssets(address(dai));
-        uint256 liabilities = getTotalLiabilities(address(dai));
-        if (assets >= liabilities) {
-            // Force the assets to become less than the liabilities
-            uint256 performanceBonus = daiInterestRateStrategy.performanceBonus();
-            vm.prank(admin); plan.file("buffer", performanceBonus * 4);
-            hub.exec(ilk);
-            sparkPool.borrow(address(dai), performanceBonus * 2, 2, 0, address(this));  // Supply rate should now be above 0% (we are over-allocating)
-
-            // Warp so we gaurantee there is new interest
-            vm.warp(block.timestamp + 365 days);
-            forceUpdateIndicies(address(dai));
-
-            assets = getTotalAssets(address(dai));
-            liabilities = getTotalLiabilities(address(dai));
-            assertLe(assets, liabilities, "assets should be less than or equal to liabilities");
-        }
-
-        // Let's fix the accounting
-        uint256 delta = liabilities - assets;
-
-        // First trigger all spDAI owed to the treasury to be accrued
-        assertGt(getAccruedToTreasury(address(dai)), 0, "accrued to treasury should be greater than 0");
-        address[] memory toMint = new address[](1);
-        toMint[0] = address(dai);
-        sparkPool.mintToTreasury(toMint);
-        assertEq(getAccruedToTreasury(address(dai)), 0, "accrued to treasury should be 0");
-        assertGe(adai.balanceOf(address(treasury)), delta, "adai treasury should have more than the delta between liabilities and assets");
-
-        // Donate the excess liabilities back to the pool
-        // This will burn the liabilities while keeping the assets the same
-        vm.prank(admin); treasuryAdmin.transfer(address(treasury), address(adai), address(this), delta);
-        sparkPool.withdraw(address(dai), delta, address(adai));
-
-        assets = getTotalAssets(address(dai)) + 1;  // In case of rounding error we +1
-        liabilities = getTotalLiabilities(address(dai));
-        assertGe(assets, liabilities, "assets should be greater than or equal to liabilities");
-    }
-
-    function test_asset_liabilities_fix_full_utilization_flashloan() public {
-        uint256 assets = getTotalAssets(address(dai));
-        uint256 liabilities = getTotalLiabilities(address(dai));
-        if (assets >= liabilities) {
-            // Force the assets to become less than the liabilities
-            uint256 performanceBonus = daiInterestRateStrategy.performanceBonus();
-            vm.prank(admin); plan.file("buffer", performanceBonus * 4);
-            hub.exec(ilk);
-            sparkPool.borrow(address(dai), performanceBonus * 2, 2, 0, address(this));  // Supply rate should now be above 0% (we are over-allocating)
-
-            // Warp so we gaurantee there is new interest
-            vm.warp(block.timestamp + 365 days);
-            forceUpdateIndicies(address(dai));
-
-            assets = getTotalAssets(address(dai));
-            liabilities = getTotalLiabilities(address(dai));
-            assertLe(assets, liabilities, "assets should be less than or equal to liabilities");
-        }
-
-        // Let's fix the accounting
-        uint256 delta = liabilities - assets;
-
-        // First trigger all spDAI owed to the treasury to be accrued
-        assertGt(getAccruedToTreasury(address(dai)), 0, "accrued to treasury should be greater than 0");
-        address[] memory toMint = new address[](1);
-        toMint[0] = address(dai);
-        sparkPool.mintToTreasury(toMint);
-        assertEq(getAccruedToTreasury(address(dai)), 0, "accrued to treasury should be 0");
-        assertGe(adai.balanceOf(address(treasury)), delta, "adai treasury should have more than the delta between liabilities and assets");
-
-        // Donate the excess liabilities back to the pool
-        // This will burn the liabilities while keeping the assets the same
-        vm.prank(admin); treasuryAdmin.transfer(address(treasury), address(adai), address(this), delta);
-
-        // Remove all DAI liquidity from the pool
-        sparkPool.borrow(address(dai), dai.balanceOf(address(adai)), 2, 0, address(this));
-        assertEq(dai.balanceOf(address(adai)), 0);
-        dai.setBalance(address(this), 0);       // We have no DAI as well
-
-        // Withdrawing won't work because no available DAI
-        vm.expectRevert();
-        sparkPool.withdraw(address(dai), delta, address(adai));
-
-        // Flash loan to close out the liabilities
-        flashLender.flashLoan(this, address(dai), delta, "");
-
-        assets = getTotalAssets(address(dai)) + 1;  // In case of rounding error we +1
-        liabilities = getTotalLiabilities(address(dai));
-        assertGe(assets, liabilities, "assets should be greater than or equal to liabilities");
-    }
-
-    function onFlashLoan(
-        address,
-        address token,
-        uint256 amount,
-        uint256 fee,
-        bytes calldata
-    ) external returns (bytes32) {
-        sparkPool.supply(address(dai), amount, address(this), 0);
-        sparkPool.withdraw(address(dai), amount, address(adai));
-        sparkPool.withdraw(address(dai), amount, address(this));
-
-        ATokenLike(token).approve(address(msg.sender), amount + fee);
-
-        return keccak256("ERC3156FlashBorrower.onFlashLoan");
-    }
 }
