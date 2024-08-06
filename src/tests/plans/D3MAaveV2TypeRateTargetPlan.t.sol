@@ -47,7 +47,7 @@ contract D3MAaveV2TypeRateTargetPlanWrapper is D3MAaveV2TypeRateTargetPlan {
     }
 }
 
-contract D3MAaveV2TypeRateTargetPlanTest is D3MPlanBaseTest {
+abstract contract D3MAaveV2TypeRateTargetPlanTest is D3MPlanBaseTest {
 
     DaiAbstract dai;
     LendingPoolLike aavePool;

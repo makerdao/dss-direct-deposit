@@ -70,7 +70,7 @@ interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
 }
 
-contract D3MAaveV2IntegrationTest is DssTest {
+abstract contract D3MAaveV2IntegrationTest is DssTest {
 
     using GodMode for *;
 
