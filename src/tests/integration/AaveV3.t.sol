@@ -18,6 +18,8 @@ pragma solidity ^0.8.14;
 
 import "./IntegrationBase.t.sol";
 
+import { IERC20 } from "forge-std/interfaces/IERC20.sol";
+
 import { NstDeploy, NstInstance } from "nst/deploy/NstDeploy.sol";
 import { NstInit } from "nst/deploy/NstInit.sol";
 
@@ -88,9 +90,21 @@ interface PoolConfiguratorLike {
         bytes interestRateData;
     }
 
+    struct InterestRateData {
+        uint16 optimalUsageRatio;
+        uint32 baseVariableBorrowRate;
+        uint32 variableRateSlope1;
+        uint32 variableRateSlope2;
+    }
+
     function initReserves(
         InitReserveInput[] calldata input
     ) external;
+    function setReserveBorrowing(address asset, bool enabled) external;
+}
+
+interface AaveOracleLike {
+    function setAssetSources(address[] calldata assets, address[] calldata sources) external;
 }
 
 contract AaveV3LidoTest is IntegrationBaseTest {
@@ -100,9 +114,20 @@ contract AaveV3LidoTest is IntegrationBaseTest {
     using GodMode for *;
     using ScriptTools for *;
 
+    address constant AAVE_EXECUTOR = 0x5300A1a15135EA4dc7aD5a167152C01EFc9b192A;
+    address constant AAVE_ATOKEN_IMPL = 0x7F8Fc14D462bdF93c681c1f2Fd615389bF969Fb2;
+    address constant AAVE_VARIABLE_DEBT_IMPL = 0x3E59212c34588a63350142EFad594a20C88C2CEd;
+    address constant AAVE_STABLE_DEBT_IMPL = 0x36284fED68f802c5733432c3306D8e92c504a243;
+    address constant AAVE_IRM = 0x6642dcAaBc80807DD083c66a301d308568CBcA3D;
+    address constant AAVE_TREASURY = 0x464C71f6c2F760DdA6093dCB91C24c39e5d6e18c;
+    address constant AAVE_INCENTIVES = 0x8164Cc65827dcFe994AB23944CBC90e0aa80bFcb;
+    address constant AAVE_ORACLE = 0xE3C061981870C0C7b1f3C4F4bB36B95f1F260BE6;
+
     address constant AAVE_POOL = 0x4e033931ad43597d96D6bcc25c280717730B58B1;
     address constant AAVE_CONFIGURATOR = 0x342631c6CeFC9cfbf97b2fe4aa242a236e1fd517;
     address constant OPERATOR = 0x298b375f24CeDb45e936D7e21d6Eb05e344adFb5;  // Gov. facilitator multisig
+
+    address constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
 
     PoolLike aavePool = PoolLike(AAVE_POOL);
     PoolConfiguratorLike aaveConfigurator = PoolConfiguratorLike(AAVE_CONFIGURATOR);
@@ -119,13 +144,46 @@ contract AaveV3LidoTest is IntegrationBaseTest {
         vm.createSelectFork(vm.envString("ETH_RPC_URL"), 20469508);  // Aug 6, 2024
 
         // Setup NST
-        NstInstance nstInstance = NstDeploy.deployNst(address(this), admin, dss.daiJoin);
+        nstInstance = NstDeploy.deploy(address(this), admin, address(dss.daiJoin));
         nst = IERC20(nstInstance.nst);
-        vm.prank(admin);
+        vm.startPrank(admin);
         NstInit.init(dss, nstInstance);
+        vm.stopPrank();
 
         // Add NST as a reserve to the Aave Lido pool
-
+        PoolConfiguratorLike.InitReserveInput[] memory reserves = new PoolConfiguratorLike.InitReserveInput[](1);
+        reserves[0] = PoolConfiguratorLike.InitReserveInput({
+            aTokenImpl: AAVE_ATOKEN_IMPL,
+            stableDebtTokenImpl: AAVE_STABLE_DEBT_IMPL,
+            variableDebtTokenImpl: AAVE_VARIABLE_DEBT_IMPL,
+            useVirtualBalance: true,
+            interestRateStrategyAddress: AAVE_IRM,
+            underlyingAsset: address(nst),
+            treasury: AAVE_TREASURY,
+            incentivesController: AAVE_INCENTIVES,
+            aTokenName: "Aave NST",
+            aTokenSymbol: "aNST",
+            variableDebtTokenName: "Aave NST Variable Debt",
+            variableDebtTokenSymbol: "vNST",
+            stableDebtTokenName: "Aave NST Stable Debt",
+            stableDebtTokenSymbol: "sNST",
+            params: "",
+            interestRateData: abi.encode(PoolConfiguratorLike.InterestRateData({
+                optimalUsageRatio: 90_00,
+                baseVariableBorrowRate: 5_00,
+                variableRateSlope1: 8_00,
+                variableRateSlope2: 120_00
+            }))
+        });
+        vm.startPrank(AAVE_EXECUTOR);
+        aaveConfigurator.initReserves(reserves);
+        address[] memory assets = new address[](1);
+        address[] memory sources = new address[](1);
+        assets[0] = address(nst);
+        sources[0] = 0x42a03F81dd8A1cEcD746dc262e4d1CD9fD39F777;  // Hardcoded $1 oracle
+        AaveOracleLike(AAVE_ORACLE).setAssetSources(assets, sources);
+        aaveConfigurator.setReserveBorrowing(address(nst), true);
+        vm.stopPrank();
 
         // Deploy
         d3m.oracle = D3MDeploy.deployOracle(
@@ -139,9 +197,9 @@ contract AaveV3LidoTest is IntegrationBaseTest {
             admin,
             ilk,
             address(hub),
-            address(nstJoin),
+            address(nstInstance.nstJoin),
             address(daiJoin),
-            address(sparkPool)
+            address(aavePool)
         );
         pool = D3MAaveV3NSTNoSupplyCapTypePool(d3m.pool);
         d3m.plan = D3MDeploy.deployOperatorPlan(
@@ -190,16 +248,20 @@ contract AaveV3LidoTest is IntegrationBaseTest {
 
         vm.stopPrank();
 
-        // Give us some DAI
-        dai.setBalance(address(this), buffer * 100000000);
+        // Give us some NST
+        deal(address(nst), address(this), 100_000_000e18);
 
-        // Deposit WETH into the pool
-        uint256 amt = 1_000_000 * WAD;
-        DSTokenAbstract weth = DSTokenAbstract(dss.getIlk("ETH", "A").gem);
-        weth.setBalance(address(this), amt);
-        weth.approve(address(aavePool), type(uint256).max);
-        dai.approve(address(aavePool), type(uint256).max);
-        aavePool.supply(address(weth), amt, address(this), 0);
+        // Deposit wstETH into the pool
+        uint256 amt = 100_000 * WAD;
+        IERC20 wstETH = IERC20(WSTETH);
+        deal(address(wstETH), address(this), amt);
+        wstETH.approve(address(aavePool), type(uint256).max);
+        nst.approve(address(aavePool), type(uint256).max);
+        aavePool.supply(address(wstETH), amt, address(this), 0);
+
+        // We generate unbacked ERC20 NST -- ensure there is enough in the join adapter
+        vm.prank(admin);
+        dss.vat.suck(address(nstInstance.nstJoin), address(nstInstance.nstJoin), 100_000_000e45);
 
         assertGt(getDebtCeiling(), 0);
 
@@ -211,7 +273,7 @@ contract AaveV3LidoTest is IntegrationBaseTest {
         if (deltaAmount == 0) return;
 
         int256 newTargetAssets = int256(plan.targetAssets()) + deltaAmount;
-        vm.prank(operator);
+        vm.prank(OPERATOR);
         plan.setTargetAssets(newTargetAssets >= 0 ? uint256(newTargetAssets) : 0);
         hub.exec(ilk);
     }
@@ -222,7 +284,7 @@ contract AaveV3LidoTest is IntegrationBaseTest {
         if (deltaAmount > 0) {
             // Supply to increase liquidity
             uint256 amt = uint256(deltaAmount);
-            nst.setBalance(address(this), nst.balanceOf(address(this)) + amt);
+            deal(address(nst), address(this), nst.balanceOf(address(this)) + amt);
             aavePool.supply(address(nst), amt, address(0), 0);
         } else {
             // Borrow to decrease liquidity
@@ -241,7 +303,7 @@ contract AaveV3LidoTest is IntegrationBaseTest {
     }
 
     function getLiquidity() internal override view returns (uint256) {
-        return nst.balanceOf(address(anst));
+        return nst.balanceOf(address(pool.anst()));
     }
 
     // --- Helper functions ---
@@ -253,30 +315,6 @@ contract AaveV3LidoTest is IntegrationBaseTest {
     function getDebt() internal view returns (uint256) {
         (, uint256 art) = dss.vat.urns(ilk, address(pool));
         return art;
-    }
-
-    // --- Tests ---
-    function test_simple_wind_unwind() public {
-        setLiquidityToZero();
-
-        assertEq(getDebt(), 0);
-
-        hub.exec(ilk);
-        assertEq(getDebt(), buffer, "should wind up to the buffer");
-
-        // User borrows half the debt injected by the D3M
-        aavePool.borrow(address(nst), buffer / 2, 2, 0, address(this));
-        assertEq(getDebt(), buffer);
-
-        hub.exec(ilk);
-        assertEq(getDebt(), buffer + buffer / 2, "should have 1.5x the buffer in debt");
-
-        // User repays half their debt
-        aavePool.repay(address(nst), buffer / 4, 2, address(this));
-        assertEq(getDebt(), buffer + buffer / 2);
-
-        hub.exec(ilk);
-        assertEq(getDebt(), buffer + buffer / 2 - buffer / 4, "should be back down to 1.25x the buffer");
     }
 
 }

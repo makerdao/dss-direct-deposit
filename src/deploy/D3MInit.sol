@@ -304,7 +304,7 @@ library D3MInit {
         D3MCommonConfig memory cfg,
         D3MAaveNSTPoolConfig memory aaveCfg
     ) internal {
-        D3MAavePoolLike pool = D3MAavePoolLike(d3m.pool);
+        D3MAaveNSTPoolLike pool = D3MAaveNSTPoolLike(d3m.pool);
 
         // Sanity checks
         require(pool.hub() == cfg.hub, "Pool hub mismatch");
