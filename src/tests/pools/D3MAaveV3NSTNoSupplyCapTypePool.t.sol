@@ -256,6 +256,29 @@ contract D3MAaveV3NSTNoSupplyCapTypePoolTest is D3MPoolBaseTest {
         assertEq(code, 0);
     }
 
+    function test_withdraw_calls_lending_pool_withdraw() public {
+        // make sure we have Nst to withdraw
+        TokenMock(address(nst)).mint(address(aavePool), 1);
+
+        vm.prank(address(hub)); pool.withdraw(1);
+        (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
+        assertEq(asset, address(nst));
+        assertEq(amt, 1);
+        assertEq(dst, address(pool));
+    }
+
+    function test_withdraw_calls_lending_pool_withdraw_vat_caged() public {
+        // make sure we have Nst to withdraw
+        TokenMock(address(nst)).mint(address(aavePool), 1);
+
+        vat.cage();
+        vm.prank(address(hub)); pool.withdraw(1);
+        (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
+        assertEq(asset, address(nst));
+        assertEq(amt, 1);
+        assertEq(dst, address(pool));
+    }
+
     function test_collect_claims_for_king() public {
         address king = address(123);
         address rewardsClaimer = anst.getIncentivesController();
