@@ -95,12 +95,12 @@ interface RewardsClaimerLike {
 
 interface JoinLike {
     function dai() external view returns (address);
-    function nst() external view returns (address);
+    function usds() external view returns (address);
     function join(address, uint256) external;
     function exit(address, uint256) external;
 }
 
-contract D3MAaveV3NSTNoSupplyCapTypePool is ID3MPool {
+contract D3MAaveV3USDSNoSupplyCapTypePool is ID3MPool {
 
     mapping (address => uint256) public wards;
     address                      public hub;
@@ -112,9 +112,9 @@ contract D3MAaveV3NSTNoSupplyCapTypePool is ID3MPool {
     PoolLike   public immutable pool;
     ATokenLike public immutable stableDebt;
     ATokenLike public immutable variableDebt;
-    ATokenLike public immutable anst;
-    JoinLike   public immutable nstJoin;
-    TokenLike  public immutable nst; // Asset
+    ATokenLike public immutable ausds;
+    JoinLike   public immutable usdsJoin;
+    TokenLike  public immutable usds; // Asset
     JoinLike   public immutable daiJoin;
     TokenLike  public immutable dai;
 
@@ -124,21 +124,21 @@ contract D3MAaveV3NSTNoSupplyCapTypePool is ID3MPool {
     event File(bytes32 indexed what, address data);
     event Collect(address indexed king, address indexed gift, uint256 amt);
 
-    constructor(bytes32 ilk_, address hub_, address nstJoin_, address daiJoin_, address pool_) {
+    constructor(bytes32 ilk_, address hub_, address usdsJoin_, address daiJoin_, address pool_) {
         ilk = ilk_;
-        nstJoin = JoinLike(nstJoin_);
-        nst = TokenLike(nstJoin.nst());
+        usdsJoin = JoinLike(usdsJoin_);
+        usds = TokenLike(usdsJoin.usds());
         daiJoin = JoinLike(daiJoin_);
         dai = TokenLike(daiJoin.dai());
         pool = PoolLike(pool_);
 
         // Fetch the reserve data from Aave
-        PoolLike.ReserveData memory data = pool.getReserveData(address(nst));
-        require(data.aTokenAddress               != address(0), "D3MAaveV3NoSupplyCapTypePool/invalid-anst");
+        PoolLike.ReserveData memory data = pool.getReserveData(address(usds));
+        require(data.aTokenAddress               != address(0), "D3MAaveV3NoSupplyCapTypePool/invalid-ausds");
         require(data.stableDebtTokenAddress      != address(0), "D3MAaveV3NoSupplyCapTypePool/invalid-stableDebt");
         require(data.variableDebtTokenAddress    != address(0), "D3MAaveV3NoSupplyCapTypePool/invalid-variableDebt");
 
-        anst = ATokenLike(data.aTokenAddress);
+        ausds = ATokenLike(data.aTokenAddress);
         stableDebt = ATokenLike(data.stableDebtTokenAddress);
         variableDebt = ATokenLike(data.variableDebtTokenAddress);
 
@@ -146,11 +146,11 @@ contract D3MAaveV3NSTNoSupplyCapTypePool is ID3MPool {
         vat = VatLike(D3mHubLike(hub_).vat());
         vat.hope(hub_);
 
-        nst.approve(pool_, type(uint256).max);
+        usds.approve(pool_, type(uint256).max);
         dai.approve(daiJoin_, type(uint256).max);
         vat.hope(daiJoin_);
-        nst.approve(nstJoin_, type(uint256).max);
-        vat.hope(nstJoin_);
+        usds.approve(usdsJoin_, type(uint256).max);
+        vat.hope(usdsJoin_);
 
         wards[msg.sender] = 1;
         emit Rely(msg.sender);
@@ -196,32 +196,32 @@ contract D3MAaveV3NSTNoSupplyCapTypePool is ID3MPool {
         emit File(what, data);
     }
 
-    // Deposits NST to Aave in exchange for anst which is received by this contract
+    // Deposits USDS to Aave in exchange for ausds which is received by this contract
     // Aave: https://docs.aave.com/developers/core-contracts/pool#supply
     function deposit(uint256 wad) external override onlyHub {
         daiJoin.join(address(this), wad);
-        nstJoin.exit(address(this), wad);
+        usdsJoin.exit(address(this), wad);
 
-        uint256 scaledPrev = anst.scaledBalanceOf(address(this));
+        uint256 scaledPrev = ausds.scaledBalanceOf(address(this));
 
-        pool.supply(address(nst), wad, address(this), 0);
+        pool.supply(address(usds), wad, address(this), 0);
 
-        // Verify the correct amount of anst shows up
-        uint256 interestIndex = pool.getReserveNormalizedIncome(address(nst));
+        // Verify the correct amount of ausds shows up
+        uint256 interestIndex = pool.getReserveNormalizedIncome(address(usds));
         uint256 scaledAmount = _rdiv(wad, interestIndex);
-        require(anst.scaledBalanceOf(address(this)) >= (scaledPrev + scaledAmount), "D3MAaveV3NoSupplyCapTypePool/incorrect-anst-balance-received");
+        require(ausds.scaledBalanceOf(address(this)) >= (scaledPrev + scaledAmount), "D3MAaveV3NoSupplyCapTypePool/incorrect-ausds-balance-received");
     }
 
-    // Withdraws NST from Aave in exchange for anst
+    // Withdraws USDS from Aave in exchange for ausds
     // Aave: https://docs.aave.com/developers/core-contracts/pool#withdraw
     function withdraw(uint256 wad) external override onlyHub {
-        uint256 prevNst = nst.balanceOf(address(this));
+        uint256 prevNst = usds.balanceOf(address(this));
 
-        pool.withdraw(address(nst), wad, address(this));
+        pool.withdraw(address(usds), wad, address(this));
 
-        require(nst.balanceOf(address(this)) == prevNst + wad, "D3MAaveV3NoSupplyCapTypePool/incorrect-nst-balance-received");
+        require(usds.balanceOf(address(this)) == prevNst + wad, "D3MAaveV3NoSupplyCapTypePool/incorrect-usds-balance-received");
 
-        nstJoin.join(address(this), wad);
+        usdsJoin.join(address(this), wad);
         daiJoin.exit(msg.sender, wad);
     }
 
@@ -229,21 +229,21 @@ contract D3MAaveV3NSTNoSupplyCapTypePool is ID3MPool {
         uint256 exited_ = exited;
         exited = exited_ + wad;
         uint256 amt = wad * assetBalance() / (D3mHubLike(hub).end().Art(ilk) - exited_);
-        require(anst.transfer(dst, amt), "D3MAaveV3NoSupplyCapTypePool/transfer-failed");
+        require(ausds.transfer(dst, amt), "D3MAaveV3NoSupplyCapTypePool/transfer-failed");
     }
 
     function quit(address dst) external override auth {
         require(vat.live() == 1, "D3MAaveV3NoSupplyCapTypePool/no-quit-during-shutdown");
-        require(anst.transfer(dst, anst.balanceOf(address(this))), "D3MAaveV3NoSupplyCapTypePool/transfer-failed");
+        require(ausds.transfer(dst, ausds.balanceOf(address(this))), "D3MAaveV3NoSupplyCapTypePool/transfer-failed");
     }
 
     function preDebtChange() external override {}
 
     function postDebtChange() external override {}
 
-    // --- Balance of the underlying asset (NST)
+    // --- Balance of the underlying asset (USDS)
     function assetBalance() public view override returns (uint256) {
-        return anst.balanceOf(address(this));
+        return ausds.balanceOf(address(this));
     }
 
     function maxDeposit() external pure override returns (uint256) {
@@ -251,11 +251,11 @@ contract D3MAaveV3NSTNoSupplyCapTypePool is ID3MPool {
     }
 
     function maxWithdraw() external view override returns (uint256) {
-        return _min(nst.balanceOf(address(anst)), assetBalance());
+        return _min(usds.balanceOf(address(ausds)), assetBalance());
     }
 
     function redeemable() external view override returns (address) {
-        return address(anst);
+        return address(ausds);
     }
 
     // --- Collect any rewards ---
@@ -263,9 +263,9 @@ contract D3MAaveV3NSTNoSupplyCapTypePool is ID3MPool {
         require(king != address(0), "D3MAaveV3NoSupplyCapTypePool/king-not-set");
 
         address[] memory assets = new address[](1);
-        assets[0] = address(anst);
+        assets[0] = address(ausds);
 
-        RewardsClaimerLike rewardsClaimer = RewardsClaimerLike(anst.getIncentivesController());
+        RewardsClaimerLike rewardsClaimer = RewardsClaimerLike(ausds.getIncentivesController());
 
         amt = rewardsClaimer.claimRewards(assets, type(uint256).max, king, gift);
         emit Collect(king, gift, amt);

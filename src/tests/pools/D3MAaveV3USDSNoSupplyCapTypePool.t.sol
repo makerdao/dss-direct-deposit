@@ -18,7 +18,7 @@ pragma solidity ^0.8.14;
 
 import "./D3MPoolBase.t.sol";
 
-import { D3MAaveV3NSTNoSupplyCapTypePool, PoolLike } from "../../pools/D3MAaveV3NSTNoSupplyCapTypePool.sol";
+import { D3MAaveV3USDSNoSupplyCapTypePool, PoolLike } from "../../pools/D3MAaveV3USDSNoSupplyCapTypePool.sol";
 
 interface RewardsClaimerLike {
     function getRewardsBalance(address[] calldata assets, address user) external view returns (uint256);
@@ -100,8 +100,8 @@ contract FakeLendingPool {
         uint128 isolationModeTotalDebt;
     }
 
-    address public anst;
-    address public nst;
+    address public ausds;
+    address public usds;
 
     struct DepositCall {
         address asset;
@@ -118,15 +118,15 @@ contract FakeLendingPool {
     }
     WithdrawCall public lastWithdraw;
 
-    constructor(address anst_, address nst_) {
-        anst = anst_;
-        nst = nst_;
+    constructor(address ausds_, address usds_) {
+        ausds = ausds_;
+        usds = usds_;
     }
 
     function getReserveData(address) external view returns(
         ReserveData memory result
     ) {
-        result.aTokenAddress = anst;
+        result.aTokenAddress = ausds;
         result.stableDebtTokenAddress = address(2);
         result.variableDebtTokenAddress = address(3);
         result.interestRateStrategyAddress = address(4);
@@ -139,7 +139,7 @@ contract FakeLendingPool {
             forWhom,
             code
         );
-        TokenMock(anst).mint(forWhom, amt);
+        TokenMock(ausds).mint(forWhom, amt);
     }
 
     function withdraw(address asset, uint256 amt, address dst) external {
@@ -177,52 +177,52 @@ contract DaiJoinMock {
 
 contract NstJoinMock {
 
-    TokenMock public nst;
+    TokenMock public usds;
 
-    constructor(TokenMock nst_) {
-        nst = nst_;
+    constructor(TokenMock usds_) {
+        usds = usds_;
     }
 
     function join(address usr, uint256 amt) external {
-        nst.transferFrom(usr, address(this), amt);
+        usds.transferFrom(usr, address(this), amt);
     }
 
     function exit(address usr, uint256 amt) external {
-        nst.transfer(usr, amt);
+        usds.transfer(usr, amt);
     }
     
 }
 
-contract D3MAaveV3NSTNoSupplyCapTypePoolTest is D3MPoolBaseTest {
+contract D3MAaveV3USDSNoSupplyCapTypePoolTest is D3MPoolBaseTest {
 
-    AToken anst;
+    AToken ausds;
     FakeLendingPool aavePool;
     DaiJoinMock daiJoin;
-    TokenMock nst;
-    NstJoinMock nstJoin;
+    TokenMock usds;
+    NstJoinMock usdsJoin;
     
-    D3MAaveV3NSTNoSupplyCapTypePool pool;
+    D3MAaveV3USDSNoSupplyCapTypePool pool;
 
     function setUp() public {
         baseInit("D3MAaveV3NoSupplyCapTypePool");
 
-        nst = new TokenMock(18);
-        anst = new AToken(18);
+        usds = new TokenMock(18);
+        ausds = new AToken(18);
         daiJoin = new DaiJoinMock(dai);
-        nstJoin = new NstJoinMock(nst);
-        anst.mint(address(this), 1_000_000 ether);
-        aavePool = new FakeLendingPool(address(anst), address(nst));
-        anst.rely(address(aavePool));
+        usdsJoin = new NstJoinMock(usds);
+        ausds.mint(address(this), 1_000_000 ether);
+        aavePool = new FakeLendingPool(address(ausds), address(usds));
+        ausds.rely(address(aavePool));
 
         dai.mint(address(daiJoin), 1_000_000 ether);
-        nst.mint(address(nstJoin), 1_000_000 ether);
+        usds.mint(address(usdsJoin), 1_000_000 ether);
 
-        setPoolContract(pool = new D3MAaveV3NSTNoSupplyCapTypePool("", address(hub), address(nstJoin), address(daiJoin), address(aavePool)));
+        setPoolContract(pool = new D3MAaveV3USDSNoSupplyCapTypePool("", address(hub), address(usdsJoin), address(daiJoin), address(aavePool)));
     }
 
     function test_constructor_sets_values() public {
-        assertEq(address(pool.nstJoin()), address(nstJoin));
-        assertEq(address(pool.nst()), address(nst));
+        assertEq(address(pool.usdsJoin()), address(usdsJoin));
+        assertEq(address(pool.usds()), address(usds));
         assertEq(address(pool.daiJoin()), address(daiJoin));
         assertEq(address(pool.dai()), address(dai));
     }
@@ -246,11 +246,11 @@ contract D3MAaveV3NSTNoSupplyCapTypePoolTest is D3MPoolBaseTest {
     }
 
     function test_deposit_calls_lending_pool_deposit() public {
-        TokenMock(address(anst)).rely(address(aavePool));
+        TokenMock(address(ausds)).rely(address(aavePool));
         dai.mint(address(pool), 1);
         vm.prank(address(hub)); pool.deposit(1);
         (address asset, uint256 amt, address dst, uint256 code) = FakeLendingPool(address(aavePool)).lastDeposit();
-        assertEq(asset, address(nst));
+        assertEq(asset, address(usds));
         assertEq(amt, 1);
         assertEq(dst, address(pool));
         assertEq(code, 0);
@@ -258,30 +258,30 @@ contract D3MAaveV3NSTNoSupplyCapTypePoolTest is D3MPoolBaseTest {
 
     function test_withdraw_calls_lending_pool_withdraw() public {
         // make sure we have Nst to withdraw
-        TokenMock(address(nst)).mint(address(aavePool), 1);
+        TokenMock(address(usds)).mint(address(aavePool), 1);
 
         vm.prank(address(hub)); pool.withdraw(1);
         (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
-        assertEq(asset, address(nst));
+        assertEq(asset, address(usds));
         assertEq(amt, 1);
         assertEq(dst, address(pool));
     }
 
     function test_withdraw_calls_lending_pool_withdraw_vat_caged() public {
         // make sure we have Nst to withdraw
-        TokenMock(address(nst)).mint(address(aavePool), 1);
+        TokenMock(address(usds)).mint(address(aavePool), 1);
 
         vat.cage();
         vm.prank(address(hub)); pool.withdraw(1);
         (address asset, uint256 amt, address dst) = FakeLendingPool(address(aavePool)).lastWithdraw();
-        assertEq(asset, address(nst));
+        assertEq(asset, address(usds));
         assertEq(amt, 1);
         assertEq(dst, address(pool));
     }
 
     function test_collect_claims_for_king() public {
         address king = address(123);
-        address rewardsClaimer = anst.getIncentivesController();
+        address rewardsClaimer = ausds.getIncentivesController();
         pool.file("king", king);
 
         pool.collect(address(456));
@@ -289,7 +289,7 @@ contract D3MAaveV3NSTNoSupplyCapTypePoolTest is D3MPoolBaseTest {
         (uint256 amt, address dst, address reward) = FakeRewardsClaimer(rewardsClaimer).lastClaim();
         address[] memory assets = FakeRewardsClaimer(rewardsClaimer).getAssetsFromClaim();
 
-        assertEq(address(anst), assets[0]);
+        assertEq(address(ausds), assets[0]);
         assertEq(amt, type(uint256).max);
         assertEq(dst, king);
         assertEq(reward, address(456));
@@ -300,51 +300,51 @@ contract D3MAaveV3NSTNoSupplyCapTypePoolTest is D3MPoolBaseTest {
         assertRevert(address(pool), abi.encodeWithSignature("collect(address)", address(0)), "D3MAaveV3NoSupplyCapTypePool/king-not-set");
     }
 
-    function test_redeemable_returns_anst() public {
-        assertEq(pool.redeemable(), address(anst));
+    function test_redeemable_returns_ausds() public {
+        assertEq(pool.redeemable(), address(ausds));
     }
 
-    function test_exit_anst() public {
-        uint256 tokens = anst.totalSupply();
-        anst.transfer(address(pool), tokens);
-        assertEq(anst.balanceOf(address(this)), 0);
-        assertEq(anst.balanceOf(address(pool)), tokens);
+    function test_exit_ausds() public {
+        uint256 tokens = ausds.totalSupply();
+        ausds.transfer(address(pool), tokens);
+        assertEq(ausds.balanceOf(address(this)), 0);
+        assertEq(ausds.balanceOf(address(pool)), tokens);
 
         end.setArt(tokens);
         vm.prank(address(hub)); pool.exit(address(this), tokens);
 
-        assertEq(anst.balanceOf(address(this)), tokens);
-        assertEq(anst.balanceOf(address(pool)), 0);
+        assertEq(ausds.balanceOf(address(this)), tokens);
+        assertEq(ausds.balanceOf(address(pool)), 0);
     }
 
     function test_quit_moves_balance() public {
-        uint256 tokens = anst.totalSupply();
-        anst.transfer(address(pool), tokens);
-        assertEq(anst.balanceOf(address(this)), 0);
-        assertEq(anst.balanceOf(address(pool)), tokens);
+        uint256 tokens = ausds.totalSupply();
+        ausds.transfer(address(pool), tokens);
+        assertEq(ausds.balanceOf(address(this)), 0);
+        assertEq(ausds.balanceOf(address(pool)), tokens);
 
         pool.quit(address(this));
 
-        assertEq(anst.balanceOf(address(this)), tokens);
-        assertEq(anst.balanceOf(address(pool)), 0);
+        assertEq(ausds.balanceOf(address(this)), tokens);
+        assertEq(ausds.balanceOf(address(pool)), 0);
     }
 
-    function test_assetBalance_gets_anst_balanceOf_pool() public {
-        uint256 tokens = anst.totalSupply();
+    function test_assetBalance_gets_ausds_balanceOf_pool() public {
+        uint256 tokens = ausds.totalSupply();
         assertEq(pool.assetBalance(), 0);
-        assertEq(anst.balanceOf(address(pool)), 0);
+        assertEq(ausds.balanceOf(address(pool)), 0);
 
-        anst.transfer(address(pool), tokens);
+        ausds.transfer(address(pool), tokens);
 
         assertEq(pool.assetBalance(), tokens);
-        assertEq(anst.balanceOf(address(pool)), tokens);
+        assertEq(ausds.balanceOf(address(pool)), tokens);
     }
 
-    function test_maxWithdraw_gets_available_assets_nstBal() public {
-        uint256 tokens = anst.totalSupply();
-        anst.transfer(address(pool), tokens);
-        assertEq(nst.balanceOf(address(anst)), 0);
-        assertEq(anst.balanceOf(address(pool)), tokens);
+    function test_maxWithdraw_gets_available_assets_usdsBal() public {
+        uint256 tokens = ausds.totalSupply();
+        ausds.transfer(address(pool), tokens);
+        assertEq(usds.balanceOf(address(ausds)), 0);
+        assertEq(ausds.balanceOf(address(pool)), tokens);
 
         assertEq(pool.maxWithdraw(), 0);
     }

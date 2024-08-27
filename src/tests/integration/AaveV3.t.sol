@@ -20,11 +20,11 @@ import "./IntegrationBase.t.sol";
 
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 
-import { NstDeploy, NstInstance } from "nst/deploy/NstDeploy.sol";
-import { NstInit } from "nst/deploy/NstInit.sol";
+import { UsdsDeploy, UsdsInstance } from "lib/nst/deploy/UsdsDeploy.sol";
+import { UsdsInit } from "lib/nst/deploy/UsdsInit.sol";
 
 import { D3MOperatorPlan } from "../../plans/D3MOperatorPlan.sol";
-import { D3MAaveV3NSTNoSupplyCapTypePool } from "../../pools/D3MAaveV3NSTNoSupplyCapTypePool.sol";
+import { D3MAaveV3USDSNoSupplyCapTypePool } from "../../pools/D3MAaveV3USDSNoSupplyCapTypePool.sol";
 
 interface PoolLike {
 
@@ -131,26 +131,26 @@ contract AaveV3LidoTest is IntegrationBaseTest {
 
     PoolLike aavePool = PoolLike(AAVE_POOL);
     PoolConfiguratorLike aaveConfigurator = PoolConfiguratorLike(AAVE_CONFIGURATOR);
-    NstInstance nstInstance;
+    UsdsInstance usdsInstance;
 
-    IERC20 nst;
+    IERC20 usds;
 
     D3MOperatorPlan plan;
-    D3MAaveV3NSTNoSupplyCapTypePool pool;
+    D3MAaveV3USDSNoSupplyCapTypePool pool;
 
     function setUp() public {
         baseInit();
 
         vm.createSelectFork(vm.envString("ETH_RPC_URL"), 20469508);  // Aug 6, 2024
 
-        // Setup NST
-        nstInstance = NstDeploy.deploy(address(this), admin, address(dss.daiJoin));
-        nst = IERC20(nstInstance.nst);
+        // Setup USDS
+        usdsInstance = UsdsDeploy.deploy(address(this), admin, address(dss.daiJoin));
+        usds = IERC20(usdsInstance.usds);
         vm.startPrank(admin);
-        NstInit.init(dss, nstInstance);
+        UsdsInit.init(dss, usdsInstance);
         vm.stopPrank();
 
-        // Add NST as a reserve to the Aave Lido pool
+        // Add USDS as a reserve to the Aave Lido pool
         PoolConfiguratorLike.InitReserveInput[] memory reserves = new PoolConfiguratorLike.InitReserveInput[](1);
         reserves[0] = PoolConfiguratorLike.InitReserveInput({
             aTokenImpl: AAVE_ATOKEN_IMPL,
@@ -158,15 +158,15 @@ contract AaveV3LidoTest is IntegrationBaseTest {
             variableDebtTokenImpl: AAVE_VARIABLE_DEBT_IMPL,
             useVirtualBalance: true,
             interestRateStrategyAddress: AAVE_IRM,
-            underlyingAsset: address(nst),
+            underlyingAsset: address(usds),
             treasury: AAVE_TREASURY,
             incentivesController: AAVE_INCENTIVES,
-            aTokenName: "Aave NST",
-            aTokenSymbol: "aNST",
-            variableDebtTokenName: "Aave NST Variable Debt",
-            variableDebtTokenSymbol: "vNST",
-            stableDebtTokenName: "Aave NST Stable Debt",
-            stableDebtTokenSymbol: "sNST",
+            aTokenName: "Aave USDS",
+            aTokenSymbol: "aUSDS",
+            variableDebtTokenName: "Aave USDS Variable Debt",
+            variableDebtTokenSymbol: "vUSDS",
+            stableDebtTokenName: "Aave USDS Stable Debt",
+            stableDebtTokenSymbol: "sUSDS",
             params: "",
             interestRateData: abi.encode(PoolConfiguratorLike.InterestRateData({
                 optimalUsageRatio: 90_00,
@@ -179,10 +179,10 @@ contract AaveV3LidoTest is IntegrationBaseTest {
         aaveConfigurator.initReserves(reserves);
         address[] memory assets = new address[](1);
         address[] memory sources = new address[](1);
-        assets[0] = address(nst);
+        assets[0] = address(usds);
         sources[0] = 0x42a03F81dd8A1cEcD746dc262e4d1CD9fD39F777;  // Hardcoded $1 oracle
         AaveOracleLike(AAVE_ORACLE).setAssetSources(assets, sources);
-        aaveConfigurator.setReserveBorrowing(address(nst), true);
+        aaveConfigurator.setReserveBorrowing(address(usds), true);
         vm.stopPrank();
 
         // Deploy
@@ -192,16 +192,16 @@ contract AaveV3LidoTest is IntegrationBaseTest {
             ilk,
             address(dss.vat)
         );
-        d3m.pool = D3MDeploy.deployAaveV3NSTNoSupplyCapTypePool(
+        d3m.pool = D3MDeploy.deployAaveV3USDSNoSupplyCapTypePool(
             address(this),
             admin,
             ilk,
             address(hub),
-            address(nstInstance.nstJoin),
+            address(usdsInstance.usdsJoin),
             address(daiJoin),
             address(aavePool)
         );
-        pool = D3MAaveV3NSTNoSupplyCapTypePool(d3m.pool);
+        pool = D3MAaveV3USDSNoSupplyCapTypePool(d3m.pool);
         d3m.plan = D3MDeploy.deployOperatorPlan(
             address(this),
             admin
@@ -226,15 +226,15 @@ contract AaveV3LidoTest is IntegrationBaseTest {
             d3m,
             cfg
         );
-        D3MInit.initAaveNSTPool(
+        D3MInit.initAaveUSDSPool(
             dss,
             d3m,
             cfg,
-            D3MAaveNSTPoolConfig({
+            D3MAaveUSDSPoolConfig({
                 king: admin,
-                anst: address(pool.anst()),
-                nstJoin: nstInstance.nstJoin,
-                nst: nstInstance.nst,
+                ausds: address(pool.ausds()),
+                usdsJoin: usdsInstance.usdsJoin,
+                usds: usdsInstance.usds,
                 stableDebt: address(pool.stableDebt()),
                 variableDebt: address(pool.variableDebt())
             })
@@ -248,20 +248,20 @@ contract AaveV3LidoTest is IntegrationBaseTest {
 
         vm.stopPrank();
 
-        // Give us some NST
-        deal(address(nst), address(this), 100_000_000e18);
+        // Give us some USDS
+        deal(address(usds), address(this), 100_000_000e18);
 
         // Deposit wstETH into the pool
         uint256 amt = 100_000 * WAD;
         IERC20 wstETH = IERC20(WSTETH);
         deal(address(wstETH), address(this), amt);
         wstETH.approve(address(aavePool), type(uint256).max);
-        nst.approve(address(aavePool), type(uint256).max);
+        usds.approve(address(aavePool), type(uint256).max);
         aavePool.supply(address(wstETH), amt, address(this), 0);
 
-        // We generate unbacked ERC20 NST -- ensure there is enough in the join adapter
+        // We generate unbacked ERC20 USDS -- ensure there is enough in the join adapter
         vm.prank(admin);
-        dss.vat.suck(address(nstInstance.nstJoin), address(nstInstance.nstJoin), 100_000_000e45);
+        dss.vat.suck(address(usdsInstance.usdsJoin), address(usdsInstance.usdsJoin), 100_000_000e45);
 
         assertGt(getDebtCeiling(), 0);
 
@@ -284,26 +284,26 @@ contract AaveV3LidoTest is IntegrationBaseTest {
         if (deltaAmount > 0) {
             // Supply to increase liquidity
             uint256 amt = uint256(deltaAmount);
-            deal(address(nst), address(this), nst.balanceOf(address(this)) + amt);
-            aavePool.supply(address(nst), amt, address(0), 0);
+            deal(address(usds), address(this), usds.balanceOf(address(this)) + amt);
+            aavePool.supply(address(usds), amt, address(0), 0);
         } else {
             // Borrow to decrease liquidity
             uint256 amt = uint256(-deltaAmount);
-            aavePool.borrow(address(nst), amt, 2, 0, address(this));
+            aavePool.borrow(address(usds), amt, 2, 0, address(this));
         }
     }
 
     function generateInterest() internal override {
         // Generate interest by borrowing and repaying
-        aavePool.supply(address(nst), 10_000_000e18, address(this), 0);
-        aavePool.borrow(address(nst), 5_000_000e18, 2, 0, address(this));
+        aavePool.supply(address(usds), 10_000_000e18, address(this), 0);
+        aavePool.borrow(address(usds), 5_000_000e18, 2, 0, address(this));
         vm.warp(block.timestamp + 1 days);
-        aavePool.repay(address(nst), 5_000_000e18, 2, address(this));
-        aavePool.withdraw(address(nst), 10_000_000e18, address(this));
+        aavePool.repay(address(usds), 5_000_000e18, 2, address(this));
+        aavePool.withdraw(address(usds), 10_000_000e18, address(this));
     }
 
     function getLiquidity() internal override view returns (uint256) {
-        return nst.balanceOf(address(pool.anst()));
+        return usds.balanceOf(address(pool.ausds()));
     }
 
     // --- Helper functions ---
