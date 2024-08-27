@@ -47,6 +47,7 @@ contract D3MAaveV2TypeRateTargetPlanWrapper is D3MAaveV2TypeRateTargetPlan {
     }
 }
 
+// Made abstract because this is broken and Aave V2 is no longer support
 abstract contract D3MAaveV2TypeRateTargetPlanTest is D3MPlanBaseTest {
 
     DaiAbstract dai;
