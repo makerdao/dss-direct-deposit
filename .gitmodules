@@ -4,6 +4,6 @@
 [submodule "lib/solmate"]
 	path = lib/solmate
 	url = https://github.com/transmissions11/solmate
-[submodule "lib/nst"]
-	path = lib/nst
-	url = https://github.com/makerdao/nst
+[submodule "lib/usds"]
+	path = lib/usds
+	url = https://github.com/makerdao/usds

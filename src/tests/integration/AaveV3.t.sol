@@ -20,8 +20,8 @@ import "./IntegrationBase.t.sol";
 
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 
-import { UsdsDeploy, UsdsInstance } from "lib/nst/deploy/UsdsDeploy.sol";
-import { UsdsInit } from "lib/nst/deploy/UsdsInit.sol";
+import { UsdsDeploy, UsdsInstance } from "lib/usds/deploy/UsdsDeploy.sol";
+import { UsdsInit } from "lib/usds/deploy/UsdsInit.sol";
 
 import { D3MOperatorPlan } from "../../plans/D3MOperatorPlan.sol";
 import { D3MAaveV3USDSNoSupplyCapTypePool } from "../../pools/D3MAaveV3USDSNoSupplyCapTypePool.sol";
