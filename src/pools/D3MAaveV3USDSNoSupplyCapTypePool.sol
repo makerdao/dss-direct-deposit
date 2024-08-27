@@ -215,11 +215,11 @@ contract D3MAaveV3USDSNoSupplyCapTypePool is ID3MPool {
     // Withdraws USDS from Aave in exchange for ausds
     // Aave: https://docs.aave.com/developers/core-contracts/pool#withdraw
     function withdraw(uint256 wad) external override onlyHub {
-        uint256 prevNst = usds.balanceOf(address(this));
+        uint256 prevUsds = usds.balanceOf(address(this));
 
         pool.withdraw(address(usds), wad, address(this));
 
-        require(usds.balanceOf(address(this)) == prevNst + wad, "D3MAaveV3NoSupplyCapTypePool/incorrect-usds-balance-received");
+        require(usds.balanceOf(address(this)) == prevUsds + wad, "D3MAaveV3NoSupplyCapTypePool/incorrect-usds-balance-received");
 
         usdsJoin.join(address(this), wad);
         daiJoin.exit(msg.sender, wad);
