@@ -175,7 +175,7 @@ contract DaiJoinMock {
     
 }
 
-contract NstJoinMock {
+contract UsdsJoinMock {
 
     TokenMock public usds;
 
@@ -199,7 +199,7 @@ contract D3MAaveV3USDSNoSupplyCapTypePoolTest is D3MPoolBaseTest {
     FakeLendingPool aavePool;
     DaiJoinMock daiJoin;
     TokenMock usds;
-    NstJoinMock usdsJoin;
+    UsdsJoinMock usdsJoin;
     
     D3MAaveV3USDSNoSupplyCapTypePool pool;
 
@@ -209,7 +209,7 @@ contract D3MAaveV3USDSNoSupplyCapTypePoolTest is D3MPoolBaseTest {
         usds = new TokenMock(18);
         ausds = new AToken(18);
         daiJoin = new DaiJoinMock(dai);
-        usdsJoin = new NstJoinMock(usds);
+        usdsJoin = new UsdsJoinMock(usds);
         ausds.mint(address(this), 1_000_000 ether);
         aavePool = new FakeLendingPool(address(ausds), address(usds));
         ausds.rely(address(aavePool));
@@ -257,7 +257,7 @@ contract D3MAaveV3USDSNoSupplyCapTypePoolTest is D3MPoolBaseTest {
     }
 
     function test_withdraw_calls_lending_pool_withdraw() public {
-        // make sure we have Nst to withdraw
+        // make sure we have Usds to withdraw
         TokenMock(address(usds)).mint(address(aavePool), 1);
 
         vm.prank(address(hub)); pool.withdraw(1);
@@ -268,7 +268,7 @@ contract D3MAaveV3USDSNoSupplyCapTypePoolTest is D3MPoolBaseTest {
     }
 
     function test_withdraw_calls_lending_pool_withdraw_vat_caged() public {
-        // make sure we have Nst to withdraw
+        // make sure we have Usds to withdraw
         TokenMock(address(usds)).mint(address(aavePool), 1);
 
         vat.cage();
