@@ -37,6 +37,20 @@ interface D3MAavePoolLike {
     function variableDebt() external view returns (address);
 }
 
+interface D3MAaveUSDSPoolLike {
+    function hub() external view returns (address);
+    function dai() external view returns (address);
+    function ilk() external view returns (bytes32);
+    function vat() external view returns (address);
+    function file(bytes32, address) external;
+    function ausds() external view returns (address);
+    function usdsJoin() external view returns (address);
+    function usds() external view returns (address);
+    function daiJoin() external view returns (address);
+    function stableDebt() external view returns (address);
+    function variableDebt() external view returns (address);
+}
+
 interface D3MAaveRateTargetPlanLike {
     function rely(address) external;
     function file(bytes32, uint256) external;
@@ -128,6 +142,15 @@ struct D3MCommonConfig {
 struct D3MAavePoolConfig {
     address king;
     address adai;
+    address stableDebt;
+    address variableDebt;
+}
+
+struct D3MAaveUSDSPoolConfig {
+    address king;
+    address ausds;
+    address usdsJoin;
+    address usds;
     address stableDebt;
     address variableDebt;
 }
@@ -269,6 +292,29 @@ library D3MInit {
         require(pool.vat() == address(dss.vat), "Pool vat mismatch");
         require(pool.dai() == address(dss.dai), "Pool dai mismatch");
         require(pool.adai() == aaveCfg.adai, "Pool adai mismatch");
+        require(pool.stableDebt() == aaveCfg.stableDebt, "Pool stableDebt mismatch");
+        require(pool.variableDebt() == aaveCfg.variableDebt, "Pool variableDebt mismatch");
+
+        pool.file("king", aaveCfg.king);
+    }
+
+    function initAaveUSDSPool(
+        DssInstance memory dss,
+        D3MInstance memory d3m,
+        D3MCommonConfig memory cfg,
+        D3MAaveUSDSPoolConfig memory aaveCfg
+    ) internal {
+        D3MAaveUSDSPoolLike pool = D3MAaveUSDSPoolLike(d3m.pool);
+
+        // Sanity checks
+        require(pool.hub() == cfg.hub, "Pool hub mismatch");
+        require(pool.ilk() == cfg.ilk, "Pool ilk mismatch");
+        require(pool.vat() == address(dss.vat), "Pool vat mismatch");
+        require(pool.usdsJoin() == aaveCfg.usdsJoin, "Pool usdsJoin mismatch");
+        require(pool.usds() == aaveCfg.usds, "Pool usds mismatch");
+        require(pool.daiJoin() == address(dss.daiJoin), "Pool daiJoin mismatch");
+        require(pool.dai() == address(dss.dai), "Pool dai mismatch");
+        require(pool.ausds() == aaveCfg.ausds, "Pool ausds mismatch");
         require(pool.stableDebt() == aaveCfg.stableDebt, "Pool stableDebt mismatch");
         require(pool.variableDebt() == aaveCfg.variableDebt, "Pool variableDebt mismatch");
 

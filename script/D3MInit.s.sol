@@ -26,10 +26,12 @@ import {
     D3MInstance,
     D3MCommonConfig,
     D3MAavePoolConfig,
+    D3MAaveUSDSPoolConfig,
     D3MCompoundPoolConfig,
     D3MAaveRateTargetPlanConfig,
     D3MCompoundRateTargetPlanConfig,
     D3MAavePoolLike,
+    D3MAaveUSDSPoolLike,
     D3MAaveRateTargetPlanLike,
     D3MAaveBufferPlanLike,
     D3MAaveBufferPlanConfig,
@@ -105,6 +107,21 @@ contract D3MInitScript is Script {
                 variableDebt: D3MAavePoolLike(d3m.pool).variableDebt()
             });
             D3MInit.initAavePool(
+                dss,
+                d3m,
+                cfg,
+                aaveCfg
+            );
+        } else if (poolType.eq("aave-v3-usds-no-supply-cap")) {
+            D3MAaveUSDSPoolConfig memory aaveCfg = D3MAaveUSDSPoolConfig({
+                king: config.readAddress(".king"),
+                ausds: D3MAaveUSDSPoolLike(d3m.pool).ausds(),
+                usdsJoin: D3MAaveUSDSPoolLike(d3m.pool).usdsJoin(),
+                usds: D3MAaveUSDSPoolLike(d3m.pool).usds(),
+                stableDebt: D3MAaveUSDSPoolLike(d3m.pool).stableDebt(),
+                variableDebt: D3MAaveUSDSPoolLike(d3m.pool).variableDebt()
+            });
+            D3MInit.initAaveUSDSPool(
                 dss,
                 d3m,
                 cfg,

@@ -95,6 +95,16 @@ contract D3MDeployScript is Script {
                 address(dss.dai),
                 config.readAddress(".lendingPool")
             );
+        } else if (poolType.eq("aave-v3-usds-no-supply-cap")) {
+            d3m.pool = D3MDeploy.deployAaveV3USDSNoSupplyCapTypePool(
+                msg.sender,
+                admin,
+                ilk,
+                hub,
+                config.readAddress(".usdsJoin"),
+                address(dss.daiJoin),
+                config.readAddress(".lendingPool")
+            );
         } else if (poolType.eq("compound-v2")) {
             d3m.pool = D3MDeploy.deployCompoundV2TypePool(
                 msg.sender,
