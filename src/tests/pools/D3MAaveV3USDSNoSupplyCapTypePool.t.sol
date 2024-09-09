@@ -204,7 +204,7 @@ contract D3MAaveV3USDSNoSupplyCapTypePoolTest is D3MPoolBaseTest {
     D3MAaveV3USDSNoSupplyCapTypePool pool;
 
     function setUp() public {
-        baseInit("D3MAaveV3NoSupplyCapTypePool");
+        baseInit("D3MAaveV3USDSNoSupplyCapTypePool");
 
         usds = new TokenMock(18);
         ausds = new AToken(18);
@@ -237,12 +237,12 @@ contract D3MAaveV3USDSNoSupplyCapTypePoolTest is D3MPoolBaseTest {
 
     function test_cannot_file_king_no_auth() public {
         pool.deny(address(this));
-        assertRevert(address(pool), abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAaveV3NoSupplyCapTypePool/not-authorized");
+        assertRevert(address(pool), abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAaveV3USDSNoSupplyCapTypePool/not-authorized");
     }
 
     function test_cannot_file_king_vat_caged() public {
         vat.cage();
-        assertRevert(address(pool), abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAaveV3NoSupplyCapTypePool/no-file-during-shutdown");
+        assertRevert(address(pool), abi.encodeWithSignature("file(bytes32,address)", bytes32("king"), address(123)), "D3MAaveV3USDSNoSupplyCapTypePool/no-file-during-shutdown");
     }
 
     function test_deposit_calls_lending_pool_deposit() public {
@@ -297,7 +297,7 @@ contract D3MAaveV3USDSNoSupplyCapTypePoolTest is D3MPoolBaseTest {
 
     function test_collect_no_king() public {
         assertEq(pool.king(), address(0));
-        assertRevert(address(pool), abi.encodeWithSignature("collect(address)", address(0)), "D3MAaveV3NoSupplyCapTypePool/king-not-set");
+        assertRevert(address(pool), abi.encodeWithSignature("collect(address)", address(0)), "D3MAaveV3USDSNoSupplyCapTypePool/king-not-set");
     }
 
     function test_redeemable_returns_ausds() public {

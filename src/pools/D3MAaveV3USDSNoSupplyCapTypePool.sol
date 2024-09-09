@@ -134,9 +134,9 @@ contract D3MAaveV3USDSNoSupplyCapTypePool is ID3MPool {
 
         // Fetch the reserve data from Aave
         PoolLike.ReserveData memory data = pool.getReserveData(address(usds));
-        require(data.aTokenAddress               != address(0), "D3MAaveV3NoSupplyCapTypePool/invalid-ausds");
-        require(data.stableDebtTokenAddress      != address(0), "D3MAaveV3NoSupplyCapTypePool/invalid-stableDebt");
-        require(data.variableDebtTokenAddress    != address(0), "D3MAaveV3NoSupplyCapTypePool/invalid-variableDebt");
+        require(data.aTokenAddress               != address(0), "D3MAaveV3USDSNoSupplyCapTypePool/invalid-ausds");
+        require(data.stableDebtTokenAddress      != address(0), "D3MAaveV3USDSNoSupplyCapTypePool/invalid-stableDebt");
+        require(data.variableDebtTokenAddress    != address(0), "D3MAaveV3USDSNoSupplyCapTypePool/invalid-variableDebt");
 
         ausds = ATokenLike(data.aTokenAddress);
         stableDebt = ATokenLike(data.stableDebtTokenAddress);
@@ -157,12 +157,12 @@ contract D3MAaveV3USDSNoSupplyCapTypePool is ID3MPool {
     }
 
     modifier auth {
-        require(wards[msg.sender] == 1, "D3MAaveV3NoSupplyCapTypePool/not-authorized");
+        require(wards[msg.sender] == 1, "D3MAaveV3USDSNoSupplyCapTypePool/not-authorized");
         _;
     }
 
     modifier onlyHub {
-        require(msg.sender == hub, "D3MAaveV3NoSupplyCapTypePool/only-hub");
+        require(msg.sender == hub, "D3MAaveV3USDSNoSupplyCapTypePool/only-hub");
         _;
     }
 
@@ -186,13 +186,13 @@ contract D3MAaveV3USDSNoSupplyCapTypePool is ID3MPool {
     }
 
     function file(bytes32 what, address data) external auth {
-        require(vat.live() == 1, "D3MAaveV3NoSupplyCapTypePool/no-file-during-shutdown");
+        require(vat.live() == 1, "D3MAaveV3USDSNoSupplyCapTypePool/no-file-during-shutdown");
         if (what == "hub") {
             vat.nope(hub);
             hub = data;
             vat.hope(data);
         } else if (what == "king") king = data;
-        else revert("D3MAaveV3NoSupplyCapTypePool/file-unrecognized-param");
+        else revert("D3MAaveV3USDSNoSupplyCapTypePool/file-unrecognized-param");
         emit File(what, data);
     }
 
@@ -209,7 +209,7 @@ contract D3MAaveV3USDSNoSupplyCapTypePool is ID3MPool {
         // Verify the correct amount of ausds shows up
         uint256 interestIndex = pool.getReserveNormalizedIncome(address(usds));
         uint256 scaledAmount = _rdiv(wad, interestIndex);
-        require(ausds.scaledBalanceOf(address(this)) >= (scaledPrev + scaledAmount), "D3MAaveV3NoSupplyCapTypePool/incorrect-ausds-balance-received");
+        require(ausds.scaledBalanceOf(address(this)) >= (scaledPrev + scaledAmount), "D3MAaveV3USDSNoSupplyCapTypePool/incorrect-ausds-balance-received");
     }
 
     // Withdraws USDS from Aave in exchange for ausds
@@ -219,7 +219,7 @@ contract D3MAaveV3USDSNoSupplyCapTypePool is ID3MPool {
 
         pool.withdraw(address(usds), wad, address(this));
 
-        require(usds.balanceOf(address(this)) == prevUsds + wad, "D3MAaveV3NoSupplyCapTypePool/incorrect-usds-balance-received");
+        require(usds.balanceOf(address(this)) == prevUsds + wad, "D3MAaveV3USDSNoSupplyCapTypePool/incorrect-usds-balance-received");
 
         usdsJoin.join(address(this), wad);
         daiJoin.exit(msg.sender, wad);
@@ -229,12 +229,12 @@ contract D3MAaveV3USDSNoSupplyCapTypePool is ID3MPool {
         uint256 exited_ = exited;
         exited = exited_ + wad;
         uint256 amt = wad * assetBalance() / (D3mHubLike(hub).end().Art(ilk) - exited_);
-        require(ausds.transfer(dst, amt), "D3MAaveV3NoSupplyCapTypePool/transfer-failed");
+        require(ausds.transfer(dst, amt), "D3MAaveV3USDSNoSupplyCapTypePool/transfer-failed");
     }
 
     function quit(address dst) external override auth {
-        require(vat.live() == 1, "D3MAaveV3NoSupplyCapTypePool/no-quit-during-shutdown");
-        require(ausds.transfer(dst, ausds.balanceOf(address(this))), "D3MAaveV3NoSupplyCapTypePool/transfer-failed");
+        require(vat.live() == 1, "D3MAaveV3USDSNoSupplyCapTypePool/no-quit-during-shutdown");
+        require(ausds.transfer(dst, ausds.balanceOf(address(this))), "D3MAaveV3USDSNoSupplyCapTypePool/transfer-failed");
     }
 
     function preDebtChange() external override {}
@@ -260,7 +260,7 @@ contract D3MAaveV3USDSNoSupplyCapTypePool is ID3MPool {
 
     // --- Collect any rewards ---
     function collect(address gift) external returns (uint256 amt) {
-        require(king != address(0), "D3MAaveV3NoSupplyCapTypePool/king-not-set");
+        require(king != address(0), "D3MAaveV3USDSNoSupplyCapTypePool/king-not-set");
 
         address[] memory assets = new address[](1);
         assets[0] = address(ausds);
